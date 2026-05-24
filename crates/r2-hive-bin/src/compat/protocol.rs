@@ -1,3 +1,8 @@
+//! WebSocket signaling protocol — JSON messages for HELLO/WELCOME handshake.
+//!
+//! This is the legacy relay protocol used by existing clients (Notekeeper).
+//! It's WebSocket-specific and NOT part of the R2 transport abstraction.
+
 use serde::{Deserialize, Serialize};
 
 /// Messages sent by the client (device/browser) to the relay.
@@ -35,11 +40,8 @@ pub enum ServerMessage {
 }
 
 /// WebSocket close codes per R2-TRANSPORT-RELAY §3.5.
-#[allow(dead_code)]
 pub const CLOSE_AUTH_FAILED: u16 = 4401;
 #[allow(dead_code)]
 pub const CLOSE_BANNED: u16 = 4403;
-#[allow(dead_code)]
 pub const CLOSE_HEARTBEAT_TIMEOUT: u16 = 4408;
-#[allow(dead_code)]
 pub const CLOSE_TOO_MANY: u16 = 4429;

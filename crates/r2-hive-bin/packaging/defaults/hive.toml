@@ -1,0 +1,103 @@
+# r2-hive — example configuration file.
+#
+# Loaded from $XDG_CONFIG_HOME/r2/hive.toml by default
+# (or ~/.config/r2/hive.toml when XDG_CONFIG_HOME is unset).
+# Override via `r2-hive --config /path/to/hive.toml`.
+#
+# Every section is optional; missing fields fall back to compiled-in
+# defaults. Unknown sections / fields are rejected loudly so a typo
+# never silently runs on defaults. CLI flags override this file —
+# see `r2-hive --help`.
+
+# ─────────────────────────── Daemon ───────────────────────────
+
+[daemon]
+# Device name. Influences the hive_id (FNV-1a of this string) and the
+# mDNS/BLE advertisement. Set per-host so peers see distinct ids.
+# CLI: --name
+name = "r2-hive"
+
+# Bind address for the HTTP / WebSocket listener.
+# CLI: --bind
+bind = "0.0.0.0"
+
+# Listener port. The dashboard, /r2 WS, /r2/mgmt WS, /ensemble/<name>
+# web plugins, and /r2/web/provision all share this port.
+# CLI: --port
+port = 21042
+
+# Per-trust-group event buffer. Larger = more headroom for bursts;
+# bigger memory footprint. 1000 fits a busy multi-sentant ensemble
+# comfortably.
+# CLI: --buffer-size
+buffer_size = 1000
+
+# Maximum concurrent connections (WS + UDS combined).
+# CLI: --max-connections
+max_connections = 10000
+
+# ───────────────────────── Transports ─────────────────────────
+
+[transports]
+# When true, run the autoconfig probe at startup and OR-in the
+# detected transports with whatever's set explicitly below. Useful
+# on hosts whose hardware varies (laptops, Pis with optional
+# add-ons). Set false on cloud / fixed-config deployments.
+# CLI: --auto
+auto = false
+
+# UDP LAN transport + mDNS/UDP beacon. Required for peer discovery
+# on the local network.
+# CLI: --lan
+lan = false
+
+# BLE L2CAP transport. Requires the binary to be built with
+# `--features ble`. Linux-only.
+# CLI: --ble
+ble = false
+
+# LoRa transport via arduino-router IPC. Requires
+# `--features lora`. The radio must be reachable through the
+# socket below.
+# CLI: --lora
+lora = false
+
+# Path to the arduino-router socket. Only honoured when `lora` is
+# enabled. Distros may relocate this; check the package manifest.
+# CLI: --lora-socket
+lora_socket = "/var/run/arduino-router.sock"
+
+# ────────────────────────── Identity ──────────────────────────
+
+[identity]
+# Master-secret backend selection (R2-HIVE §3.2):
+#   "auto"    — try platform keyring (libsecret/Keychain/wincred),
+#               fall back to the file store. Best default for a
+#               desktop session.
+#   "file"    — always use the file store at `store` below
+#               (or $XDG_STATE_HOME/r2/master.key when unset).
+#               Right for headless servers without DBus.
+#   "keyring" — force the platform keyring; error out if the
+#               binary was built without `--features keyring` or
+#               the keyring is unreachable.
+# CLI: --identity-backend
+backend = "auto"
+
+# Override the file-store path. Only honoured when the resolved
+# backend is `file`. Comment out to use the XDG default.
+# CLI: --identity-store
+# store = "/var/lib/r2-hive/master.key"
+
+# ───────────────────────── Management ─────────────────────────
+
+[management]
+# Whether the local management API surface is started. Equivalent
+# to inverting the --no-mgmt flag. Disable on truly closed
+# deployments (mesh-only nodes that never need ensemble loading).
+enabled = true
+
+# Override the management socket path. Default at runtime is
+# ${XDG_RUNTIME_DIR}/r2-hive.sock on Linux,
+# ${TMPDIR}/r2-hive.sock on macOS.
+# CLI: --mgmt-socket
+# socket = "/run/r2-hive/r2-hive.sock"

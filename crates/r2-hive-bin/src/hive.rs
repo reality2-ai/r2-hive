@@ -1,0 +1,789 @@
+//! Hive state — the core state object owning transports and routing.
+
+use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
+use tokio::sync::{mpsc, Mutex, RwLock};
+
+use std::sync::Arc;
+use r2_discovery::WebSocketTransport;
+use r2_discovery::bindings::udp_lan::UdpLanTransport;
+#[cfg(feature = "ble")]
+use r2_discovery::bindings::ble::BleTransport;
+#[cfg(feature = "lora")]
+use r2_discovery::bindings::lora::LoraTransport;
+use r2_route::engine::RouteEngine;
+
+use crate::compat::buffer::RingBuffer;
+use crate::mgmt::subscriptions::SubscriptionRegistry;
+use crate::plugins::word_codes::WordCodeStore;
+use r2_ensemble::EnsembleRegistry;
+
+/// One connected mgmt-API consumer. Holds the per-connection subscription
+/// state and the channel used to push unsolicited notifications
+/// (`r2.api.event.delivery`, `r2.mgmt.event.error` for backpressure) back
+/// to the connection's writer task.
+pub struct Subscriber {
+    pub id: u64,
+    pub subs: Arc<tokio::sync::Mutex<SubscriptionRegistry>>,
+    pub tx: mpsc::Sender<Vec<u8>>,
+}
+
+/// Trust group hash: first 8 bytes of SHA-256(TG_PK).
+pub type TrustGroupHash = [u8; 8];
+
+/// Per-trust-group state for legacy compat routing.
+struct TrustGroupCompat {
+    /// Hive IDs of peers in this trust group.
+    peers: HashSet<u32>,
+    /// Frame catchup buffer.
+    buffer: RingBuffer,
+}
+
+/// Snapshot of the daemon's currently-attached trust group.
+///
+/// Per R2-HIVE §1.4 the daemon may have at most one TG attachment active
+/// at a time (the substrate enforces R2-TRUST §13.2). When `active_tg` is
+/// `None` the daemon is detached — fresh device, no `r2hive tg create` yet.
+///
+/// `tg_id` is the 32-byte TG public key (R2-TRUST §2.2). `tg_hash` is the
+/// first 8 bytes of SHA-256(TG_PK), the on-wire scoping identifier used by
+/// the legacy `tg_map` / `register_tg_peer` machinery. `hive_id` is the
+/// per-TG hive identifier (R2-WIRE §6.2.1).
+///
+/// v0.1: this struct is populated by future TG creation / join flows; the
+/// daemon currently boots detached. The structure is here so primitive
+/// handlers (`r2.api.tg.current`, future TG-scoped broadcast) have a
+/// stable surface to query.
+#[derive(Debug, Clone)]
+pub struct ActiveTg {
+    pub tg_id: [u8; 32],
+    pub tg_hash: TrustGroupHash,
+    pub member_role: TgMemberRole,
+    pub hive_id: u32,
+}
+
+/// Member role within the active trust group, per R2-TRUST §2.3.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TgMemberRole {
+    /// Standard member; cannot issue invites.
+    Member,
+    /// Holds TG_SK; can provision new devices into the group.
+    KeyHolder,
+}
+
+impl TgMemberRole {
+    /// Wire-format value per R2-HOST-API §3.2 (key 2 of `tg.current` response).
+    pub fn wire_value(self) -> u8 {
+        match self {
+            TgMemberRole::Member => 1,
+            TgMemberRole::KeyHolder => 2,
+        }
+    }
+}
+
+/// Global wayfinder state.
+pub struct HiveState {
+    /// This hive's own canonical 32-bit identifier. Set once at startup from
+    /// `--name` and used by the router to populate the route stack on relay.
+    pub self_hive_id: u32,
+    /// WebSocket transport (Internet transport, extended format).
+    pub ws_transport: WebSocketTransport,
+    /// UDP LAN transport (Internet transport, extended format).
+    /// None until --lan is enabled.
+    pub udp_transport: RwLock<Option<Arc<UdpLanTransport>>>,
+    /// BLE transport (compact format, L2CAP CoC).
+    /// None until --ble is enabled.
+    #[cfg(feature = "ble")]
+    pub ble_transport: RwLock<Option<Arc<BleTransport>>>,
+    /// LoRa transport via arduino-router IPC (compact format).
+    /// None until --lora is enabled.
+    #[cfg(feature = "lora")]
+    pub lora_transport: RwLock<Option<Arc<LoraTransport>>>,
+    /// R2-ROUTE engine — Layer 2-4 routing decisions.
+    pub route_engine: Mutex<RouteEngine<64, 64, 64>>,
+    /// Currently-attached trust group, if any (R2-HIVE §1.4 / §7).
+    /// `None` means the daemon is detached — fresh device, no TG joined.
+    active_tg: RwLock<Option<ActiveTg>>,
+    /// Per-connection mgmt-API subscribers (R2-HOST-API §3.2 event.subscribe /
+    /// §4 subscription mechanics). Each entry is a connection on the UDS or
+    /// loopback WebSocket; the connection handler registers on open and
+    /// unregisters on close. `deliver_inbound` re-fans matching frames to
+    /// the entries here.
+    subscribers: Mutex<Vec<Subscriber>>,
+    /// Monotonic counter for assigning Subscriber IDs.
+    next_subscriber_id: AtomicU64,
+    /// Trust group compat map — tracks which hive_ids are in which TG.
+    tg_map: RwLock<HashMap<TrustGroupHash, TrustGroupCompat>>,
+    /// Word code plugin state.
+    pub word_codes: WordCodeStore,
+    /// Ensemble registry — owns loaded ensembles and is the
+    /// `DispatchTarget` for the route engine's `DeliverOnly`
+    /// decisions. Held as `Arc` so the registry can be cloned into
+    /// dispatcher / mgmt handlers without locking the parent.
+    pub ensembles: Arc<EnsembleRegistry>,
+    /// Web plugin registry — mount/unmount of bundle directories served
+    /// under `/ensemble/<name>` per R2-PLUGIN §13.
+    pub web_plugins: Arc<crate::web::WebPluginRegistry>,
+    /// Browser-device credentials and cookie signing key
+    /// (R2-PLUGIN §13.5). Set after `HiveState::new` via
+    /// [`HiveState::set_web_auth`] once the master secret is loaded; until
+    /// then, web plugins serve in **dev-mode** (no auth gate, every
+    /// response carries an `X-R2-Web-Auth: dev-mode` header so callers can
+    /// tell).
+    web_auth: std::sync::RwLock<Option<Arc<crate::web_auth::WebAuth>>>,
+    /// USB peripheral bring-up handle. Linux-only and gated on
+    /// `--no-usb` / runtime presence; mgmt-event handlers reach into
+    /// it for the `r2.mgmt.usb.*` vocabulary. `None` when the
+    /// watcher is disabled.
+    #[cfg(target_os = "linux")]
+    usb_handle: std::sync::RwLock<Option<crate::usb_hotplug::UsbBringupHandle>>,
+    /// Config
+    pub buffer_size: usize,
+    pub max_connections: usize,
+    /// Stats
+    pub frames_routed: AtomicU64,
+    pub connections_total: AtomicU64,
+    pub started_at: Instant,
+}
+
+impl HiveState {
+    pub fn new(self_hive_id: u32, buffer_size: usize, max_connections: usize) -> Self {
+        HiveState {
+            self_hive_id,
+            ws_transport: WebSocketTransport::new(4096),
+            udp_transport: RwLock::new(None),
+            #[cfg(feature = "ble")]
+            ble_transport: RwLock::new(None),
+            #[cfg(feature = "lora")]
+            lora_transport: RwLock::new(None),
+            route_engine: Mutex::new(RouteEngine::new()),
+            active_tg: RwLock::new(None),
+            subscribers: Mutex::new(Vec::new()),
+            next_subscriber_id: AtomicU64::new(1),
+            tg_map: RwLock::new(HashMap::new()),
+            word_codes: WordCodeStore::new(),
+            ensembles: Arc::new(EnsembleRegistry::new()),
+            web_plugins: Arc::new(crate::web::WebPluginRegistry::new()),
+            web_auth: std::sync::RwLock::new(None),
+            #[cfg(target_os = "linux")]
+            usb_handle: std::sync::RwLock::new(None),
+            buffer_size,
+            max_connections,
+            frames_routed: AtomicU64::new(0),
+            connections_total: AtomicU64::new(0),
+            started_at: Instant::now(),
+        }
+    }
+
+    /// Install the web-plugin browser-auth registry. Called from main
+    /// after the master secret is loaded (or skipped on `--no-mgmt`).
+    /// Until set, web plugins are served in dev-mode (no cookie gate).
+    pub fn set_web_auth(&self, auth: Arc<crate::web_auth::WebAuth>) {
+        *self.web_auth.write().expect("web_auth lock") = Some(auth);
+    }
+
+    /// Borrow the auth registry, if installed. Returns `None` when the
+    /// hive is in dev-mode.
+    pub fn web_auth(&self) -> Option<Arc<crate::web_auth::WebAuth>> {
+        self.web_auth.read().expect("web_auth lock").clone()
+    }
+
+    /// Install the USB peripheral bring-up handle. Called from main
+    /// after [`spawn_usb_watcher`] returns. Until set, the
+    /// `r2.mgmt.usb.*` event surface returns `usb_disabled`.
+    #[cfg(target_os = "linux")]
+    pub fn set_usb_handle(&self, h: crate::usb_hotplug::UsbBringupHandle) {
+        *self.usb_handle.write().expect("usb_handle lock") = Some(h);
+    }
+
+    /// Cheap clone of the USB handle, if installed.
+    #[cfg(target_os = "linux")]
+    pub fn usb_handle(&self) -> Option<crate::usb_hotplug::UsbBringupHandle> {
+        self.usb_handle.read().expect("usb_handle lock").clone()
+    }
+
+    /// Set the UDP transport (called when --lan is enabled).
+    pub async fn set_udp_transport(&self, udp: Arc<UdpLanTransport>) {
+        *self.udp_transport.write().await = Some(udp);
+    }
+
+    /// Set the BLE transport (called when --ble is enabled).
+    #[cfg(feature = "ble")]
+    pub async fn set_ble_transport(&self, ble: Arc<BleTransport>) {
+        *self.ble_transport.write().await = Some(ble);
+    }
+
+    /// Set the LoRa transport (called when --lora is enabled).
+    #[cfg(feature = "lora")]
+    pub async fn set_lora_transport(&self, lora: Arc<LoraTransport>) {
+        *self.lora_transport.write().await = Some(lora);
+    }
+
+    /// Snapshot of the currently-attached trust group, if any.
+    /// Returns a clone so callers don't hold a read lock across awaits.
+    pub async fn active_tg(&self) -> Option<ActiveTg> {
+        self.active_tg.read().await.clone()
+    }
+
+    /// Attach a trust group as active. Replaces any prior attachment.
+    /// v0.1: there is no enforcement of R2-TRUST §13.2 single-active-hive
+    /// at this method; the caller is expected to stop the previous
+    /// attachment before swapping. Phase 2 supervisor will gate this.
+    pub async fn set_active_tg(&self, tg: ActiveTg) {
+        *self.active_tg.write().await = Some(tg);
+    }
+
+    /// Detach from the current trust group, if any.
+    pub async fn clear_active_tg(&self) {
+        *self.active_tg.write().await = None;
+    }
+
+    /// Register a new mgmt-API subscriber. Returns the Subscriber's ID;
+    /// callers retain it so they can `unregister_subscriber` on connection
+    /// close. The returned `Arc<Mutex<SubscriptionRegistry>>` is the same
+    /// one carried in the registered Subscriber, so the connection handler
+    /// can mutate the registry (subscribe/unsubscribe handlers do this)
+    /// without going back through HiveState.
+    pub async fn register_subscriber(
+        &self,
+        tx: mpsc::Sender<Vec<u8>>,
+    ) -> (u64, Arc<tokio::sync::Mutex<SubscriptionRegistry>>) {
+        let id = self.next_subscriber_id.fetch_add(1, Ordering::Relaxed);
+        let subs = Arc::new(tokio::sync::Mutex::new(SubscriptionRegistry::new()));
+        self.subscribers.lock().await.push(Subscriber {
+            id,
+            subs: subs.clone(),
+            tx,
+        });
+        (id, subs)
+    }
+
+    /// Unregister a subscriber by ID. Idempotent — unknown IDs are
+    /// silently ignored (the connection handler may call this during
+    /// teardown after the registry has already been pruned by
+    /// `clear_dead_subscribers`).
+    pub async fn unregister_subscriber(&self, id: u64) {
+        self.subscribers.lock().await.retain(|s| s.id != id);
+    }
+
+    /// Deliver an inbound frame to any subscribers whose filter matches.
+    /// Called by the inbound frame paths (UDP/BLE/LoRa receive loops, and
+    /// the route engine's local-delivery decision).
+    ///
+    /// This decodes the frame minimally — just enough to extract event
+    /// hash, event class (if known), and source — then calls each
+    /// subscriber's `SubscriptionRegistry::iter()` looking for matches.
+    /// On match it builds an `r2.api.event.delivery` notification and
+    /// pushes through the subscriber's mpsc::Sender. If the channel is
+    /// full the delivery is dropped and a `backpressure` error is queued
+    /// instead (best-effort — if even the error fails to enqueue, we move
+    /// on).
+    pub async fn deliver_inbound(
+        &self,
+        frame: &[u8],
+        source_hive: u32,
+        source_tg: Option<TrustGroupHash>,
+    ) {
+        // Cheap parse: only the extended-frame header needs reading. If
+        // decode fails, there are no deliveries — let the existing route
+        // engine paths log the bad frame.
+        let msg = match r2_wire::decode_extended(frame) {
+            Ok(m) => m,
+            Err(_) => return,
+        };
+        let event_hash = msg.header.event_hash;
+        let payload = msg.payload.to_vec();
+        let msg_id = msg.header.msg_id as u64;
+
+        // Snapshot the subscribers list while holding the lock briefly.
+        let subscribers = self.subscribers.lock().await;
+        if subscribers.is_empty() {
+            return;
+        }
+
+        for subscriber in subscribers.iter() {
+            let registry = subscriber.subs.lock().await;
+            for sub in registry.iter() {
+                // Filter match: see SubscriptionFilter docs.
+                let f = &sub.filter;
+                if let Some(h) = f.event_hash {
+                    if h != event_hash {
+                        continue;
+                    }
+                }
+                if let Some(class) = &f.event_class {
+                    // Class-string filter: hash and compare. v0.1 has no
+                    // canonical-form lookup table, so we trust the
+                    // subscriber's class string is canonical.
+                    if r2_fnv::r2_hash(class).ok() != Some(event_hash) {
+                        continue;
+                    }
+                }
+                if let Some(h) = f.from_hive {
+                    if h != source_hive as u64 {
+                        continue;
+                    }
+                }
+                if let Some(tg) = f.from_tg {
+                    if Some(tg) != source_tg {
+                        continue;
+                    }
+                }
+
+                // Match: build delivery notification.
+                let class_string = f.event_class.as_deref().unwrap_or("");
+                let delivery_frame = build_delivery_frame(
+                    sub.sub_id,
+                    class_string,
+                    event_hash,
+                    &payload,
+                    source_hive as u64,
+                    source_tg,
+                    msg_id,
+                );
+
+                match subscriber.tx.try_send(delivery_frame) {
+                    Ok(()) => {}
+                    Err(mpsc::error::TrySendError::Full(_)) => {
+                        // Best-effort backpressure error.
+                        let err_frame = build_backpressure_error(sub.sub_id);
+                        let _ = subscriber.tx.try_send(err_frame);
+                    }
+                    Err(mpsc::error::TrySendError::Closed(_)) => {
+                        // Connection has closed; the writer task drained
+                        // and exited. The connection handler will call
+                        // unregister_subscriber. Move on.
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Send a frame to a hive via any transport that can reach it.
+    /// Tries WebSocket first, then UDP, then BLE. Used when the caller has
+    /// no route-engine hint (broadcasts, legacy paths).
+    pub async fn send_to_hive(&self, hive_id: u32, frame: &[u8]) -> bool {
+        self.send_to_hive_via(hive_id, None, frame).await.is_some()
+    }
+
+    /// Send a frame to a hive, preferring the route-engine's recommended
+    /// transport. Returns `Some(transport_used)` on success, `None` if every
+    /// transport failed. When `hint` is provided, that transport is tried
+    /// first; remaining transports are tried in priority order as fallback.
+    pub async fn send_to_hive_via(
+        &self,
+        hive_id: u32,
+        hint: Option<r2_route::transport::Transport>,
+        frame: &[u8],
+    ) -> Option<r2_route::transport::Transport> {
+        use r2_route::transport::Transport;
+        // Build attempt order: hint first (if any), then default priority,
+        // skipping duplicates.
+        let default_order = [Transport::Internet, Transport::Wifi, Transport::Ble];
+        let mut order: [Option<Transport>; 3] = [None, None, None];
+        let mut idx = 0;
+        if let Some(h) = hint {
+            order[idx] = Some(h);
+            idx += 1;
+        }
+        for t in default_order {
+            if Some(t) != hint {
+                order[idx] = Some(t);
+                idx += 1;
+            }
+        }
+        for slot in order.iter().flatten() {
+            if self.try_send_on(*slot, hive_id, frame).await {
+                return Some(*slot);
+            }
+        }
+        None
+    }
+
+    async fn try_send_on(
+        &self,
+        transport: r2_route::transport::Transport,
+        hive_id: u32,
+        frame: &[u8],
+    ) -> bool {
+        use r2_route::transport::Transport;
+        match transport {
+            Transport::Internet => {
+                if self.ws_transport.peers().send(hive_id, frame).await.is_ok() {
+                    return true;
+                }
+                // Internet via USB-attached dongle (if any). R2-USB
+                // §3.5 carries the byte stream verbatim; the dongle's
+                // own bridge wraps Internet in whatever the
+                // peripheral implements (rare; mostly here for
+                // symmetry).
+                self.try_send_via_dongle(transport, frame, false).await
+            }
+            Transport::Wifi => {
+                let native = if let Some(udp) = self.udp_transport.read().await.as_ref() {
+                    use r2_discovery::AsyncTransport;
+                    udp.send(hive_id, frame).await.is_ok()
+                } else {
+                    false
+                };
+                if native {
+                    return true;
+                }
+                self.try_send_via_dongle(transport, frame, false).await
+            }
+            Transport::Ble => {
+                #[cfg(feature = "ble")]
+                if let Some(ble) = self.ble_transport.read().await.as_ref() {
+                    use r2_discovery::AsyncTransport;
+                    if ble.send(hive_id, frame).await.is_ok() {
+                        return true;
+                    }
+                }
+                // BLE on the air is compact format per R2-BLE.
+                self.try_send_via_dongle(transport, frame, true).await
+            }
+            Transport::Lora => {
+                #[cfg(feature = "lora")]
+                if let Some(lora) = self.lora_transport.read().await.as_ref() {
+                    use r2_discovery::AsyncTransport;
+                    // Frames on the engine's side are extended; LoRa carries
+                    // compact. Transcode at the transport boundary per
+                    // R2-WIRE §4.3.5. If transcoding fails, drop — an
+                    // extended frame that can't be compressed isn't a LoRa
+                    // frame we can put on the air.
+                    let mut buf = vec![0u8; frame.len()];
+                    match r2_wire::transcode::transcode_extended_to_compact(frame, &mut buf) {
+                        Ok(n) => {
+                            if lora.send(hive_id, &buf[..n]).await.is_ok() {
+                                return true;
+                            }
+                        }
+                        Err(e) => {
+                            log::debug!(
+                                "send: LoRa extended→compact transcode failed: {:?}",
+                                e
+                            );
+                        }
+                    }
+                }
+                // LoRa via USB-attached dongle. Compact format on the
+                // air (same rationale as the native binding).
+                self.try_send_via_dongle(transport, frame, true).await
+            }
+        }
+    }
+
+    /// Attempt to send `frame` (extended-format R2-WIRE) via a paired
+    /// USB peripheral that advertises the requested transport kind in
+    /// its CAPS. Returns `false` on Linux without a configured USB
+    /// watcher, on non-Linux platforms, when no paired dongle
+    /// advertises that kind, or when the session's control channel
+    /// has been dropped.
+    ///
+    /// `compact_on_wire = true` means transcode to compact format
+    /// before sending (BLE, LoRa). `false` means send the extended
+    /// frame verbatim (Internet, WiFi).
+    #[cfg(target_os = "linux")]
+    async fn try_send_via_dongle(
+        &self,
+        transport: r2_route::transport::Transport,
+        frame: &[u8],
+        compact_on_wire: bool,
+    ) -> bool {
+        let handle = match self.usb_handle() {
+            Some(h) => h,
+            None => return false,
+        };
+        let kind = transport_to_caps_kind(transport);
+        let (path, local_id) = match handle.find_dongle_for_kind(&kind) {
+            Some(p) => p,
+            None => return false,
+        };
+        let body = if compact_on_wire {
+            let mut buf = vec![0u8; frame.len()];
+            match r2_wire::transcode::transcode_extended_to_compact(frame, &mut buf) {
+                Ok(n) => {
+                    buf.truncate(n);
+                    buf
+                }
+                Err(e) => {
+                    log::debug!(
+                        "send: {:?} extended→compact transcode failed: {:?}",
+                        transport,
+                        e
+                    );
+                    return false;
+                }
+            }
+        } else {
+            frame.to_vec()
+        };
+        handle.send_via_path(&path, local_id, body).await
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    async fn try_send_via_dongle(
+        &self,
+        _transport: r2_route::transport::Transport,
+        _frame: &[u8],
+        _compact_on_wire: bool,
+    ) -> bool {
+        false
+    }
+
+    /// Register a peer in a trust group.
+    pub async fn register_tg_peer(&self, tg_hash: TrustGroupHash, hive_id: u32) {
+        let mut map = self.tg_map.write().await;
+        let entry = map.entry(tg_hash).or_insert_with(|| TrustGroupCompat {
+            peers: HashSet::new(),
+            buffer: RingBuffer::new(self.buffer_size),
+        });
+        entry.peers.insert(hive_id);
+        self.connections_total.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Unregister a peer from a trust group.
+    pub async fn unregister_tg_peer(&self, tg_hash: &TrustGroupHash, hive_id: u32) {
+        let mut map = self.tg_map.write().await;
+        if let Some(entry) = map.get_mut(tg_hash) {
+            entry.peers.remove(&hive_id);
+            if entry.peers.is_empty() {
+                map.remove(tg_hash);
+            }
+        }
+    }
+
+    /// Broadcast a frame to all peers in a trust group except the sender.
+    pub async fn broadcast_to_tg(&self, tg_hash: &TrustGroupHash, sender: u32, frame: &[u8]) {
+        let map = self.tg_map.read().await;
+        if let Some(entry) = map.get(tg_hash) {
+            let peer_count = entry.peers.len();
+            let mut sent = 0;
+            for &hive_id in &entry.peers {
+                if hive_id != sender {
+                    if self.send_to_hive(hive_id, frame).await {
+                        sent += 1;
+                    } else {
+                        log::debug!("broadcast: 0x{:08X} unreachable on any transport", hive_id);
+                    }
+                }
+            }
+            log::debug!("broadcast: {} bytes from 0x{:08X} to {}/{} peers in tg:{}",
+                frame.len(), sender, sent, peer_count - 1,
+                hex_encode(tg_hash));
+        } else {
+            log::warn!("broadcast: no trust group found for tg:{}", hex_encode(tg_hash));
+        }
+    }
+
+    /// Buffer a frame for catchup.
+    pub async fn buffer_frame(&self, tg_hash: &TrustGroupHash, data: Vec<u8>) {
+        let mut map = self.tg_map.write().await;
+        if let Some(entry) = map.get_mut(tg_hash) {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            entry.buffer.push(data, now);
+        }
+    }
+
+    /// Get catchup frames since a timestamp.
+    pub async fn catchup_frames(&self, tg_hash: &TrustGroupHash, since: u64) -> Vec<Vec<u8>> {
+        let map = self.tg_map.read().await;
+        match map.get(tg_hash) {
+            Some(entry) => entry.buffer.since(since).map(|f| f.data.clone()).collect(),
+            None => Vec::new(),
+        }
+    }
+
+    /// Number of peers in a trust group.
+    pub async fn tg_peer_count(&self, tg_hash: &TrustGroupHash) -> usize {
+        let map = self.tg_map.read().await;
+        map.get(tg_hash).map(|e| e.peers.len()).unwrap_or(0)
+    }
+
+    /// Oldest buffered timestamp for a trust group.
+    pub async fn buffer_oldest(&self, tg_hash: &TrustGroupHash) -> u64 {
+        let map = self.tg_map.read().await;
+        map.get(tg_hash).map(|e| e.buffer.oldest_timestamp()).unwrap_or(0)
+    }
+
+    /// Flood to TG peers that the route engine didn't cover.
+    /// When the engine says FLOOD to N hops, there may be freshly connected
+    /// peers it doesn't know about yet (no observation ingested). Send to those too.
+    pub async fn flood_tg_peers_not_in(
+        &self,
+        tg_hash: &TrustGroupHash,
+        sender: u32,
+        covered_hops: &[r2_route::engine::DirectedHop],
+        frame: &[u8],
+    ) {
+        let map = self.tg_map.read().await;
+        if let Some(entry) = map.get(tg_hash) {
+            for &hive_id in &entry.peers {
+                if hive_id == sender { continue; }
+                if covered_hops.iter().any(|h| h.neighbour == hive_id) { continue; }
+                log::debug!("route: flood-extra 0x{:08X} (not in engine hop list)", hive_id);
+                let _ = self.ws_transport.peers().send(hive_id, frame).await;
+            }
+        }
+    }
+
+    /// Resolve a trust group hash from a hex string.
+    /// Accepts exact 16-char hex or 2-6 char prefix (for word code join flow).
+    pub async fn resolve_tg_hash(&self, hex: &str) -> Result<TrustGroupHash, &'static str> {
+        if hex.len() == 16 {
+            // Exact match
+            let bytes = hex_decode(hex).ok_or("invalid hex")?;
+            if bytes.len() != 8 { return Err("invalid trust_group"); }
+            let mut h = [0u8; 8];
+            h.copy_from_slice(&bytes);
+            Ok(h)
+        } else if hex.len() >= 2 && hex.len() <= 6 {
+            // Prefix match against active trust groups
+            let map = self.tg_map.read().await;
+            let matches: Vec<TrustGroupHash> = map.keys()
+                .filter(|h| hex_encode(*h).starts_with(hex))
+                .copied()
+                .collect();
+            match matches.len() {
+                0 => Err("no matching trust group"),
+                1 => Ok(matches[0]),
+                _ => Err("ambiguous trust group prefix"),
+            }
+        } else {
+            Err("invalid trust_group length")
+        }
+    }
+}
+
+fn hex_decode(s: &str) -> Option<Vec<u8>> {
+    if s.len() % 2 != 0 { return None; }
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok())
+        .collect()
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+/// Build an `r2.api.event.delivery` notification frame for one subscription
+/// match. Encoded per R2-HOST-API §3.2 (event.delivery payload keys 0–7).
+fn build_delivery_frame(
+    sub_id: u32,
+    event_class: &str,
+    event_hash: u32,
+    payload: &[u8],
+    from_hive: u64,
+    from_tg: Option<TrustGroupHash>,
+    msg_id: u64,
+) -> Vec<u8> {
+    use r2_cbor::{Encoder, Value};
+    use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
+
+    let event_class_hash = r2_fnv::r2_hash("r2.api.event.delivery").expect("known event");
+
+    let mut payload_buf = vec![0u8; 96 + event_class.len() + payload.len()];
+    let used = {
+        let mut enc = Encoder::new(&mut payload_buf);
+        let entries: usize = if from_tg.is_some() { 8 } else { 7 };
+        enc.map(entries).expect("map header");
+        enc.kv(0, &Value::UInt(0)).expect("cid=0 (notification)");
+        enc.kv(1, &Value::UInt(sub_id as u64)).expect("sub_id");
+        enc.kv(2, &Value::Text(event_class)).expect("event_class");
+        enc.kv(3, &Value::UInt(event_hash as u64)).expect("event_hash");
+        enc.kv(4, &Value::Bytes(payload)).expect("payload");
+        enc.kv(5, &Value::UInt(from_hive)).expect("from_hive");
+        if let Some(tg) = from_tg {
+            enc.kv(6, &Value::Bytes(&tg)).expect("from_tg");
+        }
+        enc.kv(7, &Value::UInt(msg_id)).expect("msg_id");
+        enc.len()
+    };
+
+    let outbound = ExtendedMessage {
+        header: ExtendedHeader {
+            version: 0,
+            msg_type: MsgType::Event,
+            flags: Flags::default(),
+            ttl: 0,
+            k: 0,
+            msg_id: 0,
+            event_hash: event_class_hash,
+            payload_len: used as u32,
+            target_group: 0,
+            target_hive: 0,
+        },
+        route: None,
+        payload: &payload_buf[..used],
+        hmac_tag: None,
+    };
+    let mut wire = vec![0u8; used + 64];
+    let n = encode_extended(&outbound, &mut wire).expect("encode_extended fits");
+    wire.truncate(n);
+    wire
+}
+
+/// Build a `r2.mgmt.event.error` frame with code `backpressure` and the
+/// affected sub_id at key 3. Per R2-HOST-API §6.2.
+fn build_backpressure_error(sub_id: u32) -> Vec<u8> {
+    use r2_cbor::{Encoder, Value};
+    use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
+
+    let event_hash = r2_fnv::r2_hash("r2.mgmt.event.error").expect("known event");
+    let mut payload_buf = [0u8; 64];
+    let used = {
+        let mut enc = Encoder::new(&mut payload_buf);
+        enc.map(3).expect("map header");
+        enc.kv(0, &Value::UInt(0)).expect("cid=0 (notification)");
+        enc.kv(1, &Value::Text("backpressure")).expect("code");
+        enc.kv(3, &Value::UInt(sub_id as u64)).expect("sub_id ctx");
+        enc.len()
+    };
+
+    let outbound = ExtendedMessage {
+        header: ExtendedHeader {
+            version: 0,
+            msg_type: MsgType::Event,
+            flags: Flags::default(),
+            ttl: 0,
+            k: 0,
+            msg_id: 0,
+            event_hash,
+            payload_len: used as u32,
+            target_group: 0,
+            target_hive: 0,
+        },
+        route: None,
+        payload: &payload_buf[..used],
+        hmac_tag: None,
+    };
+    let mut wire = vec![0u8; used + 64];
+    let n = encode_extended(&outbound, &mut wire).expect("encode_extended fits");
+    wire.truncate(n);
+    wire
+}
+
+/// Map a route-engine [`r2_route::transport::Transport`] back to the
+/// CAPS-side enumerated kind from R2-USB Appendix A. Used by
+/// [`HiveState::try_send_via_dongle`] (Phase USB-5) to look up which
+/// dongle (if any) advertises a transport of the requested kind.
+#[cfg(target_os = "linux")]
+fn transport_to_caps_kind(
+    transport: r2_route::transport::Transport,
+) -> crate::usb::TransportKind {
+    use crate::usb::TransportKind;
+    use r2_route::transport::Transport;
+    let id = match transport {
+        Transport::Lora => 1,
+        Transport::Ble => 2,
+        Transport::Wifi => 3,
+        Transport::Internet => 4,
+    };
+    TransportKind::Enumerated(id)
+}

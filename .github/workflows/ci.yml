@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Native build + test on Linux. Default features (no keyring/ble/lora)
+  # so the container doesn't need DBus or a Bluetooth adapter.
+  test-linux:
+    name: test (linux x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: r2-hive
+      # r2-hive depends on the protocol crates in the sibling r2-core
+      # repo via path. Until those crates are published to crates.io,
+      # CI fetches r2-core into a sibling path.
+      - name: Check out r2-core (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: reality2-ai/r2-core
+          path: r2-core
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: r2-hive
+      - name: Build (default features)
+        run: cargo build --workspace
+        working-directory: r2-hive
+      - name: Test (default features)
+        run: cargo test --workspace
+        working-directory: r2-hive
+      - name: Build (--features keyring)
+        run: cargo build -p r2-hive --features keyring
+        working-directory: r2-hive
+
+  # Cross-compile for aarch64 (Pi 5 / UNO-Q targets). Build only — the
+  # 4-node rig in TEST-RIG.md runs the actual integration tests.
+  cross-aarch64:
+    name: cross-build (aarch64-unknown-linux-gnu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: r2-hive
+      - name: Check out r2-core
+        uses: actions/checkout@v4
+        with:
+          repository: reality2-ai/r2-core
+          path: r2-core
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+      - name: Install cross linker
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Build
+        run: cargo build --workspace --target aarch64-unknown-linux-gnu
+        working-directory: r2-hive
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+  # Lint + format gates. cargo fmt --check is intentionally non-fatal
+  # for now; the existing tree predates a formatter pass.
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: r2-hive
+      - name: Check out r2-core
+        uses: actions/checkout@v4
+        with:
+          repository: reality2-ai/r2-core
+          path: r2-core
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: r2-hive
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+        working-directory: r2-hive
+        continue-on-error: true
+      - name: Format check
+        run: cargo fmt --all -- --check
+        working-directory: r2-hive
+        continue-on-error: true

@@ -1,11 +1,11 @@
-# Caddy reverse proxy with automatic HTTPS
-# Replace relay.reality2.ai with your domain
+# Caddy reverse proxy with automatic HTTPS for an R2 wayfinder.
+# Replace wayfinder.example.com with your domain. Caddy obtains and
+# renews a Let's Encrypt certificate automatically and upgrades the
+# /r2 and /r2/mgmt WebSockets.
 #
 # Usage:
 #   caddy run --config Caddyfile
-#
-# Caddy automatically obtains a Let's Encrypt certificate.
 
-relay.reality2.ai {
+wayfinder.example.com {
     reverse_proxy localhost:21042
 }

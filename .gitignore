@@ -1,1 +1,12 @@
+# Rust build artefacts
 /target
+**/*.rs.bk
+
+# Editor / OS noise
+.idea/
+.vscode/
+.DS_Store
+
+# Ad-hoc test fixtures the daemon writes at runtime when XDG paths
+# resolve under the workspace root in dev shells
+/r2-data/

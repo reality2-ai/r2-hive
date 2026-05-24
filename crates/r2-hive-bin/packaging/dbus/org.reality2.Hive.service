@@ -1,0 +1,21 @@
+# D-Bus session-bus service file for r2-hive (Phase 3e).
+#
+# Install path: $XDG_DATA_HOME/dbus-1/services/org.reality2.Hive.service
+# (typically /usr/share/dbus-1/services/ or
+# ~/.local/share/dbus-1/services/).
+#
+# This file lets desktop applets and other local clients trigger the
+# r2-hive systemd user unit on demand: dbus-send to org.reality2.Hive
+# activates the service, which in turn starts r2-hive.service. The
+# applet then talks to the daemon over its UDS at
+# ${XDG_RUNTIME_DIR}/r2-hive.sock — D-Bus is purely the activation
+# transport, not the data path.
+#
+# r2-hive itself does not yet expose D-Bus methods; it's enough that
+# the systemd user unit is named in SystemdService=. Any future
+# D-Bus interface (e.g. for a Cosmic / KDE applet that wants quick
+# status without parsing CBOR) will land here as a follow-up.
+
+[D-BUS Service]
+Name=org.reality2.Hive
+SystemdService=r2-hive.service

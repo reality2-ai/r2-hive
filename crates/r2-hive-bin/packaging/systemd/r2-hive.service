@@ -1,0 +1,53 @@
+[Unit]
+Description=Reality2 hive daemon (per-user)
+Documentation=https://github.com/reality2-ai/r2-hive
+# r2-hive doesn't depend on the network being fully up — it'll wait
+# for transports to come online via its own probe ladder. But it does
+# want a usable XDG runtime dir for the management socket, which
+# systemd provides per-user automatically.
+After=network.target
+
+[Service]
+# Type=notify requires the binary to call sd_notify(READY=1) once the
+# listener is bound. r2-hive does this when built with
+# `--features systemd`. If the binary in your install is missing that
+# feature, change to Type=simple and remove WatchdogSec=.
+Type=notify
+Environment=RUST_LOG=info
+ExecStart=/usr/bin/r2-hive --auto
+
+# Restart on crash or watchdog timeout. The 30s watchdog is generous;
+# the daemon pings every 15s on a healthy host.
+Restart=on-failure
+RestartSec=2s
+WatchdogSec=30s
+
+# Security hardening — none of these block r2-hive's normal operation
+# but they tighten the blast radius of an in-process compromise.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+PrivateTmp=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service @network-io
+SystemCallFilter=~@privileged @resources
+
+# Allow writes only to the daemon's state and runtime dirs. XDG paths
+# resolve under $HOME for the per-user unit; systemd creates them.
+StateDirectory=r2
+RuntimeDirectory=r2
+ConfigurationDirectory=r2
+StateDirectoryMode=0700
+RuntimeDirectoryMode=0700
+ConfigurationDirectoryMode=0700
+
+[Install]
+WantedBy=default.target

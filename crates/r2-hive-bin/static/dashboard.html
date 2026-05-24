@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>R2 Relay</title>
+    <title>R2 Hive</title>
     <link rel="icon" type="image/svg+xml" href="/relay.svg">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -97,7 +97,7 @@
         <div class="ripple" id="ripple"></div>
     </div>
 
-    <h1>R2 Relay</h1>
+    <h1>R2 Hive <span style="font-size:12px;color:var(--text-faint);font-weight:400">wayfinder</span></h1>
     <p class="subtitle"><span class="status-dot" id="status-dot"></span><span id="status-text">connecting...</span></p>
 
     <div class="stats">
@@ -107,7 +107,7 @@
         </div>
         <div class="stat">
             <div class="stat-value" id="stat-groups">-</div>
-            <div class="stat-label">Trust Groups</div>
+            <div class="stat-label">Total Connections</div>
         </div>
         <div class="stat">
             <div class="stat-value" id="stat-frames">-</div>
@@ -120,8 +120,8 @@
     </div>
 
     <footer>
-        <a href="https://reality2-ai.github.io">Reality2</a> &middot;
-        <a href="https://github.com/reality2-ai/r2-relay">Source</a>
+        <a href="https://reality2.ai">Reality2</a> &middot;
+        <a href="https://github.com/reality2-ai/r2-hive">Source</a>
     </footer>
 </div>
 
@@ -170,7 +170,7 @@
             const data = await resp.json();
 
             document.getElementById('stat-connections').textContent = data.connections;
-            document.getElementById('stat-groups').textContent = data.trust_groups;
+            document.getElementById('stat-groups').textContent = data.connections_total || data.trust_groups || 0;
             document.getElementById('stat-frames').textContent = formatNumber(data.frames_routed);
             document.getElementById('stat-uptime').textContent = formatUptime(data.uptime_secs);
 

@@ -1,0 +1,91 @@
+[package]
+name = "r2-hive"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "R2 Hive — the R2 software stack on general-purpose hosts (see r2-specifications R2-HIVE)"
+repository = "https://github.com/reality2-ai/r2-hive"
+
+[[bin]]
+name = "r2-hive"
+path = "src/main.rs"
+
+[lib]
+name = "r2_hive"
+path = "src/lib.rs"
+
+[dependencies]
+r2-wire = { path = "../../../r2-core/crates/r2-wire", default-features = false, features = ["alloc"] }
+r2-cbor = { path = "../../../r2-core/crates/r2-cbor" }
+r2-fnv  = { path = "../../../r2-core/crates/r2-fnv" }
+r2-route = { path = "../../../r2-core/crates/r2-route" }
+r2-transport = { path = "../../../r2-core/crates/r2-transport" }
+r2-discovery = { path = "../../../r2-core/crates/r2-discovery", features = ["websocket", "mdns", "udp-lan"] }
+r2-engine = { path = "../../../r2-core/crates/r2-engine" }
+r2-def = { path = "../../../r2-core/crates/r2-def" }
+r2-ensemble = { path = "../../../r2-core/crates/r2-ensemble" }
+r2-dispatch = { path = "../../../r2-core/crates/r2-dispatch" }
+
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors"] }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+ed25519-dalek = { version = "=2.1.1", default-features = false, features = ["std"] }
+x25519-dalek = { version = "2.0", default-features = false, features = ["static_secrets"] }
+log = "0.4"
+env_logger = "0.11"
+thiserror = "1"
+async-trait = "0.1"
+
+# Identity custody (R2-HIVE §3) and web-plugin auth (R2-PLUGIN §13.5)
+hkdf      = "0.12"
+sha2      = "0.10"
+hmac      = "0.12"
+base64    = "0.22"
+getrandom = "0.2"
+zeroize   = { version = "1", features = ["derive"] }
+
+# CDC-ACM serial I/O for R2-USB v2 (Phase USB-3a). Linux only — the
+# `usb_serial` module is `cfg(target_os = "linux")` because termios
+# layout is platform-specific.
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["full", "test-util"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
+[features]
+default = ["cloud"]
+cloud = []
+lan = []
+ble = ["r2-discovery/ble", "dep:bluer"]
+lora = ["r2-discovery/lora"]
+# Enable the libsecret/Keychain/wincred identity store via the `keyring`
+# crate. Off by default because Linux libsecret needs a running
+# gnome-keyring-daemon (or KWallet bridge) — operators opt in per
+# distro packaging.
+keyring = ["dep:keyring"]
+# Linux-only: sd_notify(READY=1) on bind, periodic WATCHDOG=1 pings.
+# Distros packaging an `r2-hive.service` systemd unit should enable
+# this so the unit can use Type=notify + WatchdogSec=.
+systemd = ["dep:sd-notify"]
+
+[dependencies.bluer]
+version = "0.17"
+features = ["full"]
+optional = true
+
+[dependencies.keyring]
+version = "3"
+optional = true
+# Default features get sync-secret-service on Linux (libsecret /
+# gnome-keyring), Keychain on macOS, Credential Manager on Windows.
+# Operators who want kernel keyutils (no DBus) can add `linux-native`.
+
+[dependencies.sd-notify]
+version = "0.4"
+optional = true
