@@ -50,6 +50,18 @@ pub async fn handle_connection(mut socket: WebSocket, state: Arc<HiveState>) {
 
     let mut last_activity = Instant::now();
 
+    // Keepalive: proactively send a WebSocket Ping every 25s. The client
+    // (browser) auto-replies with Pong, which arrives on socket.recv()
+    // and refreshes last_activity below — so an idle connection (e.g. a
+    // key holder waiting to be reached by a joiner) stays up instead of
+    // being dropped at HEARTBEAT_TIMEOUT or by a proxy/NAT idle close. A
+    // genuinely dead peer stops ponging, so the heartbeat still reaps it.
+    // This keeps a hive present in its trust-group bucket while
+    // connected; it does not extend any join-code validity.
+    let mut keepalive = tokio::time::interval(Duration::from_secs(25));
+    keepalive.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    keepalive.tick().await; // consume the immediate first tick
+
     // Phase 3: Frame routing loop
     loop {
         tokio::select! {
@@ -114,7 +126,8 @@ pub async fn handle_connection(mut socket: WebSocket, state: Arc<HiveState>) {
                     }
                     Some(Ok(Message::Close(_))) | None => break,
                     Some(Err(_)) => break,
-                    _ => {}
+                    // Ping / Pong (including replies to our keepalive) — liveness.
+                    _ => { last_activity = Instant::now(); }
                 }
             }
 
@@ -128,6 +141,14 @@ pub async fn handle_connection(mut socket: WebSocket, state: Arc<HiveState>) {
                         }
                     }
                     None => break,
+                }
+            }
+
+            // Keepalive ping — see `keepalive` above. Transient-network
+            // link keepalive, here over wss.
+            _ = keepalive.tick() => {
+                if socket.send(Message::Ping(Vec::<u8>::new().into())).await.is_err() {
+                    break;
                 }
             }
 
