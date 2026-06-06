@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use r2_cbor::{Decoder, Encoder, Item, Value};
 use r2_fnv::r2_hash;
 use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
+use r2_discovery::{AsyncTransport, PeerMap};
 
 use super::api::{
     build_error_response, build_response_frame_with_event, extract_correlation_id,
@@ -210,9 +211,9 @@ pub async fn handle_event_send(payload: &[u8], state: &DaemonState) -> Vec<u8> {
         // No active TG: permissive fan-out across observably-connected
         // peers. Used for v0.1 testing and for direct consumers that
         // haven't created or joined a TG yet.
-        let hive_ids = hive_state.ws_transport.peers().hive_ids().await;
+        let hive_ids = hive_state.ws_transport.peers().hive_ids();
         for hive_id in hive_ids {
-            let _ = hive_state.ws_transport.peers().send(hive_id, &wire).await;
+            let _ = hive_state.ws_transport.send(hive_id, &wire).await;
         }
         let engine = hive_state.route_engine.lock().await;
         let other_peers: Vec<u32> = engine

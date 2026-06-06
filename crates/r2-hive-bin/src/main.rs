@@ -206,7 +206,8 @@ async fn routes_json(State(state): State<Arc<HiveState>>) -> Response {
 }
 
 async fn stats_json(State(state): State<Arc<HiveState>>) -> Response {
-    let peers = state.ws_transport.peers().peer_count().await;
+    use r2_discovery::PeerMap;
+    let peers = state.ws_transport.peers().peer_count();
     let frames = state.frames_routed.load(Ordering::Relaxed);
     let connections_total = state.connections_total.load(Ordering::Relaxed);
     let uptime_secs = state.started_at.elapsed().as_secs();
@@ -520,14 +521,18 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn start_lan_discovery(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Result<(), String> {
+async fn start_lan_discovery(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> Result<(), String> {
     use r2_discovery::discovery::udp_beacon::UdpBeacon;
     use r2_discovery::bindings::udp_lan::UdpLanTransport;
-    use r2_discovery::{AsyncTransport, hive_id_from_rbid, rbid_for_hive_id};
+    use r2_discovery::{AsyncTransport, BeaconAdvertiser, PeerMap, Rbid};
 
     // Start UDP transport on the R2-WIRE port for frame exchange
     let udp_addr = format!("{}:{}", args.bind, 21042);
-    let udp = UdpLanTransport::bind(&udp_addr).await?;
+    let udp = Arc::new(
+        UdpLanTransport::bind(&udp_addr)
+            .await
+            .map_err(|e| format!("UDP bind failed: {:?}", e))?,
+    );
     log::info!("  UDP LAN: {}", udp_addr);
 
     // Register UDP transport with wayfinder state
@@ -537,7 +542,7 @@ async fn start_lan_discovery(args: &Args, state: &Arc<HiveState>, self_hive_id: 
     let state_rx = state.clone();
     let udp_rx = udp.clone();
     tokio::spawn(async move {
-        while let Some(frame) = udp_rx.recv().await {
+        while let Ok(frame) = udp_rx.recv().await {
             let data = &frame.data;
 
             // Check for word code broadcast (proximity-limited join support)
@@ -569,74 +574,34 @@ async fn start_lan_discovery(args: &Args, state: &Arc<HiveState>, self_hive_id: 
 
             // Also forward to any WebSocket peers (compat layer for browser
             // clients that haven't been migrated to the route engine yet).
-            let hive_ids = state_rx.ws_transport.peers().hive_ids().await;
+            let hive_ids = state_rx.ws_transport.peers().hive_ids();
             for hive_id in hive_ids {
-                let _ = state_rx.ws_transport.peers().send(hive_id, data).await;
+                let _ = state_rx.ws_transport.send(hive_id, data).await;
             }
         }
     });
 
-    // Start UDP beacon for discovery (broadcast on port 21044).
-    // The rbid encodes the canonical hive_id in the high 4 bytes so peers
-    // arriving on UDP get the same hive_id as peers arriving on BLE.
-    let rotating = random_rbid();
-    let rbid = rbid_for_hive_id(self_hive_id, [rotating[0], rotating[1], rotating[2], rotating[3]]);
+    // Advertise this hive over the UDP beacon (R2-BEACON over R2-WIFI).
+    // The advertised RBID is the device's own rotating id (R2-DISCOVERY §3.3 /
+    // R2-BEACON §6.1) — NOT a hive_id (it must not be derivable). TODO: derive it
+    // via PeerRegistry::own_rbid(epoch) from the trust-layer session_key
+    // (R2-PROVISION/R2-TRUST) once that is wired; for now a rotating placeholder
+    // (beacon emit is a scaffold returning Unsupported).
     let beacon = UdpBeacon::new(
-        0x00000000, // class hash - generic for now
-        &rbid,
-        21042,      // advertise our UDP R2-WIRE port
-        &[],        // bloom
-        0,          // bloom_k
+        0x00000000,          // class hash - generic for now
+        Rbid(random_rbid()),
+        21042,               // advertise our UDP R2-WIRE port
+        &[],                 // bloom
+        0,                   // bloom_k
     );
+    let _ = beacon.start(&[], 0).await; // scaffold: non-fatal until R2-WIFI emit lands
 
-    let (beacon_tx, mut beacon_rx) = tokio::sync::mpsc::channel(64);
-    beacon.start(beacon_tx).await?;
-
-    // Handle discovered peers
-    let state2 = state.clone();
-    tokio::spawn(async move {
-        while let Some(discovered) = beacon_rx.recv().await {
-            let addr_str = String::from_utf8_lossy(&discovered.address).to_string();
-            log::info!(
-                "LAN peer discovered: class=0x{:08X} at {}",
-                discovered.class_hash, addr_str
-            );
-            if let Ok(addr) = addr_str.parse::<std::net::SocketAddr>() {
-                // Use the canonical hive_id from the beacon's rbid, NOT a hash
-                // of the address — so the same physical hive gets the same id
-                // regardless of which transport discovered it.
-                let hive_id = hive_id_from_rbid(&discovered.rbid);
-                if hive_id == self_hive_id {
-                    continue; // skip our own beacon (UdpBeacon dedup misses on different ports)
-                }
-                if let Some(udp) = state2.udp_transport.read().await.as_ref() {
-                    udp.add_peer(hive_id, addr).await;
-                    log::info!("LAN peer registered: hive_id=0x{:08X} addr={}", hive_id, addr);
-                }
-                // Ingest a beacon-discovery observation so the route engine
-                // knows this peer exists. Without this, the engine only learns
-                // about peers from actual frame traffic, and the bootstrap
-                // FLOOD reaches no one because the neighbour table is empty.
-                // Quality is lower than for actual delivery — beacons confirm
-                // presence, not delivery success.
-                use r2_route::neighbour::{MobilityClass, Observation};
-                use r2_route::transport::{QualitySample, Transport};
-                let now_secs = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_secs() as u32).unwrap_or(0);
-                let obs = Observation {
-                    hive_id,
-                    transport: Transport::Internet,
-                    timestamp: now_secs,
-                    quality: QualitySample::Direct(0.6),
-                    rssi: None,
-                    mcu_origin: false,
-                    mobility: MobilityClass::Infrastructure,
-                };
-                state2.route_engine.lock().await.ingest_observation(obs);
-            }
-        }
-    });
+    // TODO(r2-discovery): UDP beacon SCANNING + peer registration are not in the
+    // ratified R2-DISCOVERY v0.1 API — UdpBeacon is advertiser-only, UdpLanTransport
+    // has no add_peer, and rbid->hive_id requires a PeerRegistry. The prior
+    // discovered-peer handler (resolve RBID -> register peer -> ingest a route
+    // observation) is retired until that surface lands; see
+    // docs/r2-discovery-consumer-requirements.md §8. (Recoverable from git history.)
 
     Ok(())
 }
@@ -645,22 +610,22 @@ async fn start_lan_discovery(args: &Args, state: &Arc<HiveState>, self_hive_id: 
 async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Result<(), String> {
     use r2_discovery::bindings::ble::BleTransport;
     use r2_discovery::discovery::ble_beacon::BleBeaconScanner;
-    use r2_discovery::{AsyncTransport, BeaconScanner, hive_id_from_rbid, rbid_for_hive_id};
+    use r2_discovery::{provisional_hive_id, AsyncTransport, BeaconScanner, PeerMap, Rbid};
 
     // Create BLE transport (starts scheduler + L2CAP listener)
     let (ble, disco_rx) = BleTransport::new(args.name.clone())
         .await
-        .map_err(|e| format!("BLE init failed: {}", e))?;
+        .map_err(|e| format!("BLE init failed: {:?}", e))?;
 
-    // Start BLE beacon advertising. The rbid carries the canonical hive_id
-    // in its high 4 bytes so peers see the same id as on UDP.
+    // Start BLE beacon advertising with this device's own rotating RBID
+    // (R2-DISCOVERY §3.3 / R2-BEACON §6.1 — NOT a hive_id). TODO: derive via
+    // PeerRegistry::own_rbid(epoch) from the trust-layer session_key once wired.
     {
         use r2_discovery::discovery::ble_beacon::BleBeaconAdvertiser;
         use r2_discovery::BeaconAdvertiser;
-        let rotating = random_rbid();
-        let rbid = rbid_for_hive_id(self_hive_id, [rotating[0], rotating[1], rotating[2], rotating[3]]);
+        let rbid = Rbid(random_rbid());
         let advertiser = BleBeaconAdvertiser::new(ble.sched().clone(), rbid);
-        advertiser.start(0x00000000, &[], 0).await;
+        let _ = advertiser.start(&[], 0).await; // scaffold: non-fatal until R2-BLE emit lands
     }
 
     log::info!("  BLE: adapter ready, advertising + scanning");
@@ -675,7 +640,7 @@ async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Re
     let state_rx = state.clone();
     let ble_rx = ble.clone();
     tokio::spawn(async move {
-        while let Some(frame) = ble_rx.recv().await {
+        while let Ok(frame) = ble_rx.recv().await {
             state_rx.frames_routed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             log::info!("BLE inbound: {} bytes from hive 0x{:08X}", frame.data.len(), frame.source_hive);
 
@@ -686,9 +651,9 @@ async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Re
             ).await;
 
             // Also forward to WebSocket peers (compat layer for browser clients).
-            let hive_ids = state_rx.ws_transport.peers().hive_ids().await;
+            let hive_ids = state_rx.ws_transport.peers().hive_ids();
             for hive_id in hive_ids {
-                let _ = state_rx.ws_transport.peers().send(hive_id, &frame.data).await;
+                let _ = state_rx.ws_transport.send(hive_id, &frame.data).await;
             }
         }
     });
@@ -699,38 +664,37 @@ async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Re
     let state2 = state.clone();
     let ble2 = ble.clone();
     tokio::spawn(async move {
-        while let Some(beacon) = scanner.next_beacon().await {
-            if beacon.address.len() >= 6 {
-                let addr = bluer::Address([
-                    beacon.address[0], beacon.address[1], beacon.address[2],
-                    beacon.address[3], beacon.address[4], beacon.address[5],
-                ]);
-                let hive_id = hive_id_from_rbid(&beacon.rbid);
-                if hive_id == self_hive_id {
-                    continue; // skip our own beacon if it loops back
-                }
-                ble2.register_peer(hive_id, addr).await;
-                log::info!("BLE peer discovered: hive=0x{:08X} addr={}", hive_id, addr);
-
-                // Ingest a beacon-discovery observation so the route engine
-                // knows this BLE peer exists. Same rationale as the UDP
-                // beacon handler in start_lan_discovery.
-                use r2_route::neighbour::{MobilityClass, Observation};
-                use r2_route::transport::{QualitySample, Transport};
-                let now_secs = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_secs() as u32).unwrap_or(0);
-                let obs = Observation {
-                    hive_id,
-                    transport: Transport::Ble,
-                    timestamp: now_secs,
-                    quality: QualitySample::Direct(0.6),
-                    rssi: None,
-                    mcu_origin: false,
-                    mobility: MobilityClass::Mobile,
-                };
-                state2.route_engine.lock().await.ingest_observation(obs);
+        while let Ok(obs) = scanner.next_beacon().await {
+            // Resolve the observed RBID to a known peer (R2-DISCOVERY §3.3). With no
+            // PeerRegistry wired yet, fall back to a provisional id from the transport
+            // address; a trusted-peer resolver supplies the canonical id once the
+            // trust layer (R2-PROVISION/R2-TRUST) feeds session_keys in.
+            let hive_id = provisional_hive_id(&obs.transport_address);
+            if hive_id == self_hive_id {
+                continue; // skip our own beacon if it loops back
             }
+            // Register the discovered peer's transport address (R2-TRANSPORT §2.1.3
+            // add_peer upcall) so outbound BLE sends can resolve it.
+            ble2.peers().add_peer(hive_id, obs.transport_address.0.clone(), obs.link);
+            log::info!("BLE peer discovered: hive=0x{:08X} addr={}", hive_id, obs.transport_address.0);
+
+            // Ingest a beacon-discovery observation so the route engine knows this
+            // BLE peer exists. Same rationale as the UDP beacon handler.
+            use r2_route::neighbour::{MobilityClass, Observation};
+            use r2_route::transport::{QualitySample, Transport};
+            let now_secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as u32).unwrap_or(0);
+            let route_obs = Observation {
+                hive_id,
+                transport: Transport::Ble,
+                timestamp: now_secs,
+                quality: QualitySample::Direct(0.6),
+                rssi: None,
+                mcu_origin: false,
+                mobility: MobilityClass::Mobile,
+            };
+            state2.route_engine.lock().await.ingest_observation(route_obs);
         }
     });
 
@@ -740,12 +704,16 @@ async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Re
 #[cfg(feature = "lora")]
 async fn start_lora(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> Result<(), String> {
     use r2_discovery::bindings::lora::LoraTransport;
-    use r2_discovery::AsyncTransport;
+    use r2_discovery::{AsyncTransport, PeerMap};
 
     // Connect to the local arduino-router IPC socket and verify the radio
     // is reachable. Construction will fail with a useful message if the
     // socket isn't there or the radio isn't responding.
-    let lora = LoraTransport::with_socket(&args.lora_socket).await?;
+    let lora = Arc::new(
+        LoraTransport::with_socket(&args.lora_socket)
+            .await
+            .map_err(|e| format!("LoRa connect failed: {:?}", e))?,
+    );
     log::info!("  LoRa: arduino-router socket {} (transport ready)", args.lora_socket);
 
     // Register with state so the route engine can send outbound frames
@@ -761,7 +729,7 @@ async fn start_lora(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> 
     let lora_rx = lora.clone();
     tokio::spawn(async move {
         log::info!("LoRa receive loop started");
-        while let Some(frame) = lora_rx.recv().await {
+        while let Ok(frame) = lora_rx.recv().await {
             let data = &frame.data;
             log::info!(
                 "LoRa inbound: {} bytes from hive 0x{:08X} (RSSI signalled by IPC)",
@@ -808,9 +776,9 @@ async fn start_lora(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> 
             // attached via /r2). Use the EXTENDED bytes so browser-side
             // decoders see a consistent format regardless of inbound transport.
             let ws_data = extended.as_deref().unwrap_or(data);
-            let hive_ids = state_rx.ws_transport.peers().hive_ids().await;
+            let hive_ids = state_rx.ws_transport.peers().hive_ids();
             for hive_id in hive_ids {
-                let _ = state_rx.ws_transport.peers().send(hive_id, ws_data).await;
+                let _ = state_rx.ws_transport.send(hive_id, ws_data).await;
             }
         }
         log::info!("LoRa receive loop exited");

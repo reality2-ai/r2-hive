@@ -6,6 +6,7 @@ use std::time::Instant;
 use tokio::sync::{mpsc, Mutex, RwLock};
 
 use std::sync::Arc;
+use r2_discovery::AsyncTransport;
 use r2_discovery::WebSocketTransport;
 use r2_discovery::bindings::udp_lan::UdpLanTransport;
 #[cfg(feature = "ble")]
@@ -411,7 +412,7 @@ impl HiveState {
         use r2_route::transport::Transport;
         match transport {
             Transport::Internet => {
-                if self.ws_transport.peers().send(hive_id, frame).await.is_ok() {
+                if self.ws_transport.send(hive_id, frame).await.is_ok() {
                     return true;
                 }
                 // Internet via USB-attached dongle (if any). R2-USB
@@ -423,7 +424,6 @@ impl HiveState {
             }
             Transport::Wifi => {
                 let native = if let Some(udp) = self.udp_transport.read().await.as_ref() {
-                    use r2_discovery::AsyncTransport;
                     udp.send(hive_id, frame).await.is_ok()
                 } else {
                     false
@@ -436,7 +436,6 @@ impl HiveState {
             Transport::Ble => {
                 #[cfg(feature = "ble")]
                 if let Some(ble) = self.ble_transport.read().await.as_ref() {
-                    use r2_discovery::AsyncTransport;
                     if ble.send(hive_id, frame).await.is_ok() {
                         return true;
                     }
@@ -447,7 +446,6 @@ impl HiveState {
             Transport::Lora => {
                 #[cfg(feature = "lora")]
                 if let Some(lora) = self.lora_transport.read().await.as_ref() {
-                    use r2_discovery::AsyncTransport;
                     // Frames on the engine's side are extended; LoRa carries
                     // compact. Transcode at the transport boundary per
                     // R2-WIRE §4.3.5. If transcoding fails, drop — an
@@ -627,7 +625,7 @@ impl HiveState {
                 if hive_id == sender { continue; }
                 if covered_hops.iter().any(|h| h.neighbour == hive_id) { continue; }
                 log::debug!("route: flood-extra 0x{:08X} (not in engine hop list)", hive_id);
-                let _ = self.ws_transport.peers().send(hive_id, frame).await;
+                let _ = self.ws_transport.send(hive_id, frame).await;
             }
         }
     }

@@ -14,7 +14,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use r2_transport::transport::LinkQuality;
+use r2_discovery::{LinkQuality, OutboundRx, PeerMap, RelayConn};
 
 use super::protocol::*;
 use crate::hive::HiveState;
@@ -40,13 +40,15 @@ pub async fn handle_connection(mut socket: WebSocket, state: Arc<HiveState>) {
         hive_id
     );
 
-    // Phase 2: Register with WebSocket transport's PeerMap
+    // Phase 2: Register this connected relay peer (R2-DISCOVERY §4.4.1).
+    // `connect` records the peer and returns its outbound frame receiver, drained
+    // in the writer branch below. RelayConn identifies this WS connection.
     let quality = LinkQuality {
-        quality: 0.9,
         latency_ms: 5,
         ..Default::default()
     };
-    let mut outbound_rx = state.ws_transport.peers().add_peer(hive_id, quality).await;
+    let mut outbound_rx =
+        state.ws_transport.peers().connect(hive_id, RelayConn(hive_id as u64), quality);
 
     // Also register in the trust group compat map for broadcast routing
     state.register_tg_peer(tg_hash, hive_id).await;
@@ -76,7 +78,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: Arc<HiveState>) {
                         state.frames_routed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
                         // Push into transport's inbound channel
-                        state.ws_transport.peers().push_inbound(hive_id, data.to_vec(), quality).await;
+                        state.ws_transport.peers().push_inbound(hive_id, data.to_vec(), quality);
 
                         // Buffer for catchup
                         state.buffer_frame(&tg_hash, data.to_vec()).await;
@@ -134,8 +136,9 @@ pub async fn handle_connection(mut socket: WebSocket, state: Arc<HiveState>) {
                 }
             }
 
-            // Send to WebSocket (wayfinder → client)
-            frame = outbound_rx.recv() => {
+            // Send to WebSocket (wayfinder → client): drain this peer's outbound
+            // queue (R2-DISCOVERY §4.4 OutboundRx) and forward over the socket.
+            frame = outbound_rx.next() => {
                 match frame {
                     Some(data) => {
                         if data.is_empty() { continue; }
@@ -170,7 +173,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: Arc<HiveState>) {
     }
 
     // Cleanup
-    state.ws_transport.peers().remove_peer(hive_id).await;
+    state.ws_transport.peers().remove_peer(hive_id);
     state.unregister_tg_peer(&tg_hash, hive_id).await;
 
     log::info!(
@@ -358,7 +361,7 @@ async fn handshake(
     };
 
     // Connection limit
-    if state.ws_transport.peers().peer_count().await >= state.max_connections {
+    if state.ws_transport.peers().peer_count() >= state.max_connections {
         close_with(socket, CLOSE_TOO_MANY, "too many connections").await;
         return None;
     }
