@@ -138,6 +138,19 @@ pub async fn handle_frame_with_subs(
         return primitive::handle_service_retract(msg.payload, subs).await;
     }
 
+    // r2.mgmt.usb.* are app_to_hive management requests on every platform
+    // (R2-HOST-API §4/§6 — platform-gating does not change direction), but the
+    // USB stack is Linux-only. Off Linux, recognise these classes and reply with
+    // a structured `unsupported` error — never a silent `unknown_event` (§6).
+    #[cfg(not(target_os = "linux"))]
+    {
+        for usb_class in [EV_USB_LIST, EV_USB_PREPARE, EV_USB_CONFIRM, EV_USB_ABORT, EV_USB_UNPAIR] {
+            if h == r2_hash(usb_class).expect("known-good event name") {
+                return build_error_response(correlation_id, "unsupported");
+            }
+        }
+    }
+
     // r2.mgmt.ensemble.* — ensemble lifecycle (R2-HIVE §5.3, R2-ENSEMBLE).
     if let Some(hive) = state.hive_state() {
         let hive = hive.clone();
