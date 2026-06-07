@@ -13,10 +13,11 @@
 //! specs independently verifies the 5 invariants before it lands canonical.
 //!
 //! `direction`:
-//! - `app_to_hive` — request classes r2-hive's `handle_frame` dispatches; the
-//!   conformance test asserts these never return `unknown_event`.
-//! - `hive_to_app` — responses/deliveries, and `usb.*` (dispatch is
-//!   `cfg(target_os = "linux")`, so they are kept OS-independent here).
+//! - `app_to_hive` — request classes (R2-HOST-API §3.1/§4). Per R2-HOST-API §6,
+//!   platform-gating does NOT change direction: `r2.mgmt.usb.*` are `app_to_hive`
+//!   requests on every platform and the fixture MUST label them so, even though
+//!   their handler dispatch is `cfg(target_os = "linux")`.
+//! - `hive_to_app` — responses, deliveries, and the error class.
 
 use std::fs;
 use std::path::PathBuf;
@@ -45,10 +46,17 @@ const APP_TO_HIVE: &[&str] = &[
     "r2.mgmt.ensemble.info",
     "r2.mgmt.ensemble.stop",
     "r2.mgmt.ensemble.reset",
+    // usb.* are app_to_hive requests on every platform (R2-HOST-API §6 —
+    // platform-gating does not change direction). Handler dispatch is
+    // cfg(target_os = "linux"); the conformance test runs on Linux.
+    "r2.mgmt.usb.list",
+    "r2.mgmt.usb.prepare",
+    "r2.mgmt.usb.confirm",
+    "r2.mgmt.usb.abort",
+    "r2.mgmt.usb.unpair",
 ];
 
-/// Responses, hive→app deliveries, the error class (§6), and usb.* (linux-gated
-/// dispatch). Exempt from the dispatch-coverage invariant.
+/// Responses, hive→app deliveries, and the error class (§6).
 const HIVE_TO_APP: &[&str] = &[
     "r2.api.event.delivery",
     "r2.mgmt.event.error",
@@ -56,11 +64,6 @@ const HIVE_TO_APP: &[&str] = &[
     "r2.api.tg.current",
     "r2.api.cap.query",
     "r2.api.peer.query",
-    "r2.mgmt.usb.list",
-    "r2.mgmt.usb.prepare",
-    "r2.mgmt.usb.confirm",
-    "r2.mgmt.usb.abort",
-    "r2.mgmt.usb.unpair",
 ];
 
 /// Representative valid CBOR payload: map `{0: correlation_id}` (key 0 is the
