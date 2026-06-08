@@ -274,13 +274,7 @@ async fn handshake(
         2 => {
             // v0.2: device-first challenge-response. Issue a single-use nonce,
             // then read the AUTH carrying the echoed nonce + signature.
-            let nonce_hex = match issue_nonce() {
-                Some(n) => n,
-                None => {
-                    close_with(socket, CLOSE_AUTH_FAILED, "nonce generation failed").await;
-                    return None;
-                }
-            };
+            let nonce_hex = issue_nonce(&*state.platform);
 
             let challenge = serde_json::to_string(&ServerMessage::Challenge {
                 version: 2,
@@ -386,12 +380,12 @@ async fn handshake(
     Some((tg_hash_bytes, device_id_hex, hive_id))
 }
 
-/// Generate a single-use 32-byte challenge nonce (lowercase hex) from the OS
-/// CSPRNG (R2-TRANSPORT-RELAY §3.2.1). Returns None if the RNG is unavailable.
-fn issue_nonce() -> Option<String> {
+/// Generate a single-use 32-byte challenge nonce (lowercase hex) from the
+/// platform CSPRNG (R2-TRANSPORT-RELAY §3.2.1).
+fn issue_nonce(platform: &dyn crate::platform::Platform) -> String {
     let mut nonce = [0u8; 32];
-    getrandom::getrandom(&mut nonce).ok()?;
-    Some(hex_encode(&nonce))
+    platform.fill_random(&mut nonce);
+    hex_encode(&nonce)
 }
 
 async fn close_with(socket: &mut WebSocket, code: u16, reason: &str) {
