@@ -10,7 +10,7 @@
 //! forwarding. The handshake and signaling stay.
 
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -235,7 +235,7 @@ async fn handshake(
 
     // Stateless timestamp fast-reject (±60s), applied BEFORE any challenge
     // state is issued or consumed (R2-TRANSPORT-RELAY §3.2 step 4 / §3.2.1).
-    let now = now_unix();
+    let now = state.platform.now_unix();
     if timestamp > now + TIMESTAMP_WINDOW || now > timestamp + TIMESTAMP_WINDOW {
         close_with(socket, CLOSE_AUTH_FAILED, "timestamp out of range").await;
         return None;
@@ -402,13 +402,6 @@ async fn close_with(socket: &mut WebSocket, code: u16, reason: &str) {
             reason: reason.into(),
         })))
         .await;
-}
-
-fn now_unix() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
 }
 
 fn hex_decode(s: &str) -> Option<Vec<u8>> {

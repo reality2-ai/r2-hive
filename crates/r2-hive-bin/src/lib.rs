@@ -19,6 +19,7 @@ pub mod compat;
 pub mod config;
 pub mod hive;
 pub mod mgmt;
+pub mod platform;
 pub mod plugins;
 pub mod router;
 pub mod systemd;

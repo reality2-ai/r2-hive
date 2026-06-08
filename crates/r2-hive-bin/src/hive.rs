@@ -146,6 +146,10 @@ pub struct HiveState {
     pub frames_routed: AtomicU64,
     pub connections_total: AtomicU64,
     pub started_at: Instant,
+    /// Platform abstraction (clock / RNG / …) — the north-star seam that lets the
+    /// same hive-core run on Linux/cloud, ESP32, Uno-Q, and wasm. Defaults to
+    /// [`crate::platform::LinuxPlatform`]; a platform layer can inject its own.
+    pub platform: Arc<dyn crate::platform::Platform>,
 }
 
 impl HiveState {
@@ -174,6 +178,7 @@ impl HiveState {
             frames_routed: AtomicU64::new(0),
             connections_total: AtomicU64::new(0),
             started_at: Instant::now(),
+            platform: crate::platform::linux(),
         }
     }
 
