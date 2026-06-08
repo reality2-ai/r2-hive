@@ -23,6 +23,7 @@ pub mod platform;
 pub mod plugins;
 pub mod router;
 pub mod systemd;
+pub mod transport_seam;
 pub mod usb;
 #[cfg(target_os = "linux")]
 pub mod usb_hotplug;

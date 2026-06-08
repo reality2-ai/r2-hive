@@ -152,6 +152,25 @@ pub struct HiveState {
     pub platform: Arc<dyn crate::platform::Platform>,
 }
 
+// The transport seam (R2-HIVE north-star): hive-core forwarding targets
+// `HiveTransports`, not the concrete transport set. On Linux this delegates to
+// the async r2-discovery transports below; the MCU platform will provide its own
+// impl over core's no_std R2-TRANSPORT sync drivers. See `transport_seam`.
+#[async_trait::async_trait]
+impl crate::transport_seam::HiveTransports for HiveState {
+    async fn send_to_hive(&self, hive_id: u32, frame: &[u8]) -> bool {
+        HiveState::send_to_hive(self, hive_id, frame).await
+    }
+    async fn send_to_hive_via(
+        &self,
+        hive_id: u32,
+        hint: Option<r2_route::transport::Transport>,
+        frame: &[u8],
+    ) -> Option<r2_route::transport::Transport> {
+        HiveState::send_to_hive_via(self, hive_id, hint, frame).await
+    }
+}
+
 impl HiveState {
     pub fn new(self_hive_id: u32, buffer_size: usize, max_connections: usize) -> Self {
         HiveState {
