@@ -107,6 +107,25 @@ multi-transport forwarding is **net-new** for a hive. No LoRa anywhere in the fl
 3. **Refactor scope.** Converging the existing std hive onto the Platform trait is
    real work; do it incrementally (extract the trait first, Linux as first impl).
 
+## Cross-repo contracts (Phase 3 Part D — agreed)
+- **Scope:** routing-only near-term MCU hive ACK'd (supervisor-provisional, pending Roy) —
+  RouteEngine + transport (relay/dedup/TTL/spray/partition/heal); events originate/terminate
+  at full hives (laptop/wasm) or firmware test hooks (IO18 inject / LCD display). On-device
+  ensemble hosting is a later roadmap item (needs r2-def/ensemble/dispatch re-tiered no_std).
+- **OTA reply-status contract** (composer, `r2-composer/specifications/OTA-REPLY-STATUS-CONTRACT.md`)
+  — my embassy-net no_std receiver MUST emit: reply = `[status:u8][msg_len:u16 LE][msg:utf8]`;
+  `0x00`=SUCCESS(`OK`) only after sha256-match + write-inactive-slot + set-boot ok, then reboot
+  (~2s); `0x01`=ERROR, msg = `<CODE>[ detail]`, CODE ∈ {PREAMBLE, TOO_BIG, BAD_MAGIC,
+  SHA_MISMATCH, WRITE_FAIL, NO_SLOT, SHORT}. Status bytes stay 0x00/0x01 (R2-UPDATE RESP_OK/ERR);
+  CODE rides in msg. **HW: DFR1195 = ESP32-S3-WROOM-1-N4 = 4 MB flash** (NOT 8 MB like devkitc) →
+  ~1.5 MB OTA slots → TOO_BIG bound-checks against that BEFORE writing.
+- **SX1262 LoRa sync driver:** composer drafts the sync trait **against core's R2-TRANSPORT sync
+  interface** and sends to core (not a parallel composer trait); **I own the board SPI wiring /
+  bus-share** (watch LCD+SX1262 shared-SPI contention).
+- **Sync host-loop↔driver seam:** being co-defined with core now (R2-TRANSPORT sync `send` exists;
+  inbound `poll_recv` is the gap) — scaffold the host loop against the agreed seam; core authors
+  D3b drivers; I hardware-validate.
+
 ## Phasing
 - **P0 (now, unblocked):** extract the Platform trait + host-loop split (Linux first);
   scaffold `r2-hive-esp32` (esp-hal + embassy boot); LCD + button drivers (no core dep);
