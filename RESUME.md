@@ -19,12 +19,13 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
 ## In flight — Platform-trait extraction (north-star convergence step 1)
 Split today's std hive → `r2-hive-core` (no_std+alloc host loop) behind a `Platform` trait +
 thin platform layers (linux first). Verifiable on Linux now; foundation for esp32/wasm/unoq.
-- DONE: `src/platform.rs` (`Platform` trait + `LinuxPlatform`); `HiveState.platform` (default
-  LinuxPlatform, no `new()` sig change). Seam 1 = clock (`69ab8fb`, handshake timestamp),
-  seam 2 = RNG (`04d19cc`, handshake nonce via `fill_random`). 99 lib tests + full suite green.
-- NEXT seam (big one): **transports** — introduce the transport seam so the host loop is
-  runtime-agnostic (R2-TRANSPORT **sync** for no_std; async r2-discovery for host). Then
-  storage (identity/OTA), then the real `r2-hive-core` no_std crate split.
+- DONE seams: 1 = clock (`69ab8fb`), 2 = RNG (`04d19cc`), 3 = **transports** (`1e24da8`):
+  `src/platform.rs` (`Platform` trait + `LinuxPlatform`); `HiveState.platform` (default,
+  no `new()` sig change); `src/transport_seam.rs` (`HiveTransports` trait = outbound
+  multi-transport contract, `HiveState` impls it, `&dyn` proven). 100 lib tests + full suite green.
+- NEXT: **storage seam** (identity/OTA), then the real **`r2-hive-core` no_std crate split** +
+  the deep async↔sync transport unification + consumer migration to `&dyn HiveTransports`
+  (lands with the split + core's D3b). transport_seam.rs documents the MCU sync-bridge.
 
 ## Next major phase — D2: DFR1195 (ESP32-S3) firmware, Path B pure no_std (esp-hal/embassy)
 Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-architecture.md`.
