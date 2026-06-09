@@ -22,6 +22,7 @@ pub mod mgmt;
 pub mod platform;
 pub mod plugins;
 pub mod router;
+pub mod sync_host;
 pub mod systemd;
 pub mod transport_seam;
 pub mod usb;
