@@ -23,9 +23,16 @@ thin platform layers (linux first). Verifiable on Linux now; foundation for esp3
   `src/platform.rs` (`Platform` trait + `LinuxPlatform`); `HiveState.platform` (default,
   no `new()` sig change); `src/transport_seam.rs` (`HiveTransports` trait = outbound
   multi-transport contract, `HiveState` impls it, `&dyn` proven). 100 lib tests + full suite green.
-- NEXT: **storage seam** (identity/OTA), then the real **`r2-hive-core` no_std crate split** +
-  the deep async↔sync transport unification + consumer migration to `&dyn HiveTransports`
-  (lands with the split + core's D3b). transport_seam.rs documents the MCU sync-bridge.
+- DONE: **sync host-loop seam** (`sync_host.rs`, `683241f`) — `SyncTransport` trait
+  (`kind`/`send`/`poll_recv`) + `TransportAddr`/`InboundFrame` + `provisional_hive_id` +
+  `poll_inbound` tick primitive; Linux-verified via sync-stub. **TRANSITIONAL local mirror** of
+  the seam core+hive AGREED (R2-DISCOVERY §5 sync). Core will EXTEND r2-transport
+  (`Transport::poll_recv` default-None + TransportAddr/InboundFrame) → then delete the mirror,
+  import `r2_transport::`. Host resolves source_addr→hive_id; driver-owned RX buffer.
+- NEXT: wire **RouteEngine** into the sync host loop (poll_inbound → engine → send); then the
+  **esp-hal/embassy board crate** (P0: LCD/button + boot) and **storage seam** (identity/OTA);
+  then the `r2-hive-core` no_std crate split + consumer migration to the seams. Radio drivers =
+  core D3b (post Part A); I hardware-validate on DFR1195.
 
 ## Next major phase — D2: DFR1195 (ESP32-S3) firmware, Path B pure no_std (esp-hal/embassy)
 Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-architecture.md`.
