@@ -16,7 +16,10 @@
 //! Std `String`/`Vec` here (bin crate); becomes `alloc` when this moves into the
 //! `r2-hive-core` no_std crate.
 
-use r2_route::transport::Transport as TransportKind;
+use r2_route::engine::{ForwardAction, ForwardRequest, RouteEngine, Target};
+use r2_route::neighbour::{MobilityClass, Observation};
+use r2_route::transport::{QualitySample, Transport as TransportKind};
+use r2_wire::extended::{decode_extended, prepare_relay_extended};
 
 /// Transport-layer peer address, driver-stamped on inbound frames (the host, not
 /// the dumb driver, resolves this to a canonical hive_id — see R2-DISCOVERY §3).
@@ -91,6 +94,142 @@ pub fn poll_inbound(transports: &[&dyn SyncTransport]) -> Vec<(u32, InboundFrame
         }
     }
     out
+}
+
+/// Outcome of routing one inbound frame through the engine on the sync host loop.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum SyncRouteOutcome {
+    /// Frame did not parse as R2-WIRE extended.
+    NotR2Wire,
+    /// Engine dropped it (TTL exhausted, dedup hit, relay disabled, …).
+    Dropped,
+    /// Local delivery only — this hive is the destination.
+    DeliverOnly,
+    /// Relayed to one directed neighbour; `sent` = whether the send was accepted.
+    Directed { sent: bool },
+    /// Flooded to a set of neighbours; `sent` = how many sends were accepted.
+    Flooded { sent: usize },
+}
+
+/// Send `frame` to `target` over the sync transport whose `kind()` matches.
+fn send_via_kind(
+    transports: &[&dyn SyncTransport],
+    kind: TransportKind,
+    target: u32,
+    frame: &[u8],
+) -> bool {
+    transports
+        .iter()
+        .find(|t| t.kind() == kind)
+        .is_some_and(|t| t.send(target, frame).is_ok())
+}
+
+/// Route one inbound frame through the engine and execute the forwarding decision
+/// over the sync transports — the routing-only MCU host-loop core (R2-DISCOVERY §5
+/// sync tier; host-centralised resolution, conformant per specs).
+///
+/// Mirrors the host's `router::route_frame` decision logic, but is **sync**, drives
+/// the engine directly (no async lock), and omits host-only behaviour (mgmt-API
+/// subscribers, ensemble dispatch, trust-group broadcast, WS compat) that a
+/// routing+transport MCU hive does not run. `now` (monotonic seconds) and
+/// `dice_roll` (spray draw) are caller-provided (from the Platform).
+pub fn route_inbound_sync(
+    engine: &mut RouteEngine<64, 64, 64>,
+    self_hive_id: u32,
+    transports: &[&dyn SyncTransport],
+    source_hive: u32,
+    transport: TransportKind,
+    frame: &[u8],
+    now: u32,
+    dice_roll: f32,
+) -> SyncRouteOutcome {
+    // Parse R2-WIRE extended (frame may carry a trailing 32-byte HMAC tag).
+    let trimmed = if decode_extended(frame).is_ok() {
+        frame
+    } else if frame.len() > 32 && decode_extended(&frame[..frame.len() - 32]).is_ok() {
+        &frame[..frame.len() - 32]
+    } else {
+        return SyncRouteOutcome::NotR2Wire;
+    };
+    let msg = match decode_extended(trimmed) {
+        Ok(m) => m,
+        Err(_) => return SyncRouteOutcome::NotR2Wire,
+    };
+    let header = msg.header;
+
+    // Dedup originator + immediate source (R2-WIRE §8.2/§8.3).
+    let originator = match &msg.route {
+        Some(r) if r.len > 0 => r.entries[0],
+        _ => source_hive,
+    };
+    let immediate_source = if source_hive != 0 {
+        source_hive
+    } else {
+        match &msg.route {
+            Some(r) if r.len > 0 => r.entries[(r.len - 1) as usize],
+            _ => source_hive,
+        }
+    };
+
+    // Learn the immediate neighbour (the peer we just heard from).
+    engine.ingest_observation(Observation {
+        hive_id: immediate_source,
+        transport,
+        timestamp: now,
+        quality: QualitySample::Direct(0.9),
+        rssi: None,
+        mcu_origin: header.flags.mcu_origin,
+        mobility: MobilityClass::Infrastructure,
+    });
+
+    let destination = if header.target_group != 0 {
+        Target::from(header.target_group)
+    } else {
+        Target::from(header.target_hive)
+    };
+
+    let advice = engine.plan_forward(ForwardRequest {
+        now,
+        msg_id: header.msg_id as u16,
+        source_hop: (originator >> 16) as u16,
+        ttl: header.ttl,
+        k: header.k,
+        destination,
+        msg_type: header.msg_type,
+        payload_len: frame.len(),
+        relay_enabled: true,
+        congested: false,
+        dice_roll,
+    });
+
+    // Relay frames mutate the header per R2-WIRE §8.3/§8.4/§9.2 (TTL--, K split,
+    // route-stack append) via r2-wire's prepare_relay_extended.
+    let relay = || prepare_relay_extended(trimmed, self_hive_id, source_hive);
+
+    match advice.action {
+        ForwardAction::Drop(_) => SyncRouteOutcome::Dropped,
+        ForwardAction::DeliverOnly => SyncRouteOutcome::DeliverOnly,
+        ForwardAction::Directed(hop) => match relay() {
+            Ok(bytes) => SyncRouteOutcome::Directed {
+                sent: send_via_kind(transports, hop.transport, hop.neighbour, &bytes),
+            },
+            Err(_) => SyncRouteOutcome::Dropped,
+        },
+        ForwardAction::Flood(hops) => match relay() {
+            Ok(bytes) => {
+                let mut sent = 0;
+                for hop in hops.iter() {
+                    if hop.neighbour != source_hive
+                        && send_via_kind(transports, hop.transport, hop.neighbour, &bytes)
+                    {
+                        sent += 1;
+                    }
+                }
+                SyncRouteOutcome::Flooded { sent }
+            }
+            Err(_) => SyncRouteOutcome::Dropped,
+        },
+    }
 }
 
 #[cfg(test)]
@@ -174,5 +313,72 @@ mod tests {
         let stub = StubTransport::new(TransportKind::Wifi, vec![]);
         stub.send(0xABCD, b"wire").unwrap();
         assert_eq!(stub.sent.borrow()[0], (0xABCD, b"wire".to_vec()));
+    }
+
+    fn ext_frame(target_hive: u32, ttl: u8, k: u8, msg_id: u32) -> Vec<u8> {
+        use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
+        let msg = ExtendedMessage {
+            header: ExtendedHeader {
+                version: 0,
+                msg_type: MsgType::Event,
+                flags: Flags::default(),
+                ttl,
+                k,
+                msg_id,
+                event_hash: 0xAABB_CCDD,
+                payload_len: 0,
+                target_group: 0,
+                target_hive,
+            },
+            route: None,
+            payload: &[],
+            hmac_tag: None,
+        };
+        let mut buf = vec![0u8; 64];
+        let n = encode_extended(&msg, &mut buf).expect("encode");
+        buf.truncate(n);
+        buf
+    }
+
+    #[test]
+    fn route_garbage_is_not_r2wire() {
+        let mut engine = RouteEngine::<64, 64, 64>::new();
+        let stub = StubTransport::new(TransportKind::Wifi, vec![]);
+        let out = route_inbound_sync(
+            &mut engine, 0xCAFE, &[&stub], 0xBEEF, TransportKind::Wifi, b"nope", 1, 0.0,
+        );
+        assert_eq!(out, SyncRouteOutcome::NotR2Wire);
+    }
+
+    #[test]
+    fn route_relays_to_known_neighbour() {
+        let mut engine = RouteEngine::<64, 64, 64>::new();
+        let target = 0x0000_00AA;
+        // Give the engine a route to `target` on Wifi.
+        engine.ingest_observation(Observation {
+            hive_id: target,
+            transport: TransportKind::Wifi,
+            timestamp: 100,
+            quality: QualitySample::Direct(0.95),
+            rssi: None,
+            mcu_origin: false,
+            mobility: MobilityClass::Infrastructure,
+        });
+        let stub = StubTransport::new(TransportKind::Wifi, vec![]);
+        let frame = ext_frame(target, 5, 3, 0x1234);
+        let out = route_inbound_sync(
+            &mut engine, 0x0000_00FF, &[&stub], 0x0000_00BB, TransportKind::Wifi, &frame, 200, 0.5,
+        );
+        // The engine reached a relay decision and the frame went to `target` over
+        // the matching sync transport (the whole point of the host-loop wiring).
+        assert!(
+            matches!(out, SyncRouteOutcome::Directed { .. } | SyncRouteOutcome::Flooded { .. }),
+            "expected a relay decision, got {out:?}",
+        );
+        let sent = stub.sent.borrow();
+        assert!(
+            sent.iter().any(|(t, _)| *t == target),
+            "expected a relay send to target, sent={sent:?}",
+        );
     }
 }
