@@ -29,10 +29,15 @@ thin platform layers (linux first). Verifiable on Linux now; foundation for esp3
   the seam core+hive AGREED (R2-DISCOVERY §5 sync). Core will EXTEND r2-transport
   (`Transport::poll_recv` default-None + TransportAddr/InboundFrame) → then delete the mirror,
   import `r2_transport::`. Host resolves source_addr→hive_id; driver-owned RX buffer.
-- NEXT: wire **RouteEngine** into the sync host loop (poll_inbound → engine → send); then the
-  **esp-hal/embassy board crate** (P0: LCD/button + boot) and **storage seam** (identity/OTA);
-  then the `r2-hive-core` no_std crate split + consumer migration to the seams. Radio drivers =
-  core D3b (post Part A); I hardware-validate on DFR1195.
+- DONE: **RouteEngine wired into the sync host loop** (`route_inbound_sync`, `3ebdb61`) — parse
+  R2-WIRE → ingest neighbour → `plan_forward` → execute Drop/DeliverOnly/Directed/Flood over
+  `SyncTransport`; routing-only (no ensemble/TG/WS host bits); host-centralised resolution
+  (specs-confirmed conformant, R2-DISCOVERY §5). Linux-verified end-to-end (real RouteEngine +
+  sync-stub relay). 106 lib tests, full suite green.
+- NEXT: **esp-hal/embassy board crate** (P0: boot + LCD/button drivers) and **storage seam**
+  (identity/OTA); then the `r2-hive-core` no_std crate split + consumer migration to the seams.
+  Swap `sync_host.rs` mirror → `r2_transport::` when core EXTENDs it. Radio drivers = core D3b
+  (post Part A); I hardware-validate on DFR1195.
 
 ## Next major phase — D2: DFR1195 (ESP32-S3) firmware, Path B pure no_std (esp-hal/embassy)
 Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-architecture.md`.
