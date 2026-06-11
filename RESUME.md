@@ -43,11 +43,18 @@ thin platform layers (linux first). Verifiable on Linux now; foundation for esp3
   `HiveTransports` outbound seam → `core/src/transport_seam.rs` (async-trait, no_std+alloc, needs
   `alloc::boxed::Box`), `HiveState` impl + `&dyn` trait-object test stay in bin (`hive.rs`).
   r2-hive-core builds no_std; full workspace green (100 bin lib + 6 core tests). Pushed.
-- NEXT: **storage seam** — `MasterSecretStore` (identity.rs) is already a trait but std-`io`-flavored;
-  abstract its error/IO so the trait can live in r2-hive-core (file-backed impl stays in bin, MCU/wasm
-  supply flash/IndexedDB impls). Then OTA-receiver storage. Swap `sync_host` seam mirror →
-  `r2_transport::` when core EXTENDs r2-transport (poll_recv default-None + TransportAddr/InboundFrame).
-  esp-hal/embassy board crate (P0) = firmware tier (needs xtensa toolchain + hardware); radio = core D3b.
+- DONE: **storage seam migrated into r2-hive-core** (`b42658c`) — `core/src/identity.rs` (no_std+alloc):
+  `MasterSecret` derivation (HKDF-SHA256 → hive_id/DEV_PK/DEV_SK), `DerivedIdentity`, fingerprint, UUIDv4,
+  web-auth-key + the seam itself (`IdentityStore` trait, `StoreBackend`, platform-neutral `StoreError`
+  replacing `io::Error` at the trait boundary). bin keeps std stores (`FileStore`/`KeyringStore`/
+  `auto_store` + permissions/XDG/getuid), impls the core trait (io→StoreError), re-exports core types
+  (mgmt::identity::* unchanged). RNG stays platform-side (getrandom→`from_bytes`); `bytes()` →
+  documented storage-only `expose_secret_bytes()`. ed25519-dalek/hkdf/sha2/zeroize added to core
+  default-features=false. r2-hive-core no_std; full workspace green (94 bin lib + 13 core tests).
+- NEXT: OTA-receiver storage seam (std `ota_tcp.rs` reference; no_std receiver for MCU). Swap `sync_host`
+  seam mirror → `r2_transport::` when core EXTENDs r2-transport (poll_recv default-None +
+  TransportAddr/InboundFrame). esp-hal/embassy board crate (P0) = firmware tier (needs xtensa toolchain
+  + hardware); radio = core D3b. Core now holds 4 seams: sync_host, platform, transports, identity.
 
 ## Next major phase — D2: DFR1195 (ESP32-S3) firmware, Path B pure no_std (esp-hal/embassy)
 Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-architecture.md`.
