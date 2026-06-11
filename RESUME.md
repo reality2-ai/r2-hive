@@ -63,6 +63,12 @@ Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-a
   TN-L2-IT-BL-001 + TN-L2-IT-AB-001 FALSIFIED-as-stated; BL-002/XT-BL-001/L1-IT-BL-004 REFINE.
   + sim-tier-decidability flag (sim needs bounded-mem + carry-time model, else mark tier=hardware).
   Awaiting specs adjudication; more conjectures can be reviewed on request.
+  DYN-family batch (v0.3, 13 conjectures) ALSO filed: grounded vs real r2-route (f32 + libm::expf,
+  multiplicative c+0.2*(1-c), mobility is an engine INPUT not RSSI-classified). Findings: (A)
+  TN-L0-IT-BL-100 spec-vs-impl — must_text additive +0.1 vs impl multiplicative +0.2*(1-c) [core
+  reconcile]; (B) TN-L2-IT-BL-100 RSSI-sigma classifier UNREALIZED + fragile under real RSSI noise
+  → tier=hardware [strongest]; (C) soft-float expf cost on no-FPU (ESP32-C6); (D) fixed-point future
+  → 0.05*(1-c) underflow (TN-L2-IT-BL-101). Awaiting specs adjudication.
 
 ## Resume hygiene
 Keep this current. WIP-checkpoint + push `platform-trait` periodically. Safe git only:
