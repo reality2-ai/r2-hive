@@ -22,7 +22,9 @@ pub mod mgmt;
 pub mod platform;
 pub mod plugins;
 pub mod router;
-pub mod sync_host;
+/// Platform-agnostic hive core, re-exported so `r2_hive::sync_host` (etc.)
+/// resolves while the convergence migrates modules into `r2-hive-core`.
+pub use r2_hive_core::sync_host;
 pub mod systemd;
 pub mod transport_seam;
 pub mod usb;

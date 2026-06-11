@@ -11,10 +11,14 @@
 //! Host loop (each tick): for every sync driver, [`SyncTransport::poll_recv`] →
 //! resolve `source_addr` → hive_id → feed `RouteEngine` → forwarding decision →
 //! [`SyncTransport::send`]. The driver owns its RX buffer (filled by the embassy
-//! RX task/IRQ); the host stays non-blocking. RouteEngine wiring is the next step.
+//! RX task/IRQ); the host stays non-blocking. The routing core is
+//! [`route_inbound_sync`].
 //!
-//! Std `String`/`Vec` here (bin crate); becomes `alloc` when this moves into the
-//! `r2-hive-core` no_std crate.
+//! `no_std` + `alloc` (this is the `r2-hive-core` crate) — proves the routing
+//! host-loop is genuinely platform-portable (MCU → cloud).
+
+use alloc::string::String;
+use alloc::vec::Vec;
 
 use r2_route::engine::{ForwardAction, ForwardRequest, RouteEngine, Target};
 use r2_route::neighbour::{MobilityClass, Observation};

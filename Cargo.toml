@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/r2-hive-core",
     "crates/r2-hive-bin",
     "crates/r2hive-cli",
 ]
