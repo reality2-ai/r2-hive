@@ -1,218 +1,48 @@
-//! Device identity custody — the master secret and TG-scoped key derivation.
+//! Device identity custody — **platform (Linux/cloud) storage layer** for the
+//! master secret. The portable crypto (master-secret derivation, Ed25519
+//! keypair, fingerprint, UUID) and the [`IdentityStore`] seam now live in
+//! `r2-hive-core`; this module supplies the concrete std-backed stores and
+//! re-exports the core types so existing `mgmt::identity::*` paths keep
+//! resolving (R2-HIVE north-star: portable identity in hive-core, only the
+//! backing store is platform code).
 //!
 //! Implements the model from R2-WIRE §6.2.1 and R2-TRUST §2.3: a single
 //! `device_master_secret` lives on the device; everything observable on the
-//! wire (`hive_id`, `DEV_PK`, `DEV_SK`) is deterministically derived from it
-//! plus the current `trust_group_id`. Rejoining the same TG reproduces the
-//! same derived identities. Across TGs, identities are unlinkable.
+//! wire is deterministically derived from it plus the current
+//! `trust_group_id`. See [`r2_hive_core::identity`] for the derivation.
 //!
-//! Phase 1 scope:
-//! - File-based storage at a per-user path (mode 0600).
-//! - HKDF-SHA256 derivation of hive_id, DEV_PK, DEV_SK.
-//! - Fingerprint exposure for UIs (8-byte SHA-256 prefix of the master secret).
-//! - Zeroization of the master secret in memory on drop.
+//! Stores here:
+//! - [`FileStore`] — per-user file at mode 0600 (always available).
+//! - [`KeyringStore`] — platform keyring, behind the `keyring` cargo feature
+//!   (Linux Secret Service / macOS Keychain / Windows Credential Manager).
 //!
-//! Later phases will add: keyring backend (libsecret / macOS Keychain),
-//! backup/export, hardware-token custody.
+//! Master-secret generation uses the OS CSPRNG (`getrandom`) here, since the
+//! store is itself the platform layer; the core only ever takes the resulting
+//! bytes via [`MasterSecret::from_bytes`].
 
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use ed25519_dalek::{SigningKey, VerifyingKey};
-use hkdf::Hkdf;
-use sha2::{Digest, Sha256};
-use zeroize::ZeroizeOnDrop;
+pub use r2_hive_core::identity::{
+    DerivedIdentity, IdentityStore, MasterSecret, StoreBackend, StoreError, MASTER_SECRET_LEN,
+};
 
-/// Length of the device master secret in bytes (256 bits).
-pub const MASTER_SECRET_LEN: usize = 32;
-
-/// Per-TG derived identities.
-pub struct DerivedIdentity {
-    /// UUID-formatted hive ID (RFC 4122 §4.4). Deterministic per (master, tg).
-    pub hive_id: String,
-    pub verifying_key: VerifyingKey,
-    signing_key: SigningKey,
+/// Generate a fresh master secret from the OS CSPRNG. Platform-layer helper —
+/// the core takes only the resulting bytes ([`MasterSecret::from_bytes`]).
+fn generate_master_secret() -> io::Result<MasterSecret> {
+    let mut bytes = [0u8; MASTER_SECRET_LEN];
+    getrandom::getrandom(&mut bytes)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("getrandom: {e}")))?;
+    Ok(MasterSecret::from_bytes(bytes))
 }
 
-impl DerivedIdentity {
-    /// Access the Ed25519 signing key. Callers hold this only for the lifetime
-    /// of an active hive's needs; keys are zeroized when the `DerivedIdentity`
-    /// drops.
-    pub fn signing_key(&self) -> &SigningKey {
-        &self.signing_key
-    }
+/// Map a platform IO error into the core's platform-neutral [`StoreError`].
+fn backend_err(e: impl core::fmt::Display) -> StoreError {
+    StoreError::Backend(e.to_string())
 }
 
-impl Drop for DerivedIdentity {
-    fn drop(&mut self) {
-        // SigningKey in ed25519-dalek 2.x does not auto-zeroize; we don't have
-        // mutable access to its internal bytes via public API, but dropping the
-        // struct at least drops the allocation. A stronger zeroization would
-        // require a wrapper; tracked for Phase 1+.
-        //
-        // The hive_id is public; no need to scrub.
-        let _ = &self.signing_key;
-    }
-}
-
-/// The daemon's custody of the device master secret.
-///
-/// `MasterSecret` holds the raw bytes in process memory. It is `ZeroizeOnDrop`
-/// so tearing down a `DaemonState` scrubs the memory. The bytes MUST NOT be
-/// copied out via any API surface — only the derivation helpers on this type
-/// may observe them.
-#[derive(ZeroizeOnDrop)]
-pub struct MasterSecret {
-    #[zeroize(drop)]
-    bytes: [u8; MASTER_SECRET_LEN],
-}
-
-impl MasterSecret {
-    /// Generate a fresh master secret from the OS CSPRNG.
-    pub fn generate() -> io::Result<Self> {
-        let mut bytes = [0u8; MASTER_SECRET_LEN];
-        getrandom::getrandom(&mut bytes)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("getrandom: {e}")))?;
-        Ok(Self { bytes })
-    }
-
-    /// Construct from raw bytes (loaded from storage). Rejects wrong-length
-    /// input.
-    pub fn from_bytes(bytes: [u8; MASTER_SECRET_LEN]) -> Self {
-        Self { bytes }
-    }
-
-    /// Return a short, stable public identifier suitable for showing to users
-    /// in a UI: the first 8 bytes of SHA-256(master_secret), encoded as hex.
-    /// This reveals nothing about the master secret by preimage, and lets users
-    /// compare devices without exposing keys.
-    pub fn fingerprint(&self) -> String {
-        let digest = Sha256::digest(self.bytes);
-        hex_u8s(&digest[..8])
-    }
-
-    /// Derive the per-TG `hive_id` (UUID string) per R2-WIRE §6.2.1.
-    fn derive_hive_id(&self, trust_group_id: &str) -> String {
-        let mut out = [0u8; 16];
-        hkdf_expand(&self.bytes, b"r2-hive-id-v1", trust_group_id.as_bytes(), &mut out);
-        format_uuid(&out)
-    }
-
-    /// Derive the per-TG Ed25519 signing key seed.
-    fn derive_dev_sk_seed(&self, trust_group_id: &str) -> [u8; 32] {
-        let mut out = [0u8; 32];
-        hkdf_expand(&self.bytes, b"r2-dev-key-v1", trust_group_id.as_bytes(), &mut out);
-        out
-    }
-
-    /// Full per-TG derivation: hive_id + Ed25519 keypair.
-    pub fn derive(&self, trust_group_id: &str) -> DerivedIdentity {
-        let hive_id = self.derive_hive_id(trust_group_id);
-        let seed = self.derive_dev_sk_seed(trust_group_id);
-        let signing_key = SigningKey::from_bytes(&seed);
-        let verifying_key = signing_key.verifying_key();
-        DerivedIdentity {
-            hive_id,
-            verifying_key,
-            signing_key,
-        }
-    }
-
-    fn bytes(&self) -> &[u8; MASTER_SECRET_LEN] {
-        &self.bytes
-    }
-
-    /// Derive a 32-byte HMAC key for web-plugin browser-cookie signing
-    /// (R2-PLUGIN §13.5). Distinct HKDF info string from the per-TG
-    /// device key so cookie compromise can't impersonate the TG-bound
-    /// keypair.
-    pub fn derive_web_auth_key(&self) -> [u8; 32] {
-        let mut out = [0u8; 32];
-        hkdf_expand(&self.bytes, b"r2-web-auth-cookie-v1", b"", &mut out);
-        out
-    }
-}
-
-/// HKDF-SHA256 in the argument order used by R2-WIRE §6.2.1:
-/// extract(salt) then expand(info) into the provided output buffer.
-fn hkdf_expand(ikm: &[u8], salt: &[u8], info: &[u8], out: &mut [u8]) {
-    let h = Hkdf::<Sha256>::new(Some(salt), ikm);
-    h.expand(info, out).expect("output length within HKDF limit");
-}
-
-fn hex_u8s(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut s = String::with_capacity(bytes.len() * 2);
-    for &b in bytes {
-        s.push(HEX[(b >> 4) as usize] as char);
-        s.push(HEX[(b & 0x0F) as usize] as char);
-    }
-    s
-}
-
-/// Format 16 bytes as a UUID string per RFC 4122 §4.4.
-fn format_uuid(b: &[u8; 16]) -> String {
-    // Set version (4) and variant (RFC 4122) bits per §4.4 so the result is a
-    // well-formed UUIDv4 string.
-    let mut v = *b;
-    v[6] = (v[6] & 0x0F) | 0x40; // version 4
-    v[8] = (v[8] & 0x3F) | 0x80; // variant 10
-    format!(
-        "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-        v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7],
-        v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15],
-    )
-}
-
-// ───────────────────────── Store backends ─────────────────────────
-
-/// Backends r2-hive ships for holding the master secret.
-///
-/// `File` is always available. `Libsecret` (Linux Secret Service / GNOME
-/// Keyring / KWallet) is gated behind the `keyring` cargo feature.
-/// macOS Keychain and Windows Credential Manager backends follow the
-/// same shape and are deferred to a follow-up iteration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StoreBackend {
-    File,
-    Libsecret,
-    Keychain,
-    WinCred,
-    None,
-}
-
-impl StoreBackend {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            StoreBackend::File => "file",
-            StoreBackend::Libsecret => "libsecret",
-            StoreBackend::Keychain => "keychain",
-            StoreBackend::WinCred => "wincred",
-            StoreBackend::None => "none",
-        }
-    }
-}
-
-/// Common interface implemented by every concrete master-secret store.
-///
-/// Lifetime: the store value is constructed at startup, used for
-/// [`IdentityStore::load_or_create`], and dropped. The loaded
-/// [`MasterSecret`] is held on the [`crate::mgmt::state::DaemonState`]
-/// from then on; the store itself doesn't need to stay alive.
-pub trait IdentityStore {
-    /// Load the master secret from this backend, or create+persist a
-    /// fresh one if none is present. Returns `(secret, created)` where
-    /// `created` is `true` iff this call generated a new secret.
-    fn load_or_create(&self) -> io::Result<(MasterSecret, bool)>;
-
-    /// Backend tag for `r2.mgmt.identity.status` reporting.
-    fn backend(&self) -> StoreBackend;
-
-    /// Operator-readable identifier for the store (e.g. a filesystem
-    /// path, or a DBus path). Surfaced in `r2.mgmt.identity.status`.
-    fn display_path(&self) -> String;
-}
+// ───────────────────────── File-backed store ─────────────────────────
 
 /// File-backed store for the master secret.
 ///
@@ -300,7 +130,7 @@ impl FileStore {
                 .create(true)
                 .truncate(true)
                 .open(&tmp)?;
-            f.write_all(secret.bytes())?;
+            f.write_all(secret.expose_secret_bytes())?;
             f.sync_all()?;
         }
         apply_file_permissions(&tmp)?;
@@ -313,15 +143,15 @@ impl FileStore {
         if let Some(existing) = self.load()? {
             return Ok((existing, false));
         }
-        let fresh = MasterSecret::generate()?;
+        let fresh = generate_master_secret()?;
         self.save(&fresh)?;
         Ok((fresh, true))
     }
 }
 
 impl IdentityStore for FileStore {
-    fn load_or_create(&self) -> io::Result<(MasterSecret, bool)> {
-        FileStore::load_or_create(self)
+    fn load_or_create(&self) -> Result<(MasterSecret, bool), StoreError> {
+        FileStore::load_or_create(self).map_err(backend_err)
     }
     fn backend(&self) -> StoreBackend {
         StoreBackend::File
@@ -378,44 +208,35 @@ impl KeyringStore {
 
 #[cfg(feature = "keyring")]
 impl IdentityStore for KeyringStore {
-    fn load_or_create(&self) -> io::Result<(MasterSecret, bool)> {
+    fn load_or_create(&self) -> Result<(MasterSecret, bool), StoreError> {
         use base64::engine::general_purpose::STANDARD as B64;
         use base64::Engine;
-        let entry = self.entry()?;
+        let entry = self.entry().map_err(backend_err)?;
         match entry.get_password() {
             Ok(b64) => {
-                let bytes = B64.decode(b64.as_bytes()).map_err(|e| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("keyring: bad base64: {e}"),
-                    )
-                })?;
+                let bytes = B64
+                    .decode(b64.as_bytes())
+                    .map_err(|e| StoreError::InvalidData(format!("keyring: bad base64: {e}")))?;
                 if bytes.len() != MASTER_SECRET_LEN {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!(
-                            "keyring entry has wrong length: expected {}, got {}",
-                            MASTER_SECRET_LEN,
-                            bytes.len()
-                        ),
-                    ));
+                    return Err(StoreError::InvalidData(format!(
+                        "keyring entry has wrong length: expected {}, got {}",
+                        MASTER_SECRET_LEN,
+                        bytes.len()
+                    )));
                 }
                 let mut arr = [0u8; MASTER_SECRET_LEN];
                 arr.copy_from_slice(&bytes);
                 Ok((MasterSecret::from_bytes(arr), false))
             }
             Err(keyring::Error::NoEntry) => {
-                let fresh = MasterSecret::generate()?;
-                let blob = B64.encode(fresh.bytes());
-                entry.set_password(&blob).map_err(|e| {
-                    io::Error::new(io::ErrorKind::Other, format!("keyring write: {e}"))
-                })?;
+                let fresh = generate_master_secret().map_err(backend_err)?;
+                let blob = B64.encode(fresh.expose_secret_bytes());
+                entry
+                    .set_password(&blob)
+                    .map_err(|e| backend_err(format!("keyring write: {e}")))?;
                 Ok((fresh, true))
             }
-            Err(e) => Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("keyring read: {e}"),
-            )),
+            Err(e) => Err(backend_err(format!("keyring read: {e}"))),
         }
     }
 
@@ -540,76 +361,6 @@ unsafe fn getuid() -> u32 {
 mod tests {
     use super::*;
 
-    // Fixed master secret for deterministic testing.
-    fn fixture_secret() -> MasterSecret {
-        let mut bytes = [0u8; MASTER_SECRET_LEN];
-        for (i, b) in bytes.iter_mut().enumerate() {
-            *b = i as u8;
-        }
-        MasterSecret::from_bytes(bytes)
-    }
-
-    #[test]
-    fn fingerprint_is_stable_and_16_hex_chars() {
-        let s = fixture_secret();
-        let fp1 = s.fingerprint();
-        let fp2 = s.fingerprint();
-        assert_eq!(fp1, fp2);
-        assert_eq!(fp1.len(), 16);
-        assert!(fp1.chars().all(|c| c.is_ascii_hexdigit()));
-    }
-
-    #[test]
-    fn derive_same_tg_twice_gives_same_identity() {
-        let s = fixture_secret();
-        let a = s.derive("tg-alpha");
-        let b = s.derive("tg-alpha");
-        assert_eq!(a.hive_id, b.hive_id);
-        assert_eq!(a.verifying_key.to_bytes(), b.verifying_key.to_bytes());
-    }
-
-    #[test]
-    fn derive_different_tgs_gives_different_identities() {
-        let s = fixture_secret();
-        let a = s.derive("tg-alpha");
-        let b = s.derive("tg-beta");
-        assert_ne!(a.hive_id, b.hive_id);
-        assert_ne!(a.verifying_key.to_bytes(), b.verifying_key.to_bytes());
-    }
-
-    #[test]
-    fn derive_is_different_per_master_secret() {
-        let s1 = fixture_secret();
-        let mut other = [0u8; MASTER_SECRET_LEN];
-        other[0] = 0xFF; // differ from fixture
-        let s2 = MasterSecret::from_bytes(other);
-
-        let a = s1.derive("tg-alpha");
-        let b = s2.derive("tg-alpha");
-        assert_ne!(a.hive_id, b.hive_id);
-        assert_ne!(a.verifying_key.to_bytes(), b.verifying_key.to_bytes());
-    }
-
-    #[test]
-    fn hive_id_is_well_formed_uuid_v4() {
-        let s = fixture_secret();
-        let id = s.derive("tg-alpha").hive_id.clone();
-        // 8-4-4-4-12 hex layout = 36 chars total including dashes.
-        assert_eq!(id.len(), 36);
-        let parts: Vec<&str> = id.split('-').collect();
-        assert_eq!(parts.len(), 5);
-        assert_eq!(parts[0].len(), 8);
-        assert_eq!(parts[1].len(), 4);
-        assert_eq!(parts[2].len(), 4);
-        assert_eq!(parts[3].len(), 4);
-        assert_eq!(parts[4].len(), 12);
-        // UUIDv4 version nibble: first char of group 3 must be '4'.
-        assert_eq!(parts[2].chars().next().unwrap(), '4');
-        // Variant: first char of group 4 must be 8, 9, a, or b.
-        let var = parts[3].chars().next().unwrap();
-        assert!(matches!(var, '8' | '9' | 'a' | 'b'));
-    }
-
     #[test]
     fn file_store_round_trip() {
         let tmp = tempfile::tempdir().expect("tempdir");
@@ -617,7 +368,7 @@ mod tests {
         let store = FileStore::new(path.clone());
 
         assert!(!store.exists());
-        let secret = MasterSecret::generate().expect("gen");
+        let secret = generate_master_secret().expect("gen");
         let fp1 = secret.fingerprint();
         store.save(&secret).expect("save");
 
@@ -663,21 +414,6 @@ mod tests {
         let (s2, created2) = store.load_or_create().expect("reload");
         assert!(!created2);
         assert_eq!(s2.fingerprint(), fp);
-    }
-
-    #[test]
-    fn store_backend_as_str_covers_every_variant() {
-        // If a new variant is added, this test forces a deliberate
-        // string mapping update.
-        for v in [
-            StoreBackend::File,
-            StoreBackend::Libsecret,
-            StoreBackend::Keychain,
-            StoreBackend::WinCred,
-            StoreBackend::None,
-        ] {
-            assert!(!v.as_str().is_empty());
-        }
     }
 
     #[test]

@@ -17,3 +17,9 @@ r2-fnv = { path = "../../../r2-core/crates/r2-fnv" }
 r2-route = { path = "../../../r2-core/crates/r2-route" }
 # Boxes async-trait futures for the transport seam (no_std-compatible).
 async-trait = "0.1"
+# Identity crypto (no_std): HKDF-SHA256 derivation + Ed25519 keypair, secret
+# zeroization. All built default-features=false so the core stays no_std.
+ed25519-dalek = { version = "=2.1.1", default-features = false }
+hkdf = { version = "0.12", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+zeroize = { version = "1", default-features = false, features = ["derive"] }

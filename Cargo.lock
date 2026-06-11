@@ -1527,9 +1527,13 @@ name = "r2-hive-core"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "ed25519-dalek",
+ "hkdf",
  "r2-fnv",
  "r2-route",
  "r2-wire",
+ "sha2",
+ "zeroize",
 ]
 
 [[package]]

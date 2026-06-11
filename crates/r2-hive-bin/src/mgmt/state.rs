@@ -69,7 +69,11 @@ impl DaemonState {
     /// (FileStore, KeyringStore, …). Used by `main.rs` after
     /// `--identity-backend` resolution.
     pub fn with_identity_store<S: IdentityStore + ?Sized>(store: &S) -> std::io::Result<Self> {
-        let (master_secret, created) = store.load_or_create()?;
+        // The store seam now lives in r2-hive-core with a platform-neutral
+        // `StoreError`; map it back to `io::Error` for the daemon's startup path.
+        let (master_secret, created) = store
+            .load_or_create()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
         let identity = IdentityHandle {
             master_secret,
             backend: store.backend(),
