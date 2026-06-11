@@ -34,10 +34,15 @@ thin platform layers (linux first). Verifiable on Linux now; foundation for esp3
   `SyncTransport`; routing-only (no ensemble/TG/WS host bits); host-centralised resolution
   (specs-confirmed conformant, R2-DISCOVERY §5). Linux-verified end-to-end (real RouteEngine +
   sync-stub relay). 106 lib tests, full suite green.
-- NEXT: **esp-hal/embassy board crate** (P0: boot + LCD/button drivers) and **storage seam**
-  (identity/OTA); then the `r2-hive-core` no_std crate split + consumer migration to the seams.
-  Swap `sync_host.rs` mirror → `r2_transport::` when core EXTENDs it. Radio drivers = core D3b
-  (post Part A); I hardware-validate on DFR1195.
+- DONE: **`r2-hive-core` crate split started** (`a05b108`) — new `#![no_std]`+alloc crate (deps
+  r2-wire/route/fnv only, no tokio/axum/std-net); **`sync_host` moved into it and compiles no_std**
+  = PROOF the routing host-loop is MCU-portable. bin depends on it + re-exports `sync_host`
+  (zero churn). Full workspace green (r2-hive-core 6 tests + bin suite).
+- NEXT: migrate more seams into r2-hive-core as their std-coupling is factored — the **Platform**
+  trait (trait→core, `LinuxPlatform` stays in bin) and the **transport seam**; then **storage seam**
+  (identity: `MasterSecretStore` already a trait, just std-`io`-flavored). The MCU/wasm platform
+  layers depend on r2-hive-core. Swap `sync_host` seam mirror → `r2_transport::` when core EXTENDs it.
+  esp-hal/embassy board crate (P0) = firmware tier (needs xtensa toolchain + hardware); radio = core D3b.
 
 ## Next major phase — D2: DFR1195 (ESP32-S3) firmware, Path B pure no_std (esp-hal/embassy)
 Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-architecture.md`.
