@@ -38,10 +38,15 @@ thin platform layers (linux first). Verifiable on Linux now; foundation for esp3
   r2-wire/route/fnv only, no tokio/axum/std-net); **`sync_host` moved into it and compiles no_std**
   = PROOF the routing host-loop is MCU-portable. bin depends on it + re-exports `sync_host`
   (zero churn). Full workspace green (r2-hive-core 6 tests + bin suite).
-- NEXT: migrate more seams into r2-hive-core as their std-coupling is factored — the **Platform**
-  trait (trait→core, `LinuxPlatform` stays in bin) and the **transport seam**; then **storage seam**
-  (identity: `MasterSecretStore` already a trait, just std-`io`-flavored). The MCU/wasm platform
-  layers depend on r2-hive-core. Swap `sync_host` seam mirror → `r2_transport::` when core EXTENDs it.
+- DONE: **Platform + transport seams migrated into r2-hive-core** (`234fd60`) — `Platform` trait
+  (clock+RNG) → `core/src/platform.rs` (no_std), `LinuxPlatform` impl stays in bin + re-exports trait;
+  `HiveTransports` outbound seam → `core/src/transport_seam.rs` (async-trait, no_std+alloc, needs
+  `alloc::boxed::Box`), `HiveState` impl + `&dyn` trait-object test stay in bin (`hive.rs`).
+  r2-hive-core builds no_std; full workspace green (100 bin lib + 6 core tests). Pushed.
+- NEXT: **storage seam** — `MasterSecretStore` (identity.rs) is already a trait but std-`io`-flavored;
+  abstract its error/IO so the trait can live in r2-hive-core (file-backed impl stays in bin, MCU/wasm
+  supply flash/IndexedDB impls). Then OTA-receiver storage. Swap `sync_host` seam mirror →
+  `r2_transport::` when core EXTENDs r2-transport (poll_recv default-None + TransportAddr/InboundFrame).
   esp-hal/embassy board crate (P0) = firmware tier (needs xtensa toolchain + hardware); radio = core D3b.
 
 ## Next major phase — D2: DFR1195 (ESP32-S3) firmware, Path B pure no_std (esp-hal/embassy)
