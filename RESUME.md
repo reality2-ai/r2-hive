@@ -56,7 +56,13 @@ Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-a
   **R2-PROVISION §5.3.4**. Also parked: R2-USB v2/§3.5 → v0.1/§3.3 refs in usb_serial.rs/main.rs.
 - **Deps:** core **D3b** (no_std sync BLE/WiFi/LoRa) = hard blocker for radios; composer = OTA
   push + carrier + ensemble; specs = hw test defs.
-- Also: Phase-3 adversarial-refuter role (deployment reality) — stand by for specs' conjectures.
+- Phase-3 adversarial-refuter role (deployment reality): FILED first batch to specs (the 5
+  high-value TN conjectures). Two systemic findings — (A) must_text bounds by TTL/time, never
+  MEMORY (MCU RAM = fixed tables+eviction; fixed-size dedup evicts before window W); (B) hop-TTL
+  ≠ wall-clock (a carried frame's hop-TTL never decrements while carried). Verdicts:
+  TN-L2-IT-BL-001 + TN-L2-IT-AB-001 FALSIFIED-as-stated; BL-002/XT-BL-001/L1-IT-BL-004 REFINE.
+  + sim-tier-decidability flag (sim needs bounded-mem + carry-time model, else mark tier=hardware).
+  Awaiting specs adjudication; more conjectures can be reviewed on request.
 
 ## Resume hygiene
 Keep this current. WIP-checkpoint + push `platform-trait` periodically. Safe git only:
