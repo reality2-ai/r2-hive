@@ -15,3 +15,5 @@ path = "src/lib.rs"
 r2-wire = { path = "../../../r2-core/crates/r2-wire", default-features = false, features = ["alloc"] }
 r2-fnv = { path = "../../../r2-core/crates/r2-fnv" }
 r2-route = { path = "../../../r2-core/crates/r2-route" }
+# Boxes async-trait futures for the transport seam (no_std-compatible).
+async-trait = "0.1"

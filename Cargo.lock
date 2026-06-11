@@ -1526,6 +1526,7 @@ dependencies = [
 name = "r2-hive-core"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "r2-fnv",
  "r2-route",
  "r2-wire",

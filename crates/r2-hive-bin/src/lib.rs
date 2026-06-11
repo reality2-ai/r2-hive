@@ -25,8 +25,10 @@ pub mod router;
 /// Platform-agnostic hive core, re-exported so `r2_hive::sync_host` (etc.)
 /// resolves while the convergence migrates modules into `r2-hive-core`.
 pub use r2_hive_core::sync_host;
+/// Outbound multi-transport seam (`HiveTransports`), re-exported from
+/// `r2-hive-core`. `HiveState` impls it (see `hive.rs`); the trait is portable.
+pub use r2_hive_core::transport_seam;
 pub mod systemd;
-pub mod transport_seam;
 pub mod usb;
 #[cfg(target_os = "linux")]
 pub mod usb_hotplug;

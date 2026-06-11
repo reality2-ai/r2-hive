@@ -1,41 +1,16 @@
-//! Platform abstraction — the seam for the one-codebase, multi-target hive
-//! (R2-HIVE north-star).
+//! Linux / cloud **platform layer** — the std impl of the hive-core [`Platform`]
+//! seam (R2-HIVE north-star: the trait lives in `r2-hive-core`; each target
+//! supplies its own impl). The ESP32-S3/DFR1195, Uno-Q, and wasm layers will add
+//! their own impls in their own crates.
 //!
-//! The hive is **one codebase** that runs everywhere: Linux/cloud (tokio/axum),
-//! ESP32-S3/DFR1195 (esp-hal/embassy, no_std), Uno-Q, and the wasm browser hive.
-//! Platform-coupled capabilities the host loop needs are expressed through this
-//! trait so the hive-core logic stays platform-agnostic; each target provides its
-//! own [`Platform`] impl.
-//!
-//! This is the first convergence increment: it establishes the **clock** and
-//! **RNG** seams (the smallest, most pervasive, no_std-friendly ones). Transports
-//! (the R2-TRANSPORT *sync* interface on no_std; async `r2-discovery` on host),
-//! storage (identity / OTA), and display/input follow as the convergence proceeds
-//! — see `docs/esp32-hive-firmware-architecture.md`.
+//! Re-exports the trait so `crate::platform::Platform` keeps resolving across the
+//! bin while the convergence migrates modules into `r2-hive-core`.
 
 use std::sync::Arc;
 
-/// Platform-provided capabilities, abstracted so hive-core logic is
-/// platform-agnostic. `Send + Sync + 'static` so it can live in an [`Arc`] inside
-/// shared state across async tasks / threads.
-pub trait Platform: Send + Sync + 'static {
-    /// Wall-clock time, whole seconds since the Unix epoch. Used for protocol
-    /// timestamp windows (e.g. the relay handshake ±60s, R2-TRANSPORT-RELAY §3.2).
-    fn now_unix(&self) -> u64;
-
-    /// Monotonic milliseconds since an arbitrary fixed start (process boot).
-    /// Used for timeouts/liveness, where wall-clock jumps must not matter.
-    fn monotonic_ms(&self) -> u64;
-
-    /// Fill `buf` with cryptographically-secure random bytes (challenge nonces,
-    /// key material). Implementations MUST use a CSPRNG.
-    fn fill_random(&self, buf: &mut [u8]);
-}
+pub use r2_hive_core::platform::Platform;
 
 /// Linux / cloud platform: std `SystemTime` / `Instant` + the OS CSPRNG.
-///
-/// The ESP32-S3, Uno-Q, and wasm impls will live in their own platform layers;
-/// this is the first impl and the one exercised by the current std hive.
 pub struct LinuxPlatform;
 
 impl Platform for LinuxPlatform {

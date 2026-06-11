@@ -809,3 +809,25 @@ fn transport_to_caps_kind(
     };
     TransportKind::Enumerated(id)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transport_seam::HiveTransports;
+
+    /// The platform host state satisfies the hive-core `HiveTransports` seam
+    /// through a trait object — i.e. hive-core forwarding code can hold
+    /// `&dyn HiveTransports` and call it. With no transports registered every
+    /// send fails, but the seam is object-safe and callable, which is what this
+    /// asserts (the trait itself now lives in `r2-hive-core`).
+    #[tokio::test]
+    async fn hive_state_is_a_hive_transports_trait_object() {
+        let state = HiveState::new(0x0000_0001, 64, 16);
+        let seam: &dyn HiveTransports = &state;
+        assert!(!seam.send_to_hive(0x0000_0002, b"frame").await);
+        assert!(seam
+            .send_to_hive_via(0x0000_0002, None, b"frame")
+            .await
+            .is_none());
+    }
+}
