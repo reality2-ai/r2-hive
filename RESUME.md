@@ -79,9 +79,18 @@ Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-a
 - References (std, patterns not code): core `platforms/esp32`, workshop `firmware/esp32-s3`.
 
 ## Pending Roy / cross-repo
-- **Roy:** greenlight specs to COMMIT **R2-PROVISION §5.3.4** (usb-pair home; uncommitted WIP).
-- **hive TODO (small, on v0.2 line):** update `usb_pair.rs` doc citations R2-HIVE §6.4 →
-  **R2-PROVISION §5.3.4**. Also parked: R2-USB v2/§3.5 → v0.1/§3.3 refs in usb_serial.rs/main.rs.
+- ~~Roy: greenlight R2-PROVISION §5.3.4~~ DONE — specs confirms COMMITTED (`4b74b20`, v0.6, Roy
+  green-lit) on `spec-conformance-v0.2`. Cite by paragraph name (no §5.3.4.y sub-numbers).
+- ~~hive TODO: usb_pair.rs citation fix~~ DONE (`4c70d2c`) — usb_pair.rs §6.4.x → R2-PROVISION
+  §5.3.4 (SAS verification/Link key/Reconnect/Key agreement); main.rs+usb_serial.rs "R2-USB v2" →
+  "R2-USB v0.1", SYNC frame → §3.3. Doc-only; builds clean.
+- **OPEN (escalated to specs `4c70d2c` follow-up):** (A) **R2-USB v0.1 type-byte DIVERGENCE** —
+  impl (usb.rs/usb_serial.rs) puts an on-wire TYPE byte after the len prefix (0xFE CAPS, 0xFC/0xFD
+  reserved, else R2-WIRE, + v1 legacy no-type-byte mode); v0.1 §3.2 is length-prefix-ONLY. Asked
+  specs whether to amend R2-USB §3.x to ratify the type-byte sublayer (I can supply byte layout) or
+  drop it. (B) usb.rs still cites R2-HIVE §6.4.2 (CBOR pairing frame fmt) + §6.4.3 (PAIR_HELLO/
+  COMMIT/ABORT vocab) — asked if §5.3.4 also houses the message/frame vocab or those stay R2-HIVE.
+  Held off re-citing usb.rs until specs confirms.
 - **Deps:** core **D3b** (no_std sync BLE/WiFi/LoRa) = hard blocker for radios; composer = OTA
   push + carrier + ensemble; specs = hw test defs.
 - Phase-3 adversarial-refuter role (deployment reality): FILED first batch to specs (the 5
