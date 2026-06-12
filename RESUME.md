@@ -51,10 +51,21 @@ thin platform layers (linux first). Verifiable on Linux now; foundation for esp3
   (mgmt::identity::* unchanged). RNG stays platform-side (getrandom→`from_bytes`); `bytes()` →
   documented storage-only `expose_secret_bytes()`. ed25519-dalek/hkdf/sha2/zeroize added to core
   default-features=false. r2-hive-core no_std; full workspace green (94 bin lib + 13 core tests).
-- NEXT: OTA-receiver storage seam (std `ota_tcp.rs` reference; no_std receiver for MCU). Swap `sync_host`
-  seam mirror → `r2_transport::` when core EXTENDs r2-transport (poll_recv default-None +
-  TransportAddr/InboundFrame). esp-hal/embassy board crate (P0) = firmware tier (needs xtensa toolchain
-  + hardware); radio = core D3b. Core now holds 4 seams: sync_host, platform, transports, identity.
+- DONE: **OTA-receiver seam in r2-hive-core** (`354f395`) — `core/src/ota.rs` (no_std), the portable
+  half of the firmware receiver: constants (OTA_PORT 21043/CMD_*/STATUS_*/PREAMBLE_LEN),
+  `OtaPreamble::parse` (image_len u32 LE + sha256[32]), `OtaError` CODEs (PREAMBLE/TOO_BIG/BAD_MAGIC/
+  SHA_MISMATCH/WRITE_FAIL/NO_SLOT/SHORT) + alloc-free `encode_reply/ok/error`, `FirmwareSink` trait
+  (storage seam = flash I/O), `OtaReceiver` state machine (TOO_BIG bound-check BEFORE begin, streaming
+  SHA-256, verify→finalize, abort-on-error). NOT a migration (no OTA code existed in bin) — built from
+  core's `platforms/esp32/src/ota_tcp.rs` reference + composer's OTA-REPLY-STATUS-CONTRACT. 11 tests.
+  Heads-up sent to composer to confirm CODE set / push-side framing. **Platform supplies:** embassy-net
+  byte reads + esp-storage `FirmwareSink` impl (device); host uses a RAM mock. CMD_QUERY handled by
+  platform layer (build info), not core.
+- NEXT: with routing/identity/OTA cores all no_std + **5 seams** in place (sync_host, platform,
+  transports, identity, ota), the convergence's host-side factoring is largely done. Remaining is
+  firmware-tier (gated): swap `sync_host` seam mirror → `r2_transport::` when core EXTENDs r2-transport
+  (poll_recv default-None + TransportAddr/InboundFrame); esp-hal/embassy board crate (P0) + esp-storage
+  FirmwareSink + embassy-net OTA host loop (needs xtensa toolchain + hardware + core D3b).
 
 ## Next major phase — D2: DFR1195 (ESP32-S3) firmware, Path B pure no_std (esp-hal/embassy)
 Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-architecture.md`.
