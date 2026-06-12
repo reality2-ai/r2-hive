@@ -25,6 +25,7 @@ extern crate alloc;
 extern crate std;
 
 pub mod identity;
+pub mod ota;
 pub mod platform;
 pub mod sync_host;
 pub mod transport_seam;
