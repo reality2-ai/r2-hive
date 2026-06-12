@@ -124,8 +124,18 @@ Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-a
   TN-L2-XT-BL-001 OOM-guard not sim-decidable (re-tier hw); all XT-AB cells test sim gate not
   authenticated crossing (passes-while-violating-spirit); BL-101 CONFIRM / BL-100 FALSIFY (no
   heartbeat → entangled-but-unreachable on duty-cycled links); XT-AB-001 undecidable (no instance id);
-  XT-BL-100 'kept' conflicts w/ 30min route eviction. Awaiting specs adjudication. Remaining open cells:
-  the IT/XT main-path L0/L1/L3 functional cells (lower deployment-lens value) can be swept on request.
+  XT-BL-100 'kept' conflicts w/ 30min route eviction.
+  **BATCH 3 ADJUDICATED** (supervisor, verdict-of-record; catalogue write pending perm): IT-BL-002
+  ACCEPT-FALSIFIED → R2-ROUTE #7 (MUST → named SCF layer, DUAL bound RAM×TTL; engine silent-Drop OK at
+  routing layer); IT-AB-000 ACCEPT-FALSIFIED → operative rule = IT-AB-001 (idempotency at dispatch);
+  IT-BL-000/XT-BL-000 = PRODUCTION-UNREALIZED (sim tests logic only, lifts no impl signal); XT-BL-001
+  ACCEPT not-decisive → experiment revised (inject buffer cap; true OOM=hardware); XT-AB cells honesty-#6
+  (authenticated-crossing MUSTs deferred to r2-trust §7 production); **XT-BL-100 entangled-but-unreachable
+  = HEADLINE** → BLOCKED impl-missing (§7.3 keep-alive DEFINED-unimplemented); 3 Roy options, supervisor
+  recommends implement §7.3 minimal keep-alive (decay-exemption REJECTED-leaning — contradicts BL-101);
+  XT-AB-001 ACCEPT sim-undecidable → instance/epoch id (harness + R2-TRUST §7.6, Roy-gated); XT-BL-100
+  NOT-falsified CLARIFIED (record-retention §7.3 vs route-eviction R2-ROUTE 2.5 both defined, no conflict).
+  Remaining open cells: IT/XT main-path L0/L1/L3 functional cells (lower deployment-lens value) on request.
 
 ## Resume hygiene
 Keep this current. WIP-checkpoint + push `platform-trait` periodically. Safe git only:
