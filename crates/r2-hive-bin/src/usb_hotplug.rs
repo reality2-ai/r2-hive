@@ -304,7 +304,7 @@ impl UsbBringupHandle {
 
     /// Forget the link key for a previously-paired peripheral.
     /// Subsequent attaches with this `hive_id_bytes` will trigger fresh
-    /// §6.4.3 first-attach pairing.
+    /// R2-PROVISION §5.3.4 first-attach pairing.
     pub fn unpair(&self, hive_id_bytes: &crate::usb_pair::HiveIdBytes) {
         self.link_keys.revoke(hive_id_bytes);
     }

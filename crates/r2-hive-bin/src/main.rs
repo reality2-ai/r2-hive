@@ -879,7 +879,7 @@ fn apply_config_layer(args: &mut Args, matches: &clap::ArgMatches) {
 ///
 /// `auto_confirm_unsafe` is a dev-only escape hatch — when true,
 /// every `PairingPrompt` is immediately confirmed without operator
-/// review, which defeats §6.4.4 SAS verification. Production
+/// review, which defeats R2-PROVISION §5.3.4 (SAS verification). Production
 /// deployments leave it false; the eventual Cosmic / KDE applet will
 /// drive `SessionControl::UserConfirms` via the management socket.
 #[cfg(target_os = "linux")]

@@ -25,7 +25,7 @@
 //! - **R2-USB v2 peripheral mode** — what this module implements.
 //!   Tier 3 host always on, USB-attached MCU is a thin radio
 //!   appliance with no R2-WIRE stack. Length-prefix + type-byte
-//!   demux + CAPS + §6.4 SAS pairing.
+//!   demux + CAPS + R2-PROVISION §5.3.4 SAS pairing.
 //! - **R2-HW §4 MCU-SBC bus** — *separate* protocol for Tier 2
 //!   power-managed nodes (off-grid solar, bespoke CPU+MCU boards).
 //!   SPI or UART + WAKE GPIO, distinct framing
@@ -44,7 +44,7 @@
 //!
 //! Phase USB-1 implements the *auto-pair stub*: any peripheral that
 //! completes SYNC + CAPS is treated as authorised, and its advertised
-//! transports are registered with the host. The full §6.4 challenge-
+//! transports are registered with the host. The full R2-PROVISION §5.3.4 challenge-
 //! response (commit/reveal SAS, link-key derivation, reconnect HMAC)
 //! lands in Phase USB-2.
 
@@ -92,11 +92,11 @@ pub enum UsbEvent {
     /// peripheral's `hive_id_bytes`, firmware identifier/version, and the
     /// list of transports it offers.
     Caps(CapsFrame),
-    /// User confirmation required (R2-HIVE §6.4.4). The caller MUST
+    /// User confirmation required (R2-PROVISION §5.3.4, SAS verification). The caller MUST
     /// render `sas_code` as a 6-digit decimal (`{:06}`) and ask the
     /// operator to compare with what the peripheral displays. Then
     /// call [`UsbSession::user_confirms`] or
-    /// [`UsbSession::user_aborts`] within the §6.4 user-confirm
+    /// [`UsbSession::user_aborts`] within the §5.3.4 user-confirm
     /// timeout (60 s).
     PairingPrompt {
         hive_id_bytes: [u8; 16],
@@ -106,7 +106,7 @@ pub enum UsbEvent {
     /// Pairing or reconnect completed; the peripheral is now
     /// authenticated and CAPS-advertised transports MAY be activated.
     /// `reconnect = true` when a stored link key was reused;
-    /// `reconnect = false` when a fresh §6.4.3 first-attach pairing
+    /// `reconnect = false` when a fresh §5.3.4 first-attach pairing
     /// just completed.
     Paired {
         hive_id_bytes: [u8; 16],
@@ -114,7 +114,8 @@ pub enum UsbEvent {
     },
     /// Pairing or reconnect failed. Session is closed; the operator
     /// surface (UI / log) should report the reason verbatim — these
-    /// match the §6.4.3 `PAIR_ABORT` reason vocabulary.
+    /// match the R2-PROVISION §5.3.4 (message vocabulary pending ratification)
+    /// `PAIR_ABORT` reason vocabulary.
     PairingFailed { reason: String },
     /// An R2-WIRE frame addressed to the transport identified by
     /// `local_id`. The bytes are the R2-WIRE frame body verbatim — no
@@ -199,9 +200,10 @@ pub enum SessionState {
     /// Peripheral's SYNC parsed, version negotiated as v2, awaiting CAPS.
     AwaitingCaps,
     /// CAPS arrived; host sent `RECONNECT_CHALLENGE`; awaiting
-    /// `RECONNECT_RESPONSE` (R2-HIVE §6.4.6).
+    /// `RECONNECT_RESPONSE` (R2-PROVISION §5.3.4, Reconnect).
     Reconnecting,
-    /// Host sent `PAIR_HELLO_HOST` (R2-HIVE §6.4.3); awaiting `PAIR_COMMIT`.
+    /// Host sent `PAIR_HELLO_HOST` (R2-PROVISION §5.3.4, message vocabulary
+    /// pending ratification); awaiting `PAIR_COMMIT`.
     PairingHelloSent,
     /// Got `PAIR_COMMIT`; awaiting `PAIR_REVEAL`.
     PairingCommitReceived,
@@ -216,10 +218,10 @@ pub enum SessionState {
     Closed,
 }
 
-/// Pairing mode (R2-HIVE §6.4 vs Phase USB-1 dev-only auto-pair).
+/// Pairing mode (R2-PROVISION §5.3.4 vs Phase USB-1 dev-only auto-pair).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PairingMode {
-    /// **DEFAULT in production.** Full §6.4 challenge-response on
+    /// **DEFAULT in production.** Full R2-PROVISION §5.3.4 challenge-response on
     /// first attach, HMAC reconnect on subsequent attaches.
     Strict,
     /// Phase USB-1 stub: any peripheral that completes SYNC + CAPS is
@@ -423,7 +425,7 @@ impl UsbSession {
     /// with the type-byte prefix and length-prefix framing. Only
     /// valid in the [`SessionState::Active`] state — pre-pairing
     /// frames are silently dropped (the peripheral would reject them
-    /// per §6.4.2 anyway).
+    /// per R2-PROVISION §5.3.4 (message vocabulary pending ratification) anyway).
     ///
     /// Returns `true` if the frame was queued, `false` if the session
     /// is not yet authorised to send wire data.
@@ -593,7 +595,7 @@ impl UsbSession {
             },
             id if id <= TYPE_LOCAL_ID_MAX => {
                 // R2-WIRE frames are only valid on a paired link.
-                // Pre-pairing, drop silently per §6.4.2 / §5.4.
+                // Pre-pairing, drop silently per R2-PROVISION §5.3.4 / R2-USB §5.4.
                 if !matches!(self.state, SessionState::Active) {
                     return;
                 }
@@ -610,7 +612,7 @@ impl UsbSession {
 
     fn is_pairing_msg_type(&self, msg_type: u64) -> bool {
         // R2-USB §3.7: msg_type 4..=11 carry pairing flow per
-        // R2-HIVE §6.4.3 / §6.4.6. Always interpret as pairing while
+        // R2-PROVISION §5.3.4 (message vocabulary / Reconnect). Always interpret as pairing while
         // pairing or reconnecting state is in flight; in Active
         // (already paired) drop them quietly — the peripheral
         // shouldn't be sending pairing frames after pairing is done.
@@ -729,7 +731,8 @@ impl UsbSession {
             (11, _) => self.handle_pair_abort(body, events),
             _ => {
                 // Any other pairing msg_type in any unexpected state
-                // is a protocol violation. Per §6.4.3, abort with a
+                // is a protocol violation. Per R2-PROVISION §5.3.4 (message
+                // vocabulary pending ratification), abort with a
                 // protocol_error reason.
                 self.send_abort("protocol_error");
                 self.fail_pairing("protocol_error", events);
@@ -870,7 +873,7 @@ impl UsbSession {
     }
 
     /// Operator rejects the SAS code (mismatch, change of mind, or
-    /// 60 s timeout per §6.4.4). Sends `PAIR_ABORT { reason: "user_aborted" }`
+    /// 60 s timeout per R2-PROVISION §5.3.4, SAS verification). Sends `PAIR_ABORT { reason: "user_aborted" }`
     /// and closes.
     pub fn user_aborts(&mut self) {
         if !matches!(self.state, SessionState::PairingAwaitingUser) {
@@ -917,7 +920,7 @@ impl UsbSession {
 
 // ---------------------------------------------------------------------
 // §3.7 control-frame builders for pairing — type 0xFF, body is an
-// integer-keyed CBOR map per R2-HIVE §6.4.2.
+// integer-keyed CBOR map per R2-PROVISION §5.3.4 (message vocabulary pending ratification).
 // ---------------------------------------------------------------------
 
 enum CborField<'a> {
@@ -925,7 +928,7 @@ enum CborField<'a> {
     Text(&'a str),
 }
 
-/// Build a §3.7 control frame body that carries a §6.4 pairing
+/// Build a §3.7 control frame body that carries a R2-PROVISION §5.3.4 pairing
 /// message. Returns `[0xFF] || cbor({0: msg_type, 1: {fields...}})`
 /// suitable for [`encode_length_prefixed`].
 fn build_pair_msg(msg_type: u64, fields: &[(u64, CborField<'_>)]) -> Vec<u8> {
@@ -1487,7 +1490,7 @@ mod tests {
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // Phase USB-2 — §6.4 pairing flow, end-to-end against the
+    // Phase USB-2 — R2-PROVISION §5.3.4 pairing flow, end-to-end against the
     // deterministic r2-usb-pair-vectors.json inputs.
     //
     // These tests use a CAPS frame whose hive_id_bytes matches the

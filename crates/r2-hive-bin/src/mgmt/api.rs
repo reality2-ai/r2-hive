@@ -28,7 +28,7 @@ pub const EV_DAEMON_STATUS: &str = "r2.mgmt.daemon.status";
 pub const EV_IDENTITY_STATUS: &str = "r2.mgmt.identity.status";
 pub const EV_WEB_PROVISION: &str = "r2.mgmt.web.provision";
 /// Phase USB-4 — operator opt-in surface for USB peripherals
-/// (R2-USB §3 + R2-HIVE §6.4). Five events:
+/// (R2-USB §3 + R2-PROVISION §5.3.4). Five events:
 ///
 /// - `list` — return every device the watcher is tracking + its
 ///   current state and any pending SAS prompt.
@@ -37,7 +37,7 @@ pub const EV_WEB_PROVISION: &str = "r2.mgmt.web.provision";
 ///   (drives [`crate::usb_serial::SessionControl::UserConfirms`]).
 /// - `abort` — operator rejects the SAS code or otherwise cancels.
 /// - `unpair` — forget the link key for a previously-paired device,
-///   forcing fresh §6.4.3 first-attach pairing on next reconnect.
+///   forcing fresh R2-PROVISION §5.3.4 first-attach pairing on next reconnect.
 pub const EV_USB_LIST: &str = "r2.mgmt.usb.list";
 pub const EV_USB_PREPARE: &str = "r2.mgmt.usb.prepare";
 pub const EV_USB_CONFIRM: &str = "r2.mgmt.usb.confirm";
