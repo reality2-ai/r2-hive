@@ -1442,6 +1442,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "r2-fnv",
+ "tokio",
 ]
 
 [[package]]

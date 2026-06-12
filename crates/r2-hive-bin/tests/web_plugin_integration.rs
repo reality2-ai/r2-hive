@@ -27,6 +27,7 @@ fn manifest(name: &str, mount: Option<&str>, bundle: &str) -> WebPluginManifest 
         bundle: bundle.to_string(),
         mount: mount.map(|s| s.to_string()),
         channels: Vec::<WebChannelDef>::new(),
+        subscriptions: Vec::new(),
         graphql_schema: None,
         csp: Some(WebCspOverride::default()),
     }

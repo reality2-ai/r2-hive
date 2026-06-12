@@ -622,6 +622,7 @@ mod tests {
             bundle: bundle.to_string(),
             mount: mount.map(|s| s.to_string()),
             channels: Vec::new(),
+            subscriptions: Vec::new(),
             graphql_schema: None,
             csp: None,
         }
