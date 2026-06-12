@@ -1,4 +1,4 @@
-//! CDC-ACM serial I/O wrapper for R2-USB v2 (Phase USB-3a).
+//! CDC-ACM serial I/O wrapper for R2-USB v0.1 (Phase USB-3a).
 //!
 //! Opens a `/dev/ttyACM*` (or any compatible CDC-ACM character device)
 //! in raw, non-blocking mode and presents an `AsyncRead + AsyncWrite`
@@ -185,8 +185,9 @@ pub enum SessionControl {
     /// Operator confirmed the SAS code shown in a [`UsbEvent::PairingPrompt`]
     /// — proceed with [`UsbSession::user_confirms`].
     UserConfirms,
-    /// Operator rejected the SAS code or the §6.4 60-second confirmation
-    /// timeout elapsed — abort with [`UsbSession::user_aborts`].
+    /// Operator rejected the SAS code or the R2-PROVISION §5.3.4 (SAS
+    /// verification) 60-second confirmation timeout elapsed — abort with
+    /// [`UsbSession::user_aborts`].
     UserAborts,
     /// Send an R2-WIRE frame out via this dongle's `local_id`
     /// transport (Phase USB-5). The session wraps the bytes in the
@@ -201,7 +202,7 @@ pub enum SessionControl {
 ///
 /// Loop semantics:
 ///
-/// 1. Send the initial v2 SYNC frame.
+/// 1. Send the initial SYNC frame (R2-USB §3.3 handshake).
 /// 2. Repeatedly: flush any outbound bytes the session has produced;
 ///    `select!` on (a) inbound bytes from the transport and (b) a
 ///    control message from the operator surface.
@@ -320,7 +321,7 @@ mod tests {
         assert!(n >= 6, "host SYNC should be 6 bytes (got {n})");
         assert_eq!(&buf[..6], &hex("040032520200")[..]);
 
-        // Send peripheral's v2 SYNC reply.
+        // Send peripheral's SYNC reply (R2-USB §3.3 handshake).
         peripheral_side
             .write_all(&hex("040032520200"))
             .await

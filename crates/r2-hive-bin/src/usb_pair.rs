@@ -1,14 +1,16 @@
-//! R2-HIVE §6.4 pairing — pure cryptographic helpers (Phase USB-2).
+//! R2-PROVISION §5.3.4 USB pairing — pure cryptographic helpers (Phase USB-2).
 //!
 //! These functions implement the byte-pinned crypto contract from
-//! `r2-specifications/specs/r2-core/R2-HIVE.md` §§6.4.1–6.4.6 and the
-//! test vectors at `r2-usb-pair-vectors.json`. They are deterministic
-//! (no CSPRNG), allocation-free aside from heap-clearable scratch
-//! buffers, and depend only on `x25519-dalek`, `sha2`, `hkdf`, and
-//! `hmac`. The pairing state machine in [`crate::usb::session`] glues
-//! these helpers to the wire I/O.
+//! `r2-specifications/specs/.../R2-PROVISION.md` §5.3.4 ("USB Pairing (Wired,
+//! MITM-Protected)", v0.6, the ratified canonical home — formerly R2-HIVE §6.4)
+//! and the test vectors at `r2-usb-pair-vectors.json` (UP1–UP12, conformance-
+//! bound). They are deterministic (no CSPRNG), allocation-free aside from
+//! heap-clearable scratch buffers, and depend only on `x25519-dalek`, `sha2`,
+//! `hkdf`, and `hmac`. The pairing state machine in [`crate::usb::session`]
+//! glues these helpers to the wire I/O.
 //!
-//! Algorithm pin per §6.4.1:
+//! Algorithm pin per §5.3.4 ("Key agreement and commitment" step 1 +
+//! the closing Conformance block):
 //!
 //! - X25519 (RFC 7748) for key agreement.
 //! - SHA-256 for the commitment.
@@ -93,12 +95,13 @@ pub fn verify_commitment(
     constant_time_eq(expected, &computed)
 }
 
-/// Derive the 6-digit verification code per §6.4.4.
+/// Derive the 6-digit verification code per R2-PROVISION §5.3.4 (SAS
+/// verification).
 ///
 /// Both sides compute the same `sas_code` from the shared secret and
 /// the four committed values; the host displays it in its pairing
-/// UI; the peripheral renders it (display, USB-CDC, blink — per
-/// §6.4.8). User confirms they match.
+/// UI; the peripheral renders it (display, USB-CDC, blink — per the same
+/// SAS verification paragraph). User confirms they match.
 ///
 /// Returns the 6-digit code in `0..=999_999`. Render as `{:06}` to
 /// preserve leading zeros.
@@ -122,8 +125,8 @@ pub fn sas_code(
     u % 1_000_000
 }
 
-/// Derive the long-term link key per §6.4.5. Stored on both sides
-/// keyed by `hive_id_bytes`; survives reboots; survives OTA.
+/// Derive the long-term link key per R2-PROVISION §5.3.4 (Link key). Stored on
+/// both sides keyed by `hive_id_bytes`; survives reboots; survives OTA.
 pub fn link_key(
     z: &SharedSecret,
     eph_pk_host: &PublicKey32,
@@ -145,7 +148,7 @@ pub fn link_key(
     out
 }
 
-/// Compute the reconnect HMAC per §6.4.6.
+/// Compute the reconnect HMAC per R2-PROVISION §5.3.4 (Reconnect).
 ///
 /// `tag = HMAC-SHA256(link_key, b"r2-usb-reconnect-v1" || nonce_rc || hive_id_bytes)[..16]`.
 ///

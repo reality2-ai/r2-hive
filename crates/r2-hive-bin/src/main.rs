@@ -96,7 +96,7 @@ struct Args {
 
     /// Disable the USB-attached peripheral watcher. By default
     /// r2-hive scans `/dev` for `ttyACM*`/`ttyUSB*` devices and
-    /// drives the R2-USB v2 protocol against any it finds. Disable
+    /// drives the R2-USB v0.1 protocol against any it finds. Disable
     /// for headless servers / containers / development rigs that
     /// don't want the noise.
     #[arg(long)]
@@ -110,13 +110,13 @@ struct Args {
     /// **DEV/TEST ONLY.** Auto-confirm any SAS prompt from a freshly
     /// attached USB peripheral. Equivalent to a UI operator clicking
     /// "yes, the codes match" with no human in the loop. Production
-    /// deployments MUST NOT set this; it defeats the §6.4.4 SAS
-    /// verification.
+    /// deployments MUST NOT set this; it defeats the R2-PROVISION §5.3.4
+    /// (SAS verification).
     #[arg(long)]
     usb_auto_confirm_unsafe: bool,
 
     /// **DEV/TEST ONLY.** Bypass the default-deny USB device filter
-    /// and try to talk R2-USB v2 to every CDC-ACM device that
+    /// and try to talk R2-USB v0.1 to every CDC-ACM device that
     /// appears. Production deployments leave this off; the right
     /// path is `--usb-vid-pid VID:PID` (or `r2hive usb prepare` per
     /// Phase USB-4) for known peripherals.
@@ -347,7 +347,7 @@ async fn main() {
     // Spawn route engine maintenance (decay neighbours/paths every 30s)
     tokio::spawn(router::maintenance_loop(state.clone()));
 
-    // Phase USB-3c: USB-attached peripheral watcher (R2-USB v2).
+    // Phase USB-3c: USB-attached peripheral watcher (R2-USB v0.1).
     // Linux-only; behind a runtime opt-out so headless servers can
     // skip it.
     #[cfg(target_os = "linux")]
@@ -363,7 +363,7 @@ async fn main() {
         if args.usb_allow_any {
             log::warn!(
                 "  USB watcher: --usb-allow-any is set — every CDC-ACM device \
-                 will be probed for R2-USB v2. DEVELOPMENT USE ONLY."
+                 will be probed for R2-USB v0.1. DEVELOPMENT USE ONLY."
             );
         } else if args.usb_vid_pid.is_empty() {
             log::info!(
