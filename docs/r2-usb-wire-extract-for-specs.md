@@ -43,11 +43,11 @@ All ride the §3.7 control frame (`0xFF`), CBOR `{0: msg_type, 1: {fields}}`. Fi
 | `msg_type` | Name | Dir | Body `{1: {...}}` fields |
 |---|---|---|---|
 | `4` | `PAIR_HELLO_HOST` | host→periph | `{1: eph_pk_host: bytes[32], 2: nonce_host: bytes[32]}` |
-| `5` | `PAIR_COMMIT` | periph→host | `{1: commit_p: bytes[32]}` (SHA-256 commitment) |
+| `5` | `PAIR_COMMIT` | periph→host | `{1: commitment: bytes[32]}` (SHA-256 commitment) |
 | `6` | `PAIR_REVEAL` | periph→host | `{1: eph_pk_periph: bytes[32], 2: nonce_periph: bytes[32]}` |
 | `7` | `PAIR_CONFIRM` | host→periph | `{}` (empty — sent after operator SAS confirm) |
 | `8` | `PAIR_DONE` | periph→host | terminal ack; host then stores link_key |
-| `9` | `RECONNECT_CHALLENGE` | host→periph | `{1: nonce_rc: bytes[32]}` |
+| `9` | `RECONNECT_CHALLENGE` | host→periph | `{1: nonce_rc: bytes[16]}` |
 | `10` | `RECONNECT_RESPONSE` | periph→host | `{1: tag: bytes[16]}` (reconnect HMAC, truncated 16) |
 | `11` | `PAIR_ABORT` | either | `{1: reason: text}` |
 
