@@ -114,8 +114,7 @@ pub enum UsbEvent {
     },
     /// Pairing or reconnect failed. Session is closed; the operator
     /// surface (UI / log) should report the reason verbatim — these
-    /// match the R2-PROVISION §5.3.4 (message vocabulary pending ratification)
-    /// `PAIR_ABORT` reason vocabulary.
+    /// match the R2-PROVISION §5.3.4 `PAIR_ABORT` reason vocabulary.
     PairingFailed { reason: String },
     /// An R2-WIRE frame addressed to the transport identified by
     /// `local_id`. The bytes are the R2-WIRE frame body verbatim — no
@@ -202,8 +201,7 @@ pub enum SessionState {
     /// CAPS arrived; host sent `RECONNECT_CHALLENGE`; awaiting
     /// `RECONNECT_RESPONSE` (R2-PROVISION §5.3.4, Reconnect).
     Reconnecting,
-    /// Host sent `PAIR_HELLO_HOST` (R2-PROVISION §5.3.4, message vocabulary
-    /// pending ratification); awaiting `PAIR_COMMIT`.
+    /// Host sent `PAIR_HELLO_HOST` (R2-PROVISION §5.3.4); awaiting `PAIR_COMMIT`.
     PairingHelloSent,
     /// Got `PAIR_COMMIT`; awaiting `PAIR_REVEAL`.
     PairingCommitReceived,
@@ -425,7 +423,7 @@ impl UsbSession {
     /// with the type-byte prefix and length-prefix framing. Only
     /// valid in the [`SessionState::Active`] state — pre-pairing
     /// frames are silently dropped (the peripheral would reject them
-    /// per R2-PROVISION §5.3.4 (message vocabulary pending ratification) anyway).
+    /// per R2-PROVISION §5.3.4 anyway).
     ///
     /// Returns `true` if the frame was queued, `false` if the session
     /// is not yet authorised to send wire data.
@@ -731,8 +729,7 @@ impl UsbSession {
             (11, _) => self.handle_pair_abort(body, events),
             _ => {
                 // Any other pairing msg_type in any unexpected state
-                // is a protocol violation. Per R2-PROVISION §5.3.4 (message
-                // vocabulary pending ratification), abort with a
+                // is a protocol violation. Per R2-PROVISION §5.3.4, abort with a
                 // protocol_error reason.
                 self.send_abort("protocol_error");
                 self.fail_pairing("protocol_error", events);
@@ -920,7 +917,7 @@ impl UsbSession {
 
 // ---------------------------------------------------------------------
 // §3.7 control-frame builders for pairing — type 0xFF, body is an
-// integer-keyed CBOR map per R2-PROVISION §5.3.4 (message vocabulary pending ratification).
+// integer-keyed CBOR map per R2-PROVISION §5.3.4.
 // ---------------------------------------------------------------------
 
 enum CborField<'a> {
