@@ -94,11 +94,15 @@ Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-a
 - ~~hive TODO: usb_pair.rs citation fix~~ DONE (`4c70d2c`) — usb_pair.rs §6.4.x → R2-PROVISION
   §5.3.4 (SAS verification/Link key/Reconnect/Key agreement); main.rs+usb_serial.rs "R2-USB v2" →
   "R2-USB v0.1", SYNC frame → §3.3. Doc-only; builds clean.
-- ~~OPEN: type-byte divergence + usb.rs frame-vocab mapping~~ RESOLVED — specs RULED: (A) ratify the
-  type-byte sublayer as **R2-USB §3.2.1** (don't drop; discriminators collision-free by construction);
-  (B) PAIR_* vocab + CBOR frame fmt home = **R2-PROVISION §5.3.4** (message vocabulary). usb.rs re-cited
-  (`8f31231`); both wire extracts committed + sent to specs. **Awaiting Roy go-ahead** for specs to
-  author the §3.2.1 amendment + §5.3.4 message subsection (impl stays as-is meanwhile).
+- ~~OPEN: type-byte divergence + usb.rs frame-vocab mapping~~ **CLOSED — RATIFIED + VERIFIED.** specs
+  authored all three (`71ee053` spec-conformance-v0.2, Roy-authorized): **R2-USB v0.2** §3.3 version
+  negotiation / §3.5 type byte / §3.6 CAPS / §3.7 control + Appendix A transport kinds; **R2-PROVISION
+  v0.7 §5.3.4** message vocabulary (PAIR_* 4-11). I VERIFIED both against usb.rs — all bytes match (CAPS
+  keys, msg fields, nonce_rc/tag b16, abort vocab exact 8-match). **Both normative tightenings specs
+  added were ALREADY honoured by the impl:** (a) failed reconnect does NOT fall back to first-attach
+  (`usb.rs:846-848` → fail_pairing→Closed); (b) AutoPairUnsafe NOT default (Strict default; dev-only
+  ctor used only in tests; prod watcher `usb_hotplug.rs:590` = Strict). usb.rs cites finalized
+  (`12c6a43`): 'pending ratification' dropped, framing→§3.5-3.7, pairing→§5.3.4. Impl is now CANON.
 - **Deps:** core **D3b** (no_std sync BLE/WiFi/LoRa) = hard blocker for radios; composer = OTA
   push + carrier + ensemble; specs = hw test defs.
 - Phase-3 adversarial-refuter role (deployment reality): FILED first batch to specs (the 5
