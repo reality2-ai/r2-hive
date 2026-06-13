@@ -89,14 +89,18 @@ Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-a
 - References (std, patterns not code): core `platforms/esp32`, workshop `firmware/esp32-s3`.
 
 ## Pending Roy / cross-repo
-- **OPEN — pre-TG CAPS device-identity gap** (specs flagged to Roy as candidate R2-USB §3.6 note;
-  `b33547f`): R2-WIRE §6.2.1 hive_id is TG-SCOPED, but CAPS requires `hive_id_bytes` and a factory-fresh
-  peripheral has no TG yet. My LinkKeyStore is keyed SOLELY on CAPS hive_id_bytes → if a peripheral
-  changes it after provisioning, reconnect lookup misses → silent forced re-pair. **Host position (sent
-  to specs):** CAPS hive_id_bytes must be a STABLE per-device USB-link id, DISTINCT from + independent of
-  the TG-scoped mesh hive_id, never changing on TG join. **Asked workshop** (owns ESP32/r2-esp CAPS
-  issuance) whether firmware re-issues a different hive_id post-provisioning — awaiting fork-answer, will
-  relay to specs. eFuse-MAC derivation marked impl-defined-pending-spec in usb.rs (no spec cite).
+- **OPEN — CAPS device-identity gap: CONFIRMED REAL, fix agreed, spec-first** (awaiting specs §3.6
+  authoring, Roy-gated). ROOT CAUSE (workshop firmware answer): ESP32 derives `hive_id_bytes =
+  HKDF(master_secret, info=tg_id)` = TG-SCOPED, and the SAME 16 bytes feed CAPS §3.6 + my link-key store
+  key + reconnect HMAC + mesh hive_id (§6.2.1). Cross-TG provisioning → different value → my LinkKeyStore
+  (keyed solely on CAPS hive_id_bytes) misses → silent forced re-pair. AGREED FIX (workshop owns,
+  r2-esp/hive_id.rs): split — `usb_link_id = HKDF(master_secret,"r2-usb-link-v1")` STABLE/TG-indep → CAPS
+  + link-key store; `mesh_hive_id = HKDF(master_secret,info=tg_id)` → mesh. **My host needs ZERO change**
+  (store keys on whatever stable CAPS id arrives). PROPOSED NORMATIVE RULE relayed to specs: CAPS
+  hive_id_bytes MUST be stable for device life + TG-independent; mesh hive_id (§6.2.1) is separate →
+  R2-USB §3.6 + R2-WIRE §6.2.1 cross-ref; composer also a consumer (provisioning/OTA). workshop HOLDS
+  firmware change until specs ratifies §3.6 wording. Minor: dev devices paired pre-fix do a 1-time
+  re-pair (harmless pre-launch). eFuse-MAC comment already marked impl-defined-pending-spec (`b33547f`).
 - ~~Roy: greenlight R2-PROVISION §5.3.4~~ DONE — specs confirms COMMITTED (`4b74b20`, v0.6, Roy
   green-lit) on `spec-conformance-v0.2`. Cite by paragraph name (no §5.3.4.y sub-numbers).
 - ~~hive TODO: usb_pair.rs citation fix~~ DONE (`4c70d2c`) — usb_pair.rs §6.4.x → R2-PROVISION
