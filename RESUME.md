@@ -20,6 +20,12 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   handshake → `peers().connect()`→OutboundRx, `push_inbound` on recv, drain `outbound_rx.next()`→ws.send,
   `remove_peer` on cleanup) builds + runs GREEN against the real machinery (was scaffold). One core
   API-drift fix: `WebPluginManifest.subscriptions` added to 3 test manifest builders. Full suite green.
+- **Transport + router integration tests** (`11443cf`,`828b419`) — filled a zero-coverage gap now that
+  core D3a transports are real. `tests/transport_integration.rs` (3): HiveState send path round-trips
+  over REAL loopback UDP-LAN sockets (set_udp_transport + send_to_hive_via → Wifi slot), no-transport→None,
+  Wifi-hint routing. `tests/router_integration.rs` (5): route_frame NotR2Wire rejection, the 32-byte
+  HMAC-tag trim fallback, valid-frame routing, and engine dedup (seeded neighbour → flood then dup-drop).
+  Transport layer now VERIFIED working against core's real machinery, not just compile-green.
 - **USB spec citations resolved** (`4c70d2c`,`8f31231`) — usb_pair/usb/main/usb_serial/usb_hotplug/api.rs
   all R2-HIVE §6.4.x → R2-PROVISION §5.3.4 (specs ruled it the canonical pairing home); R2-USB v2→v0.1.
   Type-byte divergence: specs RULED **ratify** as R2-USB §3.2.1 (don't drop; collision-free). Both
