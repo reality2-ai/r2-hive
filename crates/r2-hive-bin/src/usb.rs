@@ -1490,11 +1490,13 @@ mod tests {
     // Phase USB-2 — R2-PROVISION §5.3.4 pairing flow, end-to-end against the
     // deterministic r2-usb-pair-vectors.json inputs.
     //
-    // These tests use a CAPS frame whose hive_id_bytes matches the
-    // synthetic 0x55-filled fixture used in r2-usb-pair-vectors.json.
-    // The DFR1195 in production will have its own hive_id_bytes derived
-    // from its eFuse MAC per R2-USB §3.6.1; the protocol shape is
-    // identical.
+    // These tests use a CAPS frame whose hive_id_bytes (the §3.6 CAPS
+    // field) matches the synthetic 0x55-filled fixture used in
+    // r2-usb-pair-vectors.json. The DFR1195 in production will have its
+    // own stable hive_id_bytes; the exact derivation (e.g. from the eFuse
+    // MAC) is impl-defined pending spec — the pre-TG USB-link device
+    // identity is not yet canon (flagged to specs). The protocol shape is
+    // identical regardless of derivation.
     // ─────────────────────────────────────────────────────────────────
 
     fn pinned_keys() -> ([u8; 32], [u8; 32], [u8; 16]) {
