@@ -84,6 +84,10 @@ Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-a
 - hive owns: board layer (SX1262 LoRa / LCD / IO18 button), on-device host loop, **no_std OTA
   receiver** (embassy-net; std `ota_tcp.rs` is reference only). **Validation handoff:** core
   authors D3b but can't flash — **hive validates on real DFR1195**, feeds defects back.
+- **Identity:** my firmware CONSUMES the shared `r2-esp/hive_id` module (workshop-owned, one impl per
+  north-star) — incl. the agreed `usb_link_id = HKDF(master_secret,"r2-usb-link-v1")` (stable USB-link
+  id) / `mesh_hive_id = HKDF(master_secret,info=tg_id)` split. Do NOT fork a parallel derivation. Gated
+  on specs ratifying R2-USB §3.6 (workshop holds the change until then).
 - Near-term scope flag: r2-def/ensemble/dispatch are std-tier → initial MCU hive is
   ROUTING+TRANSPORT only (no on-device ensembles) until those are re-tiered no_std.
 - References (std, patterns not code): core `platforms/esp32`, workshop `firmware/esp32-s3`.
