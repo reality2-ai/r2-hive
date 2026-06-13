@@ -89,6 +89,14 @@ Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-a
 - References (std, patterns not code): core `platforms/esp32`, workshop `firmware/esp32-s3`.
 
 ## Pending Roy / cross-repo
+- **OPEN — pre-TG CAPS device-identity gap** (specs flagged to Roy as candidate R2-USB §3.6 note;
+  `b33547f`): R2-WIRE §6.2.1 hive_id is TG-SCOPED, but CAPS requires `hive_id_bytes` and a factory-fresh
+  peripheral has no TG yet. My LinkKeyStore is keyed SOLELY on CAPS hive_id_bytes → if a peripheral
+  changes it after provisioning, reconnect lookup misses → silent forced re-pair. **Host position (sent
+  to specs):** CAPS hive_id_bytes must be a STABLE per-device USB-link id, DISTINCT from + independent of
+  the TG-scoped mesh hive_id, never changing on TG join. **Asked workshop** (owns ESP32/r2-esp CAPS
+  issuance) whether firmware re-issues a different hive_id post-provisioning — awaiting fork-answer, will
+  relay to specs. eFuse-MAC derivation marked impl-defined-pending-spec in usb.rs (no spec cite).
 - ~~Roy: greenlight R2-PROVISION §5.3.4~~ DONE — specs confirms COMMITTED (`4b74b20`, v0.6, Roy
   green-lit) on `spec-conformance-v0.2`. Cite by paragraph name (no §5.3.4.y sub-numbers).
 - ~~hive TODO: usb_pair.rs citation fix~~ DONE (`4c70d2c`) — usb_pair.rs §6.4.x → R2-PROVISION
