@@ -360,8 +360,8 @@ async fn handshake(
         return None;
     }
 
-    // Compute hive_id: FNV-1a of device public key bytes
-    let hive_id = fnv1a_32(&device_pk_bytes);
+    // Compute hive_id: FNV-1a of device public key bytes (shared r2-fnv impl).
+    let hive_id = r2_fnv::fnv1a_32(&device_pk_bytes);
 
     // Send WELCOME, echoing the negotiated protocol version.
     let peers = state.tg_peer_count(&tg_hash_bytes).await;
@@ -410,16 +410,6 @@ fn hex_decode(s: &str) -> Option<Vec<u8>> {
 
 fn hex_encode(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{:02x}", b)).collect()
-}
-
-/// FNV-1a 32-bit hash.
-fn fnv1a_32(data: &[u8]) -> u32 {
-    let mut hash: u32 = 0x811c_9dc5;
-    for &byte in data {
-        hash ^= byte as u32;
-        hash = hash.wrapping_mul(0x0100_0193);
-    }
-    hash
 }
 
 #[cfg(test)]

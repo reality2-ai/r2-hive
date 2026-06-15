@@ -542,7 +542,18 @@ async fn start_lan_discovery(args: &Args, state: &Arc<HiveState>, _self_hive_id:
     let state_rx = state.clone();
     let udp_rx = udp.clone();
     tokio::spawn(async move {
-        while let Ok(frame) = udp_rx.recv().await {
+        loop {
+            // A transient recv error (e.g. ECONNREFUSED surfaced from a prior
+            // send's ICMP port-unreachable) must NOT permanently kill the
+            // inbound loop — log, back off briefly, and keep serving.
+            let frame = match udp_rx.recv().await {
+                Ok(f) => f,
+                Err(e) => {
+                    log::warn!("UDP LAN recv error: {:?}; continuing", e);
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    continue;
+                }
+            };
             let data = &frame.data;
 
             // Check for word code broadcast (proximity-limited join support)
@@ -640,7 +651,16 @@ async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Re
     let state_rx = state.clone();
     let ble_rx = ble.clone();
     tokio::spawn(async move {
-        while let Ok(frame) = ble_rx.recv().await {
+        loop {
+            // Transient recv errors must not kill the inbound loop (see UDP).
+            let frame = match ble_rx.recv().await {
+                Ok(f) => f,
+                Err(e) => {
+                    log::warn!("BLE recv error: {:?}; continuing", e);
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    continue;
+                }
+            };
             state_rx.frames_routed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             log::info!("BLE inbound: {} bytes from hive 0x{:08X}", frame.data.len(), frame.source_hive);
 
@@ -729,7 +749,16 @@ async fn start_lora(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> 
     let lora_rx = lora.clone();
     tokio::spawn(async move {
         log::info!("LoRa receive loop started");
-        while let Ok(frame) = lora_rx.recv().await {
+        loop {
+            // Transient recv errors must not kill the inbound loop (see UDP).
+            let frame = match lora_rx.recv().await {
+                Ok(f) => f,
+                Err(e) => {
+                    log::warn!("LoRa recv error: {:?}; continuing", e);
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    continue;
+                }
+            };
             let data = &frame.data;
             log::info!(
                 "LoRa inbound: {} bytes from hive 0x{:08X} (RSSI signalled by IPC)",
