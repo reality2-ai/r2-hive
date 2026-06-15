@@ -10,6 +10,20 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
 
 **Current branch:** `platform-trait` (local + pushed). Built atop the v0.2 work (`0aa6ab7`).
 
+## Active (besides the branch)
+- **Storing-backend-hive scoping** — DELIVERED (`59f3ffd`, `docs/storing-backend-hive-scoping.md`),
+  pinged supervisor → Roy for go/no-go. Recommendation: GO, hybrid seam-first (new `RecordStore` seam
+  modeled on IdentityStore + persistence ensemble + proposal-gated write-authority, conventional SQLite
+  behind the R2 seam now, R2-native event-log/CRDT deferred behind same seam). ~8-11 units to usable BOS.
+  Buildable NOW on full-std (hosts ensembles today; no MCU re-tier / no core-D3b on critical path). Awaits
+  Roy. If GO: step 1 = `RecordStore` seam in r2-hive-core (cheap — 2nd seam after IdentityStore).
+- **D3b firmware validation** (core `f9c9fde`, `platforms/dfr1195`, riscv32 ESP32-C6+SX1262) — HARDWARE-
+  GATED. core authored the no_std skeleton; I validate on real DFR1195 (laptop↔board WiFi-UDP first), confirm
+  the `HIVE:`-marked seam points (esp-hal::init, WiFi STA, embassy-net Stack, BLE bringup, SX1262 SPI pins)
+  against my toolchain, wire writer-task spawn+RX, feed defects back. Needs riscv32 toolchain + board.
+- **TN refutation re-run** — core `da89050` made TN-L2-XT-BL-001 (scf buffer cap) + TN-L2-XT-AB-001
+  (entanglement epoch) DECIDABLE; re-run those two against the new knobs in a later batch (specs' track).
+
 ## Done + green
 - **v0.2 migration + relay handshake + 4 vector fixtures** — full r2-hive suite GREEN; on
   `v0.2-relay-handshake` (pushed). Fixtures all specs-verified + landing: host-api (28),
