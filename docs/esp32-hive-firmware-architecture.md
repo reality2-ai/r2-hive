@@ -1,4 +1,9 @@
-# ESP32-S3 (DFR1195) hive firmware — host-loop / board architecture sketch
+# DFR1195 (ESP32-C6) hive firmware — host-loop / board architecture sketch
+
+> **SoC correction (2026-06-16):** the DFR1195 is the DFRobot **FireBeetle 2 ESP32-C6 (RISC-V)**, target
+> `riscv32imac-unknown-none-elf`, `espflash --chip esp32c6` — per core's authoritative D3b skeleton
+> `r2-core/platforms/dfr1195`. Earlier "ESP32-S3-WROOM-1-N4 / xtensa" mentions below are WRONG (carried
+> over from the devkit) — read S3→C6, xtensa→RISC-V. See `docs/hardware-tn-test-critical-path.md`.
 
 Status: **sketch for alignment** (Phase 3 Part D). Architecture ratified by Roy:
 **Path B — pure no_std (esp-hal/embassy)**, under the north-star below. This is a
