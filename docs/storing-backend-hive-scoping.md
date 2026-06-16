@@ -49,7 +49,12 @@ new `RecordStore` seam**, and serves reads/writes back to clients over the exist
 - **Linux platform layer** (`r2-hive-bin/src/platform.rs` `LinuxPlatform` + `r2-hive-core::platform::Platform`) — clock, RNG, sockets. The backend is just a long-running instance of it.
 - **The storage seam I already factored** (`r2-hive-core::identity::{IdentityStore, StoreError}` + bin `FileStore`: atomic write, 0600, idempotent load_or_create). This is the **exact template** for the new `RecordStore` seam — trait in core, platform impl in bin, error abstracted. *We have done this move once already; the second seam is cheap.*
 - **EnsembleRegistry hosting** — `HiveState` already owns `Arc<EnsembleRegistry>` and routes inbound events to it via `DispatchTarget::dispatch` (`router::route_frame` → `state.ensembles.dispatch`). **A Linux hive hosts sentants TODAY, full std.** (See §4 — this is the headline advantage.)
-- **r2-engine EventBus** — `drain_outbound()` is the natural tap point for an archive sink; hash-based multicast means a persistence sentant just subscribes to the event hashes it must record.
+- **r2-engine EventBus** — a persistence sentant subscribes (by exact event-hash) to the events it must record. *(Correction from core: subscription is EXACT-hash match — there is NO wildcard "subscribe to all"; and `drain_outbound()` surfaces only REMOTE-targeted events, not all local dispatch. So tap via subscription on the dispatch path for a known event set; whole-system capture would need a small core change — a wildcard subscription. For BOS the event set is known, so exact-hash subscription suffices.)*
+- **composer's PROVEN prior art (generalize, don't invent)** — composer's orchestrator already has the three pieces a persistence backend needs, in narrow form:
+  - **Bus tap:** `EngineHandle::subscribe_outbound() -> broadcast::Receiver<QueuedEvent>` (a live consumer is `web.rs::wire_socket_loop`).
+  - **Atomic-durable-write discipline:** `orchestrator/src/roster.rs` — write-temp → fsync → rename → fsync-dir (SPEC-APIARY-FLASH §2.3), never mutated in place, with an **append-only audit trail** (`history: Vec<HistoryEntry>` §2.4). This is exactly the durable-write pattern `RecordStore` needs, already written + spec'd.
+  - **"Drain bus → validated transition → append history → atomic save" sentant:** `orchestrator/src/sentants/roster.rs` (`RosterSentant`) is the persistence-sentant template, already built (narrow: device-roster FSM keyed by slot_id). The storing backend **generalizes** this from one schema to a general record/event store.
+  - **Cryptographic ingress write-authority:** composer already enforces *who may write* — `/r2/wire` group-HMAC + connection-open Ed25519 proof against the roster; `/ws` per-message Ed25519; = provisioned non-revoked TG member (`verify_wire_frame`/`wire_authenticate`/`verify_ws_auth`). Reuse this directly for the backend's write gate.
 - **Sentant `durable-state` flag** (R2-SENTANT §2.2) — business sentants can already declare they persist; the backend supplies the snapshot store the flag implies.
 - **Transports + relay driver + multi-transport send** (this branch: WS relay driver, UDP-LAN, tested) — clients reach the backend over the same fabric; no new transport work.
 - **r2-trust** identity / TG membership / **revocation CRDT** (the one existing distributed-consensus primitive) — reused for who-is-in + key revocation.
@@ -72,7 +77,11 @@ bos's model maps onto R2 cleanly and is **better than the LWW Notekeeper shows**
 - **Append-only `audit_event` per mutation** (actor + action + before/after, human-vs-agent) — this IS the durable event log from §1, projected. One log serves both audit and record-of-truth.
 - **Versioning over LWW** — `knowledge_version` history is the event log replayed per entity; no information loss.
 
-**Gap:** R2 has no write-authority spec and no audit/provenance canon (only revocation CRDT). The *mechanism* is buildable on the event/sentant model now; the *normative rules* are specs' to author (§5).
+**Concrete gap confirmed by composer:** composer *proves* the writer's identity at ingress (Ed25519 + TG membership) but **does not persist that proven identity into the audit row** — `HistoryEntry{ts,event,from,to,detail}` records *what* changed, not *who authorized it*. So today you can't later prove who made a mutation. **The fix is small and concrete:** carry the proven ingress identity (writer DEV_PK / actor) through to each `audit_event` / record write. That single change + bos's proposal gate gives full human-vs-agent attributable provenance. The ingress auth to reuse already exists (composer's `verify_wire_frame`/`verify_ws_auth`).
+
+**Useful framing (core):** a server-side persistence consumer is "just another sync peer that never forgets" — a relay-draining replica that applies the same op-stream into a durable store *is* a record-of-truth, no new protocol required. Caveat: plain LWW discards concurrent edits (no causal history), so for a business record-of-truth **append the op-stream as a log** (ops already carry `op + id + timestamp`) rather than only materializing LWW state — which is exactly the append-only audit/version log above.
+
+**Gap:** R2 has no write-authority spec and no general audit/provenance canon (only the revocation G-Set + r2-trust's membership-state snapshot `persist.rs`, both point-in-time, neither a log). The *mechanism* is buildable on the event/sentant model now (generalizing composer's roster pattern); the *normative rules* are specs' to author (§5).
 
 ## 3. Persistence while all clients offline
 
@@ -111,15 +120,17 @@ The **mechanisms** are buildable now against the event/sentant model; the **norm
 | # | Step | Reuse vs New | Est. | Gating |
 |---|---|---|---|---|
 | 1 | `RecordStore` seam (trait in core + `StoreError`-style abstraction) | **Reuse pattern** (IdentityStore) | 1 | none |
-| 2 | SQLite-backed `RecordStore` impl (records, versions, append-only audit log, point-in-time read) | New (conventional) | 2–3 | 1 |
-| 3 | Persistence sentant (subscribe → apply → write; serve reads) | New on reuse (EnsembleRegistry/DispatchTarget exist) | 2–3 | 1,2 |
-| 4 | Proposal/write-authority gate (typed-op diff, accept/reject, atomic apply, attribution) | New (small, elegant) | 2 | 3 |
-| 5 | Inbound-write path (backend as addressable write target over existing transports) | Mostly wiring on route path | 1–2 | transports (done) |
+| 2 | SQLite-backed `RecordStore` impl (records, versions, append-only audit log, point-in-time read) | New, but **port composer's atomic-write discipline** (roster.rs §2.3/§2.4 history) | 2 | 1 |
+| 3 | Persistence sentant (subscribe → apply → write; serve reads) | **Generalize composer's `RosterSentant`** (template exists) on EnsembleRegistry/DispatchTarget | 2 | 1,2 |
+| 4 | Proposal/write-authority gate (typed-op diff, accept/reject, atomic apply, **+persist proven actor into audit row**) | New (small); reuse composer ingress auth (`verify_wire_frame`/`verify_ws_auth`) | 2 | 3 |
+| 5 | Inbound-write path (backend as addressable write target over existing transports) | Mostly wiring on route path; reuse composer's bus-tap pattern (`subscribe_outbound`) | 1–2 | transports (done) |
 | 6 | Read-authority filter (`canSee` + confidential scopes → TG capability) | New | 2 | r2-trust TG caps |
 | 7 | Catch-up / reconcile-on-reconnect made durable | Reuse (WS catch-up buffer) → durable | 1–2 | 2 |
 | 8 | Crash-recovery (snapshot + log replay on boot) | New (R2-SENTANT §4.5 sketch) | 1–2 | 2 |
 | 9 | BOS schema mapping + integration spike | New (with bos) | 2–3 | bos |
-| | **Total** | | **~14–20 units** | |
+| | **Total** | | **~13–18 units** | |
+
+*(Estimate trimmed from the first pass: core+composer peer-asks confirmed composer's orchestrator already has the atomic-durable-write discipline, the bus-tap, the drain-bus→store sentant template, and cryptographic ingress auth — so steps 2/3/4/5 are "generalize proven composer code", not invent. The genuinely net-new parts are the general (vs roster-narrow) store schema, actor-attributed provenance, and the proposal/write-authority gate.)*
 
 **Gating deps:** r2-trust TG capabilities (step 6); specs ratifying write-authority/audit/scope canon (steps 4,6 — can proceed against a draft, spec-first); bos schema detail (step 9). **Not gated on** MCU no_std re-tier or core D3b (those are firmware-tier).
 
@@ -139,4 +150,4 @@ Build the `RecordStore` seam + persistence sentant + proposal gate **now**, back
 
 ---
 
-**Bottom line for Roy:** the storing backend hive is a **normal always-on Linux R2 hive + one persistence ensemble + a `RecordStore` seam** — buildable **now** on the existing full-std stack (no firmware-tier blockers), reusing the platform layer, ensemble hosting, transports, and the exact storage-seam pattern hive already factored. Shortest path to a durable, attributable BOS record-of-truth is **~8–11 session-units** (seam + SQLite impl + persistence sentant + proposal gate + inbound-write + bos mapping), with the R2-native event-log/CRDT store deferrable behind the same seam. The hard parts are **canon, not code**: write-authority/audit/scope rules are specs' to ratify (Roy-gated, spec-first). Recommend **go** on the hybrid seam-first path.
+**Bottom line for Roy:** the storing backend hive is a **normal always-on Linux R2 hive + one persistence ensemble + a `RecordStore` seam** — buildable **now** on the existing full-std stack (no firmware-tier blockers), reusing the platform layer, ensemble hosting, transports, and the exact storage-seam pattern hive already factored. Shortest path to a durable, attributable BOS record-of-truth is **~7–10 session-units** (seam + SQLite impl + persistence sentant + proposal gate + inbound-write + bos mapping) — trimmed because composer already has the atomic-write discipline, bus-tap, drain→store sentant template, and ingress auth to **generalize** rather than invent. The R2-native event-log/CRDT store is deferrable behind the same seam. The hard parts are **canon, not code**: write-authority/audit/scope rules are specs' to ratify (Roy-gated, spec-first). Recommend **go** on the hybrid seam-first path.
