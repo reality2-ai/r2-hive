@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use axum::routing::get;
 use axum::Router;
-use r2_def::{WebChannelDef, WebCspOverride, WebPluginManifest};
+use r2_def::{WebChannelDef, WebPluginManifest};
 use r2_hive::hive::HiveState;
 use r2_hive::web::{serve_web_plugin, web_provision_get, web_provision_post};
 use r2_hive::web_auth::WebAuth;
@@ -48,7 +48,7 @@ fn manifest(name: &str, mount: Option<&str>, bundle: &str) -> WebPluginManifest 
         channels: Vec::<WebChannelDef>::new(),
         subscriptions: Vec::new(),
         graphql_schema: None,
-        csp: Some(WebCspOverride::default()),
+        csp: None, // parser fills restrictive_default; mount path defaults defensively
     }
 }
 

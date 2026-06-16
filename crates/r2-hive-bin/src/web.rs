@@ -24,7 +24,7 @@ use axum::body::Body;
 use axum::extract::{Path as AxumPath, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use r2_def::{WebChannelDef, WebCspOverride, WebPluginManifest};
+use r2_def::{CspPolicy, WebChannelDef, WebPluginManifest};
 
 use crate::hive::HiveState;
 
@@ -40,8 +40,9 @@ pub struct MountedBundle {
     pub mount: String,
     /// Filesystem directory containing `index.html`. Always absolute.
     pub bundle_root: PathBuf,
-    /// CSP overrides from the manifest (added to the §13.9 defaults).
-    pub csp: WebCspOverride,
+    /// The plugin's Content-Security-Policy (R2-WEB v0.6 §3.4): the authored
+    /// policy, or `CspPolicy::restrictive_default` when the manifest omitted it.
+    pub csp: CspPolicy,
     /// WebSocket channel definitions. Currently recorded only — wiring
     /// happens in Phase 3d once browser auth is in place.
     pub channels: Vec<WebChannelDef>,
@@ -122,7 +123,9 @@ impl WebPluginRegistry {
             plugin: manifest.name.clone(),
             mount: mount_path.clone(),
             bundle_root,
-            csp: manifest.csp.clone().unwrap_or_default(),
+            // Manifest CSP is always Some (the parser fills restrictive_default
+            // when omitted); default defensively so a UI is never served without one.
+            csp: manifest.csp.clone().unwrap_or_else(CspPolicy::restrictive_default),
             channels: manifest.channels.clone(),
         });
 
@@ -228,8 +231,6 @@ fn verify_no_escaping_symlinks(root: &Path) -> Result<(), MountError> {
 // axum handler
 // ---------------------------------------------------------------------
 
-/// Default §13.9 CSP, before any per-mount additions.
-const DEFAULT_CSP: &str = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
 /// Fallback handler for `/ensemble/*` and `/plugin/*` URIs. Serves
 /// static assets from the matching mounted bundle, applying §13.9
@@ -296,7 +297,7 @@ async fn serve_file(bundle: &MountedBundle, path: PathBuf, dev_mode: bool) -> Re
         Err(_) => return (StatusCode::NOT_FOUND, "no such asset").into_response(),
     };
     let mime = mime_for(&path);
-    let csp = build_csp(&bundle.csp);
+    let csp = render_csp(&bundle.csp);
     let mut resp = Response::new(Body::from(bytes));
     *resp.status_mut() = StatusCode::OK;
     let h = resp.headers_mut();
@@ -370,36 +371,24 @@ fn urlencoded(s: &str) -> String {
     out
 }
 
-fn build_csp(over: &WebCspOverride) -> String {
-    let mut csp = DEFAULT_CSP.to_string();
-    let extend = |csp: &mut String, directive: &str, extras: &[String]| {
-        if extras.is_empty() {
-            return;
+/// Render a [`CspPolicy`] (R2-WEB v0.6 §3.4) directive map into a
+/// Content-Security-Policy header value: `directive src1 src2; directive2 ...`.
+/// `directives` is a `BTreeMap`, so the output is deterministically ordered. A
+/// directive with no sources renders as the bare directive (valid CSP, e.g.
+/// `upgrade-insecure-requests`).
+fn render_csp(policy: &CspPolicy) -> String {
+    let mut out = String::new();
+    for (directive, sources) in &policy.directives {
+        if !out.is_empty() {
+            out.push_str("; ");
         }
-        // Find the directive segment and append.
-        if let Some(start) = csp.find(directive) {
-            let rest = &csp[start..];
-            let end_rel = rest.find(';').unwrap_or(rest.len());
-            let insert_at = start + end_rel;
-            let extras_joined = extras
-                .iter()
-                .map(|s| format!(" {}", s))
-                .collect::<String>();
-            csp.insert_str(insert_at, &extras_joined);
-        }
-    };
-    extend(&mut csp, "script-src", &over.script_src);
-    extend(&mut csp, "style-src", &over.style_src);
-    extend(&mut csp, "connect-src", &over.connect_src);
-    extend(&mut csp, "img-src", &over.img_src);
-    if !over.font_src.is_empty() {
-        csp.push_str("; font-src 'self'");
-        for f in &over.font_src {
-            csp.push(' ');
-            csp.push_str(f);
+        out.push_str(directive);
+        for s in sources {
+            out.push(' ');
+            out.push_str(s);
         }
     }
-    csp
+    out
 }
 
 // ---------------------------------------------------------------------
@@ -669,10 +658,24 @@ mod tests {
     }
 
     #[test]
-    fn build_csp_appends_overrides_to_script_src() {
-        let mut csp = WebCspOverride::default();
-        csp.script_src = vec!["https://cdn.example.com".to_string()];
-        let out = build_csp(&csp);
+    fn render_csp_emits_directive_map_in_header_form() {
+        let mut directives = std::collections::BTreeMap::new();
+        directives.insert(
+            "script-src".to_string(),
+            vec!["'self'".to_string(), "https://cdn.example.com".to_string()],
+        );
+        directives.insert("object-src".to_string(), vec!["'none'".to_string()]);
+        let out = render_csp(&CspPolicy { directives });
         assert!(out.contains("script-src 'self' https://cdn.example.com"));
+        assert!(out.contains("object-src 'none'"));
+        // BTreeMap order ⇒ object-src (o) before script-src (s), joined by "; ".
+        assert_eq!(out, "object-src 'none'; script-src 'self' https://cdn.example.com");
+    }
+
+    #[test]
+    fn restrictive_default_renders_a_safe_policy() {
+        let out = render_csp(&CspPolicy::restrictive_default());
+        assert!(out.contains("default-src 'self'"));
+        assert!(out.contains("object-src 'none'"));
     }
 }

@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use axum::routing::get;
 use axum::Router;
-use r2_def::{WebChannelDef, WebCspOverride, WebPluginManifest};
+use r2_def::{WebChannelDef, WebPluginManifest};
 use r2_hive::hive::HiveState;
 use r2_hive::web::serve_web_plugin;
 
@@ -29,7 +29,7 @@ fn manifest(name: &str, mount: Option<&str>, bundle: &str) -> WebPluginManifest 
         channels: Vec::<WebChannelDef>::new(),
         subscriptions: Vec::new(),
         graphql_schema: None,
-        csp: Some(WebCspOverride::default()),
+        csp: None, // parser fills restrictive_default; mount path defaults defensively
     }
 }
 
@@ -83,8 +83,12 @@ async fn mount_serves_index_with_security_headers() {
         .unwrap()
         .to_string();
     assert_eq!(xcto, "nosniff");
+    // csp:None ⇒ R2-WEB v0.6 §3.4.1 restrictive_default (default-src/script-src/
+    // connect-src/object-src). (The pre-v0.6 hive default also carried
+    // frame-ancestors/base-uri/form-action — flagged to specs as a §3.4.1
+    // hardening candidate; restrictive_default does not include them today.)
     assert!(csp.contains("default-src 'self'"));
-    assert!(csp.contains("frame-ancestors 'none'"));
+    assert!(csp.contains("object-src 'none'"));
     let body = resp.text().await.unwrap();
     assert!(body.contains("<h1>hi</h1>"));
 
