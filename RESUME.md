@@ -10,19 +10,27 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
 
 **Current branch:** `platform-trait` (local + pushed). Built atop the v0.2 work (`0aa6ab7`).
 
-## Active (besides the branch)
-- **Storing-backend-hive scoping** — DELIVERED (`59f3ffd`, `docs/storing-backend-hive-scoping.md`),
-  pinged supervisor → Roy for go/no-go. Recommendation: GO, hybrid seam-first (new `RecordStore` seam
-  modeled on IdentityStore + persistence ensemble + proposal-gated write-authority, conventional SQLite
-  behind the R2 seam now, R2-native event-log/CRDT deferred behind same seam). ~8-11 units to usable BOS.
-  Buildable NOW on full-std (hosts ensembles today; no MCU re-tier / no core-D3b on critical path). Awaits
-  Roy. If GO: step 1 = `RecordStore` seam in r2-hive-core (cheap — 2nd seam after IdentityStore).
-- **D3b firmware validation** (core `f9c9fde`, `platforms/dfr1195`, riscv32 ESP32-C6+SX1262) — HARDWARE-
-  GATED. core authored the no_std skeleton; I validate on real DFR1195 (laptop↔board WiFi-UDP first), confirm
-  the `HIVE:`-marked seam points (esp-hal::init, WiFi STA, embassy-net Stack, BLE bringup, SX1262 SPI pins)
-  against my toolchain, wire writer-task spawn+RX, feed defects back. Needs riscv32 toolchain + board.
-- **TN refutation re-run** — core `da89050` made TN-L2-XT-BL-001 (scf buffer cap) + TN-L2-XT-AB-001
-  (entanglement epoch) DECIDABLE; re-run those two against the new knobs in a later batch (specs' track).
+## Active (besides the branch) — priorities per Roy (2026-06-16)
+- **#1 LEAD TRACK: first real-hardware TN test on the DFR1195 rig.** Critical-path doc DELIVERED
+  (`961f6b9`, `docs/hardware-tn-test-critical-path.md`), pinged supervisor. Milestone = two DFR1195s
+  exchange one routed R2-WIRE frame over real radio. Shortest path = WiFi-UDP first (core wifi.rs sync
+  Transport exists) → board↔board → LoRa (true infra-less TN, follow-on). **SoC corrected: DFR1195 =
+  FireBeetle 2 ESP32-C6 (RISC-V), riscv32imac-unknown-none-elf, --chip esp32c6** (NOT S3/xtensa; stale
+  docs fixed). My work once a board lands: build core's `platforms/dfr1195` skeleton, resolve the `HIVE:`
+  init points, wire the host loop + sync→async bridge. **SINGLE HARD BLOCKER = physical: Roy provides 2×
+  boards + 2.4GHz WiFi + riscv32-toolchain install perm (+ LoRa antennas/region for Stage C).** core D3b
+  radio drivers = its new top priority (coordinating); workshop = build/flash path (asked re C6/tuxedo);
+  composer OTA = Stage C+ (flagged their stale S3 flash bound).
+- **PAUSED (Roy, pending UX feedback): storing-backend / BOS-on-R2.** Branch `storing-backend` —
+  RecordStore seam skeleton landed + shelved-ready (`docs/storing-backend-hive-scoping.md`). Do NOT
+  build further until Roy resumes. Resume point: SQLite-behind-the-seam + persistence ensemble.
+- **TN refutation re-run** (standing refuter duty) — core `da89050` made TN-L2-XT-BL-001 (scf buffer cap)
+  + TN-L2-XT-AB-001 (entanglement epoch) DECIDABLE; re-run vs the new knobs when specs/core need it.
+- **CONVERGENCE BLOCKER: R2-WEB v0.6 CSP drift.** core advanced r2-def — `WebPluginManifest.csp` now
+  `Option<CspPolicy>` (directive map) not `WebCspOverride`; hive `web.rs` (125/44/299/373 + test manifest
+  builders) stale → **r2-hive BIN no longer builds** vs core's live tree. Needs a build_csp rewrite
+  (render the directive map) on platform-trait. Flagged to supervisor; do as convergence (doesn't violate
+  the storing-backend pause — it's not storing-backend).
 
 ## Done + green
 - **v0.2 migration + relay handshake + 4 vector fixtures** — full r2-hive suite GREEN; on
