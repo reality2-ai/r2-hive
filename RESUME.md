@@ -26,11 +26,13 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   build further until Roy resumes. Resume point: SQLite-behind-the-seam + persistence ensemble.
 - **TN refutation re-run** (standing refuter duty) — core `da89050` made TN-L2-XT-BL-001 (scf buffer cap)
   + TN-L2-XT-AB-001 (entanglement epoch) DECIDABLE; re-run vs the new knobs when specs/core need it.
-- **CONVERGENCE BLOCKER: R2-WEB v0.6 CSP drift.** core advanced r2-def — `WebPluginManifest.csp` now
-  `Option<CspPolicy>` (directive map) not `WebCspOverride`; hive `web.rs` (125/44/299/373 + test manifest
-  builders) stale → **r2-hive BIN no longer builds** vs core's live tree. Needs a build_csp rewrite
-  (render the directive map) on platform-trait. Flagged to supervisor; do as convergence (doesn't violate
-  the storing-backend pause — it's not storing-backend).
+- ~~CONVERGENCE BLOCKER: R2-WEB v0.6 CSP drift~~ **RESOLVED** (`827295b`) — Roy ratified R2-WEB v0.6 csp;
+  synced hive web.rs to `WebPluginManifest.csp = Option<CspPolicy>`: `MountedBundle.csp` → `CspPolicy`,
+  `build_csp`→`render_csp` (renders the directive BTreeMap), `restrictive_default` defensive fallback,
+  `DEFAULT_CSP` removed, tests + integration manifests updated. BIN builds vs core's current tree; full
+  workspace green (17 blocks). SECURITY FLAG to specs: §3.4.1 restrictive_default dropped
+  `frame-ancestors 'none'` (+base-uri/form-action) vs the pre-v0.6 hive default → unframed web UIs now
+  clickjackable unless they author csp; suggested specs re-add it.
 
 ## Done + green
 - **v0.2 migration + relay handshake + 4 vector fixtures** — full r2-hive suite GREEN; on
