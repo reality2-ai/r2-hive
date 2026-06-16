@@ -11,12 +11,22 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
 **Current branch:** `platform-trait` (local + pushed). Built atop the v0.2 work (`0aa6ab7`).
 
 ## Active (besides the branch)
-- **Storing-backend-hive scoping** — DELIVERED (`59f3ffd`, `docs/storing-backend-hive-scoping.md`),
-  pinged supervisor → Roy for go/no-go. Recommendation: GO, hybrid seam-first (new `RecordStore` seam
-  modeled on IdentityStore + persistence ensemble + proposal-gated write-authority, conventional SQLite
-  behind the R2 seam now, R2-native event-log/CRDT deferred behind same seam). ~8-11 units to usable BOS.
-  Buildable NOW on full-std (hosts ensembles today; no MCU re-tier / no core-D3b on critical path). Awaits
-  Roy. If GO: step 1 = `RecordStore` seam in r2-hive-core (cheap — 2nd seam after IdentityStore).
+- **Storing-backend hive — BUILDING (Roy GO'd, seam-first hybrid).** Own branch **`storing-backend`**
+  (off platform-trait, pushed). Scoping doc: `docs/storing-backend-hive-scoping.md`.
+  - DONE: **RecordStore seam skeleton** (1st commit on storing-backend) — `r2-hive-core::record_store`
+    trait (append op_id-idempotent / get / log_since / head_seq) + neutral types (NewRecordEvent,
+    StoredEvent, Actor{Human|Agent}, RecordError), modeled on IdentityStore. Append-only log =
+    record-of-truth; get = projection; log = audit trail. STRUCTURAL ONLY — authority/audit/scope
+    enforcement spec-gated (actor/op_id present-but-unenforced). 7 tests via cfg(test) ref impl in core;
+    no_std, 31 core tests green. op_id idempotency = TN-L2-IT-AB-000 ruling baked in.
+  - NEXT: SQLite-behind-the-seam impl + persistence ensemble skeleton (generalize composer's RosterSentant
+    + roster.rs atomic-write discipline SPEC-APIARY-FLASH §2.3/§2.4). Then (spec-gated) wire enforcement.
+  - CO-AUTHOR canon with specs (write-authority/audit/scope) — supervisor commissioned specs; spec-first.
+  - **BLOCKER (convergence, not storing-backend):** core advanced r2-def to **R2-WEB v0.6** —
+    `WebPluginManifest.csp` now `Option<CspPolicy>` (directive map) not `WebCspOverride`. hive web.rs
+    (125/44/299/373 + test manifest builders) stale → **the whole r2-hive BIN no longer builds** vs core's
+    live tree (affects platform-trait too). Security-relevant CSP migration (rewrite build_csp to render a
+    directive map) — belongs on platform-trait as a core-sync. Flagged to supervisor.
 - **D3b firmware validation** (core `f9c9fde`, `platforms/dfr1195`, riscv32 ESP32-C6+SX1262) — HARDWARE-
   GATED. core authored the no_std skeleton; I validate on real DFR1195 (laptop↔board WiFi-UDP first), confirm
   the `HIVE:`-marked seam points (esp-hal::init, WiFi STA, embassy-net Stack, BLE bringup, SX1262 SPI pins)
