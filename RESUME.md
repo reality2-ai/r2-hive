@@ -11,16 +11,20 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
 **Current branch:** `platform-trait` (local + pushed). Built atop the v0.2 work (`0aa6ab7`).
 
 ## Active (besides the branch) — priorities per Roy (2026-06-16)
-- **#1 LEAD TRACK: first real-hardware TN test on the DFR1195 rig.** Critical-path doc DELIVERED
-  (`961f6b9`, `docs/hardware-tn-test-critical-path.md`), pinged supervisor. Milestone = two DFR1195s
-  exchange one routed R2-WIRE frame over real radio. Shortest path = WiFi-UDP first (core wifi.rs sync
-  Transport exists) → board↔board → LoRa (true infra-less TN, follow-on). **SoC corrected: DFR1195 =
-  FireBeetle 2 ESP32-C6 (RISC-V), riscv32imac-unknown-none-elf, --chip esp32c6** (NOT S3/xtensa; stale
-  docs fixed). My work once a board lands: build core's `platforms/dfr1195` skeleton, resolve the `HIVE:`
-  init points, wire the host loop + sync→async bridge. **SINGLE HARD BLOCKER = physical: Roy provides 2×
-  boards + 2.4GHz WiFi + riscv32-toolchain install perm (+ LoRa antennas/region for Stage C).** core D3b
-  radio drivers = its new top priority (coordinating); workshop = build/flash path (asked re C6/tuxedo);
-  composer OTA = Stage C+ (flagged their stale S3 flash bound).
+- **#1 LEAD TRACK: first real-hardware TN test on the DFR1195 rig.** Critical-path doc DELIVERED +
+  CORRECTED (`45a7194`, `docs/hardware-tn-test-critical-path.md`). Milestone = two DFR1195s exchange one
+  routed R2-WIRE frame over real radio, AND the first USB image already ships a working OTA receiver +
+  2-slot partition table (Roy standing req — every later update wireless). Shortest path = WiFi-UDP first
+  (core wifi.rs) → board↔board (Stage B) → wireless OTA round-trip (Stage B', composer F5 ota_push ↔ my
+  OtaReceiver) → LoRa (Stage C, true infra-less TN). **SoC CONFIRMED ESP32-S3** (DFRobot wiki + SKU
+  SKU_DFR1195_LoRaWAN_ESP32_S3 = ESP32-S3-WROOM-1-N4 Xtensa, 4MB, SX1262). Target xtensa-esp32s3-none-elf
+  (espup Xtensa fork — the HARDER path), espflash --chip esp32s3. **I briefly mis-ID'd it as C6 from
+  core's skeleton (which conflated DFR1195 with DFR1117 Beetle C6) — corrected; lesson: verify SoC vs the
+  primary source, not a downstream artifact.** **BLOCKERS: (1) physical — Roy provides 2× DFR1195 (S3) +
+  2.4GHz WiFi + espup-toolchain perm (+ LoRa antennas/region for C); (2) core must RE-TARGET its
+  platforms/dfr1195 skeleton esp32c6→esp32s3 (flagged — its structure reuses, chip layer changes).**
+  workshop's firmware/esp32-s3 is now the on-point board reference (GPIO/partitions/USB-JTAG/espflash
+  mechanics/OTA self-proof). composer's S3 board.toml + 4MB OTA bound = RIGHT (un-flagged my churn).
 - **PAUSED (Roy, pending UX feedback): storing-backend / BOS-on-R2.** Branch `storing-backend` —
   RecordStore seam skeleton landed + shelved-ready (`docs/storing-backend-hive-scoping.md`). Do NOT
   build further until Roy resumes. Resume point: SQLite-behind-the-seam + persistence ensemble.
