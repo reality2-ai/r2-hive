@@ -34,3 +34,33 @@
 **TN-L2-XT-AB-001** (buffered crossing bound to entanglement *instance*; retire drops, recreate doesn't inherit) — **FALSIFIED-as-stated / undecidable vs sim.** Sim entanglement has no instance/epoch id; `set_entanglement_live(false)` flips a bool, and re-entangling the same NodeId pair reuses the same map key — old and "recreated" instances are indistinguishable, so the experiment can't tell inherited-from-old vs new. **Rec:** add an instance/epoch id to entanglement for the MUST to be testable.
 
 **TN-L2-XT-BL-100** (stale entanglement kept/deprioritised/revivable) — consistent with the no-heartbeat + decay model (stale = low confidence, revivable on new traffic), **but "kept" conflicts with neighbour hard-timeout:** a stale entanglement's *route entry* is **evicted** (not merely deprioritised) after 30 min idle. **Rec:** distinguish entanglement-record retention (policy) from route-entry retention (30 min hard timeout).
+
+## Resolution addendum (2026-06-18) — core wired the knobs (r2-core `da89050`)
+
+core implemented the two harness mechanisms my batch-3 findings asked for; both previously-undecidable
+cells are now **decidable**, and I've re-run them against the impl (`r2-harness/src/{node,mesh}.rs`).
+
+**TN-L2-XT-BL-001 (OOM guard) — was "not decisive at sim" → now DECIDABLE → CONFIRMED.**
+`MeshNode::set_scf_buffer_cap(max_entries, max_bytes)` + `try_buffer` enforce both caps, **tail-drop** the
+newest frame on overflow, and count `scf_overflow_drops`; `carry_bytes()` exposes the live total. An
+unbounded-buffer impl now *fails* the assertion (`scf_overflow_drops` stays 0 while `carry_bytes` grows
+past the cap) — exactly the OOM-guard property a sim couldn't falsify before. Caps on **both** entries
+(fixed-table slots) and bytes (RAM) match MCU reality (whichever binds first).
+- **Deployment-reality refinement (not a falsification):** the OOM guard is satisfied, but the eviction
+  **policy** is **tail-drop** (shed the *newest*). For SCF, that rejects fresh/likely-still-live frames
+  while stale ones (closer to TTL death) occupy the buffer — a TTL-aware or oldest-first eviction would
+  deliver more under sustained inflow. Tail-drop is fine for the *guard*; flag delivery-optimality as a
+  spec-note / future policy knob.
+
+**TN-L2-XT-AB-001 (stale crossing after retire) — was "sim-undecidable" → now DECIDABLE → CONFIRMED.**
+`Entanglement.epoch` bumps on re-entangle (`epoch = old+1`); `mesh.entanglement_epoch(a,b)` exposes it; so
+`set_entanglement_live(false)` + re-entangle is distinguishable (epoch 0→1). The experiment can now assert
+pre-retirement buffered data does NOT deliver to the new (epoch-1) instance. The epoch is the instance
+binding the MUST needed (harness unit test `entanglement_epoch_distinguishes_reinstatement` proves it).
+- **Deployment-reality note:** on a real MCU carrier the buffered crossing + epoch are RAM-volatile, so a
+  reboot between retire and re-entangle clears both → the stale-data case is moot on a rebooting node; the
+  epoch matters on a **long-running** carrier (no reboot). If a future design persists buffered crossings
+  in NVS across reboot, the epoch must be persisted with them for the MUST to hold. Note, not a blocker.
+
+**Net:** batch-3's two "needs a harness knob" cells are closed — both CONFIRMED decidable, with the two
+refinements above (tail-drop eviction policy; epoch/buffer RAM-volatility vs reboot) for specs/core.
