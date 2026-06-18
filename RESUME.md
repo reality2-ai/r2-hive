@@ -39,8 +39,11 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
 - **PAUSED (Roy, pending UX feedback): storing-backend / BOS-on-R2.** Branch `storing-backend` —
   RecordStore seam skeleton landed + shelved-ready (`docs/storing-backend-hive-scoping.md`). Do NOT
   build further until Roy resumes. Resume point: SQLite-behind-the-seam + persistence ensemble.
-- **TN refutation re-run** (standing refuter duty) — core `da89050` made TN-L2-XT-BL-001 (scf buffer cap)
-  + TN-L2-XT-AB-001 (entanglement epoch) DECIDABLE; re-run vs the new knobs when specs/core need it.
+- ~~TN refutation re-run~~ DONE (`2642263`) — core `da89050` wired the knobs; re-ran both vs r2-harness:
+  TN-L2-XT-BL-001 (OOM guard, set_scf_buffer_cap+tail-drop) and TN-L2-XT-AB-001 (entanglement epoch) now
+  DECIDABLE → CONFIRMED. Filed to specs+core with 2 deployment-lens refinements (tail-drop vs TTL-aware
+  eviction; epoch/buffer RAM-volatility). Resolution addendum in docs/phase3-tn-refutation-batch3.md.
+  Standing refuter duty otherwise idle (remaining L0/L1/L3 functional cells sweepable on request).
 - ~~CONVERGENCE BLOCKER: R2-WEB v0.6 CSP drift~~ **RESOLVED** (`827295b`) — Roy ratified R2-WEB v0.6 csp;
   synced hive web.rs to `WebPluginManifest.csp = Option<CspPolicy>`: `MountedBundle.csp` → `CspPolicy`,
   `build_csp`→`render_csp` (renders the directive BTreeMap), `restrictive_default` defensive fallback,
