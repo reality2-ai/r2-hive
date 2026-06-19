@@ -36,6 +36,11 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     reconcile on first metal build. **Authoring order:** WiFi-UDP → OTA → SX1262 LoRa; BLE deprioritized.
     **SX1262 = wrap a mature crate (lora-phy/sx126x) behind the LoRaRadio trait** (robustness > 'fully
     ours' for the greenfield longest-pole radio).
+  - DONE (unblocked prep): **2-slot OTA partition table** (`3ad44e1`, `docs/dfr1195-ota-partitions.md`) —
+    critical-path gap #5, hive-owned. 4MB S3: ota_0/ota_1 @ 0x1E0000 (1.875MB) + nvs/otadata/phy, fits +
+    128KB headroom. FirmwareSink::slot_capacity()=0x1E0000 → OtaReceiver TOO_BIG bound. Handed to core for
+    integration into platforms/dfr1195 once S3-re-targeted. **Everything doable without a board is now done
+    — track is HARD-GATED on (a) Roy's hardware + (b) core's S3 skeleton re-target.**
 - **PAUSED (Roy, pending UX feedback): storing-backend / BOS-on-R2.** Branch `storing-backend` —
   RecordStore seam skeleton landed + shelved-ready (`docs/storing-backend-hive-scoping.md`). Do NOT
   build further until Roy resumes. Resume point: SQLite-behind-the-seam + persistence ensemble.
