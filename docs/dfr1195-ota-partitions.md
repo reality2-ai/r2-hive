@@ -42,6 +42,11 @@ identity-split agreement.
   `OtaReceiver` TOO_BIG check rejects any image larger than this **before** any flash write — so a
   firmware image must stay under 1.875 MB. (Routing+transport+WiFi+OTA no_std image should be well under;
   watch it as on-device ensembles are added later.)
+  - **PINNED cross-repo (single source of truth):** `0x1E0000` is the one number — composer's
+    OTA-REPLY-STATUS-CONTRACT.md + board.toml now state push-side `TOO_BIG == FirmwareSink::slot_capacity()
+    == 0x1E0000`, citing this doc (composer commit `552536a`). composer's push has no hard-coded size; the
+    device enforces TOO_BIG. So when I implement the esp-storage `FirmwareSink`, `slot_capacity()` returns
+    exactly `0x1E0000`.
 - The esp-storage `FirmwareSink` impl (hive-owned board layer) writes the **inactive** slot (the one
   `otadata` says isn't booted), then sets boot + marks-valid on the self-proof principle (workshop's
   `mark_app_valid`: validate on local self-proof, never on back-end reach; no rollback timer).
