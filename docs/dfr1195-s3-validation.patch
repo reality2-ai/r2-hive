@@ -1,0 +1,72 @@
+diff --git a/platforms/dfr1195/.cargo/config.toml b/platforms/dfr1195/.cargo/config.toml
+index d5f2681..3aee06d 100644
+--- a/platforms/dfr1195/.cargo/config.toml
++++ b/platforms/dfr1195/.cargo/config.toml
+@@ -1,10 +1,10 @@
+ [build]
+ # Path B no_std target (NOT the *-espidf triple used by the ESP-IDF reference).
+-target = "riscv32imac-unknown-none-elf"
++target = "xtensa-esp32s3-none-elf"
+ 
+-[target.riscv32imac-unknown-none-elf]
++[target.xtensa-esp32s3-none-elf]
+ # Flash + monitor over USB-serial-JTAG (DFR1195 has native USB).
+-runner = "espflash flash --monitor --chip esp32c6"
++runner = "espflash flash --monitor --chip esp32s3"
+ rustflags = [
+   "-C", "force-frame-pointers",
+   # esp-hal linker script.
+diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
+index a08896b..cdd69ee 100644
+--- a/platforms/dfr1195/Cargo.toml
++++ b/platforms/dfr1195/Cargo.toml
+@@ -21,12 +21,12 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+ # VERSION PINS — hive: confirm against the installed toolchain before flashing.
+ # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
+ # skeleton is written against.
+-esp-hal = { version = "0.23", features = ["esp32c6"] }
+-esp-hal-embassy = { version = "0.6", features = ["esp32c6"] }
+-esp-wifi = { version = "0.12", features = ["esp32c6", "wifi", "ble", "utils"] }
++esp-hal = { version = "0.23", features = ["esp32s3"] }
++esp-hal-embassy = { version = "0.6", features = ["esp32s3"] }
++esp-wifi = { version = "0.12", features = ["esp32s3", "wifi", "ble", "utils"] }
+ esp-alloc = "0.6"
+-esp-backtrace = { version = "0.15", features = ["esp32c6", "panic-handler", "println"] }
+-esp-println = { version = "0.13", features = ["esp32c6"] }
++esp-backtrace = { version = "0.15", features = ["esp32s3", "panic-handler", "println"] }
++esp-println = { version = "0.13", features = ["esp32s3"] }
+ 
+ embassy-executor = { version = "0.7", features = ["task-arena-size-32768"] }
+ embassy-time = "0.4"
+diff --git a/platforms/dfr1195/rust-toolchain.toml b/platforms/dfr1195/rust-toolchain.toml
+index 061ee3d..4d29585 100644
+--- a/platforms/dfr1195/rust-toolchain.toml
++++ b/platforms/dfr1195/rust-toolchain.toml
+@@ -1,6 +1,4 @@
+ [toolchain]
+-channel = "nightly"
+-# ESP32-C6 is RISC-V (riscv32imac-unknown-none-elf) — stock nightly + build-std,
+-# NOT the espup "esp" Xtensa channel. (Path B no_std, NOT ESP-IDF.)
++# ESP32-S3 is Xtensa — requires the espup "esp" channel (NOT stock nightly/riscv).
++channel = "esp"
+ components = ["rust-src"]
+-targets = ["riscv32imac-unknown-none-elf"]
+diff --git a/platforms/dfr1195/src/wifi.rs b/platforms/dfr1195/src/wifi.rs
+index 6de59a8..77d651b 100644
+--- a/platforms/dfr1195/src/wifi.rs
++++ b/platforms/dfr1195/src/wifi.rs
+@@ -135,7 +135,12 @@ pub async fn udp_writer_task(
+     loop {
+         let dg = channel.receive().await;
+         // send_to is fire-and-forget at our layer; drop on transient error
+-        // (the mesh re-spreads — R2-ROUTE handles loss).
+-        let _ = socket.send_to(&dg.frame, dg.dest).await;
++        // (the mesh re-spreads — R2-ROUTE handles loss). embassy-net wants its
++        // own IpEndpoint; the mesh is IPv4-only (proto-ipv6 feature off, so the
++        // SocketAddr->IpEndpoint blanket impl is unavailable — use SocketAddrV4).
++        let _ = match dg.dest {
++            SocketAddr::V4(v4) => socket.send_to(&dg.frame, embassy_net::IpEndpoint::from(v4)).await,
++            SocketAddr::V6(_) => Ok(()),
++        };
+     }
+ }
