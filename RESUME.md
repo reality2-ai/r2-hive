@@ -65,7 +65,13 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   `DEFAULT_CSP` removed, tests + integration manifests updated. BIN builds vs core's current tree; full
   workspace green (17 blocks). SECURITY FLAG to specs: §3.4.1 restrictive_default dropped
   `frame-ancestors 'none'` (+base-uri/form-action) vs the pre-v0.6 hive default → unframed web UIs now
-  clickjackable unless they author csp; suggested specs re-add it.
+  clickjackable unless they author csp; suggested specs re-add it. **→ RATIFIED as R2-WEB v0.7**
+  (specs 5553f80): restrictive_default restores frame-ancestors 'none'+base-uri 'self'+form-action 'self'
+  + adds script-src 'wasm-unsafe-eval'. `restrictive_default()` is **r2-def's (core)** — hive web.rs only
+  CALLS it, so hive INHERITS the fix automatically once core updates r2-def (flagged core; no hive code
+  change for the default). **hive v0.7 follow-ups (low pri, behind firmware lead):** (a) re-add the
+  `frame-ancestors 'none'` assertion to web_plugin_integration test once core's restrictive_default emits
+  it; (b) connect-src `+ws` serve-time append (render_csp adds hive's live WS origin when serving).
 
 ## Done + green
 - **v0.2 migration + relay handshake + 4 vector fixtures** — full r2-hive suite GREEN; on
