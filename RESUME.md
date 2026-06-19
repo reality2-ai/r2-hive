@@ -12,7 +12,9 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
 
 ## Active (besides the branch) — priorities per Roy (2026-06-16)
 - **#1 LEAD TRACK: first real-hardware TN test on the DFR1195 rig.** Critical-path doc DELIVERED +
-  CORRECTED (`45a7194`, `docs/hardware-tn-test-critical-path.md`). Milestone = two DFR1195s exchange one
+  CORRECTED (`45a7194`, `docs/hardware-tn-test-critical-path.md`). **TWO boards now live on tuxedo-os:
+  ttyACM0 (S3 rev v0.1, MAC …26:98) + ttyACM1 (S3 rev v0.2, MAC …90:10)** — enough for hive-to-hive
+  (field.lab milestone). Confirm port before flashing each. Milestone = two DFR1195s exchange one
   routed R2-WIRE frame over real radio, AND the first USB image already ships a working OTA receiver +
   2-slot partition table (Roy standing req — every later update wireless). Shortest path = WiFi-UDP first
   (core wifi.rs) → board↔board (Stage B) → wireless OTA round-trip (Stage B', composer F5 ota_push ↔ my
@@ -56,8 +58,16 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   - DONE (unblocked prep): **2-slot OTA partition table** (`3ad44e1`, `docs/dfr1195-ota-partitions.md`) —
     critical-path gap #5, hive-owned. 4MB S3: ota_0/ota_1 @ 0x1E0000 (1.875MB) + nvs/otadata/phy, fits +
     128KB headroom. FirmwareSink::slot_capacity()=0x1E0000 → OtaReceiver TOO_BIG bound. Handed to core for
-    integration into platforms/dfr1195 once S3-re-targeted. **Everything doable without a board is now done
-    — track is HARD-GATED on (a) Roy's hardware + (b) core's S3 skeleton re-target.**
+    integration into platforms/dfr1195 once S3-re-targeted.
+  - **Part D4: LCD display PLUGIN** (Roy directive; post-first-light, NOT blocking). DFR1195 LCD =
+    **0.96in color 160×80 = ST7735S** (DFRobot wiki); pins MOSI11/SCK12/CS17/DC14/RST15/BL16/PWR48.
+    Roy's split: **hive = device-specific no_std ST7735S output plugin** implementing a **GENERAL display
+    capability** (render trait + descriptor: res/color-format/has-backlight/has-power-cut) that **specs
+    defines + core implements** (LoRaRadio-pattern); **composer = display SENTANT + view-model** (the WHAT,
+    calm-tech glanceable). General/reusable for composer's catalogue, not test-specific. Contract Qs
+    answered to composer (e77afad LCD-DISPLAY-CONTRACT-PROPOSAL): ratify R2-CBOR int-keyed view-model
+    (decode w/ r2_cbor); add CMD_CLEAR + CMD_BACKLIGHT(on/off/level); ST7735S confirmed. General
+    capability shape requested from specs/core. **Driver impl sequences after esp-hal-1.1 first-light.**
 - **PAUSED (Roy, pending UX feedback): storing-backend / BOS-on-R2.** Branch `storing-backend` —
   RecordStore seam skeleton landed + shelved-ready (`docs/storing-backend-hive-scoping.md`). Do NOT
   build further until Roy resumes. Resume point: SQLite-behind-the-seam + persistence ensemble.
