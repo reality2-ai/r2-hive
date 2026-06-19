@@ -66,12 +66,14 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     defines + core implements** (LoRaRadio-pattern); **composer = display SENTANT + view-model** (the WHAT,
     calm-tech glanceable). General/reusable for composer's catalogue, not test-specific. Contract Qs
     answered to composer (now the GENERAL `b32d47d` DISPLAY-PLUGIN-CONTRACT-PROPOSAL, supersedes LCD-only):
-    one general 'display' capability + per-board driver selected by board.toml (LoRa-carrier pattern);
-    ratify R2-CBOR int-keyed view-model (decode w/ r2_cbor); CMD_RENDER + CMD_CLEAR; **driver
-    SELF-MANAGES power/backlight** (calm-tech auto: BL-on-render, auto-dim idle; GPIO48 PWR/GPIO16 BL
-    local) — no CMD_BACKLIGHT in v1, optional descriptor-gated CMD_SET_POWER later. General capability +
-    descriptor (kind/dims/colour/rows, has_backlight/has_power_cut) requested from specs/core (composer
-    asked too — converging). **Driver impl sequences after esp-hal-1.1 first-light.**
+    one general 'display' capability + per-board driver selected by board.toml (LoRa-carrier pattern).
+    **RATIFIED contract (composer `c25db6a`):** CMD_RENDER (r2_cbor int-keyed view-model) + CMD_CLEAR +
+    CMD_BACKLIGHT(level u8 0..255, calm-tech idle-dim/wake); backlight + power_cut are capability-DESCRIPTOR
+    flags (power-cut is a flag not a command — not all panels have it). My DFR1195 driver implements all +
+    reports descriptor **ST7735S / 160×80 / RGB565 / backlight=dimmable / power_cut=yes** (BL=GPIO16 PWM,
+    PWR=GPIO48). General capability TRAIT + descriptor = specs/core to define (LoRaRadio pattern; both
+    composer + I asked — converging); composer's adaptive view-model rides on top; catalogue registration
+    targets the trait. **Driver impl sequences after esp-hal-1.1 first-light.**
 - **PAUSED (Roy, pending UX feedback): storing-backend / BOS-on-R2.** Branch `storing-backend` —
   RecordStore seam skeleton landed + shelved-ready (`docs/storing-backend-hive-scoping.md`). Do NOT
   build further until Roy resumes. Resume point: SQLite-behind-the-seam + persistence ensemble.
