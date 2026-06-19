@@ -1,7 +1,7 @@
 # RESUME — r2-hive (hive-worker)
 
-Updated 2026-06-09 (owned by hive). Master save (read-only ref):
-`claude-fleet/fleet-context/FLEET-CONTEXT-SAVE.md`.
+Updated 2026-06-18 (owned by hive). Master save (read-only ref):
+`r2-fleet/fleet-context/FLEET-CONTEXT-SAVE.md` (moved from claude-fleet, now tooling-code-only).
 
 **Role:** the hive runtime. North-star: **ONE hive codebase usable everywhere**, built on
 **core's no_std crates** + thin per-platform layers (Linux/cloud, ESP32-S3/DFR1195, Uno-Q, wasm).
