@@ -27,3 +27,34 @@ The esp-hal/esp-wifi/embassy **version matrix compiles clean** (87 deps built, n
 
 ## State
 Everything up to a **bootable image format** is validated; first-light (chip executes our firmware) is **one version-matrix bump away**. core owns the bump; hive flashes the moment it lands. Patch with the 3 validated S3 fixes: `docs/dfr1195-s3-validation.patch`.
+
+## ⚡ FIRST LIGHT ACHIEVED (2026-06-20) — esp-hal 1.x boots on the real S3
+
+Bare-metal sync first-light flashed + booted on ttyACM0 (S3 rev v0.1). Serial proof:
+```
+I (156) boot: Loaded app from partition at offset 0x20000   ← booted from OTA ota_0
+r2-dfr1195: FIRST LIGHT — esp-hal 1.x no_std on real ESP32-S3
+r2-dfr1195: alive (tick 0..3)                               ← our loop, 2s cadence
+```
+
+**Validated matrix (BUILDS + FLASHES + BOOTS, bare-metal, no embassy):**
+esp-hal **1.1.1** (features esp32s3, unstable) · esp-alloc **0.10.0** · esp-backtrace **0.17.0** ·
+esp-println **0.15.0** · **esp-bootloader-esp-idf 0.5.0** (esp32s3). esp-hal 1.x APIs that work:
+`#[esp_hal::main] fn main() -> !`, `esp_hal::init(Config::default())`, `esp_alloc::heap_allocator!(size:)`,
+`esp_hal::delay::Delay::new()` + `delay_millis`. Patch: `docs/dfr1195-firstlight.patch` (for core).
+
+**The blocker that was solved:** espflash 4.4.0's app-descriptor requirement — **esp-bootloader-esp-idf
+0.5.0** + `esp_bootloader_esp_idf::esp_app_desc!();` emits the descriptor espflash accepts. (0.2.0's format
+was rejected — VERSION matters, use 0.5.x.) That was the wall; it's down.
+
+**OTA-from-first-flash (Roy's standing req):** flashed WITH the 2-slot partition table
+(`--partition-table`, ota_0/ota_1 @ 0x1E0000) — the **bootloader read it + booted from ota_0**, so the
+device is **OTA-laid-out from the first flash**. The OTA *receiver* (to make flash #2+ wireless) needs the
+WiFi/embassy tier (next) — until that app is flashed, updates are still USB. Full Roy-compliance = the
+production first flash carries partition table **+** the OTA-receiver app (after WiFi).
+
+**Remaining for the WiFi-UDP milestone:** the **embassy version conflict** — esp-hal-embassy **0.9.1**
+declares an esp-hal dep that won't unify with esp-hal **1.1.1** (`__esp_hal_embassy` feature). Need the
+matched esp-hal-embassy for 1.1.1 (or pin esp-hal to what 0.9.1 wants). Then re-enable the seam modules
+(wifi/ble/lora/peers, core's lane) + esp-wifi 0.15.1 + embassy-net, wire core's WifiTransport + STA/Stack
+bringup. That's the next chunk — first-light + pipeline + descriptor are now PROVEN.

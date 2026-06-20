@@ -1,0 +1,152 @@
+diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
+index 5a3c89f..c9639de 100644
+--- a/platforms/dfr1195/Cargo.toml
++++ b/platforms/dfr1195/Cargo.toml
+@@ -21,18 +21,25 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+ # VERSION PINS — hive: confirm against the installed toolchain before flashing.
+ # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
+ # skeleton is written against.
+-esp-hal = { version = "0.23", features = ["esp32s3"] }
+-esp-hal-embassy = { version = "0.6", features = ["esp32s3"] }
+-esp-wifi = { version = "0.12", features = ["esp32s3", "wifi", "ble", "utils"] }
+-esp-alloc = "0.6"
+-esp-backtrace = { version = "0.15", features = ["esp32s3", "panic-handler", "println"] }
+-esp-println = { version = "0.13", features = ["esp32s3"] }
++esp-hal = { version = "1.1.1", features = ["esp32s3", "unstable"] }
++esp-alloc = "0.10.0"
++esp-backtrace = { version = "0.17.0", features = ["esp32s3", "panic-handler", "println"] }
++esp-println = { version = "0.15.0", features = ["esp32s3"] }
++# App descriptor required by espflash 4.4.0 (esp-hal 1.x flow) — emits esp_app_desc_t.
++# Must match espflash 4.4.0's expected descriptor format (0.5.x line, not 0.2.x).
++esp-bootloader-esp-idf = { version = "0.5.0", features = ["esp32s3"] }
+ 
+-embassy-executor = { version = "0.7", features = ["task-arena-size-32768"] }
+-embassy-time = "0.4"
+-embassy-net = { version = "0.6", features = ["udp", "proto-ipv4", "medium-ethernet", "dhcpv4"] }
+-embassy-sync = "0.6"
+-embassy-futures = "0.1"
++# Embassy + esp-hal-embassy + esp-wifi (the async/WiFi tier) are added back for the
++# WiFi-UDP milestone. First-light is a BARE-METAL sync boot (esp-hal only) — proves
++# chip+toolchain+flash+app-descriptor on the real S3 without the embassy version
++# matrix in the way. (esp-hal-embassy 0.9.1 ↔ esp-hal 1.1.1 needs its own reconcile.)
++# esp-hal-embassy = { version = "0.9.1", features = ["esp32s3"] }
++# embassy-executor = { version = "0.7", features = ["task-arena-size-32768"] }
++# embassy-time = "0.4"
++# esp-wifi = { version = "0.15.1", features = ["esp32s3", "wifi", "ble"] }
++# embassy-net = { version = "0.6", features = ["udp", "proto-ipv4", "medium-ethernet", "dhcpv4"] }
++# embassy-sync = "0.6"
++# embassy-futures = "0.1"
+ 
+ # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
+ # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
+diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
+index 8c49f1c..5dec5de 100644
+--- a/platforms/dfr1195/src/main.rs
++++ b/platforms/dfr1195/src/main.rs
+@@ -1,83 +1,40 @@
+-//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
+-//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
++//! r2-dfr1195 — Path B no_std firmware (esp-hal/embassy) for the DFRobot DFR1195
++//! (LoRaWAN ESP32-S3) + SX1262 LoRa.
+ //!
+-//! AUTHOR-ONLY skeleton (core-expert authors; hive validates on hardware).
+-//! The R2 seam (transport bindings + host-centralised peer resolution) is the
+-//! rigorous part; the esp-hal/esp-wifi/embassy init below is written against
+-//! the Cargo.toml-pinned versions and marked `HIVE:` where the board-specific
+-//! wiring must be confirmed against the installed toolchain.
+-//!
+-//! ## What this firmware does (target behaviour)
+-//! 1. Bring up the ESP32-S3: clocks, heap, embassy time driver.
+-//! 2. Join WiFi (STA) → embassy-net stack → bind the R2 UDP port.
+-//! 3. Bring up BLE (esp-wifi controller + trouble-host) for R2-BEACON
+-//!    discovery + R2-BLE frame transport.
+-//! 4. Bring up the SX1262 over SPI behind composer's chip-agnostic radio
+-//!    trait (R2-LORA) — generic, see `lora.rs`.
+-//! 5. Run the r2-route engine over the three `Transport` bindings; the host
+-//!    map resolves hive ids → per-medium addresses (R2-DISCOVERY §5).
+-//!
+-//! First hardware milestone (per the D3b plan): laptop ⇄ DFR1195 over WiFi-UDP.
++//! **FIRST-LIGHT STAGE (bare-metal sync).** This entry is intentionally minimal:
++//! init the chip, set up the heap, and print over the USB-serial-JTAG console in
++//! a loop. It proves the toolchain → build → flash → run → serial pipeline and
++//! the esp-bootloader-esp-idf app descriptor (required by espflash 4.4.0) on the
++//! real ESP32-S3, WITHOUT the esp-hal-embassy / esp-wifi version matrix in the
++//! way. The async embassy + WiFi-UDP bringup (seam modules wifi/ble/lora/peers,
++//! core's lane) is re-enabled for the next milestone once the embassy matrix is
++//! reconciled (esp-hal-embassy 0.9.1 ↔ esp-hal 1.1.1).
+ 
+ #![no_std]
+ #![no_main]
+ 
+ extern crate alloc;
+ 
+-mod ble;
+-mod lora;
+-mod peers;
+-mod wifi;
+-
+ use esp_backtrace as _;
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
++// App descriptor — required by espflash 4.4.0 to flash an esp-hal 1.x image.
++esp_bootloader_esp_idf::esp_app_desc!();
++
++/// Heap (alloc / future esp-wifi need it). HIVE: tune vs the real footprint.
+ const HEAP_SIZE: usize = 72 * 1024;
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
++#[esp_hal::main]
++fn main() -> ! {
+     let _peripherals = esp_hal::init(esp_hal::Config::default());
+-    {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
++    esp_alloc::heap_allocator!(size: HEAP_SIZE);
+ 
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
++    esp_println::println!("r2-dfr1195: FIRST LIGHT — esp-hal 1.x no_std on real ESP32-S3");
+ 
++    let delay = esp_hal::delay::Delay::new();
++    let mut tick: u32 = 0;
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++        esp_println::println!("r2-dfr1195: alive (tick {tick})");
++        tick = tick.wrapping_add(1);
++        delay.delay_millis(2000);
+     }
+ }
