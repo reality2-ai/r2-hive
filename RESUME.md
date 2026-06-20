@@ -75,10 +75,21 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   - **LCD status surface RESTORED** (`988f0ac`) — ST7735S in the async render loop (GPIO48 active-low,
     offset 26,1, Deg90, 20MHz), shows role/ip/TG/build/beats/dlv/`fleet: IN SYNC` from atomics io_task
     updates. WiFi + routed frames + PCO heartbeat + LCD all coexist, no panic.
-  - **NEXT (the trust climb):** intra-TG GroupHmac deliver-gate (core's TRUST-INTEGRATION-BRIEF 905502c) —
-    real HMAC at the DELIVER branch only (relay stays trust-agnostic, B1); then inter-TG entanglement
-    (PeeringHmac), then 2 TGs each with its own synced heartbeat across the 5 boards. Also pending: network-OTA
-    receiver (makes flash #2+ wireless). Hardware finding → SPECS FIRST, then code.
+  - **🎯 GOAL #2 — intra-TG TRUST DELIVER-GATE working on hardware** (`045048b`). Real HMAC-SHA256
+    (r2-trust `GroupHmac`, which BUILDS for xtensa — 38s, no getrandom issue) gates delivery at the B1
+    deliver branch ONLY; relay stays trust-agnostic. AP originates signed intra-TG Events alternating
+    good/bad HMAC; STA: `DELIVERED msg_id=6 'in-TG' (tg+hmac ok)` / `DELIVER-BLOCKED msg_id=7 hmac_ok=false
+    (relay unaffected)`, consistent. Canon (core 5f8798b): `target_group = FNV-1a-32(TG_UUID string)` via
+    r2_fnv const; `sign_extended`/`verify_extended` (target_group+event_hash inside the MAC). Both boards
+    share TG_UUID + hk (demo stand-in for the join). LCD shows dlv/blk.
+  - **TONIGHT'S ARC (all on metal, 2 boards):** WiFi ✅ · routed R2-WIRE frame (deliver+dedup) ✅ · synced
+    heartbeat ✅ · LCD ✅ · intra-TG trust deliver-gate ✅.
+  - **NEXT:** 2-TG split + inter-TG PeeringHmac entanglement (needs 4 boards — coordinate mine+workshop's) +
+    TG-scoped heartbeat (only co-members couple). Canon follow-ups: hive_id = FNV-1a-32(HKDF-UUID) when
+    master-secret provisioning lands (MAC-low3 is the drop-in shortcut); dedup origin = route_stack[0]
+    self-stamp (R flag) for multi-hop (3rd relay board); PeeringHmac = lexicographic TG-pubkey order. Also
+    pending: network-OTA receiver. Open conjecture: leaderless PCO sync at N≥3 (may cluster — test on 3+
+    boards → specs). Hardware finding → SPECS FIRST, then code.
   - **⚡⚡ PROOF SURFACE WORKING on BOTH boards** (`876bb98`, `docs/dfr1195-proof-surface-learnings.md`).
     LCD + LED running on ttyACM0 (rev v0.1) AND ttyACM1 (rev v0.2). **LCD (ST7735S):** status line on top +
     event log scrolling up; 20MHz SPI, mipidsi 0.9, offset(26,1)/Deg90/inverted. **KEY find: GPIO48
