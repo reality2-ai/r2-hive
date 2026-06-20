@@ -71,10 +71,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..3867837 100644
+index 8c49f1c..2971143 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,167 @@
+@@ -1,83 +1,210 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -115,9 +115,14 @@ index 8c49f1c..3867837 100644
 -mod lora;
 -mod peers;
 -mod wifi;
--
++use core::fmt::Write as _;
+ 
 +use embassy_executor::Spawner;
-+use embassy_net::{Config, Ipv4Address, Ipv4Cidr, Runner, StackResources, StaticConfigV4};
++use embassy_futures::select::{select, Either};
++use embassy_net::udp::{PacketMetadata, UdpSocket};
++use embassy_net::{
++    Config, IpAddress, IpEndpoint, Ipv4Address, Ipv4Cidr, Runner, StackResources, StaticConfigV4,
++};
 +use embassy_time::{Duration, Timer};
  use esp_backtrace as _;
 +use esp_hal::clock::CpuClock;
@@ -131,27 +136,7 @@ index 8c49f1c..3867837 100644
 +};
 +use esp_println::println;
 +use static_cell::StaticCell;
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
--
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
--    {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
++
 +// App descriptor — required by espflash 4.4.0 to flash an esp-hal 1.x image.
 +esp_bootloader_esp_idf::esp_app_desc!();
 +
@@ -225,16 +210,72 @@ index 8c49f1c..3867837 100644
 +    let (stack, runner) = embassy_net::new(device, net_config, resources, seed);
 +    spawner.spawn(net_task(runner).unwrap());
 +    spawner.spawn(wifi_task(controller, is_ap).unwrap());
-+
-+    // 9. Report once the netif is up, then idle-print.
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
+-
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
+-    {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
++    // 9. Wait for the netif, then run the UDP io task (PHASE 2a: raw board↔board
++    //    frames over the WiFi link — proves the transport pipe before R2-WIRE/RouteEngine).
 +    stack.wait_config_up().await;
-+    println!("r2-dfr1195: net UP — {} {}", if is_ap { "AP serving" } else { "STA got" }, ip);
++    let peer = if is_ap { Ipv4Address::new(192, 168, 4, 2) } else { Ipv4Address::new(192, 168, 4, 1) };
++    println!("r2-dfr1195: net UP — {} {} (peer {peer})", if is_ap { "AP serving" } else { "STA got" }, ip);
++    spawner.spawn(io_task(stack, peer).unwrap());
 +
 +    let mut tick: u32 = 0;
 +    loop {
 +        println!("r2-dfr1195: alive (tick {tick}) ip={ip} role={}", if is_ap { "AP" } else { "STA" });
 +        tick = tick.wrapping_add(1);
-+        Timer::after(Duration::from_secs(5)).await;
++        Timer::after(Duration::from_secs(10)).await;
++    }
++}
++
++/// PHASE 2a — raw UDP board↔board over the WiFi link. Sends an R2-PING to the peer
++/// every 2 s and prints every datagram received. Proves the transport pipe (real
++/// frames over real radio) before the R2-WIRE + RouteEngine layer (Phase 2b).
++#[embassy_executor::task]
++async fn io_task(stack: embassy_net::Stack<'static>, peer: Ipv4Address) {
++    let mut rx_meta = [PacketMetadata::EMPTY; 4];
++    let mut rx_buf = [0u8; 1024];
++    let mut tx_meta = [PacketMetadata::EMPTY; 4];
++    let mut tx_buf = [0u8; 1024];
++    let mut socket = UdpSocket::new(stack, &mut rx_meta, &mut rx_buf, &mut tx_meta, &mut tx_buf);
++    socket.bind(21042).expect("bind 21042");
++    let peer_ep = IpEndpoint::new(IpAddress::Ipv4(peer), 21042);
++    let mut scratch = [0u8; 256];
++    let mut seq: u32 = 0;
++    loop {
++        match select(Timer::after(Duration::from_secs(2)), socket.recv_from(&mut scratch)).await {
++            Either::First(_) => {
++                let mut msg: heapless::String<32> = heapless::String::new();
++                let _ = write!(msg, "R2-PING {seq}");
++                match socket.send_to(msg.as_bytes(), peer_ep).await {
++                    Ok(()) => println!("r2-dfr1195: TX -> {peer}:21042  {msg}"),
++                    Err(e) => println!("r2-dfr1195: TX err {e:?}"),
++                }
++                seq = seq.wrapping_add(1);
++            }
++            Either::Second(Ok((n, from))) => {
++                let body = core::str::from_utf8(&scratch[..n]).unwrap_or("<binary>");
++                println!("r2-dfr1195: RX <- {from}  {n}B: {body}");
++            }
++            Either::Second(Err(e)) => println!("r2-dfr1195: RX err {e:?}"),
+         }
      }
 +}
  
