@@ -53,11 +53,25 @@ index 5a3c89f..c56fc12 100644
  [profile.release]
  opt-level = "s"
  lto = true
+diff --git a/platforms/dfr1195/build.rs b/platforms/dfr1195/build.rs
+new file mode 100644
+index 0000000..52b0073
+--- /dev/null
++++ b/platforms/dfr1195/build.rs
+@@ -0,0 +1,8 @@
++//! Capture a firmware BUILD ID into the binary so the LCD can show which build is
++//! running (essential for verifying an OTA actually landed). The build command
++//! exports `R2_BUILD_ID` (e.g. `date +%m%d.%H%M`); absent that, it reads "dev".
++fn main() {
++    println!("cargo:rerun-if-env-changed=R2_BUILD_ID");
++    let id = std::env::var("R2_BUILD_ID").unwrap_or_else(|_| "dev".into());
++    println!("cargo:rustc-env=R2_BUILD_ID={id}");
++}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..b366a0b 100644
+index 8c49f1c..2329427 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,166 @@
+@@ -1,83 +1,185 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware for the DFRobot DFR1195 (LoRaWAN ESP32-S3).
@@ -123,8 +137,8 @@ index 8c49f1c..b366a0b 100644
 -/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
 -/// S3's RAM; HIVE: tune against the real footprint.
  const HEAP_SIZE: usize = 72 * 1024;
-+/// Event log lines shown below the status line.
-+const EVENT_LINES: usize = 6;
++/// Event log lines shown below the two header lines.
++const EVENT_LINES: usize = 5;
  
 -#[esp_hal_embassy::main]
 -async fn main(_spawner: embassy_executor::Spawner) {
@@ -143,6 +157,13 @@ index 8c49f1c..b366a0b 100644
 -            ));
 -        }
 -    }
++/// Firmware build ID (captured by build.rs from $R2_BUILD_ID) — shown on the LCD
++/// so an OTA update is visibly verifiable.
++const BUILD_ID: &str = env!("R2_BUILD_ID");
++/// Trust-group ID. Placeholder until provisioning writes the real `tg_id` to NVS
++/// (the same-TG membership tier); the heartbeat-sync demo needs both boards here.
++const TG_ID: &str = "DEMO";
++
 +type EventLog = heapless::Deque<heapless::String<26>, EVENT_LINES>;
 +
 +#[esp_hal::main]
@@ -224,11 +245,21 @@ index 8c49f1c..b366a0b 100644
 +    // device half of the LED status PLUGIN.
 +    let mut led = Output::new(p.GPIO21, Level::Low, OutputConfig::default());
  
++    // Identity header lines (static). Line 1: device ID from the factory MAC (the
++    // low 3 bytes — distinguishes boards on screen; the real hive_id is FNV(uuid)
++    // once provisioned). Line 2: trust-group ID + firmware build ID.
++    let mac0 = esp_hal::efuse::read_field_le::<u32>(esp_hal::efuse::MAC0);
++    let dev = mac0 & 0x00FF_FFFF; // low 3 MAC bytes — matches the espflash-reported tail
++    let mut header_dev: heapless::String<26> = heapless::String::new();
++    let _ = write!(header_dev, "R2 DEV {dev:06x}");
++    let mut header_id: heapless::String<26> = heapless::String::new();
++    let _ = write!(header_id, "TG:{TG_ID} b:{BUILD_ID}");
++
 +    let mut tick: u32 = 0;
      loop {
 -        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
 -        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
-+        render(&mut display, "R2 DFR1195  S3 UP", &events);
++        render(&mut display, &header_dev, &header_id, &events);
 +        esp_println::println!("r2-dfr1195: alive (tick {tick})");
 +
 +        // Synthesise an event each cycle (real TX/RX/neighbour events feed in once
@@ -274,17 +305,19 @@ index 8c49f1c..b366a0b 100644
 +    let _ = events.push_back(line);
 +}
 +
-+/// Render: cyan status line on top, white event lines below (oldest→newest, so new
-+/// events appear at the bottom and everything scrolls up as the log fills).
-+fn render<D>(display: &mut D, status: &str, events: &EventLog)
++/// Render: two header lines (green device line, cyan TG/build line) then the white
++/// event log below (oldest→newest, so new events appear at the bottom and scroll up).
++fn render<D>(display: &mut D, header_dev: &str, header_id: &str, events: &EventLog)
 +where
 +    D: DrawTarget<Color = Rgb565>,
 +{
 +    let _ = display.clear(Rgb565::BLACK);
-+    let status_style = MonoTextStyle::new(&FONT_6X10, Rgb565::GREEN);
++    let dev_style = MonoTextStyle::new(&FONT_6X10, Rgb565::GREEN);
++    let id_style = MonoTextStyle::new(&FONT_6X10, Rgb565::CYAN);
 +    let event_style = MonoTextStyle::new(&FONT_6X10, Rgb565::WHITE);
-+    let _ = Text::new(status, Point::new(2, 8), status_style).draw(display);
-+    let mut y = 22;
++    let _ = Text::new(header_dev, Point::new(2, 8), dev_style).draw(display);
++    let _ = Text::new(header_id, Point::new(2, 18), id_style).draw(display);
++    let mut y = 30;
 +    for e in events.iter() {
 +        let _ = Text::new(e.as_str(), Point::new(2, y), event_style).draw(display);
 +        y += 10;
