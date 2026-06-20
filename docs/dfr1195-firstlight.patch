@@ -1,8 +1,18 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..5d165b5 100644
+index 5a3c89f..05a6b96 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
-@@ -21,18 +21,29 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+@@ -14,6 +14,9 @@ path = "src/main.rs"
+ r2-wire = { path = "../../crates/r2-wire", default-features = false }
+ r2-transport = { path = "../../crates/r2-transport", default-features = false }
+ r2-route = { path = "../../crates/r2-route", default-features = false }
++# Intra-TG trust: GroupHmac deliver-gate (HMAC-SHA256). r2-fnv for the TG-hash.
++r2-trust = { path = "../../crates/r2-trust", default-features = false }
++r2-fnv = { path = "../../crates/r2-fnv" }
+ # r2-discovery non-alloc core types (HiveId/TransportId) — no async API at this tier.
+ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+ 
+@@ -21,18 +24,29 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  # VERSION PINS — hive: confirm against the installed toolchain before flashing.
  # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
  # skeleton is written against.
@@ -42,7 +52,7 @@ index 5a3c89f..5d165b5 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -41,6 +52,13 @@ embassy-futures = "0.1"
+@@ -41,6 +55,13 @@ embassy-futures = "0.1"
  embedded-hal = "1.0"
  heapless = "0.8"
  
@@ -71,10 +81,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..a20808b 100644
+index 8c49f1c..2730506 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,364 @@
+@@ -1,83 +1,435 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -159,7 +169,11 @@ index 8c49f1c..a20808b 100644
 -        }
 +// R2 transient-networking core (no_std, the portable substance — unchanged on metal).
 +use r2_route::{DropReason, ForwardAction, ForwardRequest, RouteEngine, Target};
-+use r2_wire::{decode_extended, encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
++use r2_trust::GroupHmac;
++use r2_wire::{
++    decode_extended, encode_extended, sign_extended, verify_extended, ExtendedHeader,
++    ExtendedMessage, Flags, MsgType,
++};
 +
 +// On-device proof-surface LCD (ST7735S) — restored after the WiFi refactor.
 +use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -181,6 +195,7 @@ index 8c49f1c..a20808b 100644
 +/// Live state shared from io_task → the LCD render loop in main.
 +static FIRE_COUNT: AtomicU32 = AtomicU32::new(0);
 +static DELIVERED: AtomicU32 = AtomicU32::new(0);
++static BLOCKED: AtomicU32 = AtomicU32::new(0);
 +static SYNCED: AtomicBool = AtomicBool::new(false);
 +
 +// App descriptor — required by espflash 4.4.0 to flash an esp-hal 1.x image.
@@ -193,6 +208,16 @@ index 8c49f1c..a20808b 100644
 +const AP_MAC_MATCH: u32 = 0x0050_2698; // low-3 MAC bytes selecting the soft-AP role
 +const STA_HIVE: u32 = 0x00b7_9010; // the other board's hive id (low-3 MAC). AP_MAC_MATCH = AP's hive id.
 +const TG_ID: &str = "DEMO"; // placeholder until provisioning writes the real tg_id to NVS
++// Intra-TG trust (demo): both boards share the TG id + group HMAC key = one TG.
++// CANON (R2-WIRE §6.2.1 / R2-TRUST §2.3, core 5f8798b): target_group = FNV-1a-32 of
++// the trust_group_id UUID STRING (NOT of the TG pubkey). Demo uses a fixed TG UUID
++// string; the real one is self-generated at first boot + HKDF-scoped. The wire
++// encoding (FNV-1a-32 of the string) is unchanged when master-secret provisioning
++// lands, so this is a drop-in. `hk` is the shared group HMAC key (from the join
++// protocol; hardcoded stand-in here).
++const TG_UUID: &str = "r2tg-demo-0000-0000-0000-000000000001";
++const MY_TG_HASH: u32 = r2_fnv::fnv1a_32(TG_UUID.as_bytes()); // frame target_group
++const TG_HK_DEMO: [u8; 32] = [0x5C; 32]; // shared intra-TG group HMAC key (hk)
 +
 +#[esp_rtos::main]
 +async fn main(spawner: Spawner) -> ! {
@@ -301,6 +326,7 @@ index 8c49f1c..a20808b 100644
 +        let synced = SYNCED.load(Ordering::Relaxed);
 +        let beats = FIRE_COUNT.load(Ordering::Relaxed);
 +        let dlv = DELIVERED.load(Ordering::Relaxed);
++        let blk = BLOCKED.load(Ordering::Relaxed);
 +
 +        let _ = display.clear(Rgb565::BLACK);
 +        let mut s: heapless::String<26> = heapless::String::new();
@@ -313,7 +339,7 @@ index 8c49f1c..a20808b 100644
 +        let _ = write!(s, "ip {ip}");
 +        let _ = Text::new(&s, Point::new(2, 30), white).draw(&mut display);
 +        s.clear();
-+        let _ = write!(s, "beats {beats}  dlv {dlv}");
++        let _ = write!(s, "b{beats} dlv{dlv} blk{blk}");
 +        let _ = Text::new(&s, Point::new(2, 42), white).draw(&mut display);
 +        s.clear();
 +        let _ = write!(s, "fleet: {}", if synced { "IN SYNC" } else { "converging" });
@@ -371,6 +397,12 @@ index 8c49f1c..a20808b 100644
 +    let my_hive = if is_ap { AP_MAC_MATCH } else { STA_HIVE };
 +    let peer_hive = if is_ap { STA_HIVE } else { AP_MAC_MATCH };
 +    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
++    // Intra-TG trust: GroupHmac over the shared hk. `bad_hmac` = wrong key for the
++    // negative test (a frame that's correctly addressed but fails the deliver-gate).
++    let group_hmac = GroupHmac::new(TG_HK_DEMO);
++    let bad_hmac = GroupHmac::new([0xFF; 32]);
++    let mut ev_tick: u32 = 0;
++    let mut ev_seq: u32 = 1;
 +
 +    // Pulse-coupled oscillator. Tick = phase resolution; epsilon = coupling.
 +    const HB_PERIOD_MS: f32 = 2000.0;
@@ -381,7 +413,7 @@ index 8c49f1c..a20808b 100644
 +    let mut fire_seq: u32 = 1;
 +
 +    let mut scratch = [0u8; 512];
-+    let mut txbuf = [0u8; 64];
++    let mut txbuf = [0u8; 256];
  
      loop {
 -        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
@@ -425,6 +457,39 @@ index 8c49f1c..a20808b 100644
 +                    FIRE_COUNT.store(fire_seq, Ordering::Relaxed);
 +                    println!("r2-dfr1195: FIRE seq={fire_seq} beat ({})", if is_ap { "AP" } else { "STA" });
 +                }
++                // Trust demo: AP originates a SIGNED intra-TG Event ~every 3s,
++                // alternating good/bad HMAC to exercise the B1 deliver-gate at B.
++                ev_tick += 1;
++                if is_ap && ev_tick >= 60 {
++                    ev_tick = 0;
++                    let good = ev_seq % 2 == 0;
++                    let payload = b"in-TG";
++                    let header = ExtendedHeader {
++                        version: 0,
++                        msg_type: MsgType::Event,
++                        flags: Flags { mcu_origin: true, ..Default::default() },
++                        ttl: 4,
++                        k: 3,
++                        msg_id: ev_seq,
++                        event_hash: 0,
++                        payload_len: payload.len() as u32,
++                        target_group: MY_TG_HASH,
++                        target_hive: peer_hive,
++                    };
++                    let mut msg = ExtendedMessage { header, route: None, payload, hmac_tag: None };
++                    let signer = if good { &group_hmac } else { &bad_hmac };
++                    let (flags, tag) = sign_extended(&msg, signer);
++                    msg.header.flags = flags;
++                    msg.hmac_tag = Some(tag);
++                    if let Ok(n) = encode_extended(&msg, &mut txbuf) {
++                        let _ = socket.send_to(&txbuf[..n], peer_ep).await;
++                        println!(
++                            "r2-dfr1195: ORIG Event ev_seq={ev_seq} hmac={}",
++                            if good { "good" } else { "BAD" }
++                        );
++                    }
++                    ev_seq = ev_seq.wrapping_add(1);
++                }
 +            }
 +            // ── RX: Heartbeat → PCO nudge; Event/other → RouteEngine deliver/dedup ──
 +            Either::Second(Ok((n, from))) => match decode_extended(&scratch[..n]) {
@@ -458,9 +523,25 @@ index 8c49f1c..a20808b 100644
 +                        if matches!(advice.action, ForwardAction::Drop(DropReason::Duplicate)) {
 +                            println!("r2-dfr1195: DEDUP msg_id={} dropped", h.msg_id);
 +                        } else if for_me {
-+                            DELIVERED.fetch_add(1, Ordering::Relaxed);
-+                            let body = core::str::from_utf8(m.payload).unwrap_or("?");
-+                            println!("r2-dfr1195: DELIVERED msg_id={} '{}'", h.msg_id, body);
++                            // B1 DELIVER-GATE — trust checked ONLY here; the relay
++                            // decision (plan_forward, above) stays trust-agnostic.
++                            // Deliverable iff dest TG is mine AND the GroupHmac verifies.
++                            let tg_ok = h.target_group == MY_TG_HASH || h.target_group == 0;
++                            let hmac_ok = verify_extended(&m, &group_hmac);
++                            if tg_ok && hmac_ok {
++                                DELIVERED.fetch_add(1, Ordering::Relaxed);
++                                let body = core::str::from_utf8(m.payload).unwrap_or("?");
++                                println!(
++                                    "r2-dfr1195: DELIVERED msg_id={} '{}' (tg+hmac ok)",
++                                    h.msg_id, body
++                                );
++                            } else {
++                                BLOCKED.fetch_add(1, Ordering::Relaxed);
++                                println!(
++                                    "r2-dfr1195: DELIVER-BLOCKED msg_id={} tg_ok={tg_ok} hmac_ok={hmac_ok} (relay unaffected)",
++                                    h.msg_id
++                                );
++                            }
 +                        }
 +                    }
 +                },
