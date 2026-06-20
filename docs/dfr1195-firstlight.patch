@@ -54,10 +54,10 @@ index 5a3c89f..c56fc12 100644
  opt-level = "s"
  lto = true
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..f99549c 100644
+index 8c49f1c..3341930 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,134 @@
+@@ -1,83 +1,153 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware for the DFRobot DFR1195 (LoRaWAN ESP32-S3).
@@ -154,17 +154,21 @@ index 8c49f1c..f99549c 100644
 +    esp_println::println!("r2-dfr1195: FIRST LIGHT — esp-hal 1.x + LCD proof surface");
 +
 +    // ── LCD power + control pins (DFR1195 wiki: MOSI11 SCK12 CS17 DC14 RST15 BL16 PWR48) ──
-+    let _lcd_pwr = Output::new(p.GPIO48, Level::High, OutputConfig::default()); // panel power rail
++    // CONFIRMED on hardware: the ST7735 controller power (GPIO48) is ACTIVE-LOW
++    // (LOW = on). The backlight (GPIO16) is a separate active-high rail. With
++    // GPIO48 HIGH the panel was backlit but the controller was dead ("blank").
++    let _lcd_pwr = Output::new(p.GPIO48, Level::Low, OutputConfig::default()); // panel power: active-low
 +    let _lcd_bl = Output::new(p.GPIO16, Level::High, OutputConfig::default()); // backlight on
 +    let cs = Output::new(p.GPIO17, Level::High, OutputConfig::default());
 +    let dc = Output::new(p.GPIO14, Level::Low, OutputConfig::default());
 +    let rst = Output::new(p.GPIO15, Level::High, OutputConfig::default());
++    delay.delay_millis(120); // let the panel power rail settle before SPI/init
 +
 +    // ── SPI bus to the panel ──────────────────────────────────────────────────
 +    let spi = Spi::new(
 +        p.SPI2,
 +        SpiConfig::default()
-+            .with_frequency(Rate::from_mhz(40))
++            .with_frequency(Rate::from_mhz(20))
 +            .with_mode(Mode::_0),
 +    )
 +    .unwrap()
@@ -214,6 +218,12 @@ index 8c49f1c..f99549c 100644
 +    push_event(&mut events, "heap 72k");
 +    push_event(&mut events, "lcd st7735s 160x80");
 +
++    // Onboard status LED (GPIO21, mono). A gentle heartbeat = "all well"; distinct
++    // patterns (e.g. fast blink during OTA, when the screen may be down) come once
++    // the status sentant drives it. This is the firmware-side LED driver — the
++    // device half of the LED status PLUGIN.
++    let mut led = Output::new(p.GPIO21, Level::Low, OutputConfig::default());
++
 +    let mut tick: u32 = 0;
      loop {
 -        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
@@ -228,7 +238,16 @@ index 8c49f1c..f99549c 100644
 +        push_event(&mut events, &line);
 +        tick = tick.wrapping_add(1);
 +
-+        delay.delay_millis(1500);
++        // Heartbeat "lub-dub" then rest (≈1.5 s cycle) — the calm, glanceable
++        // "alive" signal even when the screen is off.
++        led.set_high();
++        delay.delay_millis(45);
++        led.set_low();
++        delay.delay_millis(130);
++        led.set_high();
++        delay.delay_millis(45);
++        led.set_low();
++        delay.delay_millis(1280);
 +    }
 +}
 +
@@ -249,7 +268,7 @@ index 8c49f1c..f99549c 100644
 +    D: DrawTarget<Color = Rgb565>,
 +{
 +    let _ = display.clear(Rgb565::BLACK);
-+    let status_style = MonoTextStyle::new(&FONT_6X10, Rgb565::CYAN);
++    let status_style = MonoTextStyle::new(&FONT_6X10, Rgb565::GREEN);
 +    let event_style = MonoTextStyle::new(&FONT_6X10, Rgb565::WHITE);
 +    let _ = Text::new(status, Point::new(2, 8), status_style).draw(display);
 +    let mut y = 22;
