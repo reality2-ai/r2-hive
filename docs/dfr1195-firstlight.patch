@@ -84,10 +84,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..700ca81 100644
+index 8c49f1c..dce67b4 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,545 @@
+@@ -1,83 +1,563 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -464,8 +464,11 @@ index 8c49f1c..700ca81 100644
 +    // Pulse-coupled oscillator. Tick = phase resolution; epsilon = coupling.
 +    const HB_PERIOD_MS: f32 = 2000.0;
 +    const HB_TICK_MS: u64 = 50;
-+    const HB_EPSILON: f32 = 0.25;
++    const HB_EPSILON: f32 = 0.30; // 2nd-order PLL proportional (phase) gain (alpha)
++    const HB_BETA: f32 = 0.02; // 2nd-order PLL integral (frequency) gain — kills steady-state offset
 +    let mut phase: f32 = if is_ap { 0.0 } else { 0.55 }; // out of phase → watch them converge
++    let mut freq_adj: f32 = 0.0; // accumulated per-tick frequency correction (the integral term)
++    let mut am_conductor = true; // = (my hive_id is the lowest heard); updated on each heard beat
 +    let mut fire_seq: u32 = 1;
  
 -    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
@@ -504,7 +507,7 @@ index 8c49f1c..700ca81 100644
 +        {
 +            // ── phase tick: advance, manage the LED beat, FIRE at phase>=1 ──
 +            Either::First(_) => {
-+                phase += HB_TICK_MS as f32 / HB_PERIOD_MS;
++                phase += HB_TICK_MS as f32 / HB_PERIOD_MS + freq_adj;
 +                if phase >= 1.0 {
 +                    phase = 0.0;
 +                    FIRE_SIGNAL.signal(()); // main renders the organic lub-DUB envelope
@@ -532,12 +535,18 @@ index 8c49f1c..700ca81 100644
 +                    };
 +                    let msg =
 +                        ExtendedMessage { header, route: None, payload: &hb_payload, hmac_tag: None };
-+                    if let Ok(n) = encode_extended(&msg, &mut txbuf) {
-+                        let _ = socket.send_to(&txbuf[..n], peer_ep).await;
++                    // NO-FLOOD (Roy): ONLY the conductor (lowest hive_id) beacons the fire
++                    // frame each beat; followers beat their LED locally + PLL-listen, they
++                    // do NOT broadcast. 1 beacon/beat on the AP, not N.
++                    if am_conductor {
++                        if let Ok(n) = encode_extended(&msg, &mut txbuf) {
++                            let _ = socket.send_to(&txbuf[..n], peer_ep).await;
++                        }
 +                    }
 +                    fire_seq = fire_seq.wrapping_add(1);
 +                    FIRE_COUNT.store(fire_seq, Ordering::Relaxed);
-+                    println!("r2-dfr1195: FIRE seq={fire_seq} beat ({})", if is_ap { "AP" } else { "STA" });
++                    let r = if am_conductor { "CONDUCTOR" } else { "follower" };
++                    println!("r2-dfr1195: FIRE seq={fire_seq} beat ({r})");
 +                }
 +                // Trust demo: AP originates a SIGNED intra-TG Event ~every 3s,
 +                // alternating good/bad HMAC to exercise the B1 deliver-gate at B.
@@ -590,26 +599,35 @@ index 8c49f1c..700ca81 100644
 +                                u32::MAX
 +                            };
 +                            lowest_heard = lowest_heard.min(sender_hive);
-+                            let am_conductor = my_hive <= lowest_heard;
++                            am_conductor = my_hive <= lowest_heard; // persistent (gates beaconing)
 +                            if am_conductor {
-+                                // The conductor free-runs — it IS the reference beat.
++                                // The conductor free-runs at the nominal rate — it IS the reference.
++                                freq_adj = 0.0;
 +                                SYNCED.store(true, Ordering::Relaxed);
 +                            } else if sender_hive == lowest_heard {
-+                                // Phase-lock to the conductor (bidirectional, R2-HEARTBEAT §4):
-+                                // it just fired (phase ~0); pull ours toward 0 from either side.
++                                // 2nd-order conductor-PLL (R2-HEARTBEAT §4): conductor just fired
++                                // (phase ~0). Proportional pulls phase toward 0; integral (freq_adj)
++                                // cancels the residual rate mismatch → zero steady-state offset.
 +                                let before = phase;
 +                                let e = if phase <= 0.5 { -phase } else { 1.0 - phase };
-+                                phase += HB_EPSILON * e;
++                                phase += HB_EPSILON * e; // proportional (alpha)
 +                                if phase < 0.0 {
 +                                    phase += 1.0;
 +                                }
 +                                if phase >= 1.0 {
 +                                    phase -= 1.0;
 +                                }
++                                freq_adj += HB_BETA * e; // integral (beta) — eliminates the offset
++                                if freq_adj > 0.003 {
++                                    freq_adj = 0.003;
++                                }
++                                if freq_adj < -0.003 {
++                                    freq_adj = -0.003;
++                                }
 +                                let eabs = if e < 0.0 { -e } else { e };
-+                                SYNCED.store(eabs < 0.1, Ordering::Relaxed);
++                                SYNCED.store(eabs < 0.04, Ordering::Relaxed); // <~80ms = "in sync"
 +                                println!(
-+                                    "r2-dfr1195: HB<-{from} cond={sender_hive:06x} {before:.2}->{phase:.2} (lock)"
++                                    "r2-dfr1195: HB<-{from} cond={sender_hive:06x} e={e:.3} fadj={freq_adj:.4} (lock)"
 +                                );
 +                            }
 +                        }
