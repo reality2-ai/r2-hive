@@ -81,10 +81,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..a67c1de 100644
+index 8c49f1c..36e69e7 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,484 @@
+@@ -1,83 +1,491 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -394,7 +394,14 @@ index 8c49f1c..a67c1de 100644
 +    let mut tx_buf = [0u8; 1024];
 +    let mut socket = UdpSocket::new(stack, &mut rx_meta, &mut rx_buf, &mut tx_meta, &mut tx_buf);
 +    socket.bind(R2_UDP_PORT).expect("bind R2 UDP port");
-+    let peer_ep = IpEndpoint::new(IpAddress::Ipv4(peer), R2_UDP_PORT);
++    // N-board ready (#19): TG-scoped fire/Event BROADCAST to ALL co-members on the
++    // soft-AP subnet (the AP forwards subnet broadcast to every associated STA),
++    // instead of 2-board unicast. Receivers filter by target_group (couple) +
++    // target_hive (deliver). Conductor election (lowest hive_id heard) scales to N.
++    let bcast_ep =
++        IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
++    let _ = peer; // unicast peer no longer needed; kept for the route-table seed later
++    let peer_ep = bcast_ep;
 +
 +    let my_hive = if is_ap { AP_MAC_MATCH } else { STA_HIVE };
 +    let peer_hive = if is_ap { STA_HIVE } else { AP_MAC_MATCH };
