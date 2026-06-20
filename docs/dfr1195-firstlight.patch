@@ -86,10 +86,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..55f79c7 100644
+index 8c49f1c..835423f 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,792 @@
+@@ -1,83 +1,821 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -291,26 +291,7 @@ index 8c49f1c..55f79c7 100644
 +                .with_password(FIELDLAB_PASS.into()),
 +        )
 +    };
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
--
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
--    {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
++
 +    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
 +    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
 +    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
@@ -349,6 +330,7 @@ index 8c49f1c..55f79c7 100644
 +    println!("r2-dfr1195: net UP — {} {} (peer {peer})", if is_ap { "AP serving" } else { "STA got" }, ip);
 +    let _ = peer;
 +    spawner.spawn(io_task(stack, is_ap, ip, hk, my_tg_hash, my_hive).unwrap());
++    spawner.spawn(ota_task().unwrap());
 +
 +    // ── LCD (ST7735S 160x80) status surface — CARRIER-GATED (has_screen). PWR(GPIO48)
 +    //    ACTIVE-LOW. Skipped entirely on the screenless XIAO-S3 so the binary runs cleanly
@@ -395,7 +377,7 @@ index 8c49f1c..55f79c7 100644
 +        // ── organic lub-DUB LED heartbeat (conductor-PLL fired it; this is the SHAPE) ──
 +        if FIRE_SIGNAL.try_take().is_some() {
 +            beat_t = 0;
-         }
++        }
 +        if beat_t >= 0 {
 +            match beat_t {
 +                0 => {
@@ -452,7 +434,7 @@ index 8c49f1c..55f79c7 100644
 +            println!("r2-dfr1195: status beats={beats} dlv={dlv} synced={synced} role={role}");
 +        }
 +        Timer::after(Duration::from_millis(50)).await;
-     }
++    }
 +}
 +
 +/// THE FLEET WORKS — pulse-coupled heartbeat sync over TN (Mirollo–Strogatz).
@@ -511,34 +493,29 @@ index 8c49f1c..55f79c7 100644
 +    let mut fire_seq: u32 = 1;
 +    let mut last_err_ms: u32 = 0; // latest PLL phase error in ms (#18 health field 8)
  
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 -
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
+-    {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
- 
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++
++    loop {
 +        match select(
 +            Timer::after(Duration::from_millis(HB_TICK_MS)),
 +            socket.recv_from(&mut scratch),
@@ -792,8 +769,8 @@ index 8c49f1c..55f79c7 100644
 +                Err(e) => println!("r2-dfr1195: decode err {e:?}"),
 +            },
 +            Either::Second(Err(e)) => println!("r2-dfr1195: RX err {e:?}"),
-+        }
-+    }
+         }
+     }
 +}
 +
 +/// R2 mesh UDP port (R2-WIFI §4).
@@ -833,7 +810,29 @@ index 8c49f1c..55f79c7 100644
 +    tg_label.push_str(p.tg_id).ok()?;
 +    Some(Persona { tg_label, tg_hash: p.tg_hash, hk: p.hk, hive_id: p.hive_id })
 +}
-+
+ 
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +/// Carrier-aware screen flag (9-board: one binary on DFR1195 + screenless XIAO-S3).
 +/// Board-profile byte @0x13000: 0x00 = no screen (XIAO), else/0xFF(erased) = screen
 +/// (DFR1195). composer write-bins 0x00 on the XIAO so the LCD init/render is skipped and
@@ -849,7 +848,7 @@ index 8c49f1c..55f79c7 100644
 +    }
 +    b[0] != 0x00
 +}
-+
+ 
 +/// Report the active OTA slot at boot. The otadata slot-switch was PROVEN on metal
 +/// (test b: wrote a valid image to ota_1 → activate_next_partition() → reboot → ESP-IDF
 +/// BL booted ota_1 @0x200000). Now report-only — the real network receiver (#17) does
@@ -920,6 +919,36 @@ index 8c49f1c..55f79c7 100644
 +#[embassy_executor::task]
 +async fn net_task(mut runner: Runner<'static, wifi::Interface<'static>>) -> ! {
 +    runner.run().await
++}
++
++/// OTA network receiver (#17) — FLASH-WRITE-WHILE-WIFI DE-RISK (esp-storage#31).
++/// The slot-switch/commit path is already proven (test b). The open hardware question is
++/// whether an esp-storage flash write (cache-suspend) RETURNS PROMPTLY with esp-radio
++/// running, or hangs/browns-out. Self-triggered ~15 s after boot (mesh synced, WiFi
++/// active): erase+write one 4 KB sector to the INACTIVE OTA slot (harmless — not booted)
++/// and report the elapsed time. A printed "wtest write_ok=.. Nms" = per-chunk streaming is
++/// viable; a hang (no line, heartbeat stops) = the radio must be quiesced around the burst.
++#[embassy_executor::task]
++async fn ota_task() {
++    use embedded_storage::Storage;
++    Timer::after(Duration::from_secs(15)).await;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut tbl = [0u8; esp_bootloader_esp_idf::partitions::PARTITION_TABLE_MAX_LEN];
++    let t0 = embassy_time::Instant::now();
++    let mut ok = false;
++    if let Ok(mut ota) = esp_bootloader_esp_idf::ota_updater::OtaUpdater::new(&mut flash, &mut tbl) {
++        if let Ok((mut region, _sub)) = ota.next_partition() {
++            let buf = [0xABu8; 4096];
++            ok = region.write(0, &buf).is_ok();
++        }
++    }
++    let dt = t0.elapsed().as_millis();
++    println!("r2-dfr1195: OTA wtest write_ok={ok} {dt}ms (flash write w/ WiFi up)");
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++        Timer::after(Duration::from_secs(60)).await;
++    }
 +}
 +
 +/// WiFi event loop. STA: connect + reconnect on drop. AP: already up; observe joins.
