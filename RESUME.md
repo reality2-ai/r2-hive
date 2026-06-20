@@ -106,6 +106,11 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     flash-touching = careful. (3) **health #18** — r2.hb.health CBOR, UNICAST to collector (NOT broadcast, per
     af4ebcb), every-5th-beat+on-change, ota_status=0 interim. (4) dedup v0.4 (origin=route_stack[0]; future
     r2-route bump). (5) 4-board entanglement (cross-TG gate: GroupHmac first, then trial PeeringHmac; §7.5.4).
+    (6) **LoRa rung** — core landed LoRaTransport (fb13b17, r2-transport/src/lora_transport.rs); impl LoRaRadio
+    for Sx1262 (wrap lora-phy) → LoRaTransport::new → single-owner lora.service() in the radio task; send()=
+    broadcast-on-air so RouteEngine+dedup+trust+conductor-PLL transfer UNCHANGED from WiFi. Swap the ref's
+    RefCell<VecDeque> TX queue for an embassy/heapless channel (separate async radio task). Open before TX:
+    region/duty-cycle gate, LBT/CAD, RXEN switch (SX1262-LORA-DESIGN.md). Ping core when starting.
   - **QUEUE (post-headline):**
     1. **OTA receiver (#17)** — plan ready (`docs/dfr1195-ota-receiver-plan.md`: OtaUpdater + esp-storage +
        UDP :21043 transfer + sha256 + software_reset). **2 go/no-go prereqs FLAGGED:** (a) espflash's default
