@@ -135,3 +135,32 @@ init points, wire the host loop + sync→async bridge + the `OtaReceiver`↔emba
 partition table; (d) flash two boards (full images), route one frame board↔board over WiFi-UDP, then
 demonstrate a wireless OTA round-trip.** LoRa is the follow-on. **Hard blockers: physical hardware (Roy) +
 core re-targeting the skeleton to S3.**
+
+---
+
+## GROUNDED UPDATE (2026-06-20, post first-light + full core read)
+
+Roy: "the hive core code should already have all of that present." **Verified — it is.** A full read of the
+core crates + the `platforms/dfr1195` skeleton confirms the transient-networking brain is **present, real
+(not stubbed), and compiles for xtensa-esp32s3** (it built during first-light):
+
+- **`r2-route`** `RouteEngine::plan_forward()` → `Drop | DeliverOnly | Directed | Flood`, with **TTL decrement,
+  dedup seen-cache, spray-K, relay probability, congestion**; `NeighbourTable` (decay + per-transport quality),
+  `PathTable` (reinforcement), `DedupCache`. **Zero firmware changes needed** to the route logic.
+- **`r2-wire`** compact(12B)/extended(22B) encode/decode + route stack + HMAC; **`MsgType::Heartbeat` is
+  first-class** (= the TG-maintenance heartbeat on the wire — grounds the heartbeat-sync design).
+- **`r2-transport`** `Transport` trait + UDP (port 21042) + `LoRaRadio` HAL seam. **`r2-discovery`** peer types.
+- **`r2-harness`** already proves the routing in sim (broadcast+dedup / spray-directed / store-carry-forward).
+- Platform: **`WifiTransport` sync-half + `udp_writer_task` async drain are COMPLETE**; `PeerTable` complete;
+  BLE/LoRa sync-halves are skeletons; `main.rs` marks the HIVE wiring entry points.
+
+**The ONLY gap is the async radio binding** — esp-wifi controller + embassy-net Stack init — i.e. the
+**`esp-hal-embassy 0.9.1 ↔ esp-hal 1.1.1` matrix conflict** parked for first-light. **That conflict is now the
+single thing between us and a TN test.** Minimal WiFi-UDP path: resolve the matrix → esp-wifi STA + embassy-net
+Stack + `udp_writer_task` → static `note_peer` bootstrap → `RouteEngine` over `WifiTransport` → RX
+(UDP→validate→`plan_forward`→drive→`send`) + TX (originate `ForwardRequest`→`plan_forward`→`send`) → **proof:
+board A→B receive+relay, dedup drops the re-send, TTL decrements, spray-K splits.** Show it on the LCD log/LED.
+
+**Net:** the existing core makes the TN test a **wiring job, not a build job**. Critical path = the WiFi-UDP
+bring-up (resolve the embassy matrix; core owns `wifi.rs`, hive owns the platform Cargo deps + `main.rs`
+bring-up + metal validation). See `docs/dfr1195-first-light-findings.md` for the embassy-matrix specifics.

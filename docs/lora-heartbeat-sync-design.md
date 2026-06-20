@@ -1,8 +1,67 @@
 # Synchronized heartbeats over LoRa — design (the "fireflies" demo)
 
-**Goal (Roy):** independent DFR1195 nodes, each beating its LED heartbeat, **synchronise to beat as one** by
-exchanging events over LoRa via sentants. A living, glanceable proof of transient networking: emergent
-coordination from local event exchange, self-healing across partitions.
+**Goal (Roy):** co-member hives of a trust group **synchronise their heartbeats to beat as one**, a living,
+glanceable proof of transient networking: emergent coordination from local event exchange, self-healing
+across partitions.
+
+> **Framing (Roy, via supervisor) — this is NOT a bolted-on application sync.** R2-TRUST already maintains
+> TGs/entanglements **by heartbeat** (R2-TRUST §7, *heartbeat-maintained*): co-members of a TG already exchange
+> periodic maintenance heartbeats. This work does **not invent a new mechanism** — it **couples** those
+> existing TG-maintenance heartbeats (pulse-coupled-oscillator entrainment) and **visualises** the result on
+> the LED. Consequences that run through this whole doc:
+> 1. **Same-TG membership is the SOURCE of the heartbeat, not merely a prerequisite** — no shared TG = no
+>    shared maintenance heartbeat = nothing to couple = no sync. The signal is intrinsic to co-membership.
+> 2. The HeartbeatSync sentant **couples the TG-maintenance heartbeat**, it is not a standalone oscillator.
+> 3. The conjecture is a **trust-layer claim**: co-members of a TG synchronise their maintenance heartbeats
+>    and re-synchronise after partition→heal — with the §3 TX-jitter collision-avoidance applying to the
+>    announces. The demo visualises **real protocol behaviour**, not a contrivance.
+
+## Design decision — couple the maintenance heartbeat DIRECTLY (settled)
+
+The supervisor's open question: does sync couple the **trust-layer maintenance heartbeat directly**, or a
+**TG-scoped sentant heartbeat riding on membership**? **Settled: couple the maintenance heartbeat directly.**
+
+Grounding fact (confirmed in the code): **R2-WIRE already has a first-class `MsgType::Heartbeat`** frame
+(`r2-wire`, compact 12-byte / extended 22-byte). So the TG-maintenance heartbeat (R2-TRUST §7) is a real
+on-the-wire message exchanged among co-members — there is a concrete thing to couple and visualise. Reasons:
+
+1. **It's the honest realisation of the framing.** The thing that beats IS the `Heartbeat` frame, so the LED
+   shows the literal TG-maintenance protocol. A *separate* sentant oscillator would be exactly the "bolted-on
+   application sync" we're steering away from (and the supervisor's implication 2 already says the sentant
+   *couples* the maintenance heartbeat, *not* a standalone oscillator).
+2. **The sentant's role is the COUPLING FUNCTION, not a clock.** HeartbeatSync observes inbound co-member
+   `Heartbeat` frames and applies a PCO phase-nudge to the **local maintenance-heartbeat scheduler**, and
+   beats the LED on `Heartbeat` TX. It owns *no* independent period.
+3. **The coupling is liveness-SAFE by construction: advance-only.** The PCO nudge may only pull the next
+   heartbeat *earlier* (fire sooner), never later. So it can only make a co-member's heartbeat *more* timely —
+   it can never push one past an R2-TRUST §7 liveness deadline or mask a real timeout. Sync entrains without
+   ever endangering the liveness semantics the heartbeat exists for. (This is the constraint that makes
+   "directly" safe; a delay-capable coupling would not be.)
+4. **TX-jitter (§3) applies to the `Heartbeat` announces** regardless — the LED phase entrains tightly while
+   the actual `Heartbeat` frame TX is spread to dodge half-duplex collisions.
+
+**Two timescales (settled, Roy) — the maintenance heartbeat is INFREQUENT; the visual beat is fast and
+LOCAL, disciplined by it.** The R2-TRUST §7 maintenance heartbeat *must* be infrequent (tens of seconds, not
+~1.5 s) — **frequent heartbeats would flood the mesh** (and blow the LoRa duty-cycle budget). So we do **not**
+speed it up. Instead, a PLL-like split:
+
+- The **visual heartbeat** is a **fast local oscillator** (~1.5 s) on each node — what the LED actually shows.
+  It free-runs between reference pulses; cheap, no radio.
+- The **rare maintenance `Heartbeat` frames** are the **reference / coupling pulses**: each inbound co-member
+  `Heartbeat` applies the PCO phase-nudge that **disciplines the local visual oscillator** (advance-only, §3).
+  Sync rides on these infrequent real frames — so **the radio stays unflooded**, yet the local beats entrain.
+- Co-members converge because every node's fast oscillator is pulled by the *same* shared (mutually-coupled)
+  maintenance heartbeats — like distributed phase-locked loops sharing a sparse reference.
+
+Consequences to bake into the sim + the tuning:
+- **Convergence is slower** (one correction per maintenance interval, not per visual beat) → the local
+  oscillator must be **stable** enough to hold phase between references, and ε must integrate over many
+  intervals. Inter-reference **clock drift** is the dominant error to budget against.
+- **Collisions are naturally rarer** (few frames on air) — TX jitter (§3) still applies, but the channel is
+  far from saturated. The anti-flood constraint and the collision constraint pull the same way: keep the
+  radio quiet.
+- Cadence (the exact maintenance interval) is a trust-layer parameter — specs' call — but the **two-timescale
+  PLL model is the design** regardless of the number.
 
 ## 0. PREREQUISITE — both nodes on the SAME trust group (Roy)
 
