@@ -84,8 +84,24 @@ condition fights itself:
   specs = the event vocabulary + (great fit) a **TN synchronization conjecture/demonstration** in the matrix
   (emergent sync + partition/heal — testable in sim now, hardware later).
 
-## 5. Why it matters
+## 5. Why it matters — calm-technology TG-cohesion status (Roy's concept)
 
-It turns the abstract "transient networking" pitch into something you can *watch*: a cluster of nodes finding
-a shared rhythm with no coordinator, splitting into two rhythms when partitioned, and merging back. The
-half-duplex wrinkle keeps it honest — it's a real distributed-systems-on-real-radios problem, not a toy.
+The deeper point isn't the demo — it's a **calm-technology status signal**. **Hives in a trust group that
+heartbeat *together* show, ambiently and at a glance, that the group is coherent and well.** No logs, no
+numbers, no screen needed — you sense the TG's health peripherally, from the shared pulse, the way you sense
+a room is calm. That is calm technology in its purest form (Weiser/Brown): information at the edge of
+attention, not demanding it.
+
+And it is **self-explaining**, because a node only entrains with **its own TG** (§0):
+- **In rhythm** → "these hives are one trust group, connected, all-well." The sync *is* the visible boundary
+  and health of the group.
+- **A node drifting out of phase** → it's losing contact (range, interference, fading) — visible degradation
+  before it's fully gone.
+- **Two rhythms** → the TG has **partitioned** into two reachable clusters.
+- **Re-merging into one rhythm** → the partition **healed**; the group is whole again.
+
+So the same mechanism is both the proof of transient networking *and* the everyday glanceable status surface
+for "is my trust group together and well?" — driven by the very transient-mesh event exchange it reports on.
+The half-duplex wrinkle (§3) keeps it honest: it's a real distributed-systems-on-real-radios problem whose
+*output is calm*. It ties straight into `r2.hw.led` (`ok` = heartbeat): a **synchronised** `ok` across the TG
+is a richer, emergent "TG-coherent" status that no single node could assert alone.

@@ -59,6 +59,21 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     vocab all-well/ota/joining/error/identify; Roy: LED signals status when screen down). hive owns device
     drivers (display+LED heartbeat done; pattern-set + plugin-ization next); composer the sentant+catalogue;
     specs/core the general capability traits.
+  - **r2.hw.led capability DRAFTED for specs/core** (`4a9f0dd`, `docs/r2-hw-led-capability-proposal.md`) —
+    semantic CMD_SET_STATUS{status} vocab (ok/joining/ota/error/identify/idle — meanings not blink-codes);
+    descriptor kind:mono|rgb + statuses + dimmable + (rgb) colour slots; device driver maps status→rendering.
+    **CRITICAL (Roy): LED INDEPENDENT of display** — firmware-direct base statuses (boot/ota/error) signal
+    when the screen is down → don't route LED via the render plugin. **Firmware TODO:** init the LED
+    before/around the display + a panic→error pattern, so a display fault never silences the LED. Sent specs.
+  - **PROJECT: LoRa heartbeat-SYNC ("fireflies")** (`33eac83`, `docs/lora-heartbeat-sync-design.md`) — Roy's
+    next showcase: synchronise the LED heartbeats via sentants exchanging r2.sync.fire events over LoRa
+    (pulse-coupled oscillators). **PREREQUISITE (Roy): both nodes on the SAME TG** (events are TG-scoped) →
+    needs identity (workshop hive_id/NVS) + **r2-trust no_std verify** (group-HMAC on MCU, currently std) +
+    R2-PROVISION join on MCU. Deployment-reality catch (refuter): synced firing = simultaneous half-duplex
+    TX = collisions → TX jitter/desync so LEDs sync tight while radio announces spread. Gated on LoRa + TG
+    tiers (both downstream). **Algorithm is host-prototypable NOW** (offered to supervisor: r2-harness-style
+    convergence sim + tune ε/jitter/T + partition/heal; + a TN-sync conjecture for specs). composer owns the
+    HeartbeatSync sentant.
   - **FIRST-LIGHT PASS DONE (board live!)** (`db33289`, `docs/dfr1195-first-light-findings.md`). Board on
     **tuxedo-os /dev/ttyACM0**; hive on **Alfred** (esp/Xtensa toolchain); passwordless SSH = build-on-Alfred
     /flash-on-tuxedo. **SILICON-confirmed esp32s3 rev v0.1 / 4MB** (espflash board-info — settles SoC for
