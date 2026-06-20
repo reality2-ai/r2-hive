@@ -84,10 +84,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..36e69e7 100644
+index 8c49f1c..0497206 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,491 @@
+@@ -1,83 +1,497 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -272,7 +272,13 @@ index 8c49f1c..36e69e7 100644
 +    let (device, ip) = if is_ap {
 +        (interfaces.access_point, Ipv4Address::new(192, 168, 4, 1))
 +    } else {
-+        (interfaces.station, Ipv4Address::new(192, 168, 4, 2))
++        // N-board: unique per-board STA IP from the low MAC byte (embassy-net 0.9 has
++        // no DHCP server, so each STA self-assigns deterministically). Avoid .0/.1/.255.
++        let host = {
++            let b = (mac_low3 & 0xFF) as u8;
++            if b <= 1 || b == 255 { 2 } else { b }
++        };
++        (interfaces.station, Ipv4Address::new(192, 168, 4, host))
 +    };
 +    let net_config = Config::ipv4_static(StaticConfigV4 {
 +        address: Ipv4Cidr::new(ip, 24),
