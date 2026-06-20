@@ -105,3 +105,27 @@ for "is my trust group together and well?" — driven by the very transient-mesh
 The half-duplex wrinkle (§3) keeps it honest: it's a real distributed-systems-on-real-radios problem whose
 *output is calm*. It ties straight into `r2.hw.led` (`ok` = heartbeat): a **synchronised** `ok` across the TG
 is a richer, emergent "TG-coherent" status that no single node could assert alone.
+
+## 6. Caveat — coincidental cross-TG sync (Roy)
+
+Two **separate** trust groups can *appear* to beat in unison by chance — their independent rhythms momentarily
+line up. The observer's eye can't tell "one coherent TG" from "two unrelated TGs that happen to align right
+now." Worth being explicit about, because it bounds what the signal honestly claims.
+
+What saves it: the two TGs are **uncoupled** — `r2.sync.fire` events are TG-scoped, so there is *no* coupling
+across the boundary. Coincidental alignment is therefore **transient**: with independent clock drift and no
+mutual correction, two uncoupled groups inevitably slide out of phase within a few cycles. *Real* intra-TG
+sync is **actively locked** (continuously re-corrected by the event exchange); coincidental cross-TG sync is
+**free-running** and decays. So **watching for a few beats disambiguates**: locked-and-holding = genuinely one
+TG; drifting-apart = it was a coincidence. The signal is honest *over time*, ambiguous only in a single glance.
+
+If we ever want single-glance certainty, give each TG a **deterministic identity in its rhythm** so distinct
+TGs can't occupy the same phase/appearance:
+- **Phase offset:** lock each TG to a target phase derived from its `tg_id` (e.g. `φ_target = hash(tg_id)`),
+  so different TGs settle at visibly different phases and never coincide.
+- **Signature:** encode `tg_id` in the beat's look — colour on an RGB indicator (`r2.hw.led kind:rgb`), or a
+  subtle pattern on mono. (Costs some calm/simplicity — only if single-glance disambiguation is needed.)
+
+Default stance: keep it simple (temporal disambiguation is enough for "is my group well?"); note the tg_id
+phase-offset as the clean upgrade if coincidence ever proves confusing in practice. Add to the prototype as a
+scenario — run two uncoupled groups and confirm they drift apart (i.e. coincidence does *not* persist).

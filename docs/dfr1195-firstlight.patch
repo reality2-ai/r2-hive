@@ -54,10 +54,10 @@ index 5a3c89f..c56fc12 100644
  opt-level = "s"
  lto = true
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..3341930 100644
+index 8c49f1c..b366a0b 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,153 @@
+@@ -1,83 +1,166 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware for the DFRobot DFR1195 (LoRaWAN ESP32-S3).
@@ -175,6 +175,26 @@ index 8c49f1c..3341930 100644
 +    .with_sck(p.GPIO12)
 +    .with_mosi(p.GPIO11);
 +    let spi_dev = ExclusiveDevice::new(spi, cs, Delay::new()).unwrap();
++
++    // ── ST7735S display (0.96" 160x80 landscape). Offsets/inversion are typical for
++    //    the 160x80 "mini" panel — HIVE: tune on the metal. ────────────────────
++    let mut di_buf = [0u8; 512];
++    let di = SpiInterface::new(spi_dev, dc, &mut di_buf);
++    let mut display = Builder::new(ST7735s, di)
++        .reset_pin(rst)
++        .display_size(80, 160)
++        .display_offset(26, 1)
++        .orientation(Orientation::new().rotate(Rotation::Deg90))
++        .invert_colors(ColorInversion::Inverted)
++        .init(&mut delay)
++        .unwrap();
++    let _ = display.clear(Rgb565::BLACK);
++
++    // ── status line + scrolling event log ─────────────────────────────────────
++    let mut events: EventLog = heapless::Deque::new();
++    push_event(&mut events, "boot ok");
++    push_event(&mut events, "heap 72k");
++    push_event(&mut events, "lcd st7735s 160x80");
  
 -    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
 -
@@ -198,32 +218,12 @@ index 8c49f1c..3341930 100644
 -    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
 -    // resolves hive ids per medium. The route logic is fully validated in the
 -    // r2-harness sim — this firmware only supplies the real radios.
-+    // ── ST7735S display (0.96" 160x80 landscape). Offsets/inversion are typical for
-+    //    the 160x80 "mini" panel — HIVE: tune on the metal. ────────────────────
-+    let mut di_buf = [0u8; 512];
-+    let di = SpiInterface::new(spi_dev, dc, &mut di_buf);
-+    let mut display = Builder::new(ST7735s, di)
-+        .reset_pin(rst)
-+        .display_size(80, 160)
-+        .display_offset(26, 1)
-+        .orientation(Orientation::new().rotate(Rotation::Deg90))
-+        .invert_colors(ColorInversion::Inverted)
-+        .init(&mut delay)
-+        .unwrap();
-+    let _ = display.clear(Rgb565::BLACK);
- 
-+    // ── status line + scrolling event log ─────────────────────────────────────
-+    let mut events: EventLog = heapless::Deque::new();
-+    push_event(&mut events, "boot ok");
-+    push_event(&mut events, "heap 72k");
-+    push_event(&mut events, "lcd st7735s 160x80");
-+
 +    // Onboard status LED (GPIO21, mono). A gentle heartbeat = "all well"; distinct
 +    // patterns (e.g. fast blink during OTA, when the screen may be down) come once
 +    // the status sentant drives it. This is the firmware-side LED driver — the
 +    // device half of the LED status PLUGIN.
 +    let mut led = Output::new(p.GPIO21, Level::Low, OutputConfig::default());
-+
+ 
 +    let mut tick: u32 = 0;
      loop {
 -        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
@@ -238,16 +238,29 @@ index 8c49f1c..3341930 100644
 +        push_event(&mut events, &line);
 +        tick = tick.wrapping_add(1);
 +
-+        // Heartbeat "lub-dub" then rest (≈1.5 s cycle) — the calm, glanceable
-+        // "alive" signal even when the screen is off.
++        // Dim heartbeat "lub-dub" then rest (≈1.5 s cycle). The bare GPIO21 LED is
++        // very bright, so we software-PWM it down to a gentle ~12% — calm, glanceable,
++        // and easy on the eye even when the screen is off.
++        dim_pulse(&mut led, &delay, 60, 12);
++        delay.delay_millis(120);
++        dim_pulse(&mut led, &delay, 60, 12);
++        delay.delay_millis(1200);
++    }
++}
++
++/// Gentle dimmed LED pulse — software PWM at ~500 Hz to `duty_pct` brightness for
++/// `ms` milliseconds. (Hardware LEDC would also work; software PWM keeps first-light
++/// dependency-free. The mono LED's brightness becomes the `dimmable` descriptor trait.)
++fn dim_pulse(led: &mut Output<'_>, delay: &Delay, ms: u32, duty_pct: u32) {
++    let period_us: u32 = 2000; // 500 Hz — no visible flicker
++    let on_us = period_us * duty_pct / 100;
++    let off_us = period_us - on_us;
++    let cycles = (ms * 1000) / period_us;
++    for _ in 0..cycles {
 +        led.set_high();
-+        delay.delay_millis(45);
++        delay.delay_micros(on_us);
 +        led.set_low();
-+        delay.delay_millis(130);
-+        led.set_high();
-+        delay.delay_millis(45);
-+        led.set_low();
-+        delay.delay_millis(1280);
++        delay.delay_micros(off_us);
 +    }
 +}
 +
