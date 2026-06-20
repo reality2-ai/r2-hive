@@ -1,8 +1,8 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..b538f71 100644
+index 5a3c89f..5d165b5 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
-@@ -21,17 +21,27 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+@@ -21,18 +21,29 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  # VERSION PINS — hive: confirm against the installed toolchain before flashing.
  # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
  # skeleton is written against.
@@ -31,16 +31,18 @@ index 5a3c89f..b538f71 100644
 +# no 1.x exposes). esp-radio needs default-features=false (its default builtin-
 +# scheduler also wants a private feature). Embassy jumps to net 0.9/sync 0.7/exec
 +# 0.10/time 0.5. See memory: esp32-wifi-embassy-matrix.
-+esp-rtos = { version = "0.3.0", features = ["esp32s3", "embassy", "esp-radio"] }
-+esp-radio = { version = "0.18", default-features = false, features = ["esp32s3", "wifi"] }
++esp-rtos = { version = "0.3.0", features = ["esp32s3", "embassy", "esp-radio", "esp-alloc"] }
++esp-radio = { version = "0.18", default-features = false, features = ["esp32s3", "wifi", "unstable"] }
 +embassy-executor = { version = "0.10", default-features = false }
 +embassy-time = "0.5"
 +embassy-sync = "0.7"
 +embassy-net = { version = "0.9", features = ["udp", "proto-ipv4", "medium-ethernet", "dhcpv4"] }
  embassy-futures = "0.1"
++static_cell = "2"
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
-@@ -41,6 +51,13 @@ embassy-futures = "0.1"
+ # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
+@@ -41,6 +52,13 @@ embassy-futures = "0.1"
  embedded-hal = "1.0"
  heapless = "0.8"
  
@@ -69,13 +71,14 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..2329427 100644
+index 8c49f1c..3867837 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,185 @@
+@@ -1,83 +1,167 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
-+//! r2-dfr1195 — Path B no_std firmware for the DFRobot DFR1195 (LoRaWAN ESP32-S3).
++//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
++//! (LoRaWAN ESP32-S3).
  //!
 -//! AUTHOR-ONLY skeleton (core-expert authors; hive validates on hardware).
 -//! The R2 seam (transport bindings + host-centralised peer resolution) is the
@@ -94,13 +97,14 @@ index 8c49f1c..2329427 100644
 -//!    map resolves hive ids → per-medium addresses (R2-DISCOVERY §5).
 -//!
 -//! First hardware milestone (per the D3b plan): laptop ⇄ DFR1195 over WiFi-UDP.
-+//! **FIRST-LIGHT + on-device proof surface.** Bare-metal sync: init the chip, then
-+//! drive the 0.96" ST7735S LCD (160x80) as a liveness display — a **status line on
-+//! top + an event log that scrolls up** as events arrive. Proves the toolchain →
-+//! build → flash → run pipeline AND gives a visible at-a-glance signal that the
-+//! node is alive (no more "dead-looking" board). This is the stepping stone to the
-+//! general display PLUGIN (composer's CMD_RENDER contract) once the plugin runtime
-+//! + WiFi/embassy tier land; for now the events are synthesised on-device.
++//! **PHASE 1a — WiFi-up smoke (field.lab bring-up).** Migrates from the bare-metal
++//! first-light to the esp-rtos/embassy async runtime and brings WiFi up via esp-radio
++//! (the renamed esp-wifi for the esp-hal 1.1.x line). One image, role auto-selected
++//! by MAC: device 0x502698 = soft-AP `r2-fieldlab` (192.168.4.1), else STA that joins
++//! it (192.168.4.2). STATIC IPs both sides (embassy-net 0.9 has no DHCP *server*) — a
++//! deterministic 2-node IP network for the board↔board TN test. A non-blocking LED
++//! heartbeat keeps the board visibly alive. The LCD proof surface (with WiFi role/IP)
++//! + the WifiTransport/RouteEngine wiring come next (Phase 1b/2).
  
  #![no_std]
  #![no_main]
@@ -111,36 +115,27 @@ index 8c49f1c..2329427 100644
 -mod lora;
 -mod peers;
 -mod wifi;
-+use core::fmt::Write as _;
- 
+-
++use embassy_executor::Spawner;
++use embassy_net::{Config, Ipv4Address, Ipv4Cidr, Runner, StackResources, StaticConfigV4};
++use embassy_time::{Duration, Timer};
  use esp_backtrace as _;
-+use esp_hal::delay::Delay;
++use esp_hal::clock::CpuClock;
 +use esp_hal::gpio::{Level, Output, OutputConfig};
-+use esp_hal::spi::master::{Config as SpiConfig, Spi};
-+use esp_hal::spi::Mode;
-+use esp_hal::time::Rate;
-+
-+use embedded_graphics::mono_font::ascii::FONT_6X10;
-+use embedded_graphics::mono_font::MonoTextStyle;
-+use embedded_graphics::pixelcolor::Rgb565;
-+use embedded_graphics::prelude::*;
-+use embedded_graphics::text::Text;
-+
-+use embedded_hal_bus::spi::ExclusiveDevice;
-+use mipidsi::interface::SpiInterface;
-+use mipidsi::models::ST7735s;
-+use mipidsi::options::{ColorInversion, Orientation, Rotation};
-+use mipidsi::Builder;
-+
-+// App descriptor — required by espflash 4.4.0 to flash an esp-hal 1.x image.
-+esp_bootloader_esp_idf::esp_app_desc!();
++use esp_hal::interrupt::software::SoftwareInterruptControl;
++use esp_hal::timer::timg::TimerGroup;
++use esp_radio::wifi::ap::AccessPointConfig;
++use esp_radio::wifi::sta::StationConfig;
++use esp_radio::wifi::{
++    self, AuthenticationMethod, Config as WifiConfig, ControllerConfig, Interfaces, WifiController,
++};
++use esp_println::println;
++use static_cell::StaticCell;
  
 -/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
 -/// S3's RAM; HIVE: tune against the real footprint.
- const HEAP_SIZE: usize = 72 * 1024;
-+/// Event log lines shown below the two header lines.
-+const EVENT_LINES: usize = 5;
- 
+-const HEAP_SIZE: usize = 72 * 1024;
+-
 -#[esp_hal_embassy::main]
 -async fn main(_spawner: embassy_executor::Spawner) {
 -    // ── Chip + heap + embassy time ──────────────────────────────────────────
@@ -157,66 +152,91 @@ index 8c49f1c..2329427 100644
 -                esp_alloc::MemoryCapability::Internal.into(),
 -            ));
 -        }
--    }
-+/// Firmware build ID (captured by build.rs from $R2_BUILD_ID) — shown on the LCD
-+/// so an OTA update is visibly verifiable.
++// App descriptor — required by espflash 4.4.0 to flash an esp-hal 1.x image.
++esp_bootloader_esp_idf::esp_app_desc!();
++
++const HEAP_SIZE: usize = 96 * 1024; // WiFi needs a larger heap than bare-metal.
 +const BUILD_ID: &str = env!("R2_BUILD_ID");
-+/// Trust-group ID. Placeholder until provisioning writes the real `tg_id` to NVS
-+/// (the same-TG membership tier); the heartbeat-sync demo needs both boards here.
-+const TG_ID: &str = "DEMO";
++const FIELDLAB_SSID: &str = "r2-fieldlab";
++const FIELDLAB_PASS: &str = "r2fieldlab"; // >=8 chars (WPA2)
++const AP_MAC_MATCH: u32 = 0x0050_2698; // low-3 MAC bytes selecting the soft-AP role
 +
-+type EventLog = heapless::Deque<heapless::String<26>, EVENT_LINES>;
-+
-+#[esp_hal::main]
-+fn main() -> ! {
-+    let p = esp_hal::init(esp_hal::Config::default());
++#[esp_rtos::main]
++async fn main(spawner: Spawner) -> ! {
++    // 1. esp-hal init — WiFi needs >= 80 MHz; use max.
++    let p = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 +    esp_alloc::heap_allocator!(size: HEAP_SIZE);
-+    let mut delay = Delay::new();
 +
-+    esp_println::println!("r2-dfr1195: FIRST LIGHT — esp-hal 1.x + LCD proof surface");
++    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
++    let timg0 = TimerGroup::new(p.TIMG0);
++    let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
++    esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
 +
-+    // ── LCD power + control pins (DFR1195 wiki: MOSI11 SCK12 CS17 DC14 RST15 BL16 PWR48) ──
-+    // CONFIRMED on hardware: the ST7735 controller power (GPIO48) is ACTIVE-LOW
-+    // (LOW = on). The backlight (GPIO16) is a separate active-high rail. With
-+    // GPIO48 HIGH the panel was backlit but the controller was dead ("blank").
-+    let _lcd_pwr = Output::new(p.GPIO48, Level::Low, OutputConfig::default()); // panel power: active-low
-+    let _lcd_bl = Output::new(p.GPIO16, Level::High, OutputConfig::default()); // backlight on
-+    let cs = Output::new(p.GPIO17, Level::High, OutputConfig::default());
-+    let dc = Output::new(p.GPIO14, Level::Low, OutputConfig::default());
-+    let rst = Output::new(p.GPIO15, Level::High, OutputConfig::default());
-+    delay.delay_millis(120); // let the panel power rail settle before SPI/init
++    println!("r2-dfr1195: PHASE 1a — esp-rtos/embassy + esp-radio WiFi (build {BUILD_ID})");
 +
-+    // ── SPI bus to the panel ──────────────────────────────────────────────────
-+    let spi = Spi::new(
-+        p.SPI2,
-+        SpiConfig::default()
-+            .with_frequency(Rate::from_mhz(20))
-+            .with_mode(Mode::_0),
-+    )
-+    .unwrap()
-+    .with_sck(p.GPIO12)
-+    .with_mosi(p.GPIO11);
-+    let spi_dev = ExclusiveDevice::new(spi, cs, Delay::new()).unwrap();
++    // 3. Role from the low-3 MAC bytes.
++    let mac_low3 = esp_hal::efuse::read_field_le::<u32>(esp_hal::efuse::MAC0) & 0x00FF_FFFF;
++    let is_ap = mac_low3 == AP_MAC_MATCH;
++    println!("r2-dfr1195: DEV {mac_low3:06x} role={}", if is_ap { "SOFT-AP" } else { "STA" });
 +
-+    // ── ST7735S display (0.96" 160x80 landscape). Offsets/inversion are typical for
-+    //    the 160x80 "mini" panel — HIVE: tune on the metal. ────────────────────
-+    let mut di_buf = [0u8; 512];
-+    let di = SpiInterface::new(spi_dev, dc, &mut di_buf);
-+    let mut display = Builder::new(ST7735s, di)
-+        .reset_pin(rst)
-+        .display_size(80, 160)
-+        .display_offset(26, 1)
-+        .orientation(Orientation::new().rotate(Rotation::Deg90))
-+        .invert_colors(ColorInversion::Inverted)
-+        .init(&mut delay)
-+        .unwrap();
-+    let _ = display.clear(Rgb565::BLACK);
++    // 4. LED heartbeat — non-blocking, keeps the board alive (dimmed PWM returns in 1b).
++    let led = Output::new(p.GPIO21, Level::Low, OutputConfig::default());
++    spawner.spawn(led_task(led).unwrap());
 +
-+    // ── status line + scrolling event log ─────────────────────────────────────
-+    let mut events: EventLog = heapless::Deque::new();
-+    push_event(&mut events, "boot ok");
-+    push_event(&mut events, "heap 72k");
-+    push_event(&mut events, "lcd st7735s 160x80");
++    // 5. WiFi config for the role.
++    let wifi_cfg = if is_ap {
++        WifiConfig::AccessPoint(
++            AccessPointConfig::default()
++                .with_ssid(FIELDLAB_SSID)
++                .with_channel(6)
++                .with_auth_method(AuthenticationMethod::Wpa2Personal)
++                .with_password(FIELDLAB_PASS.into()),
++        )
++    } else {
++        WifiConfig::Station(
++            StationConfig::default()
++                .with_ssid(FIELDLAB_SSID)
++                .with_auth_method(AuthenticationMethod::Wpa2Personal)
++                .with_password(FIELDLAB_PASS.into()),
++        )
++    };
++
++    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
++    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
++    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
++        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
++
++    // 7. Static IPs by role (deterministic 2-node net; no DHCP server needed).
++    let (device, ip) = if is_ap {
++        (interfaces.access_point, Ipv4Address::new(192, 168, 4, 1))
++    } else {
++        (interfaces.station, Ipv4Address::new(192, 168, 4, 2))
++    };
++    let net_config = Config::ipv4_static(StaticConfigV4 {
++        address: Ipv4Cidr::new(ip, 24),
++        gateway: Some(Ipv4Address::new(192, 168, 4, 1)),
++        dns_servers: Default::default(),
++    });
++
++    // 8. embassy-net stack.
++    static RESOURCES: StaticCell<StackResources<4>> = StaticCell::new();
++    let resources = RESOURCES.init(StackResources::new());
++    let seed = 0x0123_4567_89ab_cdef_u64 ^ (mac_low3 as u64);
++    let (stack, runner) = embassy_net::new(device, net_config, resources, seed);
++    spawner.spawn(net_task(runner).unwrap());
++    spawner.spawn(wifi_task(controller, is_ap).unwrap());
++
++    // 9. Report once the netif is up, then idle-print.
++    stack.wait_config_up().await;
++    println!("r2-dfr1195: net UP — {} {}", if is_ap { "AP serving" } else { "STA got" }, ip);
++
++    let mut tick: u32 = 0;
++    loop {
++        println!("r2-dfr1195: alive (tick {tick}) ip={ip} role={}", if is_ap { "AP" } else { "STA" });
++        tick = tick.wrapping_add(1);
++        Timer::after(Duration::from_secs(5)).await;
+     }
++}
  
 -    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
 -
@@ -240,87 +260,53 @@ index 8c49f1c..2329427 100644
 -    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
 -    // resolves hive ids per medium. The route logic is fully validated in the
 -    // r2-harness sim — this firmware only supplies the real radios.
-+    // Onboard status LED (GPIO21, mono). A gentle heartbeat = "all well"; distinct
-+    // patterns (e.g. fast blink during OTA, when the screen may be down) come once
-+    // the status sentant drives it. This is the firmware-side LED driver — the
-+    // device half of the LED status PLUGIN.
-+    let mut led = Output::new(p.GPIO21, Level::Low, OutputConfig::default());
- 
-+    // Identity header lines (static). Line 1: device ID from the factory MAC (the
-+    // low 3 bytes — distinguishes boards on screen; the real hive_id is FNV(uuid)
-+    // once provisioned). Line 2: trust-group ID + firmware build ID.
-+    let mac0 = esp_hal::efuse::read_field_le::<u32>(esp_hal::efuse::MAC0);
-+    let dev = mac0 & 0x00FF_FFFF; // low 3 MAC bytes — matches the espflash-reported tail
-+    let mut header_dev: heapless::String<26> = heapless::String::new();
-+    let _ = write!(header_dev, "R2 DEV {dev:06x}");
-+    let mut header_id: heapless::String<26> = heapless::String::new();
-+    let _ = write!(header_id, "TG:{TG_ID} b:{BUILD_ID}");
++/// embassy-net background runner — required for the stack to make progress.
++#[embassy_executor::task]
++async fn net_task(mut runner: Runner<'static, wifi::Interface<'static>>) -> ! {
++    runner.run().await
++}
 +
-+    let mut tick: u32 = 0;
++/// WiFi event loop. STA: connect + reconnect on drop. AP: already up; observe joins.
++#[embassy_executor::task]
++async fn wifi_task(mut controller: WifiController<'static>, is_ap: bool) {
++    if is_ap {
++        loop {
++            match controller.wait_for_access_point_connected_event_async().await {
++                Ok(_) => println!("r2-dfr1195: [ap] station joined"),
++                Err(e) => println!("r2-dfr1195: [ap] event err {e:?}"),
++            }
++        }
++    } else {
++        loop {
++            match controller.connect_async().await {
++                Ok(_) => {
++                    println!("r2-dfr1195: [sta] connected to {FIELDLAB_SSID}");
++                    let _ = controller.wait_for_disconnect_async().await;
++                    println!("r2-dfr1195: [sta] disconnected, retrying");
++                }
++                Err(e) => {
++                    println!("r2-dfr1195: [sta] connect failed {e:?}, retry 2s");
++                    Timer::after(Duration::from_secs(2)).await;
++                }
++            }
++        }
++    }
++}
+ 
++/// Non-blocking LED "lub-dub" heartbeat (= alive). Brief flashes keep it from
++/// glaring; the dimmed software-PWM version returns with the LCD in Phase 1b.
++#[embassy_executor::task]
++async fn led_task(mut led: Output<'static>) {
      loop {
 -        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
 -        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
-+        render(&mut display, &header_dev, &header_id, &events);
-+        esp_println::println!("r2-dfr1195: alive (tick {tick})");
-+
-+        // Synthesise an event each cycle (real TX/RX/neighbour events feed in once
-+        // the routing/transport tier is wired). Demonstrates the scroll-up log.
-+        let mut line: heapless::String<26> = heapless::String::new();
-+        let _ = write!(line, "tick {tick}");
-+        push_event(&mut events, &line);
-+        tick = tick.wrapping_add(1);
-+
-+        // Dim heartbeat "lub-dub" then rest (≈1.5 s cycle). The bare GPIO21 LED is
-+        // very bright, so we software-PWM it down to a gentle ~12% — calm, glanceable,
-+        // and easy on the eye even when the screen is off.
-+        dim_pulse(&mut led, &delay, 60, 12);
-+        delay.delay_millis(120);
-+        dim_pulse(&mut led, &delay, 60, 12);
-+        delay.delay_millis(1200);
-+    }
-+}
-+
-+/// Gentle dimmed LED pulse — software PWM at ~500 Hz to `duty_pct` brightness for
-+/// `ms` milliseconds. (Hardware LEDC would also work; software PWM keeps first-light
-+/// dependency-free. The mono LED's brightness becomes the `dimmable` descriptor trait.)
-+fn dim_pulse(led: &mut Output<'_>, delay: &Delay, ms: u32, duty_pct: u32) {
-+    let period_us: u32 = 2000; // 500 Hz — no visible flicker
-+    let on_us = period_us * duty_pct / 100;
-+    let off_us = period_us - on_us;
-+    let cycles = (ms * 1000) / period_us;
-+    for _ in 0..cycles {
 +        led.set_high();
-+        delay.delay_micros(on_us);
++        Timer::after(Duration::from_millis(35)).await;
 +        led.set_low();
-+        delay.delay_micros(off_us);
-+    }
-+}
-+
-+/// Push an event line, evicting the oldest when the log is full (scroll up).
-+fn push_event(events: &mut EventLog, s: &str) {
-+    if events.is_full() {
-+        let _ = events.pop_front();
-+    }
-+    let mut line: heapless::String<26> = heapless::String::new();
-+    let _ = line.push_str(s);
-+    let _ = events.push_back(line);
-+}
-+
-+/// Render: two header lines (green device line, cyan TG/build line) then the white
-+/// event log below (oldest→newest, so new events appear at the bottom and scroll up).
-+fn render<D>(display: &mut D, header_dev: &str, header_id: &str, events: &EventLog)
-+where
-+    D: DrawTarget<Color = Rgb565>,
-+{
-+    let _ = display.clear(Rgb565::BLACK);
-+    let dev_style = MonoTextStyle::new(&FONT_6X10, Rgb565::GREEN);
-+    let id_style = MonoTextStyle::new(&FONT_6X10, Rgb565::CYAN);
-+    let event_style = MonoTextStyle::new(&FONT_6X10, Rgb565::WHITE);
-+    let _ = Text::new(header_dev, Point::new(2, 8), dev_style).draw(display);
-+    let _ = Text::new(header_id, Point::new(2, 18), id_style).draw(display);
-+    let mut y = 30;
-+    for e in events.iter() {
-+        let _ = Text::new(e.as_str(), Point::new(2, y), event_style).draw(display);
-+        y += 10;
++        Timer::after(Duration::from_millis(110)).await;
++        led.set_high();
++        Timer::after(Duration::from_millis(35)).await;
++        led.set_low();
++        Timer::after(Duration::from_millis(1300)).await;
      }
  }
