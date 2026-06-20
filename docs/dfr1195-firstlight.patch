@@ -71,10 +71,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..cceeafb 100644
+index 8c49f1c..44c0f9a 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,293 @@
+@@ -1,83 +1,287 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -136,7 +136,27 @@ index 8c49f1c..cceeafb 100644
 +};
 +use esp_println::println;
 +use static_cell::StaticCell;
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
+-
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
+-    {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
 +// R2 transient-networking core (no_std, the portable substance — unchanged on metal).
 +use r2_route::{DropReason, ForwardAction, ForwardRequest, RouteEngine, Target};
 +use r2_wire::{decode_extended, encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
@@ -163,34 +183,14 @@ index 8c49f1c..cceeafb 100644
 +    esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
 +
 +    println!("r2-dfr1195: PHASE 1a — esp-rtos/embassy + esp-radio WiFi (build {BUILD_ID})");
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
--
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
--    {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
++
 +    // 3. Role from the low-3 MAC bytes.
 +    let mac_low3 = esp_hal::efuse::read_field_le::<u32>(esp_hal::efuse::MAC0) & 0x00FF_FFFF;
 +    let is_ap = mac_low3 == AP_MAC_MATCH;
 +    println!("r2-dfr1195: DEV {mac_low3:06x} role={}", if is_ap { "SOFT-AP" } else { "STA" });
 +
-+    // 4. LED heartbeat — non-blocking, keeps the board alive (dimmed PWM returns in 1b).
++    // 4. Status LED (GPIO21) — driven by the heartbeat-sync phase inside io_task.
 +    let led = Output::new(p.GPIO21, Level::Low, OutputConfig::default());
-+    spawner.spawn(led_task(led).unwrap());
 +
 +    // 5. WiFi config for the role.
 +    let wifi_cfg = if is_ap {
@@ -240,23 +240,30 @@ index 8c49f1c..cceeafb 100644
 +    stack.wait_config_up().await;
 +    let peer = if is_ap { Ipv4Address::new(192, 168, 4, 2) } else { Ipv4Address::new(192, 168, 4, 1) };
 +    println!("r2-dfr1195: net UP — {} {} (peer {peer})", if is_ap { "AP serving" } else { "STA got" }, ip);
-+    spawner.spawn(io_task(stack, is_ap, peer).unwrap());
++    spawner.spawn(io_task(stack, is_ap, peer, led).unwrap());
 +
 +    let mut tick: u32 = 0;
 +    loop {
 +        println!("r2-dfr1195: alive (tick {tick}) ip={ip} role={}", if is_ap { "AP" } else { "STA" });
 +        tick = tick.wrapping_add(1);
 +        Timer::after(Duration::from_secs(10)).await;
-+    }
+     }
 +}
 +
-+/// PHASE 2b — the TN frame. Board A (AP) originates an R2-WIRE *extended* Event
-+/// addressed to B's hive id, sent twice. Board B decodes it, runs it through the
-+/// r2_route `RouteEngine` (dedup / TTL / spray / relay decision), and DELIVERS the
-+/// first copy (it is the destination) while the RouteEngine DEDUPs the second.
-+/// Real R2 transient-networking over real radio.
++/// THE FLEET WORKS — pulse-coupled heartbeat sync over TN (Mirollo–Strogatz).
++/// Each board runs a phase oscillator (period `HB_PERIOD_MS`). When the phase
++/// reaches 1 it FIRES: beats the LED and broadcasts an R2-WIRE `Heartbeat` frame
++/// to the peer. On receiving the peer's fire it nudges its phase forward
++/// (advance-only) — so independent boards converge to beating IN SYNC. The same
++/// task still routes `Event` frames through the `RouteEngine` (deliver/dedup,
++/// field.lab). Boards start deliberately out of phase to show convergence.
 +#[embassy_executor::task]
-+async fn io_task(stack: embassy_net::Stack<'static>, is_ap: bool, peer: Ipv4Address) {
++async fn io_task(
++    stack: embassy_net::Stack<'static>,
++    is_ap: bool,
++    peer: Ipv4Address,
++    mut led: Output<'static>,
++) {
 +    let mut rx_meta = [PacketMetadata::EMPTY; 4];
 +    let mut rx_buf = [0u8; 1024];
 +    let mut tx_meta = [PacketMetadata::EMPTY; 4];
@@ -264,100 +271,6 @@ index 8c49f1c..cceeafb 100644
 +    let mut socket = UdpSocket::new(stack, &mut rx_meta, &mut rx_buf, &mut tx_meta, &mut tx_buf);
 +    socket.bind(R2_UDP_PORT).expect("bind R2 UDP port");
 +    let peer_ep = IpEndpoint::new(IpAddress::Ipv4(peer), R2_UDP_PORT);
-+
-+    let my_hive = if is_ap { AP_MAC_MATCH } else { STA_HIVE };
-+    let peer_hive = if is_ap { STA_HIVE } else { AP_MAC_MATCH };
-+    // Constrained-MCU route engine (NEIGHBOURS=16, PATHS=16, DEDUP=32).
-+    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
-+
-+    let mut scratch = [0u8; 512];
-+    let mut txbuf = [0u8; 256];
-+    let mut seq: u32 = 1;
-+
-+    loop {
-+        match select(Timer::after(Duration::from_secs(3)), socket.recv_from(&mut scratch)).await {
-+            // ── TX: A originates an R2-WIRE frame to B (sent twice → B dedups #2) ──
-+            Either::First(_) => {
-+                if is_ap {
-+                    let payload = b"hello-TN";
-+                    let header = ExtendedHeader {
-+                        version: 0,
-+                        msg_type: MsgType::Event,
-+                        flags: Flags { mcu_origin: true, ..Default::default() },
-+                        ttl: 4,
-+                        k: 3,
-+                        msg_id: seq,
-+                        event_hash: 0,
-+                        payload_len: payload.len() as u32,
-+                        target_group: 0,
-+                        target_hive: peer_hive,
-+                    };
-+                    let msg = ExtendedMessage { header, route: None, payload, hmac_tag: None };
-+                    if let Ok(n) = encode_extended(&msg, &mut txbuf) {
-+                        let _ = socket.send_to(&txbuf[..n], peer_ep).await;
-+                        let _ = socket.send_to(&txbuf[..n], peer_ep).await; // duplicate
-+                        println!("r2-dfr1195: ORIG msg_id={seq} -> hive {peer_hive:06x} ({n}B, x2)");
-+                    }
-+                    seq = seq.wrapping_add(1);
-+                }
-+            }
-+            // ── RX: decode → RouteEngine plan_forward → deliver / dedup / relay ──
-+            Either::Second(Ok((n, from))) => match decode_extended(&scratch[..n]) {
-+                Ok(m) => {
-+                    let h = &m.header;
-+                    let now = embassy_time::Instant::now().as_secs() as u32;
-+                    let req = ForwardRequest {
-+                        now,
-+                        msg_id: h.msg_id as u16,
-+                        source_hop: (peer_hive & 0xFFFF) as u16,
-+                        ttl: h.ttl,
-+                        k: h.k,
-+                        destination: Target::Address(h.target_hive),
-+                        msg_type: h.msg_type,
-+                        payload_len: m.payload.len(),
-+                        relay_enabled: true,
-+                        congested: false,
-+                        dice_roll: 0.0,
-+                    };
-+                    let advice = engine.plan_forward(req);
-+                    let for_me = h.target_hive == my_hive || h.target_hive == 0;
-+                    // Dedup is the only whole-frame gate. DELIVERY is INDEPENDENT of
-+                    // the RELAY decision (B1: relay is trust-agnostic, delivery is
-+                    // gated) — a frame for us is delivered even if there's no onward
-+                    // next-hop to relay to.
-+                    if matches!(advice.action, ForwardAction::Drop(DropReason::Duplicate)) {
-+                        println!("r2-dfr1195: DEDUP msg_id={} dropped (duplicate)", h.msg_id);
-+                    } else {
-+                        if for_me {
-+                            let body = core::str::from_utf8(m.payload).unwrap_or("?");
-+                            println!(
-+                                "r2-dfr1195: DELIVERED msg_id={} ttl={} from {} '{}'",
-+                                h.msg_id, h.ttl, from, body
-+                            );
-+                        }
-+                        match advice.action {
-+                            ForwardAction::Directed(hop) => println!(
-+                                "r2-dfr1195: RELAY msg_id={} -> hive {:06x}",
-+                                h.msg_id, hop.neighbour
-+                            ),
-+                            ForwardAction::Flood(ref hops) => println!(
-+                                "r2-dfr1195: RELAY-flood msg_id={} to {} hop(s)",
-+                                h.msg_id,
-+                                hops.len()
-+                            ),
-+                            ForwardAction::Drop(ref r) if !for_me => {
-+                                println!("r2-dfr1195: msg_id={} no relay ({r:?})", h.msg_id)
-+                            }
-+                            _ => {}
-+                        }
-+                    }
-+                }
-+                Err(e) => println!("r2-dfr1195: decode err {e:?}"),
-+            },
-+            Either::Second(Err(e)) => println!("r2-dfr1195: RX err {e:?}"),
-         }
-     }
-+}
  
 -    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
 -
@@ -381,6 +294,106 @@ index 8c49f1c..cceeafb 100644
 -    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
 -    // resolves hive ids per medium. The route logic is fully validated in the
 -    // r2-harness sim — this firmware only supplies the real radios.
++    let my_hive = if is_ap { AP_MAC_MATCH } else { STA_HIVE };
++    let peer_hive = if is_ap { STA_HIVE } else { AP_MAC_MATCH };
++    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
++
++    // Pulse-coupled oscillator. Tick = phase resolution; epsilon = coupling.
++    const HB_PERIOD_MS: f32 = 2000.0;
++    const HB_TICK_MS: u64 = 50;
++    const HB_EPSILON: f32 = 0.25;
++    let mut phase: f32 = if is_ap { 0.0 } else { 0.55 }; // out of phase → watch them converge
++    let mut led_decay: u8 = 0;
++    let mut fire_seq: u32 = 1;
++
++    let mut scratch = [0u8; 512];
++    let mut txbuf = [0u8; 64];
+ 
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++        match select(
++            Timer::after(Duration::from_millis(HB_TICK_MS)),
++            socket.recv_from(&mut scratch),
++        )
++        .await
++        {
++            // ── phase tick: advance, manage the LED beat, FIRE at phase>=1 ──
++            Either::First(_) => {
++                if led_decay > 0 {
++                    led_decay -= 1;
++                    if led_decay == 0 {
++                        led.set_low();
++                    }
++                }
++                phase += HB_TICK_MS as f32 / HB_PERIOD_MS;
++                if phase >= 1.0 {
++                    phase = 0.0;
++                    led.set_high();
++                    led_decay = 2; // ~100 ms beat
++                    let header = ExtendedHeader {
++                        version: 0,
++                        msg_type: MsgType::Heartbeat,
++                        flags: Flags { mcu_origin: true, ..Default::default() },
++                        ttl: 1,
++                        k: 1,
++                        msg_id: fire_seq,
++                        event_hash: 0,
++                        payload_len: 0,
++                        target_group: 0,
++                        target_hive: 0, // broadcast fire
++                    };
++                    let msg = ExtendedMessage { header, route: None, payload: &[], hmac_tag: None };
++                    if let Ok(n) = encode_extended(&msg, &mut txbuf) {
++                        let _ = socket.send_to(&txbuf[..n], peer_ep).await;
++                    }
++                    println!("r2-dfr1195: FIRE seq={fire_seq} beat ({})", if is_ap { "AP" } else { "STA" });
++                    fire_seq = fire_seq.wrapping_add(1);
++                }
++            }
++            // ── RX: Heartbeat → PCO nudge; Event/other → RouteEngine deliver/dedup ──
++            Either::Second(Ok((n, from))) => match decode_extended(&scratch[..n]) {
++                Ok(m) => match m.header.msg_type {
++                    MsgType::Heartbeat => {
++                        // Advance-only nudge (Mirollo–Strogatz): pull our phase toward
++                        // the peer's firing instant → convergence to synchrony.
++                        let before = phase;
++                        phase = (phase * (1.0 + HB_EPSILON)).min(0.999);
++                        println!("r2-dfr1195: HB<-{from} phase {before:.2}->{phase:.2}");
++                    }
++                    _ => {
++                        let h = &m.header;
++                        let now = embassy_time::Instant::now().as_secs() as u32;
++                        let req = ForwardRequest {
++                            now,
++                            msg_id: h.msg_id as u16,
++                            source_hop: (peer_hive & 0xFFFF) as u16,
++                            ttl: h.ttl,
++                            k: h.k,
++                            destination: Target::Address(h.target_hive),
++                            msg_type: h.msg_type,
++                            payload_len: m.payload.len(),
++                            relay_enabled: true,
++                            congested: false,
++                            dice_roll: 0.0,
++                        };
++                        let advice = engine.plan_forward(req);
++                        let for_me = h.target_hive == my_hive || h.target_hive == 0;
++                        if matches!(advice.action, ForwardAction::Drop(DropReason::Duplicate)) {
++                            println!("r2-dfr1195: DEDUP msg_id={} dropped", h.msg_id);
++                        } else if for_me {
++                            let body = core::str::from_utf8(m.payload).unwrap_or("?");
++                            println!("r2-dfr1195: DELIVERED msg_id={} '{}'", h.msg_id, body);
++                        }
++                    }
++                },
++                Err(e) => println!("r2-dfr1195: decode err {e:?}"),
++            },
++            Either::Second(Err(e)) => println!("r2-dfr1195: RX err {e:?}"),
++        }
++    }
++}
++
 +/// R2 mesh UDP port (R2-WIFI §4).
 +const R2_UDP_PORT: u16 = 21042;
 +
@@ -414,23 +427,5 @@ index 8c49f1c..cceeafb 100644
 +                }
 +            }
 +        }
-+    }
-+}
- 
-+/// Non-blocking LED "lub-dub" heartbeat (= alive). Brief flashes keep it from
-+/// glaring; the dimmed software-PWM version returns with the LCD in Phase 1b.
-+#[embassy_executor::task]
-+async fn led_task(mut led: Output<'static>) {
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
-+        led.set_high();
-+        Timer::after(Duration::from_millis(35)).await;
-+        led.set_low();
-+        Timer::after(Duration::from_millis(110)).await;
-+        led.set_high();
-+        Timer::after(Duration::from_millis(35)).await;
-+        led.set_low();
-+        Timer::after(Duration::from_millis(1300)).await;
      }
  }
