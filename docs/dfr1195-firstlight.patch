@@ -86,10 +86,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..444b548 100644
+index 8c49f1c..55f79c7 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,804 @@
+@@ -1,83 +1,792 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -153,7 +153,7 @@ index 8c49f1c..444b548 100644
 +use static_cell::StaticCell;
 +
 +// R2 transient-networking core (no_std, the portable substance — unchanged on metal).
-+use r2_cbor::{Decoder, Encoder, Item};
++use r2_cbor::Encoder;
 +use r2_route::{DropReason, ForwardAction, ForwardRequest, RouteEngine, Target};
 +use r2_trust::GroupHmac;
 +use r2_wire::{
@@ -239,6 +239,7 @@ index 8c49f1c..444b548 100644
 +        None => (TG_HK_DEMO, MY_TG_HASH, mac_low3, TG_ID),
 +    };
 +    let is_ap = mac_low3 == AP_MAC_MATCH; // soft-AP role stays MAC-based
++    let has_screen = read_has_screen(); // carrier: DFR1195=ST7735S, XIAO-S3=none
 +
 +    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
 +    let timg0 = TimerGroup::new(p.TIMG0);
@@ -290,11 +291,6 @@ index 8c49f1c..444b548 100644
 +                .with_password(FIELDLAB_PASS.into()),
 +        )
 +    };
-+
-+    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
-+    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
-+    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
-+        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
  
 -/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
 -/// S3's RAM; HIVE: tune against the real footprint.
@@ -315,6 +311,11 @@ index 8c49f1c..444b548 100644
 -                HEAP_SIZE,
 -                esp_alloc::MemoryCapability::Internal.into(),
 -            ));
++    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
++    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
++    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
++        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
++
 +    // 7. Static IPs by role (deterministic 2-node net; no DHCP server needed).
 +    let (device, ip) = if is_ap {
 +        (interfaces.access_point, Ipv4Address::new(192, 168, 4, 1))
@@ -349,32 +350,41 @@ index 8c49f1c..444b548 100644
 +    let _ = peer;
 +    spawner.spawn(io_task(stack, is_ap, ip, hk, my_tg_hash, my_hive).unwrap());
 +
-+    // ── LCD (ST7735S 160x80) status surface — restored. PWR (GPIO48) ACTIVE-LOW. ──
-+    let _lcd_pwr = Output::new(p.GPIO48, Level::Low, OutputConfig::default());
-+    let _lcd_bl = Output::new(p.GPIO16, Level::High, OutputConfig::default());
-+    let cs = Output::new(p.GPIO17, Level::High, OutputConfig::default());
-+    let dc = Output::new(p.GPIO14, Level::Low, OutputConfig::default());
-+    let rst = Output::new(p.GPIO15, Level::High, OutputConfig::default());
-+    let mut delay = Delay::new();
-+    let spi = Spi::new(
-+        p.SPI2,
-+        SpiConfig::default().with_frequency(Rate::from_mhz(20)).with_mode(Mode::_0),
-+    )
-+    .unwrap()
-+    .with_sck(p.GPIO12)
-+    .with_mosi(p.GPIO11);
-+    let spi_dev = ExclusiveDevice::new(spi, cs, Delay::new()).unwrap();
++    // ── LCD (ST7735S 160x80) status surface — CARRIER-GATED (has_screen). PWR(GPIO48)
++    //    ACTIVE-LOW. Skipped entirely on the screenless XIAO-S3 so the binary runs cleanly
++    //    there (no driving non-existent hardware / GPIO conflict). di_buf stays in main
++    //    scope (the display borrows it); PWR+BL are held for the screen's lifetime. ──
 +    let mut di_buf = [0u8; 512];
-+    let di = SpiInterface::new(spi_dev, dc, &mut di_buf);
-+    let mut display = Builder::new(ST7735s, di)
-+        .reset_pin(rst)
-+        .display_size(80, 160)
-+        .display_offset(26, 1)
-+        .orientation(Orientation::new().rotate(Rotation::Deg90))
-+        .invert_colors(ColorInversion::Inverted)
-+        .init(&mut delay)
-+        .unwrap();
-+    let _ = display.clear(Rgb565::BLACK);
++    let mut _lcd_hold = None;
++    let mut display = None;
++    if has_screen {
++        let lcd_pwr = Output::new(p.GPIO48, Level::Low, OutputConfig::default());
++        let lcd_bl = Output::new(p.GPIO16, Level::High, OutputConfig::default());
++        let cs = Output::new(p.GPIO17, Level::High, OutputConfig::default());
++        let dc = Output::new(p.GPIO14, Level::Low, OutputConfig::default());
++        let rst = Output::new(p.GPIO15, Level::High, OutputConfig::default());
++        let mut delay = Delay::new();
++        let spi = Spi::new(
++            p.SPI2,
++            SpiConfig::default().with_frequency(Rate::from_mhz(20)).with_mode(Mode::_0),
++        )
++        .unwrap()
++        .with_sck(p.GPIO12)
++        .with_mosi(p.GPIO11);
++        let spi_dev = ExclusiveDevice::new(spi, cs, Delay::new()).unwrap();
++        let di = SpiInterface::new(spi_dev, dc, &mut di_buf);
++        let mut d = Builder::new(ST7735s, di)
++            .reset_pin(rst)
++            .display_size(80, 160)
++            .display_offset(26, 1)
++            .orientation(Orientation::new().rotate(Rotation::Deg90))
++            .invert_colors(ColorInversion::Inverted)
++            .init(&mut delay)
++            .unwrap();
++        let _ = d.clear(Rgb565::BLACK);
++        display = Some(d);
++        _lcd_hold = Some((lcd_pwr, lcd_bl));
++    }
 +
 +    let role = if is_ap { "AP" } else { "STA" };
 +    // LED heartbeat envelope state: ms into the current lub-DUB beat, or -1 idle.
@@ -385,7 +395,7 @@ index 8c49f1c..444b548 100644
 +        // ── organic lub-DUB LED heartbeat (conductor-PLL fired it; this is the SHAPE) ──
 +        if FIRE_SIGNAL.try_take().is_some() {
 +            beat_t = 0;
-+        }
+         }
 +        if beat_t >= 0 {
 +            match beat_t {
 +                0 => {
@@ -412,34 +422,35 @@ index 8c49f1c..444b548 100644
 +        lcd_tick += 1;
 +        if lcd_tick >= 40 {
 +            lcd_tick = 0;
-+            let green = MonoTextStyle::new(&FONT_6X10, Rgb565::GREEN);
-+            let cyan = MonoTextStyle::new(&FONT_6X10, Rgb565::CYAN);
-+            let white = MonoTextStyle::new(&FONT_6X10, Rgb565::WHITE);
-+            let amber = MonoTextStyle::new(&FONT_6X10, Rgb565::YELLOW);
 +            let synced = SYNCED.load(Ordering::Relaxed);
 +            let beats = FIRE_COUNT.load(Ordering::Relaxed);
 +            let dlv = DELIVERED.load(Ordering::Relaxed);
 +            let blk = BLOCKED.load(Ordering::Relaxed);
-+
-+            let _ = display.clear(Rgb565::BLACK);
-+            let mut s: heapless::String<26> = heapless::String::new();
-+            let _ = write!(s, "R2 {mac_low3:06x} {role}");
-+            let _ = Text::new(&s, Point::new(2, 8), green).draw(&mut display);
-+            s.clear();
-+            let _ = write!(s, "TG:{} b{BUILD_ID}", &tg_label[..tg_label.len().min(10)]);
-+            let _ = Text::new(&s, Point::new(2, 18), cyan).draw(&mut display);
-+            s.clear();
-+            let _ = write!(s, "ip {ip}");
-+            let _ = Text::new(&s, Point::new(2, 30), white).draw(&mut display);
-+            s.clear();
-+            let _ = write!(s, "b{beats} dlv{dlv} blk{blk}");
-+            let _ = Text::new(&s, Point::new(2, 42), white).draw(&mut display);
-+            s.clear();
-+            let _ = write!(s, "fleet: {}", if synced { "IN SYNC" } else { "converging" });
-+            let _ = Text::new(&s, Point::new(2, 56), if synced { green } else { amber })
-+                .draw(&mut display);
++            // LCD render only when this carrier has a screen (DFR1195); skipped on XIAO-S3.
++            if let Some(d) = display.as_mut() {
++                let green = MonoTextStyle::new(&FONT_6X10, Rgb565::GREEN);
++                let cyan = MonoTextStyle::new(&FONT_6X10, Rgb565::CYAN);
++                let white = MonoTextStyle::new(&FONT_6X10, Rgb565::WHITE);
++                let amber = MonoTextStyle::new(&FONT_6X10, Rgb565::YELLOW);
++                let _ = d.clear(Rgb565::BLACK);
++                let mut s: heapless::String<26> = heapless::String::new();
++                let _ = write!(s, "R2 {mac_low3:06x} {role}");
++                let _ = Text::new(&s, Point::new(2, 8), green).draw(d);
++                s.clear();
++                let _ = write!(s, "TG:{} b{BUILD_ID}", &tg_label[..tg_label.len().min(10)]);
++                let _ = Text::new(&s, Point::new(2, 18), cyan).draw(d);
++                s.clear();
++                let _ = write!(s, "ip {ip}");
++                let _ = Text::new(&s, Point::new(2, 30), white).draw(d);
++                s.clear();
++                let _ = write!(s, "b{beats} dlv{dlv} blk{blk}");
++                let _ = Text::new(&s, Point::new(2, 42), white).draw(d);
++                s.clear();
++                let _ = write!(s, "fleet: {}", if synced { "IN SYNC" } else { "converging" });
++                let _ = Text::new(&s, Point::new(2, 56), if synced { green } else { amber }).draw(d);
++            }
 +            println!("r2-dfr1195: status beats={beats} dlv={dlv} synced={synced} role={role}");
-         }
++        }
 +        Timer::after(Duration::from_millis(50)).await;
      }
 +}
@@ -473,29 +484,7 @@ index 8c49f1c..444b548 100644
 +    let bcast_ep =
 +        IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
 +    let peer_ep = bcast_ep; // fire/Event broadcast endpoint (my_ip is used by health below)
- 
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++
 +    // my_hive + hk + my_tg_hash come from the provisioned persona (or demo fallback).
 +    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
 +    // Intra-TG trust: GroupHmac over the (received) group hk. `bad_hmac` = wrong key
@@ -521,7 +510,29 @@ index 8c49f1c..444b548 100644
 +    let mut am_conductor = true; // = (my hive_id is the lowest heard); updated on each heard beat
 +    let mut fire_seq: u32 = 1;
 +    let mut last_err_ms: u32 = 0; // latest PLL phase error in ms (#18 health field 8)
-+
+ 
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
  
@@ -814,52 +825,29 @@ index 8c49f1c..444b548 100644
 +    let mut flash = esp_storage::FlashStorage::new();
 +    let mut buf = [0u8; 256];
 +    flash.read(PERSONA_OFFSET, &mut buf).ok()?;
-+    // CBOR int-keyed map {0:tg_id,1:dek,2:hk,3:master_secret,4:cert,5:tg_pk,6:issued_at}.
-+    let mut dec = Decoder::new(&buf);
-+    let n = match dec.next().ok()? {
-+        Item::Map(n) => n,
-+        _ => return None, // erased flash (0xFF) / not a map → no persona
-+    };
-+    let mut tg_id: Option<&[u8]> = None;
-+    let mut hk: Option<[u8; 32]> = None;
-+    let mut master: Option<[u8; 32]> = None;
-+    for _ in 0..n {
-+        let key = match dec.next().ok()? {
-+            Item::UInt(k) => k,
-+            _ => return None,
-+        };
-+        match (key, dec.next().ok()?) {
-+            (0, Item::Text(t)) => tg_id = Some(t),
-+            (2, Item::Bytes(b)) if b.len() == 32 => {
-+                let mut a = [0u8; 32];
-+                a.copy_from_slice(b);
-+                hk = Some(a);
-+            }
-+            (3, Item::Bytes(b)) if b.len() == 32 => {
-+                let mut a = [0u8; 32];
-+                a.copy_from_slice(b);
-+                master = Some(a);
-+            }
-+            _ => {}
-+        }
-+    }
-+    let tg_id = tg_id?;
-+    let hk = hk?;
-+    let master = master?;
-+    let tg_str = core::str::from_utf8(tg_id).ok()?;
-+    if tg_str.is_empty() || tg_str.len() > 40 {
-+        return None;
-+    }
++    // SHARED parser (north-star, core 1b93108): r2_trust::parse_persona does the r2_cbor
++    // decode + canonical derive_hive_id + tg_hash internally, so consume can't disagree
++    // with composer's producer. Our only platform glue is the esp-storage flash read above.
++    let p = r2_trust::parse_persona(&buf)?;
 +    let mut tg_label: heapless::String<40> = heapless::String::new();
-+    tg_label.push_str(tg_str).ok()?;
-+    // CANONICAL hive id (R2-WIRE §6.2.1) via r2-trust — no hand-roll (drift-safe):
-+    // FNV-1a-32 of the RFC-4122 v4 UUID string from HKDF(master_secret, tg_id)[0:16].
-+    let (uuid, hive_id) = r2_trust::derive_hive_id(&master, tg_str).ok()?;
-+    if let Ok(us) = core::str::from_utf8(&uuid) {
-+        // Print the canonical UUID string so peers can sanity-check fnv1a_32(uuid)==wire id.
-+        println!("r2-dfr1195: hive_id_uuid={us} -> wire 0x{hive_id:08x}");
++    tg_label.push_str(p.tg_id).ok()?;
++    Some(Persona { tg_label, tg_hash: p.tg_hash, hk: p.hk, hive_id: p.hive_id })
++}
++
++/// Carrier-aware screen flag (9-board: one binary on DFR1195 + screenless XIAO-S3).
++/// Board-profile byte @0x13000: 0x00 = no screen (XIAO), else/0xFF(erased) = screen
++/// (DFR1195). composer write-bins 0x00 on the XIAO so the LCD init/render is skipped and
++/// the binary runs cleanly there (LED+heartbeat+TN+trust+health unaffected). Read before
++/// the radio starts (no flash-vs-WiFi collision).
++const BOARD_PROFILE_OFFSET: u32 = 0x13000;
++fn read_has_screen() -> bool {
++    use embedded_storage::ReadStorage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 1];
++    if flash.read(BOARD_PROFILE_OFFSET, &mut b).is_err() {
++        return true; // default to the DFR1195 screen on read error
 +    }
-+    Some(Persona { tg_label, tg_hash: r2_fnv::fnv1a_32(tg_id), hk, hive_id })
++    b[0] != 0x00
 +}
 +
 +/// Report the active OTA slot at boot. The otadata slot-switch was PROVEN on metal
