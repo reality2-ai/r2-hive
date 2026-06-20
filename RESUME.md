@@ -48,6 +48,17 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     the **embassy conflict** (esp-hal-embassy 0.9.1 ↔ esp-hal 1.1.1 `__esp_hal_embassy`) → re-enable seam
     modules (wifi/ble/lora/peers) + esp-wifi 0.15.1 + embassy-net, wire core's WifiTransport/STA/Stack. OTA
     *receiver* (makes flash #2+ wireless) needs this WiFi tier — until then updates are USB.
+  - **⚡⚡ PROOF SURFACE WORKING on BOTH boards** (`876bb98`, `docs/dfr1195-proof-surface-learnings.md`).
+    LCD + LED running on ttyACM0 (rev v0.1) AND ttyACM1 (rev v0.2). **LCD (ST7735S):** status line on top +
+    event log scrolling up; 20MHz SPI, mipidsi 0.9, offset(26,1)/Deg90/inverted. **KEY find: GPIO48
+    controller power is ACTIVE-LOW** (HIGH = backlit-but-dead; cost a debug cycle — in the board profile).
+    **LED (mono GPIO21):** gentle heartbeat "lub-dub" = all-well (visible even when screen off). Pins:
+    MOSI11/SCK12/CS17/DC14/RST15/BL16/PWR48(active-low); LED21; btn18/btn0. **PUSHED to composer via
+    supervisor** to create TWO general device-SPANNING capabilities + StatusDisplay sentant: display plugin
+    (ST7735S driver, contracted ed50505) + **LED indicator plugin (NEW** — mono/rgb/canvas per-board, pattern
+    vocab all-well/ota/joining/error/identify; Roy: LED signals status when screen down). hive owns device
+    drivers (display+LED heartbeat done; pattern-set + plugin-ization next); composer the sentant+catalogue;
+    specs/core the general capability traits.
   - **FIRST-LIGHT PASS DONE (board live!)** (`db33289`, `docs/dfr1195-first-light-findings.md`). Board on
     **tuxedo-os /dev/ttyACM0**; hive on **Alfred** (esp/Xtensa toolchain); passwordless SSH = build-on-Alfred
     /flash-on-tuxedo. **SILICON-confirmed esp32s3 rev v0.1 / 4MB** (espflash board-info — settles SoC for
