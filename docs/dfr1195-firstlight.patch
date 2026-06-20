@@ -84,10 +84,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..0497206 100644
+index 8c49f1c..700ca81 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,497 @@
+@@ -1,83 +1,545 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -149,27 +149,7 @@ index 8c49f1c..0497206 100644
 +};
 +use esp_println::println;
 +use static_cell::StaticCell;
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
--
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
--    {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
++
 +// R2 transient-networking core (no_std, the portable substance — unchanged on metal).
 +use r2_route::{DropReason, ForwardAction, ForwardRequest, RouteEngine, Target};
 +use r2_trust::GroupHmac;
@@ -190,6 +170,12 @@ index 8c49f1c..0497206 100644
 +use esp_hal::spi::Mode;
 +use esp_hal::time::Rate;
 +use esp_hal::delay::Delay;
++use esp_hal::gpio::DriveMode;
++use esp_hal::ledc::channel::ChannelIFace;
++use esp_hal::ledc::timer::TimerIFace;
++use esp_hal::ledc::{channel, timer, LSGlobalClkSource, Ledc, LowSpeed};
++use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
++use embassy_sync::signal::Signal;
 +use mipidsi::interface::SpiInterface;
 +use mipidsi::models::ST7735s;
 +use mipidsi::options::{ColorInversion, Orientation, Rotation};
@@ -200,6 +186,8 @@ index 8c49f1c..0497206 100644
 +static DELIVERED: AtomicU32 = AtomicU32::new(0);
 +static BLOCKED: AtomicU32 = AtomicU32::new(0);
 +static SYNCED: AtomicBool = AtomicBool::new(false);
++/// io_task signals a heartbeat FIRE → main renders the organic lub-DUB LED envelope.
++static FIRE_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 +
 +// App descriptor — required by espflash 4.4.0 to flash an esp-hal 1.x image.
 +esp_bootloader_esp_idf::esp_app_desc!();
@@ -242,8 +230,26 @@ index 8c49f1c..0497206 100644
 +    let is_ap = mac_low3 == AP_MAC_MATCH;
 +    println!("r2-dfr1195: DEV {mac_low3:06x} role={}", if is_ap { "SOFT-AP" } else { "STA" });
 +
-+    // 4. Status LED (GPIO21) — driven by the heartbeat-sync phase inside io_task.
-+    let led = Output::new(p.GPIO21, Level::Low, OutputConfig::default());
++    // 4. Status LED (GPIO21) via LEDC PWM — for the organic lub-DUB heartbeat envelope.
++    //    io_task signals the FIRE (conductor-PLL = WHEN); main renders the SHAPE below.
++    let mut ledc = Ledc::new(p.LEDC);
++    ledc.set_global_slow_clock(LSGlobalClkSource::APBClk);
++    let mut hb_timer = ledc.timer::<LowSpeed>(timer::Number::Timer0);
++    hb_timer
++        .configure(timer::config::Config {
++            duty: timer::config::Duty::Duty10Bit,
++            clock_source: timer::LSClockSource::APBClk,
++            frequency: Rate::from_khz(5),
++        })
++        .unwrap();
++    let mut hb_led = ledc.channel(channel::Number::Channel0, p.GPIO21);
++    hb_led
++        .configure(channel::config::Config {
++            timer: &hb_timer,
++            duty_pct: 0,
++            drive_mode: DriveMode::PushPull,
++        })
++        .unwrap();
 +
 +    // 5. WiFi config for the role.
 +    let wifi_cfg = if is_ap {
@@ -299,7 +305,7 @@ index 8c49f1c..0497206 100644
 +    stack.wait_config_up().await;
 +    let peer = if is_ap { Ipv4Address::new(192, 168, 4, 2) } else { Ipv4Address::new(192, 168, 4, 1) };
 +    println!("r2-dfr1195: net UP — {} {} (peer {peer})", if is_ap { "AP serving" } else { "STA got" }, ip);
-+    spawner.spawn(io_task(stack, is_ap, peer, led).unwrap());
++    spawner.spawn(io_task(stack, is_ap, peer).unwrap());
 +
 +    // ── LCD (ST7735S 160x80) status surface — restored. PWR (GPIO48) ACTIVE-LOW. ──
 +    let _lcd_pwr = Output::new(p.GPIO48, Level::Low, OutputConfig::default());
@@ -327,62 +333,94 @@ index 8c49f1c..0497206 100644
 +        .init(&mut delay)
 +        .unwrap();
 +    let _ = display.clear(Rgb565::BLACK);
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
+-
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
+-    {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
 +    let role = if is_ap { "AP" } else { "STA" };
++    // LED heartbeat envelope state: ms into the current lub-DUB beat, or -1 idle.
++    // Segments are kicked at 50 ms tick boundaries; LEDC hardware fades between them.
++    let mut beat_t: i32 = -1;
++    let mut lcd_tick: u32 = 0;
 +    loop {
-+        let green = MonoTextStyle::new(&FONT_6X10, Rgb565::GREEN);
-+        let cyan = MonoTextStyle::new(&FONT_6X10, Rgb565::CYAN);
-+        let white = MonoTextStyle::new(&FONT_6X10, Rgb565::WHITE);
-+        let amber = MonoTextStyle::new(&FONT_6X10, Rgb565::YELLOW);
-+        let synced = SYNCED.load(Ordering::Relaxed);
-+        let beats = FIRE_COUNT.load(Ordering::Relaxed);
-+        let dlv = DELIVERED.load(Ordering::Relaxed);
-+        let blk = BLOCKED.load(Ordering::Relaxed);
++        // ── organic lub-DUB LED heartbeat (conductor-PLL fired it; this is the SHAPE) ──
++        if FIRE_SIGNAL.try_take().is_some() {
++            beat_t = 0;
++        }
++        if beat_t >= 0 {
++            match beat_t {
++                0 => {
++                    let _ = hb_led.start_duty_fade(0, 100, 45);
++                } // lub rise
++                50 => {
++                    let _ = hb_led.start_duty_fade(100, 0, 95);
++                } // lub fall
++                200 => {
++                    let _ = hb_led.start_duty_fade(0, 70, 45);
++                } // DUB rise
++                250 => {
++                    let _ = hb_led.start_duty_fade(70, 0, 150);
++                } // DUB fall (rest)
++                _ => {}
++            }
++            beat_t += 50;
++            if beat_t > 450 {
++                beat_t = -1;
++            }
++        }
 +
-+        let _ = display.clear(Rgb565::BLACK);
-+        let mut s: heapless::String<26> = heapless::String::new();
-+        let _ = write!(s, "R2 {mac_low3:06x} {role}");
-+        let _ = Text::new(&s, Point::new(2, 8), green).draw(&mut display);
-+        s.clear();
-+        let _ = write!(s, "TG:{TG_ID} b:{BUILD_ID}");
-+        let _ = Text::new(&s, Point::new(2, 18), cyan).draw(&mut display);
-+        s.clear();
-+        let _ = write!(s, "ip {ip}");
-+        let _ = Text::new(&s, Point::new(2, 30), white).draw(&mut display);
-+        s.clear();
-+        let _ = write!(s, "b{beats} dlv{dlv} blk{blk}");
-+        let _ = Text::new(&s, Point::new(2, 42), white).draw(&mut display);
-+        s.clear();
-+        let _ = write!(s, "fleet: {}", if synced { "IN SYNC" } else { "converging" });
-+        let _ = Text::new(&s, Point::new(2, 56), if synced { green } else { amber }).draw(&mut display);
++        // ── LCD status surface, every ~2 s ──
++        lcd_tick += 1;
++        if lcd_tick >= 40 {
++            lcd_tick = 0;
++            let green = MonoTextStyle::new(&FONT_6X10, Rgb565::GREEN);
++            let cyan = MonoTextStyle::new(&FONT_6X10, Rgb565::CYAN);
++            let white = MonoTextStyle::new(&FONT_6X10, Rgb565::WHITE);
++            let amber = MonoTextStyle::new(&FONT_6X10, Rgb565::YELLOW);
++            let synced = SYNCED.load(Ordering::Relaxed);
++            let beats = FIRE_COUNT.load(Ordering::Relaxed);
++            let dlv = DELIVERED.load(Ordering::Relaxed);
++            let blk = BLOCKED.load(Ordering::Relaxed);
 +
-+        println!("r2-dfr1195: status beats={beats} dlv={dlv} synced={synced} role={role}");
-+        Timer::after(Duration::from_secs(2)).await;
++            let _ = display.clear(Rgb565::BLACK);
++            let mut s: heapless::String<26> = heapless::String::new();
++            let _ = write!(s, "R2 {mac_low3:06x} {role}");
++            let _ = Text::new(&s, Point::new(2, 8), green).draw(&mut display);
++            s.clear();
++            let _ = write!(s, "TG:{TG_ID} b:{BUILD_ID}");
++            let _ = Text::new(&s, Point::new(2, 18), cyan).draw(&mut display);
++            s.clear();
++            let _ = write!(s, "ip {ip}");
++            let _ = Text::new(&s, Point::new(2, 30), white).draw(&mut display);
++            s.clear();
++            let _ = write!(s, "b{beats} dlv{dlv} blk{blk}");
++            let _ = Text::new(&s, Point::new(2, 42), white).draw(&mut display);
++            s.clear();
++            let _ = write!(s, "fleet: {}", if synced { "IN SYNC" } else { "converging" });
++            let _ = Text::new(&s, Point::new(2, 56), if synced { green } else { amber })
++                .draw(&mut display);
++            println!("r2-dfr1195: status beats={beats} dlv={dlv} synced={synced} role={role}");
+         }
++        Timer::after(Duration::from_millis(50)).await;
      }
 +}
- 
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++
 +/// THE FLEET WORKS — pulse-coupled heartbeat sync over TN (Mirollo–Strogatz).
 +/// Each board runs a phase oscillator (period `HB_PERIOD_MS`). When the phase
 +/// reaches 1 it FIRES: beats the LED and broadcasts an R2-WIRE `Heartbeat` frame
@@ -391,12 +429,7 @@ index 8c49f1c..0497206 100644
 +/// task still routes `Event` frames through the `RouteEngine` (deliver/dedup,
 +/// field.lab). Boards start deliberately out of phase to show convergence.
 +#[embassy_executor::task]
-+async fn io_task(
-+    stack: embassy_net::Stack<'static>,
-+    is_ap: bool,
-+    peer: Ipv4Address,
-+    mut led: Output<'static>,
-+) {
++async fn io_task(stack: embassy_net::Stack<'static>, is_ap: bool, peer: Ipv4Address) {
 +    let mut rx_meta = [PacketMetadata::EMPTY; 4];
 +    let mut rx_buf = [0u8; 1024];
 +    let mut tx_meta = [PacketMetadata::EMPTY; 4];
@@ -433,9 +466,30 @@ index 8c49f1c..0497206 100644
 +    const HB_TICK_MS: u64 = 50;
 +    const HB_EPSILON: f32 = 0.25;
 +    let mut phase: f32 = if is_ap { 0.0 } else { 0.55 }; // out of phase → watch them converge
-+    let mut led_decay: u8 = 0;
 +    let mut fire_seq: u32 = 1;
-+
+ 
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
  
@@ -450,17 +504,10 @@ index 8c49f1c..0497206 100644
 +        {
 +            // ── phase tick: advance, manage the LED beat, FIRE at phase>=1 ──
 +            Either::First(_) => {
-+                if led_decay > 0 {
-+                    led_decay -= 1;
-+                    if led_decay == 0 {
-+                        led.set_low();
-+                    }
-+                }
 +                phase += HB_TICK_MS as f32 / HB_PERIOD_MS;
 +                if phase >= 1.0 {
 +                    phase = 0.0;
-+                    led.set_high();
-+                    led_decay = 2; // ~100 ms beat
++                    FIRE_SIGNAL.signal(()); // main renders the organic lub-DUB envelope
 +                    // Conductor-election window: forget stale conductors every 3 periods.
 +                    hb_window += 1;
 +                    if hb_window >= 3 {
