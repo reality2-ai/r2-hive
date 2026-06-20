@@ -64,9 +64,21 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     21042), static IPs. **HW finding (confirms core's B1):** RELAY ≠ DELIVERY — first cut let plan_forward's
     relay verdict (Drop NoViableNeighbour on a 2-board leaf) mask delivery; separated → delivers. Boards: my
     field.lab pair = ttyACM0(AP 502698)/ttyACM1(STA b79010), by MAC via /dev/serial/by-id; workshop's 3
-    DFR1195s = ACM9/10/11. **NEXT:** (1) synced LED heartbeat over TN = Roy's "fleet works" (firmware PCO +
-    R2-WIRE Heartbeat fire-frames; coordinate composer's HeartbeatSync sentant); (2) restore LCD (dropped in
-    WiFi refactor); (3) intra-TG GroupHmac deliver-gate (core's TRUST-INTEGRATION-BRIEF 905502c).
+    DFR1195s = ACM9/10/11.
+  - **🎯 THE FLEET WORKS — synced LED heartbeats over TN** (`cb8fa14`). Both boards run a leaderless
+    Mirollo-Strogatz pulse-coupled oscillator: fire = LED beat + broadcast R2-WIRE `Heartbeat` frame;
+    receiving the peer's fire = advance-only phase nudge. Initialized 1.1s apart → phase-lock ~60ms apart
+    (proven coupling: crystal drift <1ms/26s). Serial: AP `HB phase 0.97->1.00` then `FIRE` (pulse triggers
+    fire); STA convergence `0.70->0.82->0.97->lock`, `synced false->true`. Clock = embassy_time (esp-rtos
+    time-driver). composer's HeartbeatSync sentant = CONDUCTOR-PLL (std tier); mine = leaderless PCO (MCU) —
+    flagged the mixed-TG model-alignment Q.
+  - **LCD status surface RESTORED** (`988f0ac`) — ST7735S in the async render loop (GPIO48 active-low,
+    offset 26,1, Deg90, 20MHz), shows role/ip/TG/build/beats/dlv/`fleet: IN SYNC` from atomics io_task
+    updates. WiFi + routed frames + PCO heartbeat + LCD all coexist, no panic.
+  - **NEXT (the trust climb):** intra-TG GroupHmac deliver-gate (core's TRUST-INTEGRATION-BRIEF 905502c) —
+    real HMAC at the DELIVER branch only (relay stays trust-agnostic, B1); then inter-TG entanglement
+    (PeeringHmac), then 2 TGs each with its own synced heartbeat across the 5 boards. Also pending: network-OTA
+    receiver (makes flash #2+ wireless). Hardware finding → SPECS FIRST, then code.
   - **⚡⚡ PROOF SURFACE WORKING on BOTH boards** (`876bb98`, `docs/dfr1195-proof-surface-learnings.md`).
     LCD + LED running on ttyACM0 (rev v0.1) AND ttyACM1 (rev v0.2). **LCD (ST7735S):** status line on top +
     event log scrolling up; 20MHz SPI, mipidsi 0.9, offset(26,1)/Deg90/inverted. **KEY find: GPIO48
