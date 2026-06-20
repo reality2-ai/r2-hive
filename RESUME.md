@@ -83,13 +83,25 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     r2_fnv const; `sign_extended`/`verify_extended` (target_group+event_hash inside the MAC). Both boards
     share TG_UUID + hk (demo stand-in for the join). LCD shows dlv/blk.
   - **TONIGHT'S ARC (all on metal, 2 boards):** WiFi ✅ · routed R2-WIRE frame (deliver+dedup) ✅ · synced
-    heartbeat ✅ · LCD ✅ · intra-TG trust deliver-gate ✅.
-  - **NEXT:** 2-TG split + inter-TG PeeringHmac entanglement (needs 4 boards — coordinate mine+workshop's) +
-    TG-scoped heartbeat (only co-members couple). Canon follow-ups: hive_id = FNV-1a-32(HKDF-UUID) when
-    master-secret provisioning lands (MAC-low3 is the drop-in shortcut); dedup origin = route_stack[0]
-    self-stamp (R flag) for multi-hop (3rd relay board); PeeringHmac = lexicographic TG-pubkey order. Also
-    pending: network-OTA receiver. Open conjecture: leaderless PCO sync at N≥3 (may cluster — test on 3+
-    boards → specs). Hardware finding → SPECS FIRST, then code.
+    heartbeat ✅ · LCD ✅ · intra-TG trust deliver-gate ✅ · conductor-PLL heartbeat (TG-scoped + version
+    telemetry) ✅. **Both headline goals — TN + trust groups — proven + canon-aligned on real hardware.**
+  - **QUEUE (post-headline):**
+    1. **OTA receiver (#17)** — plan ready (`docs/dfr1195-ota-receiver-plan.md`: OtaUpdater + esp-storage +
+       UDP :21043 transfer + sha256 + software_reset). **2 go/no-go prereqs FLAGGED:** (a) espflash's default
+       bootloader may not honor otadata for slot-switch → may need a custom OTA bootloader (BLOCKER candidate,
+       coordinate core/workshop); (b) flash-write-while-WiFi can hang on dual-core S3 → quiesce radio around
+       writes. Run the bootloader test (write ota_1 + flip otadata + reboot) before the full receiver.
+    2. **Heartbeat → leaderless CONCAVE-M&S PRC** f(φ)=(1/b)ln(1+(e^b-1)φ) b=3 once specs pins v0.2 (NO rush;
+       conductor-PLL holds; drop-in swap of the phase-update, keep the broadcast+jitter). (Canon flip-flopped
+       v0.1 conductor-PLL → v0.2 leaderless-concave; supervisor's latest = leaderless-concave for no-SPOF.)
+    3. **Real-TG provisioning** — consume composer's keystore (R2-PROVISION): replace hardcoded TG_UUID+hk +
+       MAC-low3 hive_id with provisioned device_master_secret + TG persona → derive canonical hive_id
+       (FNV(HKDF(secret,tg_id))) + group hk. Asked composer for the NVS layout/read API. Crypto path unchanged.
+    4. **N-board scaling (#19)** — fire BROADCAST to all co-members (not 2-board unicast) + multi-peer table;
+       converges with the leaderless-concave swap. Then 5-board mesh (my 2 + workshop's 3).
+    5. **Health telemetry (#18)** — r2.hb.health CBOR companion (composer's HEALTH-TELEMETRY-CONTRACT), after
+       OTA (needs ota_status). 6. **Entanglement** (2 TGs/4 boards, PeeringHmac, lexicographic pubkey order).
+    Canon follow-ups: dedup origin = route_stack[0] self-stamp for multi-hop (3rd relay). Hardware → SPECS FIRST.
   - **⚡⚡ PROOF SURFACE WORKING on BOTH boards** (`876bb98`, `docs/dfr1195-proof-surface-learnings.md`).
     LCD + LED running on ttyACM0 (rev v0.1) AND ttyACM1 (rev v0.2). **LCD (ST7735S):** status line on top +
     event log scrolling up; 20MHz SPI, mipidsi 0.9, offset(26,1)/Deg90/inverted. **KEY find: GPIO48
