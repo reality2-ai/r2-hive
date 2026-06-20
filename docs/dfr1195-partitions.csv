@@ -5,6 +5,10 @@
 # OFFSET at 0x12000 (size 0x2000) in the free gap between phy_init (ends 0x12000) and
 # ota_0 (0x20000): composer esptool-writes the CBOR blob to 0x12000; firmware esp-storage-
 # reads 0x12000 raw by offset. No partition lookup needed for a fixed-offset raw region.
+# CARRIER BOARD-PROFILE (9-board): a 1-byte flag @0x13000 — 0x00 = no-screen (XIAO-S3),
+# else/0xFF(erased) = screen (DFR1195). Firmware gates the ST7735S init+render on it so
+# ONE binary runs on both. Also a raw write-bin offset (in the same free gap), not a
+# partition entry. composer write-bins 0x00 there on each XIAO.
 # Name,    Type, SubType,  Offset,   Size
 nvs,       data, nvs,      0x9000,   0x6000
 otadata,   data, ota,      0xf000,   0x2000

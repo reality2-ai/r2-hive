@@ -106,6 +106,14 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     wrote valid image to ota_1, firmware activate_next_partition() + reboot, ESP-IDF BL booted ota_1 @0x200000;
     both OTA prereqs CLOSED; converted to report-only (production-safe). Op-note: espflash flash does NOT reset
     otadata — erase 0xf000/0x2000 to recover a board to ota_0 ✅.
+  - **EVEN MORE wins (this session):** **health #18** — r2.hb.health CBOR (13-key), every-5th-beat, followers
+    DIRECT to the collector AP, AP logs `HEALTH <hex>` for composer's orchestrator serial-reader; verified e2e
+    (AP collects own 480e900e + STA 2cab5f69) ✅ · **shared parse_persona** — adopted r2_trust::parse_persona
+    (core 1b93108), dropped my decode glue; one codebase with workshop ✅ · **carrier-aware has_screen** — LCD
+    init+render gated on board-profile byte @0x13000 (0x00=XIAO no-screen, else=DFR1195); ONE binary runs on
+    screenless XIAO-S3 (9-board) ✅ · **perfect sync** — 2nd-order PLL now locks to e=-0.000 (zero offset) ✅.
+    r2-trust pinned 1b93108. 9-board = 5 DFR1195 + 4 XIAO-S3 (all-S3, true PLL, GPIO21 LED); role-by-MAC →
+    only 502698=AP, XIAO=STA; composer flashes my binary + provisions XIAO (persona@0x12000 + 0x00@0x13000).
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
     → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA network receiver (#17)** — the
     slot-switch is PROVEN (test b); remaining = UDP image transfer + write ota_1 with esp-radio QUIESCED
