@@ -38,6 +38,16 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     reconcile on first metal build. **Authoring order:** WiFi-UDP → OTA → SX1262 LoRa; BLE deprioritized.
     **SX1262 = wrap a mature crate (lora-phy/sx126x) behind the LoRaRadio trait** (robustness > 'fully
     ours' for the greenfield longest-pole radio).
+  - **⚡ FIRST LIGHT ACHIEVED** (`599f11b`, `docs/dfr1195-first-light-findings.md` + `dfr1195-firstlight.patch`).
+    esp-hal **1.x** no_std firmware BUILDS (Alfred) → FLASHES (tuxedo ttyACM0 via SSH) → BOOTS → serial:
+    "r2-dfr1195: FIRST LIGHT" + alive loop, booted from **OTA ota_0** (flashed WITH the 2-slot partition
+    table → OTA-laid-out from first flash, Roy's req). **Descriptor blocker SOLVED:** esp-bootloader-esp-idf
+    **0.5.0** (not 0.2.0) + esp_app_desc!(). Validated bare-metal matrix: esp-hal 1.1.1 / esp-alloc 0.10.0 /
+    esp-backtrace 0.17.0 / esp-println 0.15.0 / esp-bootloader-esp-idf 0.5.0. Done in a git **worktree**
+    (`~/Development/R2/dfr1195-fw-wt`); patch handed to core. **NEXT (WiFi-UDP + OTA-receiver tier):** resolve
+    the **embassy conflict** (esp-hal-embassy 0.9.1 ↔ esp-hal 1.1.1 `__esp_hal_embassy`) → re-enable seam
+    modules (wifi/ble/lora/peers) + esp-wifi 0.15.1 + embassy-net, wire core's WifiTransport/STA/Stack. OTA
+    *receiver* (makes flash #2+ wireless) needs this WiFi tier — until then updates are USB.
   - **FIRST-LIGHT PASS DONE (board live!)** (`db33289`, `docs/dfr1195-first-light-findings.md`). Board on
     **tuxedo-os /dev/ttyACM0**; hive on **Alfred** (esp/Xtensa toolchain); passwordless SSH = build-on-Alfred
     /flash-on-tuxedo. **SILICON-confirmed esp32s3 rev v0.1 / 4MB** (espflash board-info — settles SoC for
