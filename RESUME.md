@@ -99,8 +99,10 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     **real-TG persona reader (#20)** — read bundle raw @0x12000, r2_cbor-decode, run on PROVISIONED hk/tg/derived-
     hive; **TG=4b3df45d OFF DEMO** on both my boards (persona=true), cond=3e0d688f, synced=true, DELIVERED good /
     BLOCKED bad on the real hk ✅. Hand-rolled derive_hive_id (HKDF→v4-UUID-string→FNV; r2_trust::derive_hive_id
-    not in pinned r2-trust). **CANONICAL derive_hive_id** — re-synced r2-trust to 256489b, dropped the hand-roll,
-    ids UNCHANGED (cce44b60/3e0d688f) = hand-roll was canon-correct, now drift-safe ✅. **OTA test (b) PASS** —
+    not in pinned r2-trust). **KS1-CANONICAL derive_hive_id** — re-synced r2-trust to **abde165** (the no-v4-forcing
+    fix; 256489b + my hand-roll BOTH v4-forced = matched each other but DIVERGED from KS1). ids now byte-exact to
+    composer: **502698→480e900e, b79010→2cab5f69** (were the wrong v4-forced 3e0d688f/cce44b60). Conductor re-elects
+    to lowest (STA 2cab5f69); AP follows+locks (STA→AP broadcast direction also confirmed). r2-trust pinned abde165 ✅. **OTA test (b) PASS** —
     wrote valid image to ota_1, firmware activate_next_partition() + reboot, ESP-IDF BL booted ota_1 @0x200000;
     both OTA prereqs CLOSED; converted to report-only (production-safe). Op-note: espflash flash does NOT reset
     otadata — erase 0xf000/0x2000 to recover a board to ota_0 ✅.
