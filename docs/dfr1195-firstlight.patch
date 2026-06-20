@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..f459c61 100644
+index 5a3c89f..57af40b 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -53,16 +53,14 @@ index 5a3c89f..f459c61 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,19 @@ embassy-futures = "0.1"
+@@ -40,6 +55,17 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
 +# Network-OTA (#17): flash backend (esp-hal 1.1 has no flash module) + the storage trait.
 +esp-storage = { version = "0.6", features = ["esp32s3"] }
 +embedded-storage = "0.3.1"
-+# Real-TG persona (#20): HKDF hive_id derivation from the provisioned master_secret.
-+hkdf = { version = "0.12", default-features = false }
-+sha2 = { version = "0.10", default-features = false }
++# Real-TG persona (#20): hive_id derived via the CANONICAL r2_trust::derive_hive_id.
 +
 +# On-device proof-surface LCD (ST7735S 160x80) — first-light liveness screen:
 +# status line on top + events scrolling up. Stepping stone to the general display
@@ -88,10 +86,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..c1d377e 100644
+index 8c49f1c..95234e0 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,667 @@
+@@ -1,83 +1,644 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -283,26 +281,7 @@ index 8c49f1c..c1d377e 100644
 +                .with_password(FIELDLAB_PASS.into()),
 +        )
 +    };
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
--
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
--    {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
++
 +    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
 +    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
 +    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
@@ -398,8 +377,27 @@ index 8c49f1c..c1d377e 100644
 +            if beat_t > 450 {
 +                beat_t = -1;
 +            }
-         }
-+
++        }
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
+-
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
+-    {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
 +        // ── LCD status surface, every ~2 s ──
 +        lcd_tick += 1;
 +        if lcd_tick >= 40 {
@@ -431,7 +429,7 @@ index 8c49f1c..c1d377e 100644
 +            let _ = Text::new(&s, Point::new(2, 56), if synced { green } else { amber })
 +                .draw(&mut display);
 +            println!("r2-dfr1195: status beats={beats} dlv={dlv} synced={synced} role={role}");
-+        }
+         }
 +        Timer::after(Duration::from_millis(50)).await;
      }
 +}
@@ -466,21 +464,6 @@ index 8c49f1c..c1d377e 100644
 +        IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
 +    let _ = peer; // unicast peer no longer needed; kept for the route-table seed later
 +    let peer_ep = bcast_ep;
-+
-+    // my_hive + hk + my_tg_hash come from the provisioned persona (or demo fallback).
-+    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
-+    // Intra-TG trust: GroupHmac over the (received) group hk. `bad_hmac` = wrong key
-+    // for the negative test (a frame correctly addressed but failing the deliver-gate).
-+    let group_hmac = GroupHmac::new(hk);
-+    let bad_hmac = GroupHmac::new([0xFF; 32]);
-+    let mut ev_tick: u32 = 0;
-+    let mut ev_seq: u32 = 1;
-+    // Conductor-PLL (R2-HEARTBEAT v0.1): the lowest live hive_id is the conductor;
-+    // it free-runs, everyone else phase-locks to its beat. `lowest_heard` = lowest
-+    // hive_id heard this window (incl. self); reset every 3 periods so a departed
-+    // conductor is forgotten + election re-runs.
-+    let mut lowest_heard: u32 = my_hive;
-+    let mut hb_window: u32 = 0;
  
 -    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
 -
@@ -504,6 +487,21 @@ index 8c49f1c..c1d377e 100644
 -    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
 -    // resolves hive ids per medium. The route logic is fully validated in the
 -    // r2-harness sim — this firmware only supplies the real radios.
++    // my_hive + hk + my_tg_hash come from the provisioned persona (or demo fallback).
++    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
++    // Intra-TG trust: GroupHmac over the (received) group hk. `bad_hmac` = wrong key
++    // for the negative test (a frame correctly addressed but failing the deliver-gate).
++    let group_hmac = GroupHmac::new(hk);
++    let bad_hmac = GroupHmac::new([0xFF; 32]);
++    let mut ev_tick: u32 = 0;
++    let mut ev_seq: u32 = 1;
++    // Conductor-PLL (R2-HEARTBEAT v0.1): the lowest live hive_id is the conductor;
++    // it free-runs, everyone else phase-locks to its beat. `lowest_heard` = lowest
++    // hive_id heard this window (incl. self); reset every 3 periods so a departed
++    // conductor is forgotten + election re-runs.
++    let mut lowest_heard: u32 = my_hive;
++    let mut hb_window: u32 = 0;
++
 +    // Pulse-coupled oscillator. Tick = phase resolution; epsilon = coupling.
 +    const HB_PERIOD_MS: f32 = 2000.0;
 +    const HB_TICK_MS: u64 = 50;
@@ -758,39 +756,16 @@ index 8c49f1c..c1d377e 100644
 +    let tg_id = tg_id?;
 +    let hk = hk?;
 +    let master = master?;
-+    if tg_id.is_empty() || tg_id.len() > 40 {
++    let tg_str = core::str::from_utf8(tg_id).ok()?;
++    if tg_str.is_empty() || tg_str.len() > 40 {
 +        return None;
 +    }
 +    let mut tg_label: heapless::String<40> = heapless::String::new();
-+    tg_label.push_str(core::str::from_utf8(tg_id).ok()?).ok()?;
-+    Some(Persona { tg_label, tg_hash: r2_fnv::fnv1a_32(tg_id), hk, hive_id: derive_hive_id(&master, tg_id) })
-+}
-+
-+/// Canonical TG-scoped hive id (R2-WIRE §6.2.1): FNV-1a-32 of the RFC-4122 UUID string
-+/// formed from HKDF-SHA256(ikm=master_secret, salt="r2-hive-id-v1", info=tg_id)[0:16].
-+fn derive_hive_id(master: &[u8; 32], tg_id: &[u8]) -> u32 {
-+    let hk = hkdf::Hkdf::<sha2::Sha256>::new(Some(b"r2-hive-id-v1"), master);
-+    let mut okm = [0u8; 16];
-+    if hk.expand(tg_id, &mut okm).is_err() {
-+        return 0;
-+    }
-+    okm[6] = (okm[6] & 0x0F) | 0x40; // version 4
-+    okm[8] = (okm[8] & 0x3F) | 0x80; // variant
-+    r2_fnv::fnv1a_32(format_uuid(&okm).as_bytes())
-+}
-+
-+/// 16 bytes → lowercase RFC-4122 UUID string (8-4-4-4-12).
-+fn format_uuid(b: &[u8; 16]) -> heapless::String<36> {
-+    const HEX: &[u8; 16] = b"0123456789abcdef";
-+    let mut s: heapless::String<36> = heapless::String::new();
-+    for (i, byte) in b.iter().enumerate() {
-+        if i == 4 || i == 6 || i == 8 || i == 10 {
-+            let _ = s.push('-');
-+        }
-+        let _ = s.push(HEX[(byte >> 4) as usize] as char);
-+        let _ = s.push(HEX[(byte & 0x0F) as usize] as char);
-+    }
-+    s
++    tg_label.push_str(tg_str).ok()?;
++    // CANONICAL hive id (R2-WIRE §6.2.1) via r2-trust — no hand-roll (drift-safe):
++    // FNV-1a-32 of the RFC-4122 v4 UUID string from HKDF(master_secret, tg_id)[0:16].
++    let hive_id = r2_trust::derive_hive_id(&master, tg_str).ok()?.1;
++    Some(Persona { tg_label, tg_hash: r2_fnv::fnv1a_32(tg_id), hk, hive_id })
 +}
 +
 +/// embassy-net background runner — required for the stack to make progress.
