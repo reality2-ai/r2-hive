@@ -1,8 +1,8 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..c56fc12 100644
+index 5a3c89f..b538f71 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
-@@ -21,18 +21,25 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+@@ -21,17 +21,27 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  # VERSION PINS — hive: confirm against the installed toolchain before flashing.
  # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
  # skeleton is written against.
@@ -24,22 +24,23 @@ index 5a3c89f..c56fc12 100644
 -embassy-time = "0.4"
 -embassy-net = { version = "0.6", features = ["udp", "proto-ipv4", "medium-ethernet", "dhcpv4"] }
 -embassy-sync = "0.6"
--embassy-futures = "0.1"
-+# Embassy + esp-hal-embassy + esp-wifi (the async/WiFi tier) are added back for the
-+# WiFi-UDP milestone. First-light is a BARE-METAL sync boot (esp-hal only) — proves
-+# chip+toolchain+flash+app-descriptor on the real S3 without the embassy version
-+# matrix in the way. (esp-hal-embassy 0.9.1 ↔ esp-hal 1.1.1 needs its own reconcile.)
-+# esp-hal-embassy = { version = "0.9.1", features = ["esp32s3"] }
-+# embassy-executor = { version = "0.7", features = ["task-arena-size-32768"] }
-+# embassy-time = "0.4"
-+# esp-wifi = { version = "0.15.1", features = ["esp32s3", "wifi", "ble"] }
-+# embassy-net = { version = "0.6", features = ["udp", "proto-ipv4", "medium-ethernet", "dhcpv4"] }
-+# embassy-sync = "0.6"
-+# embassy-futures = "0.1"
++# ── Async/WiFi tier (the WiFi-UDP milestone) — VERIFIED RESOLVING MATRIX ──────
++# CRITICAL: on the esp-hal 1.1.x line the WiFi crate is esp-RADIO (NOT esp-wifi:
++# esp-wifi 0.15.x links-collides on xtensa-lx-rt ^0.20 vs esp-hal's ^0.22), and the
++# scheduler is esp-RTOS (NOT esp-hal-embassy, which wants a private esp-hal feature
++# no 1.x exposes). esp-radio needs default-features=false (its default builtin-
++# scheduler also wants a private feature). Embassy jumps to net 0.9/sync 0.7/exec
++# 0.10/time 0.5. See memory: esp32-wifi-embassy-matrix.
++esp-rtos = { version = "0.3.0", features = ["esp32s3", "embassy", "esp-radio"] }
++esp-radio = { version = "0.18", default-features = false, features = ["esp32s3", "wifi"] }
++embassy-executor = { version = "0.10", default-features = false }
++embassy-time = "0.5"
++embassy-sync = "0.7"
++embassy-net = { version = "0.9", features = ["udp", "proto-ipv4", "medium-ethernet", "dhcpv4"] }
+ embassy-futures = "0.1"
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
- # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -41,6 +48,13 @@ embassy-futures = "0.1"
+@@ -41,6 +51,13 @@ embassy-futures = "0.1"
  embedded-hal = "1.0"
  heapless = "0.8"
  

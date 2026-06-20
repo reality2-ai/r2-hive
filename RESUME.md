@@ -44,10 +44,18 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     table → OTA-laid-out from first flash, Roy's req). **Descriptor blocker SOLVED:** esp-bootloader-esp-idf
     **0.5.0** (not 0.2.0) + esp_app_desc!(). Validated bare-metal matrix: esp-hal 1.1.1 / esp-alloc 0.10.0 /
     esp-backtrace 0.17.0 / esp-println 0.15.0 / esp-bootloader-esp-idf 0.5.0. Done in a git **worktree**
-    (`~/Development/R2/dfr1195-fw-wt`); patch handed to core. **NEXT (WiFi-UDP + OTA-receiver tier):** resolve
-    the **embassy conflict** (esp-hal-embassy 0.9.1 ↔ esp-hal 1.1.1 `__esp_hal_embassy`) → re-enable seam
-    modules (wifi/ble/lora/peers) + esp-wifi 0.15.1 + embassy-net, wire core's WifiTransport/STA/Stack. OTA
-    *receiver* (makes flash #2+ wireless) needs this WiFi tier — until then updates are USB.
+    (`~/Development/R2/dfr1195-fw-wt`); patch handed to core.
+  - **⚡ WiFi/embassy MATRIX RESOLVED + COMPILES** (worktree Cargo.toml; memory [esp32-wifi-embassy-matrix]).
+    The blocker was NOT a version bump: esp-wifi→**esp-radio** rename (esp-wifi 0.15.x links-collides on
+    xtensa-lx-rt ^0.20 vs esp-hal 1.1.x ^0.22), scheduler esp-hal-embassy→**esp-rtos** (superseded, wanted a
+    private esp-hal feature). VERIFIED set (resolves + compiles xtensa, 58s, 241K ELF): esp-hal **1.1.1**
+    (unchanged) / esp-rtos 0.3.0 (esp32s3,embassy,esp-radio) / esp-radio 0.18 (default-features=false,
+    esp32s3,wifi) / esp-alloc 0.10 / esp-bootloader-esp-idf 0.5.0 / embassy-net **0.9.1** / embassy-sync 0.7 /
+    embassy-executor 0.10 (default-features=false) / embassy-time 0.5 / xtensa-lx-rt 0.22. **DRIFT flagged to
+    core:** wifi.rs targets embassy-net 0.6 → needs same-day turn to **0.9** (IpEndpoint::from + UdpSocket::new
+    /Stack lifetime). **NEXT (field.lab):** migrate main.rs bare-metal→esp-rtos/embassy async + esp-radio STA +
+    embassy-net Stack, re-enable mod wifi (once core's wifi.rs@0.9), spawn udp_writer_task, wire RouteEngine →
+    board A originates → board B receives+relays (dedup/TTL/spray). network-OTA receiver rides the same tier.
   - **⚡⚡ PROOF SURFACE WORKING on BOTH boards** (`876bb98`, `docs/dfr1195-proof-surface-learnings.md`).
     LCD + LED running on ttyACM0 (rev v0.1) AND ttyACM1 (rev v0.2). **LCD (ST7735S):** status line on top +
     event log scrolling up; 20MHz SPI, mipidsi 0.9, offset(26,1)/Deg90/inverted. **KEY find: GPIO48
