@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..05a6b96 100644
+index 5a3c89f..154d9e7 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,9 @@ path = "src/main.rs"
@@ -52,20 +52,23 @@ index 5a3c89f..05a6b96 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -41,6 +55,13 @@ embassy-futures = "0.1"
+@@ -40,6 +54,16 @@ embassy-futures = "0.1"
+ # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
- 
++# Network-OTA (#17): flash backend (esp-hal 1.1 has no flash module) + the storage trait.
++esp-storage = { version = "0.6", features = ["esp32s3"] }
++embedded-storage = "0.3.1"
++
 +# On-device proof-surface LCD (ST7735S 160x80) — first-light liveness screen:
 +# status line on top + events scrolling up. Stepping stone to the general display
 +# plugin (composer's CMD_RENDER contract) once the plugin runtime lands.
 +mipidsi = "0.9.0"
 +embedded-graphics = "0.8.1"
 +embedded-hal-bus = "0.3.0"
-+
+ 
  [profile.release]
  opt-level = "s"
- lto = true
 diff --git a/platforms/dfr1195/build.rs b/platforms/dfr1195/build.rs
 new file mode 100644
 index 0000000..52b0073
