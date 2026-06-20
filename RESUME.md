@@ -85,6 +85,21 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   - **TONIGHT'S ARC (all on metal, 2 boards):** WiFi ✅ · routed R2-WIRE frame (deliver+dedup) ✅ · synced
     heartbeat ✅ · LCD ✅ · intra-TG trust deliver-gate ✅ · conductor-PLL heartbeat (TG-scoped + version
     telemetry) ✅. **Both headline goals — TN + trust groups — proven + canon-aligned on real hardware.**
+  - **CONTINUED-SESSION metal wins (all committed):** N-board broadcast (fire/Event → subnet 192.168.4.255,
+    verified) ✅ · **unique per-board STA IP** from low MAC byte (the real N-board fix; .2 would collide) ✅ ·
+    **organic lub-DUB LED heartbeat** via LEDC PWM hardware duty-fades (Roy: "heartbeat not flash"; io_task
+    FIRE_SIGNAL → main renders the envelope) ✅ · **OTA bootloader CONFIRMED (test a)**: my no_std app boots
+    under the ESP-IDF BL (extract first 0x8000 of /tmp/dfr1195-merged.bin → espflash --bootloader; "Loaded app
+    from 0x20000" + app runs) — the OTA BL blocker is closed ✅ · esp-storage builds for xtensa ✅. STA
+    (ttyACM1) now runs the ESP-IDF BL. Conductor-PLL note: locks but ~0.1-period steady-state OFFSET (tighten
+    with β freq term / higher gain — refinement).
+  - **PRECISE NEXT STEPS (all unblocked):** (1) **OTA test (b)/receiver** — OtaUpdater write-path (self-copy
+    ota_0→ota_1 → activate_next_partition → software_reset → boot log 0x200000) with esp-radio QUIESCED around
+    the flash burst (esp-storage#31 hang risk); flash-touching = do carefully. (2) **5-board mesh** — composer
+    flashes 3 boards (MACs 5023e4/529928/b60aa0) with the latest binary + ESP-IDF BL (--bootloader); conductor
+    = 5023e4; I verify all-5 sync + trust. (3) **health #18** — r2.hb.health CBOR (r2-cbor IS available),
+    fields ready, rides heartbeat, ota_status after (1). (4) **persona #20** — read 0x12000 raw → receive
+    dek+hk (v0.2, no derive) + derive hive_id; awaiting composer's per-board blobs. (5) entanglement (4 boards).
   - **QUEUE (post-headline):**
     1. **OTA receiver (#17)** — plan ready (`docs/dfr1195-ota-receiver-plan.md`: OtaUpdater + esp-storage +
        UDP :21043 transfer + sha256 + software_reset). **2 go/no-go prereqs FLAGGED:** (a) espflash's default
