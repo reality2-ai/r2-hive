@@ -1,0 +1,12 @@
+# DFR1195 partition table — 2-OTA + persona (real-TG enrolment #20).
+# Flashed at the 0x8000 default offset (espflash --partition-table). Works with the
+# ESP-IDF OTA-capable bootloader (composer-staged) which honors otadata for slot-switch.
+# persona = raw CBOR enrolment bundle (composer esptool-writes per-board, keyed by MAC);
+# firmware esp-storage-reads it at 0x12000, derives hk/dek + hive_id, feeds the GroupHmac gate.
+# Name,    Type, SubType,  Offset,   Size
+nvs,       data, nvs,      0x9000,   0x6000
+otadata,   data, ota,      0xf000,   0x2000
+phy_init,  data, phy,      0x11000,  0x1000
+persona,   data, 0x40,     0x12000,  0x2000
+ota_0,     app,  ota_0,    0x20000,  0x1E0000
+ota_1,     app,  ota_1,    0x200000, 0x1E0000
