@@ -86,10 +86,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..4fef5c3 100644
+index 8c49f1c..444b548 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,670 @@
+@@ -1,83 +1,804 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -153,7 +153,7 @@ index 8c49f1c..4fef5c3 100644
 +use static_cell::StaticCell;
 +
 +// R2 transient-networking core (no_std, the portable substance — unchanged on metal).
-+use r2_cbor::{Decoder, Item};
++use r2_cbor::{Decoder, Encoder, Item};
 +use r2_route::{DropReason, ForwardAction, ForwardRequest, RouteEngine, Target};
 +use r2_trust::GroupHmac;
 +use r2_wire::{
@@ -188,6 +188,7 @@ index 8c49f1c..4fef5c3 100644
 +static FIRE_COUNT: AtomicU32 = AtomicU32::new(0);
 +static DELIVERED: AtomicU32 = AtomicU32::new(0);
 +static BLOCKED: AtomicU32 = AtomicU32::new(0);
++static RELAYED: AtomicU32 = AtomicU32::new(0); // AP L3-relayed frames (STA↔STA forwarding)
 +static SYNCED: AtomicBool = AtomicBool::new(false);
 +/// io_task signals a heartbeat FIRE → main renders the organic lub-DUB LED envelope.
 +static FIRE_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
@@ -271,26 +272,7 @@ index 8c49f1c..4fef5c3 100644
 +            drive_mode: DriveMode::PushPull,
 +        })
 +        .unwrap();
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
--
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
--    {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
++
 +    // 5. WiFi config for the role.
 +    let wifi_cfg = if is_ap {
 +        WifiConfig::AccessPoint(
@@ -313,7 +295,26 @@ index 8c49f1c..4fef5c3 100644
 +    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
 +    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
 +        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
+-
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
+-    {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
 +    // 7. Static IPs by role (deterministic 2-node net; no DHCP server needed).
 +    let (device, ip) = if is_ap {
 +        (interfaces.access_point, Ipv4Address::new(192, 168, 4, 1))
@@ -345,7 +346,8 @@ index 8c49f1c..4fef5c3 100644
 +    stack.wait_config_up().await;
 +    let peer = if is_ap { Ipv4Address::new(192, 168, 4, 2) } else { Ipv4Address::new(192, 168, 4, 1) };
 +    println!("r2-dfr1195: net UP — {} {} (peer {peer})", if is_ap { "AP serving" } else { "STA got" }, ip);
-+    spawner.spawn(io_task(stack, is_ap, peer, hk, my_tg_hash, my_hive).unwrap());
++    let _ = peer;
++    spawner.spawn(io_task(stack, is_ap, ip, hk, my_tg_hash, my_hive).unwrap());
 +
 +    // ── LCD (ST7735S 160x80) status surface — restored. PWR (GPIO48) ACTIVE-LOW. ──
 +    let _lcd_pwr = Output::new(p.GPIO48, Level::Low, OutputConfig::default());
@@ -441,6 +443,36 @@ index 8c49f1c..4fef5c3 100644
 +        Timer::after(Duration::from_millis(50)).await;
      }
 +}
++
++/// THE FLEET WORKS — pulse-coupled heartbeat sync over TN (Mirollo–Strogatz).
++/// Each board runs a phase oscillator (period `HB_PERIOD_MS`). When the phase
++/// reaches 1 it FIRES: beats the LED and broadcasts an R2-WIRE `Heartbeat` frame
++/// to the peer. On receiving the peer's fire it nudges its phase forward
++/// (advance-only) — so independent boards converge to beating IN SYNC. The same
++/// task still routes `Event` frames through the `RouteEngine` (deliver/dedup,
++/// field.lab). Boards start deliberately out of phase to show convergence.
++#[embassy_executor::task]
++async fn io_task(
++    stack: embassy_net::Stack<'static>,
++    is_ap: bool,
++    my_ip: Ipv4Address,
++    hk: [u8; 32],
++    my_tg_hash: u32,
++    my_hive: u32,
++) {
++    let mut rx_meta = [PacketMetadata::EMPTY; 4];
++    let mut rx_buf = [0u8; 1024];
++    let mut tx_meta = [PacketMetadata::EMPTY; 4];
++    let mut tx_buf = [0u8; 1024];
++    let mut socket = UdpSocket::new(stack, &mut rx_meta, &mut rx_buf, &mut tx_meta, &mut tx_buf);
++    socket.bind(R2_UDP_PORT).expect("bind R2 UDP port");
++    // N-board ready (#19): TG-scoped fire/Event BROADCAST to ALL co-members on the
++    // soft-AP subnet (the AP forwards subnet broadcast to every associated STA),
++    // instead of 2-board unicast. Receivers filter by target_group (couple) +
++    // target_hive (deliver). Conductor election (lowest hive_id heard) scales to N.
++    let bcast_ep =
++        IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
++    let peer_ep = bcast_ep; // fire/Event broadcast endpoint (my_ip is used by health below)
  
 -    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
 -
@@ -464,37 +496,6 @@ index 8c49f1c..4fef5c3 100644
 -    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
 -    // resolves hive ids per medium. The route logic is fully validated in the
 -    // r2-harness sim — this firmware only supplies the real radios.
-+/// THE FLEET WORKS — pulse-coupled heartbeat sync over TN (Mirollo–Strogatz).
-+/// Each board runs a phase oscillator (period `HB_PERIOD_MS`). When the phase
-+/// reaches 1 it FIRES: beats the LED and broadcasts an R2-WIRE `Heartbeat` frame
-+/// to the peer. On receiving the peer's fire it nudges its phase forward
-+/// (advance-only) — so independent boards converge to beating IN SYNC. The same
-+/// task still routes `Event` frames through the `RouteEngine` (deliver/dedup,
-+/// field.lab). Boards start deliberately out of phase to show convergence.
-+#[embassy_executor::task]
-+async fn io_task(
-+    stack: embassy_net::Stack<'static>,
-+    is_ap: bool,
-+    peer: Ipv4Address,
-+    hk: [u8; 32],
-+    my_tg_hash: u32,
-+    my_hive: u32,
-+) {
-+    let mut rx_meta = [PacketMetadata::EMPTY; 4];
-+    let mut rx_buf = [0u8; 1024];
-+    let mut tx_meta = [PacketMetadata::EMPTY; 4];
-+    let mut tx_buf = [0u8; 1024];
-+    let mut socket = UdpSocket::new(stack, &mut rx_meta, &mut rx_buf, &mut tx_meta, &mut tx_buf);
-+    socket.bind(R2_UDP_PORT).expect("bind R2 UDP port");
-+    // N-board ready (#19): TG-scoped fire/Event BROADCAST to ALL co-members on the
-+    // soft-AP subnet (the AP forwards subnet broadcast to every associated STA),
-+    // instead of 2-board unicast. Receivers filter by target_group (couple) +
-+    // target_hive (deliver). Conductor election (lowest hive_id heard) scales to N.
-+    let bcast_ep =
-+        IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
-+    let _ = peer; // unicast peer no longer needed; kept for the route-table seed later
-+    let peer_ep = bcast_ep;
-+
 +    // my_hive + hk + my_tg_hash come from the provisioned persona (or demo fallback).
 +    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
 +    // Intra-TG trust: GroupHmac over the (received) group hk. `bad_hmac` = wrong key
@@ -519,6 +520,7 @@ index 8c49f1c..4fef5c3 100644
 +    let mut freq_adj: f32 = 0.0; // accumulated per-tick frequency correction (the integral term)
 +    let mut am_conductor = true; // = (my hive_id is the lowest heard); updated on each heard beat
 +    let mut fire_seq: u32 = 1;
++    let mut last_err_ms: u32 = 0; // latest PLL phase error in ms (#18 health field 8)
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
@@ -574,6 +576,47 @@ index 8c49f1c..4fef5c3 100644
 +                    FIRE_COUNT.store(fire_seq, Ordering::Relaxed);
 +                    let r = if am_conductor { "CONDUCTOR" } else { "follower" };
 +                    println!("r2-dfr1195: FIRE seq={fire_seq} beat ({r})");
++
++                    // #18 health telemetry: every 5th beat, report to the collector (AP).
++                    // Collector logs its own; followers Direct to the AP over TN (no flood).
++                    if fire_seq % 5 == 0 {
++                        let mut hbuf = [0u8; 96];
++                        let synced = SYNCED.load(Ordering::Relaxed);
++                        if let Some(hn) = build_health(
++                            &mut hbuf, my_hive, my_tg_hash, is_ap, am_conductor, my_ip, synced,
++                            last_err_ms, fire_seq,
++                        ) {
++                            if is_ap {
++                                log_health(&hbuf[..hn]);
++                            } else {
++                                let hh = ExtendedHeader {
++                                    version: 0,
++                                    msg_type: MsgType::Event,
++                                    flags: Flags { mcu_origin: true, ..Default::default() },
++                                    ttl: 2,
++                                    k: 1,
++                                    msg_id: fire_seq,
++                                    event_hash: HEALTH_HASH,
++                                    payload_len: hn as u32,
++                                    target_group: my_tg_hash,
++                                    target_hive: R2_COLLECTOR_HIVE,
++                                };
++                                let hm = ExtendedMessage {
++                                    header: hh,
++                                    route: None,
++                                    payload: &hbuf[..hn],
++                                    hmac_tag: None,
++                                };
++                                if let Ok(n) = encode_extended(&hm, &mut txbuf) {
++                                    let cep = IpEndpoint::new(
++                                        IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 1)),
++                                        R2_UDP_PORT,
++                                    );
++                                    let _ = socket.send_to(&txbuf[..n], cep).await;
++                                }
++                            }
++                        }
++                    }
 +                }
 +                // Trust demo: AP originates a SIGNED intra-TG Event ~every 3s,
 +                // alternating good/bad HMAC to exercise the B1 deliver-gate at B.
@@ -652,6 +695,7 @@ index 8c49f1c..4fef5c3 100644
 +                                    freq_adj = -0.003;
 +                                }
 +                                let eabs = if e < 0.0 { -e } else { e };
++                                last_err_ms = (eabs * HB_PERIOD_MS) as u32; // #18 phase_err_ms
 +                                SYNCED.store(eabs < 0.04, Ordering::Relaxed); // <~80ms = "in sync"
 +                                println!(
 +                                    "r2-dfr1195: HB<-{from} cond={sender_hive:06x} e={e:.3} fadj={freq_adj:.4} (lock)"
@@ -661,6 +705,14 @@ index 8c49f1c..4fef5c3 100644
 +                    }
 +                    _ => {
 +                        let h = &m.header;
++                        if h.event_hash == HEALTH_HASH {
++                            // #18 health to the collector (AP): log hex for the orchestrator
++                            // serial-reader. Not a routable Event.
++                            if is_ap || h.target_hive == my_hive {
++                                log_health(m.payload);
++                            }
++                            continue;
++                        }
 +                        let now = embassy_time::Instant::now().as_secs() as u32;
 +                        let req = ForwardRequest {
 +                            now,
@@ -679,25 +731,49 @@ index 8c49f1c..4fef5c3 100644
 +                        let for_me = h.target_hive == my_hive || h.target_hive == 0;
 +                        if matches!(advice.action, ForwardAction::Drop(DropReason::Duplicate)) {
 +                            println!("r2-dfr1195: DEDUP msg_id={} dropped", h.msg_id);
-+                        } else if for_me {
-+                            // B1 DELIVER-GATE — trust checked ONLY here; the relay
-+                            // decision (plan_forward, above) stays trust-agnostic.
-+                            // Deliverable iff dest TG is mine AND the GroupHmac verifies.
-+                            let tg_ok = h.target_group == my_tg_hash || h.target_group == 0;
-+                            let hmac_ok = verify_extended(&m, &group_hmac);
-+                            if tg_ok && hmac_ok {
-+                                DELIVERED.fetch_add(1, Ordering::Relaxed);
-+                                let body = core::str::from_utf8(m.payload).unwrap_or("?");
-+                                println!(
-+                                    "r2-dfr1195: DELIVERED msg_id={} '{}' (tg+hmac ok)",
-+                                    h.msg_id, body
-+                                );
-+                            } else {
-+                                BLOCKED.fetch_add(1, Ordering::Relaxed);
-+                                println!(
-+                                    "r2-dfr1195: DELIVER-BLOCKED msg_id={} tg_ok={tg_ok} hmac_ok={hmac_ok} (relay unaffected)",
-+                                    h.msg_id
-+                                );
++                        } else {
++                            // AP L3 RELAY (B1: trust-agnostic) — re-broadcast forwarded
++                            // frames with ttl-1 so STA-to-STA works across the (cross-arch)
++                            // mesh, independent of any soft-AP L2 rebroadcast. dedup-guarded
++                            // (above) + ttl-bounded. The HMAC covers IMMUTABLE fields only
++                            // (ttl excluded, §10.6) so it survives the decrement.
++                            if is_ap
++                                && h.ttl > 1
++                                && matches!(
++                                    advice.action,
++                                    ForwardAction::Directed(_) | ForwardAction::Flood(_)
++                                )
++                            {
++                                let mut fwd = m; // ExtendedMessage is Copy
++                                fwd.header.ttl -= 1;
++                                if let Ok(n) = encode_extended(&fwd, &mut txbuf) {
++                                    let _ = socket.send_to(&txbuf[..n], peer_ep).await;
++                                    RELAYED.fetch_add(1, Ordering::Relaxed);
++                                    println!(
++                                        "r2-dfr1195: RELAY msg_id={} ttl {}->{}",
++                                        h.msg_id, h.ttl, fwd.header.ttl
++                                    );
++                                }
++                            }
++                            if for_me {
++                                // B1 DELIVER-GATE — trust checked ONLY here (relay above is
++                                // independent). Deliverable iff dest TG is mine AND HMAC ok.
++                                let tg_ok = h.target_group == my_tg_hash || h.target_group == 0;
++                                let hmac_ok = verify_extended(&m, &group_hmac);
++                                if tg_ok && hmac_ok {
++                                    DELIVERED.fetch_add(1, Ordering::Relaxed);
++                                    let body = core::str::from_utf8(m.payload).unwrap_or("?");
++                                    println!(
++                                        "r2-dfr1195: DELIVERED msg_id={} '{}' (tg+hmac ok)",
++                                        h.msg_id, body
++                                    );
++                                } else {
++                                    BLOCKED.fetch_add(1, Ordering::Relaxed);
++                                    println!(
++                                        "r2-dfr1195: DELIVER-BLOCKED msg_id={} tg_ok={tg_ok} hmac_ok={hmac_ok} (relay unaffected)",
++                                        h.msg_id
++                                    );
++                                }
 +                            }
 +                        }
 +                    }
@@ -711,6 +787,12 @@ index 8c49f1c..4fef5c3 100644
 +
 +/// R2 mesh UDP port (R2-WIFI §4).
 +const R2_UDP_PORT: u16 = 21042;
++
++/// #18 health telemetry: event_hash discriminator + the collector (AP) wire hive_id.
++/// Followers Direct r2.hb.health to the collector over TN; the collector logs it as hex
++/// for composer's orchestrator serial-reader (the AP↔tuxedo USB uplink feeds the dashboard).
++const HEALTH_HASH: u32 = r2_fnv::fnv1a_32(b"r2.hb.health");
++const R2_COLLECTOR_HIVE: u32 = 0x480e_900e; // AP board KS1-canonical hive_id = collector
 +
 +// ─────────────────────────── Real-TG persona (#20) ───────────────────────────
 +/// Flash offset of the provisioned persona bundle (composer write-bins it raw here).
@@ -772,7 +854,11 @@ index 8c49f1c..4fef5c3 100644
 +    tg_label.push_str(tg_str).ok()?;
 +    // CANONICAL hive id (R2-WIRE §6.2.1) via r2-trust — no hand-roll (drift-safe):
 +    // FNV-1a-32 of the RFC-4122 v4 UUID string from HKDF(master_secret, tg_id)[0:16].
-+    let hive_id = r2_trust::derive_hive_id(&master, tg_str).ok()?.1;
++    let (uuid, hive_id) = r2_trust::derive_hive_id(&master, tg_str).ok()?;
++    if let Ok(us) = core::str::from_utf8(&uuid) {
++        // Print the canonical UUID string so peers can sanity-check fnv1a_32(uuid)==wire id.
++        println!("r2-dfr1195: hive_id_uuid={us} -> wire 0x{hive_id:08x}");
++    }
 +    Some(Persona { tg_label, tg_hash: r2_fnv::fnv1a_32(tg_id), hk, hive_id })
 +}
 +
@@ -792,6 +878,54 @@ index 8c49f1c..4fef5c3 100644
 +            println!("r2-dfr1195: OTA slot={slot} (otadata slot-switch verified — test b PASS)");
 +        }
 +    }
++}
++
++/// Build the #18 r2.hb.health CBOR (int-keyed map, composer's contract) into `buf`.
++/// Keys: 0 hive_id, 1 tg, 2 role-bitset (1=conductor|2=AP|4=STA|8=relay), 3 ip, 4 fw_version,
++/// 5 fw_sha, 6 ota_status, 7 sync_state, 8 phase_err_ms, 9 link_q, 10 transports, 11 uptime, 12 beat_seq.
++fn build_health(
++    buf: &mut [u8],
++    my_hive: u32,
++    tg: u32,
++    is_ap: bool,
++    conductor: bool,
++    ip: Ipv4Address,
++    synced: bool,
++    phase_err_ms: u32,
++    beat_seq: u32,
++) -> Option<usize> {
++    let role: u64 = (if conductor { 1 } else { 0 }) | (if is_ap { 2 | 8 } else { 4 }); // AP relays (bit3)
++    let o = ip.octets();
++    let mut ip_s: heapless::String<16> = heapless::String::new();
++    let _ = write!(ip_s, "{}.{}.{}.{}", o[0], o[1], o[2], o[3]);
++    let mut sha_s: heapless::String<10> = heapless::String::new();
++    let _ = write!(sha_s, "{VERSION_FNV:08x}");
++    let uptime = embassy_time::Instant::now().as_secs();
++    let mut e = Encoder::new(buf);
++    e.map(13).ok()?;
++    e.uint(0).ok()?; e.uint(my_hive as u64).ok()?;
++    e.uint(1).ok()?; e.uint(tg as u64).ok()?;
++    e.uint(2).ok()?; e.uint(role).ok()?;
++    e.uint(3).ok()?; e.text(&ip_s).ok()?;
++    e.uint(4).ok()?; e.text(BUILD_ID).ok()?;
++    e.uint(5).ok()?; e.text(&sha_s).ok()?;
++    e.uint(6).ok()?; e.uint(0).ok()?; // ota_status=0 (running slot is current)
++    e.uint(7).ok()?; e.uint(synced as u64).ok()?;
++    e.uint(8).ok()?; e.uint(phase_err_ms as u64).ok()?;
++    e.uint(9).ok()?; e.uint(0).ok()?; // link_q (RSSI not wired yet)
++    e.uint(10).ok()?; e.uint(1).ok()?; // transports bitset: WiFi
++    e.uint(11).ok()?; e.uint(uptime).ok()?;
++    e.uint(12).ok()?; e.uint(beat_seq as u64).ok()?;
++    Some(e.len())
++}
++
++/// Log an aggregated/received health CBOR as a hex line for composer's serial-reader.
++fn log_health(cbor: &[u8]) {
++    let mut hx: heapless::String<320> = heapless::String::new();
++    for b in cbor {
++        let _ = write!(hx, "{b:02x}");
++    }
++    println!("r2-dfr1195: HEALTH {hx}");
 +}
 +
 +/// embassy-net background runner — required for the stack to make progress.
