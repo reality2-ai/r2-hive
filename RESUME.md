@@ -93,13 +93,19 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     from 0x20000" + app runs) — the OTA BL blocker is closed ✅ · esp-storage builds for xtensa ✅. STA
     (ttyACM1) now runs the ESP-IDF BL. Conductor-PLL note: locks but ~0.1-period steady-state OFFSET (tighten
     with β freq term / higher gain — refinement).
-  - **PRECISE NEXT STEPS (all unblocked):** (1) **OTA test (b)/receiver** — OtaUpdater write-path (self-copy
-    ota_0→ota_1 → activate_next_partition → software_reset → boot log 0x200000) with esp-radio QUIESCED around
-    the flash burst (esp-storage#31 hang risk); flash-touching = do carefully. (2) **5-board mesh** — composer
-    flashes 3 boards (MACs 5023e4/529928/b60aa0) with the latest binary + ESP-IDF BL (--bootloader); conductor
-    = 5023e4; I verify all-5 sync + trust. (3) **health #18** — r2.hb.health CBOR (r2-cbor IS available),
-    fields ready, rides heartbeat, ota_status after (1). (4) **persona #20** — read 0x12000 raw → receive
-    dek+hk (v0.2, no derive) + derive hive_id; awaiting composer's per-board blobs. (5) entanglement (4 boards).
+  - **MORE continued-session metal wins:** **conductor-only beaconing (NO-FLOOD)** — only the conductor beacons
+    the fire, followers PLL-listen silently ✅ · **2nd-order conductor-PLL (β/freq term)** — kills the ~200ms
+    offset, e→±0.005–0.025 (<50ms), 5 LEDs as ONE ✅ · **5-board mesh** (my 2 + composer's 3, ESP-IDF BL) ✅ ·
+    **real-TG persona reader (#20)** — read bundle raw @0x12000, r2_cbor-decode, run on PROVISIONED hk/tg/derived-
+    hive; **TG=4b3df45d OFF DEMO** on both my boards (persona=true), cond=3e0d688f, synced=true, DELIVERED good /
+    BLOCKED bad on the real hk ✅. Hand-rolled derive_hive_id (HKDF→v4-UUID-string→FNV; r2_trust::derive_hive_id
+    not in pinned r2-trust — composer confirming 502698→3e0d688f / b79010→cce44b60 match).
+  - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
+    → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA test (b)/receiver** — OtaUpdater
+    write-path (ota_0→ota_1 → activate → software_reset → boot 0x200000) with esp-radio QUIESCED (esp-storage#31);
+    flash-touching = careful. (3) **health #18** — r2.hb.health CBOR, UNICAST to collector (NOT broadcast, per
+    af4ebcb), every-5th-beat+on-change, ota_status=0 interim. (4) dedup v0.4 (origin=route_stack[0]; future
+    r2-route bump). (5) 4-board entanglement (cross-TG gate: GroupHmac first, then trial PeeringHmac; §7.5.4).
   - **QUEUE (post-headline):**
     1. **OTA receiver (#17)** — plan ready (`docs/dfr1195-ota-receiver-plan.md`: OtaUpdater + esp-storage +
        UDP :21043 transfer + sha256 + software_reset). **2 go/no-go prereqs FLAGGED:** (a) espflash's default
