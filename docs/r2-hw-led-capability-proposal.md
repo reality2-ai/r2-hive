@@ -69,3 +69,25 @@ up). So the LED capability is a **separate, always-available output**, not route
 - Same general-vs-device split ratified for LoRaRadio + display. hive supplies per-board drivers (DFR1195
   mono done — `ok`=heartbeat; mapping the rest is small); composer's sentant selects status; this trait is
   the contract between them.
+
+## Refinements for R2-HMI v0.4 §9.3 (specs's questions, driver-side)
+
+specs landed §9.3 = `{kind(0=mono/1=rgb), patterns[], rgb_slots}` + vocab `all_well(0)/joining(1)/ota(2)/
+error(3)/identify(4)` + `CMD_LED_PATTERN`. Driver-side refinements for the v0.5 additive rev:
+
+1. **ADD a `brightness` field — a proven need, not a nicety.** The bare GPIO21 LED is glaringly bright; Roy had
+   me dim the heartbeat to **~12 %** (software PWM) for calm. Brightness is core to calm-tech. Applies to BOTH
+   kinds: mono → PWM duty, rgb → colour scale. Recommend: descriptor carries `dimmable(0/1)` + a `default_pct`;
+   `CMD_LED_PATTERN` may optionally override per-pattern (e.g. `error` brighter than `all_well`). DFR1195 mono
+   = `dimmable:1, default ~12%`.
+2. **`rgb_slots` — one slot is enough for the status indicator; per-slot addressing is NOT needed here.** A
+   single logical indicator + a colour per status covers WS2812-single / browser-dot / mono. For a WS2812
+   **strip**, `rgb_slots` as a COUNT (all slots mirror the one status colour) is fine; true per-slot
+   *addressing* (different content per LED) is a richer **strip** surface — a separate future capability, not
+   the status contract. Don't bloat §9.3 — keep it the single-status indicator.
+3. **Vocab + `CMD_LED_PATTERN`: confirmed.** `idle`/off = pattern-absence (no 6th code needed).
+4. **Firmware-LOCAL fallback (composer's rec — hive's lane, confirmed).** The base patterns
+   (`joining`→`ota`→`error`) are driven **firmware-direct** (no mesh, no sentant) so they signal in the
+   **screen-down + link-down** case — exactly the OTA scenario. hive owns this fallback; the sentant's
+   `CMD_LED_PATTERN` refines on top *when reachable*. Two independence layers (separate capability path +
+   firmware-local fallback) both honoured.
