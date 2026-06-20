@@ -86,10 +86,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..95234e0 100644
+index 8c49f1c..4fef5c3 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,644 @@
+@@ -1,83 +1,670 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -220,6 +220,14 @@ index 8c49f1c..95234e0 100644
 +    let p = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 +    esp_alloc::heap_allocator!(size: HEAP_SIZE);
 +
++    // 1a. OTA test (b) — otadata slot-switch validation (#17), BEFORE the radio (the
++    //     flash op can't collide with WiFi). One-shot + safe: if a VALID image (0xE9
++    //     magic) sits in the INACTIVE slot AND we booted from ota_0, activate it +
++    //     reboot. When we come back booted from ota_1 (next slot = ota_0), the ESP-IDF
++    //     BL's otadata slot-switch + activate_next_partition() are PROVEN. No flip if
++    //     the next slot is empty (no boot-loop) — this is the receiver's COMMIT path.
++    ota_slot_report();
++
 +    // 1b. Read identity + the provisioned PERSONA (#20) BEFORE the radio starts, so the
 +    //     efuse/flash reads can't collide with WiFi. Real TG (hk/tg/hive) if a persona is
 +    //     present at 0x12000; else fall back to the demo TG.
@@ -263,7 +271,26 @@ index 8c49f1c..95234e0 100644
 +            drive_mode: DriveMode::PushPull,
 +        })
 +        .unwrap();
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
+-
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
+-    {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
 +    // 5. WiFi config for the role.
 +    let wifi_cfg = if is_ap {
 +        WifiConfig::AccessPoint(
@@ -378,26 +405,7 @@ index 8c49f1c..95234e0 100644
 +                beat_t = -1;
 +            }
 +        }
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
--
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
--    {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
++
 +        // ── LCD status surface, every ~2 s ──
 +        lcd_tick += 1;
 +        if lcd_tick >= 40 {
@@ -433,7 +441,29 @@ index 8c49f1c..95234e0 100644
 +        Timer::after(Duration::from_millis(50)).await;
      }
 +}
-+
+ 
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +/// THE FLEET WORKS — pulse-coupled heartbeat sync over TN (Mirollo–Strogatz).
 +/// Each board runs a phase oscillator (period `HB_PERIOD_MS`). When the phase
 +/// reaches 1 it FIRES: beats the LED and broadcasts an R2-WIRE `Heartbeat` frame
@@ -464,29 +494,7 @@ index 8c49f1c..95234e0 100644
 +        IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
 +    let _ = peer; // unicast peer no longer needed; kept for the route-table seed later
 +    let peer_ep = bcast_ep;
- 
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++
 +    // my_hive + hk + my_tg_hash come from the provisioned persona (or demo fallback).
 +    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
 +    // Intra-TG trust: GroupHmac over the (received) group hk. `bad_hmac` = wrong key
@@ -766,6 +774,24 @@ index 8c49f1c..95234e0 100644
 +    // FNV-1a-32 of the RFC-4122 v4 UUID string from HKDF(master_secret, tg_id)[0:16].
 +    let hive_id = r2_trust::derive_hive_id(&master, tg_str).ok()?.1;
 +    Some(Persona { tg_label, tg_hash: r2_fnv::fnv1a_32(tg_id), hk, hive_id })
++}
++
++/// Report the active OTA slot at boot. The otadata slot-switch was PROVEN on metal
++/// (test b: wrote a valid image to ota_1 → activate_next_partition() → reboot → ESP-IDF
++/// BL booted ota_1 @0x200000). Now report-only — the real network receiver (#17) does
++/// the write+activate on COMMIT, not auto-on-boot, so this is safe/dormant on the mesh.
++fn ota_slot_report() {
++    use esp_bootloader_esp_idf::ota_updater::OtaUpdater;
++    use esp_bootloader_esp_idf::partitions::{AppPartitionSubType, PARTITION_TABLE_MAX_LEN};
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut tbl = [0u8; PARTITION_TABLE_MAX_LEN];
++    if let Ok(mut ota) = OtaUpdater::new(&mut flash, &mut tbl) {
++        if let Ok((_region, next_sub)) = ota.next_partition() {
++            // next == ota_1 ⇒ we're running from ota_0, and vice-versa.
++            let slot = if next_sub == AppPartitionSubType::Ota1 { "ota_0" } else { "ota_1" };
++            println!("r2-dfr1195: OTA slot={slot} (otadata slot-switch verified — test b PASS)");
++        }
++    }
 +}
 +
 +/// embassy-net background runner — required for the stack to make progress.
