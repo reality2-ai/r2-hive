@@ -99,12 +99,17 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     **real-TG persona reader (#20)** — read bundle raw @0x12000, r2_cbor-decode, run on PROVISIONED hk/tg/derived-
     hive; **TG=4b3df45d OFF DEMO** on both my boards (persona=true), cond=3e0d688f, synced=true, DELIVERED good /
     BLOCKED bad on the real hk ✅. Hand-rolled derive_hive_id (HKDF→v4-UUID-string→FNV; r2_trust::derive_hive_id
-    not in pinned r2-trust — composer confirming 502698→3e0d688f / b79010→cce44b60 match).
+    not in pinned r2-trust). **CANONICAL derive_hive_id** — re-synced r2-trust to 256489b, dropped the hand-roll,
+    ids UNCHANGED (cce44b60/3e0d688f) = hand-roll was canon-correct, now drift-safe ✅. **OTA test (b) PASS** —
+    wrote valid image to ota_1, firmware activate_next_partition() + reboot, ESP-IDF BL booted ota_1 @0x200000;
+    both OTA prereqs CLOSED; converted to report-only (production-safe). Op-note: espflash flash does NOT reset
+    otadata — erase 0xf000/0x2000 to recover a board to ota_0 ✅.
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
-    → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA test (b)/receiver** — OtaUpdater
-    write-path (ota_0→ota_1 → activate → software_reset → boot 0x200000) with esp-radio QUIESCED (esp-storage#31);
-    flash-touching = careful. (3) **health #18** — r2.hb.health CBOR, UNICAST to collector (NOT broadcast, per
-    af4ebcb), every-5th-beat+on-change, ota_status=0 interim. (4) dedup v0.4 (origin=route_stack[0]; future
+    → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA network receiver (#17)** — the
+    slot-switch is PROVEN (test b); remaining = UDP image transfer + write ota_1 with esp-radio QUIESCED
+    (esp-storage#31) + sha256 + activate-on-commit; flash-touching = careful. (3) **health #18** — r2.hb.health
+    CBOR, UNICAST to collector (NOT broadcast, per af4ebcb), every-5th-beat+on-change, ota_status from slot
+    report. (4) dedup v0.4 (origin=route_stack[0]; future
     r2-route bump). (5) 4-board entanglement (cross-TG gate: GroupHmac first, then trial PeeringHmac; §7.5.4).
     (6) **LoRa rung** — core landed LoRaTransport (fb13b17, r2-transport/src/lora_transport.rs); impl LoRaRadio
     for Sx1262 (wrap lora-phy) → LoRaTransport::new → single-owner lora.service() in the radio task; send()=
