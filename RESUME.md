@@ -256,6 +256,17 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     WiFi form** — it discovers, negotiates, and forms a real infra-less WiFi network. NEXT: **M10** = lose-AP →
     S3→S4→reform (self-HEALING) + composer telemetry (key13/14/15); the M8c boards form their own net
     (r2-tn-form) separate from the mesh — coordinate proof-surface wiring w/ composer at M10.
+    (10) **FORM→SYNC VERIFIED ON METAL — acceptance criterion #1 COMPLETE (infra-mode).** 2 boards: discover →
+    negotiate over BLE → form real WiFi → **lub-dub-SYNC together**. Joiner (2cab5f69): `HB<-192.168.4.1 cond=dcadbf8
+    e=-0.000 (lock)` `synced=true dlv=5`; provider (0dcadbf8): `synced=true role=AP` `FIRE seq=27/28 (CONDUCTOR)`.
+    Two fixes verified: (a) conductor-send TIMEOUT-guard (was stalling at beat 8 on SoftAP-no-STA) → fires
+    continuously; (b) role-align is_ap=serve_ap → provider correctly role=AP. So discover→negotiate→form→SYNC
+    works on hardware. **STRATEGIC PIVOT (Roy/supervisor): reality2-mesh ARC greenlit** (specs→core→hive) — the
+    GENERAL case = ESP-NOW/WiFi/LoRa TRUE-MESH (no AP; mobile wearables, continual reform); this infra-mode
+    (SoftAP-star) is KEPT as mode-1b (fixed/workshop). ESP-NOW verdict: docs/r2-espnow-mesh-verdict.md (feasible
+    + favored; esp-radio has esp-now; reuses S0-M9+route+heartbeat; kills AP-role/two-IP bug). QUEUED for hive
+    (after specs+core): platform Transport impls (ESP-NOW hive_id↔MAC + UDP) + mesh-mode + M10 runtime-elected-
+    single-AP (infra). Rig: use /dev/serial/by-id MAC paths (provider F4:12:FA:50:23:E4, joiner F4:12:FA:B7:90:10).
   - **Per-carrier Cargo features** (composer board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO
     octal-PSRAM@80MHz baked via PsramConfig in code — esp-hal has no psram Cargo feature); next deliverable.
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
