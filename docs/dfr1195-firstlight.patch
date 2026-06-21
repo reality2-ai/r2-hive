@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..581a007 100644
+index 8c49f1c..a439f59 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1396 @@
+@@ -1,83 +1,1398 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -1058,7 +1058,9 @@ index 8c49f1c..581a007 100644
 +    let rbid = compute_rbid(&my_key, epoch);
 +    let beacon = LegacyBeacon {
 +        version: BEACON_VERSION,
-+        flags: BeaconFlags { power_state: PowerState::Normal, ..Default::default() },
++        // provider_capable=true: DFR1195 has full WiFi → can be the SoftAP data-plane provider (§4A.3
++        // election eligibility = provider_capable AND power Normal/Eco). The scan reads this bit-2 for NegObservation.
++        flags: BeaconFlags { power_state: PowerState::Normal, provider_capable: true, ..Default::default() },
 +        rbid,
 +        class_hash: my_tg_hash.to_le_bytes(),
 +        tx_power: 0,
