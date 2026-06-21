@@ -143,6 +143,20 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     synced=true, cross-arch (DFR1195 + XIAO). 9th = AP 502698/ACM0 still dark on old build (port held by
     composer's health reader) → revive via Roy RST (beats+follows) or composer port-release + re-flash to canon.
     LESSON: a mixed-build fleet WILL split — keep ALL nodes on one build; verify by SERIAL not telemetry.
+  - **9/9 CONVERGED + UNIFIED + AP REVIVED (0621.1244, serial-verified) 🎉** — all 9 on ONE build/span;
+    single conductor = ACM10 (529928→06ae082b); all 8 others (incl the AP) lock cond=6ae082b synced=true
+    e≈0.000 cross-arch (5 DFR1195 + 4 XIAO). AP 502698 revived via composer port-release re-flash → canon id
+    480e900e, role=AP, beats as follower. XIAO LED: led_active_low=true CONFIRMED via boot-print + spec-correct
+    inversion (duty=100-brightness, idle=pin-HIGH=off) — awaiting Roy's eyes on the lub-dub visual (firmware
+    side verified; can't self-observe the LED). **R2-WIRE v0.6** (msg_id-in-HMAC-span, replay-fix) = deferred:
+    a SEPARATE all-9-coordinated update (mixed v0.5/v0.6 DELIVER-BLOCKs); current bench all on the same span.
+  - **NAMED REQUIREMENTS (roadmap, careful test-pairing — NOT on the live mesh):** #23b **AP-FAILOVER** (Roy:
+    "TN should renegotiate the hotspot if it goes away") — pre-designated backup (lowest AP-capable hive from
+    the roster) detects disassociation → promotes STA→AP (same SSID/IP) → others re-associate; conductor-timeout
+    app-half DONE, WiFi-layer half TODO. **BLE-BEACON discovery** (R2-DISCOVERY) = the out-of-band substrate
+    that solves the no-network-to-elect chicken-and-egg (beacon presence/hive_id/TG/AP-capability/roster over
+    BLE, independent of the WiFi-AP) — #23 negotiation rides it. **IDENTIFY** cmd (LED solid on /r2 identify).
+    Dedicated XIAO 8MB/Octal-PSRAM no_std build (robustness — runs degraded on the DFR1195 binary now).
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
     → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA network receiver (#17)** — the
     slot-switch is PROVEN (test b); remaining = UDP image transfer + write ota_1 with esp-radio QUIESCED
