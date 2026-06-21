@@ -121,13 +121,15 @@ trouble-host surfaces adv reports via an **EventHandler**, NOT a return value:
 §6.1's literal "random per-session key" CONTRADICTS §3.3 (resolver derives the peer's key from the trust
 relationship); specs ruled §6.1 the outlier. So the RESOLVABLE, canon-aligned model (replace my hk[..16]/
 epoch=0 placeholders with this in BOTH advertise + resolve):
-- **session_key = HKDF-Expand(hk, info="r2-beacon-rbid-v1")[..16]** — domain-separated from hk (NOT raw hk,
-  which is the frame-HMAC key). All TG members derive the SAME key → every board resolves any peer's RBID
-  with zero key distribution; strangers (no hk) still can't predict the rotating RBID. (hk = the member-shared
-  group HMAC key I already hold from the persona. Hand-roll HKDF(hk,info)[..16] for the homogeneous 9-board
-  now; core will ship a vector-tested `r2_trust::derive_beacon_session_key` once Roy rules hk-vs-dek as the root
-  → import it then. Needs an HKDF/HMAC-SHA256 impl: I have sha2; add `hkdf` (or hand-roll HKDF-Expand =
-  HMAC-SHA256(hk, info||0x01)[..16]).)
+- **session_key = `r2_discovery::beacon::derive_beacon_session_key(&hk, hive_id)`** — IMPORT it (shipped
+  @9996fa3, no-alloc, no new dep), do NOT hand-roll (drift risk). Construction (for reference): HKDF-SHA256
+  **Expand-ONLY** (PRK=hk directly — hk is already a PRK per R2-WIRE §10.3, so `Hkdf::from_prk(hk)`, NOT
+  `Hkdf::new(salt, hk)`), **info = b"r2-beacon-rbid-v1" || hive_id_be32**, L=16. **hive_id is MANDATORY** →
+  PER-MEMBER distinct RBIDs (a TG-wide key makes all members' RBIDs identical — core's correction). Every TG
+  member shares hk (from the join) → can derive ANY peer's key from (hk, peer_hive_id) → resolve; strangers
+  (no hk) can't. INTERIM root=hk (R2-KEYSTORE §2 members hold {cert,dek,hk}, not TG_SK); canonical r2-trust
+  version + byte vector land on Roy's §6 ruling — already mesh-consistent. ALREADY WIRED in the advertise
+  (metal rbid = baf64d9d for hive 2cab5f69).
 - **epoch = floor(shared_coarse_time_ms / 900_000)** (T_rotate=900s) from ANY shared time base — heartbeat
   beat_seq when present (do NOT hard-couple; R2-HEARTBEAT is OPTIONAL per specs), else RTC/NTP/GPS.
 - **resolve_rbid_windowed(observed, &[(hive_id, session_key) per known peer], epoch, 1)** — the ±1 window

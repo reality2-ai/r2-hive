@@ -210,11 +210,11 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     the 0xFF manufacturer AD; metal: `BLE advertising R2-BEACON rbid=471a93a8.. (24 B)`; external scan
     confirms `ManufacturerData 0x01b2` (the encode_advert output, vs the old 0x3252 placeholder).
     **VERSION-COMPAT (the #1 risk) SOLVED: trouble 0.6.0 = bt-hci 0.8** (esp-radio 0.18; 0.2=bt-hci0.3 /
-    0.7=bt-hci0.9 both mismatch). Built against core's **r2-discovery @fb5b189** (beacon+negotiation;
+    0.7=bt-hci0.9 both mismatch). Built against core's **r2-discovery @9996fa3** (beacon+negotiation;
     default + --features ble both build clean). **Advertise CANON-CORRECT**: `my_key =
     derive_beacon_session_key(&hk, my_hive)` (PER-MEMBER, HKDF(hk, salt=r2-beacon-rbid-v1, info=hive_be32)[..16]
     — core fb5b189; a TG-wide key would make all RBIDs identical) → compute_rbid; metal-verified rbid changed
-    471a93a8(placeholder)→33c31152(per-member). epoch=0 still placeholder until a shared coarse-time base.
+    per-member key, Expand-only construction @9996fa3, metal rbid=baf64d9d. epoch=0 still placeholder until a shared coarse-time base.
     **NEXT: SCAN** (trouble EventHandler.on_adv_reports + run_with_handler + Scanner.scan → decode_advert →
     resolve_rbid_windowed(observed, [(peer_id, derive_beacon_session_key(&hk, peer_id))], epoch, 1) →
     NegObservation; 2-board test) → **L2CAP CoC** (control) → **NegotiationRadio** over core's engine.
