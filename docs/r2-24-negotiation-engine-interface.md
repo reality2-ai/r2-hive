@@ -74,6 +74,21 @@ pair with **trouble-host** (no_std BLE host, uses `bt-hci` — installed). Steps
 RISK: WiFi+BLE coex init + trouble-host↔esp-radio HCI version compat — expect iteration; do it
 fresh, on the test pairing, before touching the live mesh.
 
+## BLE-stack scout (concrete, 2026-06-21)
+- esp-radio 0.18 HAS the BLE controller (`src/ble/btdm.rs`, BLEController) + HCI (`read_hci`/`write_hci`).
+- `bt-hci` 0.8 present (Controller/Transport traits) — the trouble↔controller bridge.
+- **trouble-host is NOT yet a dep** — must add (verify version compat vs bt-hci 0.8 + esp-radio 0.18).
+- **coex** (WiFi+BLE on one radio) = the real complexity — fw runs WiFi (esp-radio+esp-rtos); BLE needs
+  esp-radio `coex` + careful controller init order alongside the live WiFi.
+- core READY (e1963b8): engine + ctors (NegObservation::new / NodeCaps::new / DataPlaneParams::new +
+  ssid()/psk() / ControlMsg / lowest_live_id / NegotiationEngine::<16>::new); `r2_core::beacon::compute_rbid`
+  exists + vector-tested. Gated = the beacon CODEC + power/provider_capable flags (NOT the radio bring-up).
+- **Structure: feature-gated `ble`** (optional deps, off by default) so the live 9-board firmware keeps
+  building while the BLE path develops on a TEST PAIRING. Order: deps resolve → esp-radio BLE controller
+  init (+coex) → bt-hci bridge → trouble-host advertise (RBID via compute_rbid) → scan → L2CAP CoC →
+  NegotiationRadio impl over the ready engine. New-stack integration = a focused dive (iterates on
+  versions/coex), not a marathon-tail rush.
+
 ## Params for core
 T_fallback (Profile A WiFi/BLE) = 5s (documented per §4A.4(A)). T_negotiate ~10s (R2-WIFI §3.3.1
 #wifi_offer timeout). Send back: confirm the module home + the trait names, and whether the
