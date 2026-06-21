@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..f90fe6f 100644
+index 5a3c89f..faad98f 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,10 +54,12 @@ index 5a3c89f..f90fe6f 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,39 @@ embassy-futures = "0.1"
+@@ -40,6 +55,41 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
++# no_std float math (logf) for the leaderless concave Mirollo–Strogatz phase response (R2-HEARTBEAT v0.4 §4.1).
++libm = "0.2"
 +# Network-OTA (#17): flash backend (esp-hal 1.1 has no flash module) + the storage trait.
 +esp-storage = { version = "0.6", features = ["esp32s3"] }
 +embedded-storage = "0.3.1"
@@ -109,10 +111,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..9ecbce2 100644
+index 8c49f1c..f2c4d6a 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1976 @@
+@@ -1,83 +1,1990 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -576,6 +578,19 @@ index 8c49f1c..9ecbce2 100644
 +    }
 +}
 +
++/// Leaderless reachback-PCO concave Mirollo–Strogatz phase response (R2-HEARTBEAT v0.4 §4.1, ported from
++/// r2-harness firefly::Coupling::ConcaveMs{b:3}). Returns the bidirectional concave nudge factor for a phase
++/// error e ∈ [-0.5, 0.5); the full phase kick is K_phi · w_ij · phase_response(e). Concave (not a linear/
++/// constant kick) is load-bearing: linear clusters for N>2, the concave M&S form provably synchronises for any N.
++#[cfg(feature = "ble")]
++fn phase_response(e: f32) -> f32 {
++    // resp = ln(1 + (e^3 − 1)·m) / 3, m = min(2|e|, 1).  e^3 = Euler^3 (precomputed constant), NOT phase err.
++    const EXP3_MINUS_1: f32 = 19.085_537; // e^3 − 1, b = 3
++    let m = (e.abs() * 2.0).min(1.0);
++    let resp = libm::logf(1.0 + EXP3_MINUS_1 * m) / 3.0; // concave ∈ [0,1]
++    0.5 * resp * e.signum()
++}
++
 +/// THE FLEET WORKS — pulse-coupled heartbeat sync over TN (Mirollo–Strogatz).
 +/// Each board runs a phase oscillator (period `HB_PERIOD_MS`). When the phase
 +/// reaches 1 it FIRES: beats the LED and broadcasts an R2-WIRE `Heartbeat` frame
@@ -803,11 +818,12 @@ index 8c49f1c..9ecbce2 100644
 +                    // INFRA: broadcast within TG (DeliverOnly at each node). MESH (M-ESPNOW-3b): DIRECTED to
 +                    // the far node C (f91c8911) — A↔C are NOT direct neighbours (allow-list) so r2-route must
 +                    // route it A→B→C (B returns Directed → relays). Proves real multi-hop, not flood-deliver.
-+                    // INFRA + BLE data-mesh (single-hop): broadcast within TG (the peer delivers/blocks).
-+                    // ESP-NOW multi-hop only: directed to the far node C (f91c8911) to force A→B→C relay.
-+                    #[cfg(any(not(feature = "ble"), feature = "blemesh"))]
++                    // Broadcast within TG everywhere EXCEPT the bench multi-hop mask (meshmask), which directs
++                    // to the far node C (f91c8911) to force A→B→C relay. The general/dynamics mesh broadcasts
++                    // (no directed-to-C relay congestion → heartbeats land → accurate neighbour_count).
++                    #[cfg(not(all(feature = "ble", feature = "meshmask")))]
 +                    let ev_target: u32 = 0;
-+                    #[cfg(all(feature = "ble", not(feature = "blemesh")))]
++                    #[cfg(all(feature = "ble", feature = "meshmask"))]
 +                    let ev_target: u32 = 0xf91c_8911;
 +                    let header = ExtendedHeader {
 +                        version: 0,
