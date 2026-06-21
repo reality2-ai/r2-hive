@@ -87,3 +87,25 @@ join_provider/data_plane_state/teardown_data_plane/now_ms) + `engine.poll(&mut r
   platforms identical (workshop folded the same API → zero-drift).
 - **Provider/joiner roles now ENGINE-DRIVEN** (not the M7 const): the engine elects (lowest provider_capable
   hive); the conn-mgr opens CoC to the elected provider. M7's M7_PROVIDER_HIVE const retires.
+
+## M8c — REAL WiFi data plane (runtime reconfig) — TRACTABLE (APIs confirmed)
+M9 network-forming NEGOTIATION is proven on metal; M8c swaps the stub (DATA_PLANE_AVAIL=true) for real
+runtime WiFi. Confirmed tractable — NO stack recreation:
+- `esp_radio::wifi::WifiController::set_config(&Config)` (mod.rs:2540) — runtime reconfig (AP↔STA, ssid/psk).
+- `embassy_net::Stack::set_config_v4(ConfigV4)` (lib.rs:541) — runtime IP change on the LIVE stack.
+- `WifiController::connect_async()` (mod.rs:2860).
+Current WiFi is STATIC-at-boot (main.rs:127 is_ap by MAC → wifi_cfg → wifi::new → stack w/ fixed IP;
+controller owned by wifi_task @1541). M8c architecture:
+- Static `DATA_PLANE_CMD` (embassy Signal): bring_up_provider/join_provider (sync trait) store the cmd
+  (mode + ssid + psk from DataPlaneParams) + signal; a WIFI-CONTROL task (refactor: owns the controller,
+  replaces/extends wifi_task) picks it up → set_config(AP|STA) → start/connect_async → stack.set_config_v4
+  (AP: 192.168.x.1 static; STA: gateway/DHCP) → set DATA_PLANE_AVAIL on link-up (clear on loss = the S3
+  disruption signal for M10).
+- bring_up_provider(p): AP cmd (ssid=p.ssid(), psk=p.psk(), be the SoftAP). join_provider(p): STA cmd
+  (connect to p.ssid()/p.psk(), AP-IP via gateway — workshop wifi_sta::get_gateway pattern, not hardcoded).
+- data_plane_state: DATA_PLANE_AVAIL (Available when associated+IP; Failed on loss).
+- On the 2 test boards: the boot mesh STA is REPLACED by the formed data plane (provider→its SoftAP,
+  joiner→that SoftAP). BLE control plane keeps running underneath (coex proven). composer sees the REAL B→W flip.
+- DELICACY: the controller is in wifi_task; refactor to a control task that handles reconfig cmds; sequence
+  the set_config/connect vs the existing io_task using the stack; keep BLE coex. Then M10: lose-AP →
+  DATA_PLANE_AVAIL=false → engine S2→S3→S4→reform + emit key13/14/15 telemetry.
