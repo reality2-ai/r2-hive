@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..294467b 100644
+index 8c49f1c..581a007 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1329 @@
+@@ -1,83 +1,1396 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -409,7 +409,7 @@ index 8c49f1c..294467b 100644
 +            Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
 +        }
 +    }
- 
++
 +    // ── LCD (ST7735S 160x80) status surface — CARRIER-GATED (has_screen). PWR(GPIO48)
 +    //    ACTIVE-LOW. Skipped entirely on the screenless XIAO-S3 so the binary runs cleanly
 +    //    there (no driving non-existent hardware / GPIO conflict). di_buf stays in main
@@ -451,9 +451,7 @@ index 8c49f1c..294467b 100644
 +    // Segments are kicked at 50 ms tick boundaries; LEDC hardware fades between them.
 +    let mut beat_t: i32 = -1;
 +    let mut lcd_tick: u32 = 0;
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        // ── IDENTIFY override (Roy dashboard locate): SOLID LED for the countdown, then resume ──
 +        let id = IDENTIFY_TICKS.load(Ordering::Relaxed);
 +        if id > 0 {
@@ -1032,7 +1030,8 @@ index 8c49f1c..294467b 100644
 +    my_tg_hash: u32,
 +    hk: [u8; 32],
 +) {
-+    use embassy_futures::join::join3;
++    use bt_hci::param::{AddrKind, BdAddr};
++    use embassy_futures::join::join;
 +    use r2_discovery::beacon::{
 +        compute_rbid, derive_beacon_session_key, encode_advert, BeaconFlags, LegacyBeacon,
 +        PowerState, ADVERT_PAYLOAD_LEN, BEACON_VERSION,
@@ -1049,7 +1048,7 @@ index 8c49f1c..294467b 100644
 +        0xC0,
 +    ]);
 +    let stack = trouble_host::new(controller, &mut resources).set_random_address(addr);
-+    let Host { mut peripheral, central, mut runner, .. } = stack.build();
++    let Host { mut peripheral, mut central, mut runner, .. } = stack.build();
 +    // Real R2-BEACON advert (r2_discovery::beacon, byte-exact). PER-MEMBER session_key =
 +    // derive_beacon_session_key(hk, my_hive) (HKDF(hk, salt=r2-beacon-rbid-v1, info=hive_be32)) — distinct
 +    // per member, resolvable by TG peers (shared hk), opaque to strangers. RBID = HMAC(key, epoch)[0:8].
@@ -1076,61 +1075,127 @@ index 8c49f1c..294467b 100644
 +    adv[4] = 0xFF;
 +    adv[5..5 + plen].copy_from_slice(&payload[..plen]);
 +    let alen = 5 + plen;
-+    // SCAN resolve-registry: each known TG peer's per-member beacon key (derive_beacon_session_key(hk,id)).
-+    let registry: [(u32, [u8; 16]); KNOWN_HIVE_IDS.len()] =
-+        core::array::from_fn(|i| (KNOWN_HIVE_IDS[i], derive_beacon_session_key(&hk, KNOWN_HIVE_IDS[i])));
-+    let handler = R2ScanHandler { registry: &registry, epoch };
-+    let mut scanner = Scanner::new(central);
-+    let scan_cfg = ScanConfig {
-+        active: false,
-+        filter_accept_list: &[],
-+        phys: PhySet::M1,
-+        interval: Duration::from_millis(100),
-+        window: Duration::from_millis(100),
-+        timeout: Duration::from_secs(0),
-+    };
-+    // CONTROL PLANE: advertise own RBID + scan peers concurrently; the runner drives HCI and
-+    // dispatches adv reports to handler.on_adv_reports (decode_advert + resolve_rbid_windowed).
-+    let advertise_fut = async {
-+        match peripheral
-+            .advertise(
-+                &AdvertisementParameters::default(),
-+                Advertisement::NonconnectableNonscannableUndirected { adv_data: &adv[..alen] },
-+            )
-+            .await
-+        {
-+            Ok(_advertiser) => {
-+                println!(
-+                    "r2-dfr1195: BLE advertising R2-BEACON rbid={:02x}{:02x}{:02x}{:02x}.. ({} B, hive {my_hive:08x})",
-+                    rbid[0], rbid[1], rbid[2], rbid[3], plen
-+                );
-+                loop {
-+                    Timer::after(Duration::from_secs(60)).await; // hold the advertiser alive
++    let _ = (rbid, plen, epoch); // (beacon vals reused as the connectable adv_data below)
++    // M7 — L2CAP CoC connectivity (2-board). Provider (lowest test hive) connectable-advertises the RBID
++    // + accepts ACL + accepts the L2CAP CoC on PSM 0x00D2; joiner connects (deterministic M7 addr) +
++    // opens the CoC + sends a framed test SDU. PROVES the BLE control-plane data path cross-board.
++    // (M8 re-integrates the non-conn beacon + scan + the HiveId↔addr map + the shared ControlMsg codec.)
++    let am_provider = my_hive == M7_PROVIDER_HIVE;
++    if am_provider {
++        let work = async {
++            loop {
++                let advertiser = match peripheral
++                    .advertise(
++                        &AdvertisementParameters::default(),
++                        Advertisement::ConnectableScannableUndirected { adv_data: &adv[..alen], scan_data: &[] },
++                    )
++                    .await
++                {
++                    Ok(a) => a,
++                    Err(_) => {
++                        println!("r2-dfr1195: M7 provider advertise ERR");
++                        Timer::after(Duration::from_secs(1)).await;
++                        continue;
++                    }
++                };
++                println!("r2-dfr1195: M7 provider connectable-advertising (hive {my_hive:08x}), awaiting CoC");
++                let conn = match advertiser.accept().await {
++                    Ok(c) => c,
++                    Err(_) => {
++                        println!("r2-dfr1195: M7 provider ACL accept ERR");
++                        continue;
++                    }
++                };
++                println!("r2-dfr1195: M7 provider — ACL CONNECTION accepted");
++                let mut ch = match L2capChannel::accept(&stack, &conn, &[R2_PSM], &L2capChannelConfig::default()).await {
++                    Ok(c) => c,
++                    Err(_) => {
++                        println!("r2-dfr1195: M7 provider — L2CAP accept ERR");
++                        continue;
++                    }
++                };
++                println!("r2-dfr1195: M7 provider — L2CAP CoC ACCEPTED on PSM 0x00D2");
++                let mut buf = [0u8; 256];
++                match ch.receive(&stack, &mut buf).await {
++                    Ok(n) => println!("r2-dfr1195: M7 provider — CoC RECV {n} B: {:02x?}", &buf[..n.min(8)]),
++                    Err(_) => println!("r2-dfr1195: M7 provider — CoC recv ERR"),
 +                }
 +            }
-+            Err(_) => println!("r2-dfr1195: BLE advertise ERR"),
-+        }
-+    };
-+    let scan_fut = async {
-+        println!("r2-dfr1195: BLE scanning for R2-BEACON peers");
-+        loop {
-+            match scanner.scan(&scan_cfg).await {
-+                // HOLD the ScanSession alive — dropping it cancels the scan (Drop impl). Reports flow
-+                // to handler.on_adv_reports via run_with_handler while the session is held.
-+                Ok(session) => {
-+                    let _session = session;
-+                    Timer::after(Duration::from_secs(4)).await;
++        };
++        let _ = join(runner.run(), work).await;
++    } else {
++        let work = async {
++            // Provider's deterministic M7 addr (Address::random([hive_le.., 0x52, 0xC0])); M8 uses the scan-resolved addr.
++            let paddr = BdAddr::new([
++                (M7_PROVIDER_HIVE & 0xff) as u8,
++                ((M7_PROVIDER_HIVE >> 8) & 0xff) as u8,
++                ((M7_PROVIDER_HIVE >> 16) & 0xff) as u8,
++                ((M7_PROVIDER_HIVE >> 24) & 0xff) as u8,
++                0x52,
++                0xC0,
++            ]);
++            Timer::after(Duration::from_secs(3)).await; // let the provider come up
++            loop {
++                let cfg = ConnectConfig {
++                    scan_config: ScanConfig {
++                        active: false,
++                        filter_accept_list: &[(AddrKind::RANDOM, &paddr)],
++                        phys: PhySet::M1,
++                        interval: Duration::from_millis(100),
++                        window: Duration::from_millis(100),
++                        timeout: Duration::from_secs(0),
++                    },
++                    connect_params: RequestedConnParams::default(),
++                };
++                println!("r2-dfr1195: M7 joiner (hive {my_hive:08x}) connecting to provider {M7_PROVIDER_HIVE:08x}");
++                let conn = match central.connect(&cfg).await {
++                    Ok(c) => c,
++                    Err(_) => {
++                        println!("r2-dfr1195: M7 joiner connect ERR");
++                        Timer::after(Duration::from_secs(2)).await;
++                        continue;
++                    }
++                };
++                println!("r2-dfr1195: M7 joiner — ACL CONNECTED to provider");
++                let mut ch = match L2capChannel::create(&stack, &conn, R2_PSM, &L2capChannelConfig::default()).await {
++                    Ok(c) => c,
++                    Err(_) => {
++                        println!("r2-dfr1195: M7 joiner — L2CAP create ERR");
++                        Timer::after(Duration::from_secs(2)).await;
++                        continue;
++                    }
++                };
++                println!("r2-dfr1195: M7 joiner — L2CAP CoC OPEN on PSM 0x00D2");
++                // framed test SDU: [len_lo, len_hi, payload] (R2-BLE §6.4 LE prefix)
++                let pl = b"R2-M7";
++                let mut frame = [0u8; 8];
++                frame[0] = pl.len() as u8;
++                frame[1] = 0;
++                frame[2..2 + pl.len()].copy_from_slice(pl);
++                match ch.send(&stack, &frame[..2 + pl.len()]).await {
++                    Ok(_) => println!("r2-dfr1195: M7 joiner — CoC SENT test SDU 'R2-M7'"),
++                    Err(_) => println!("r2-dfr1195: M7 joiner — CoC send ERR"),
 +                }
-+                Err(_) => Timer::after(Duration::from_millis(500)).await,
++                Timer::after(Duration::from_secs(8)).await;
 +            }
-+        }
-+    };
-+    let _ = join3(runner.run_with_handler(&handler), advertise_fut, scan_fut).await;
++        };
++        let _ = join(runner.run(), work).await;
++    }
 +}
 +
-+/// Known TG hive_ids (bring-up registry for RBID→hive_id resolution; the real roster comes from
-+/// peers.rs / the persona later). KS1-canonical ids of the 9-board TG.
++/// L2CAP CoC PSM for the R2 control plane (R2-WIRE event transport, R2-BLE §6). OTA = 0x00D3.
 +#[cfg(feature = "ble")]
++const R2_PSM: u16 = 0x00D2;
+ 
++/// M7 CoC-connectivity test: the provider board (lowest of the 2 test boards). The M9 engine does
++/// real §4A.3 election (lowest eligible hive_id) — this const is just the 2-board CoC bring-up.
++#[cfg(feature = "ble")]
++const M7_PROVIDER_HIVE: u32 = 0x0dca_dbf8; // ACM11
++
++/// Known TG hive_ids (bring-up registry for RBID→hive_id resolution; the real roster comes from
++/// peers.rs / the persona later). KS1-canonical ids of the 9-board TG. (Used by M8 scan/resolve.)
++#[cfg(feature = "ble")]
++#[allow(dead_code)]
 +const KNOWN_HIVE_IDS: &[u32] = &[0x480e_900e, 0x2cab_5f69, 0x06ae_082b, 0x0dca_dbf8];
 +
 +/// Scan event handler: decode each observed R2-BEACON + resolve its RBID → hive_id.
@@ -1198,7 +1263,9 @@ index 8c49f1c..294467b 100644
 +    let bcast = IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
 +    let mut line = [0u8; 64];
 +    let mut n = 0usize;
-+    loop {
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        if let Ok(c) = usb_rx.read_byte() {
 +            if c == b'\n' || c == b'\r' {
 +                if n > 0 {
