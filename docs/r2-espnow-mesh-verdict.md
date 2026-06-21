@@ -124,3 +124,21 @@ mobility-native, no fixed infra. (1-hop deliver, 2 boards.)
 REMAINING: MULTI-HOP relay (3+ boards — r2-route neighbour-obs Transport::EspNow.bit()=0x20 + forward-by-hive_id
 → HIVE_MAC unicast + originator-in-frame for per-origin dedup) + dynamic behaviors (N-join = auto-join the mesh;
 mobility-reform = re-route as nodes move, no AP-failover needed since no AP).
+
+## M-ESPNOW-3b — multi-hop relay (the routing layer) — PLAN (core seam + allow-list ready)
+The 1-hop mesh (discover→sync→GroupHmac-gated delivery, no AP) is on metal = the architecture validated
+end-to-end (L5 trust boundary over the true mesh, R2-RUNTIME §13). Multi-hop relay is the scaling build:
+1. **ingest_observation(hive, Transport::EspNow, 0.7)** from HIVE_MAC (each mapped peer → the route neighbour
+   table) so plan_forward returns Directed/Flood instead of Drop(NoViableNeighbour). record_delivery_success
+   reinforces (living-routing, no RSSI).
+2. **Originator-in-frame**: carry route_stack[0]=originator on originated Events; extract → ForwardRequest.origin
+   (NOT 0 in the mesh) → r2-route's automatic (msg_id,origin) dedup across paths/hops.
+3. **Re-gate the relay** (main.rs ~727): currently `if is_ap && ttl>1 && Directed|Flood` + socket.send_to —
+   no AP in the mesh → no relay. For ble: relay on ANY node (drop the is_ap gate; dedup+ttl bound it) + send
+   over ESP-NOW (Flood→BROADCAST_ADDRESS one-shot; Directed→HIVE_MAC[neighbour] unicast). Handle all 3 actions.
+4. **Bench multi-hop (core's allow-list technique)**: per-board can-hear MAC set at the ESP-NOW recv (espnow_task)
+   — DROP frames whose src MAC isn't in it, BEFORE r2-route. A={B}, B={A,C}, C={B} → A's frame reaches C ONLY
+   via B's relay (exercises relay + ttl-decrement + dedup on a bench, no rig). 3rd board = a DFR1195 (need its
+   hive+MAC). (3 demos: dedup-correctness [no mask], multi-hop-topology [mask], real-range [Roy's rig].)
+5. Then DYNAMIC: N-join (a new same-TG board auto-maps+syncs+delivers — already works as it ingests on map);
+   mobility-reform = re-route (drop a peer's neighbour-obs on silence → r2-route reselects; no AP-failover, no AP).
