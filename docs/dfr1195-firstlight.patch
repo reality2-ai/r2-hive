@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..1c3a7a8 100644
+index 5a3c89f..e30ccf8 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,7 +54,7 @@ index 5a3c89f..1c3a7a8 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,32 @@ embassy-futures = "0.1"
+@@ -40,6 +55,36 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -84,6 +84,10 @@ index 5a3c89f..1c3a7a8 100644
 +[features]
 +default = []
 +ble = ["esp-radio/ble", "esp-radio/coex", "esp-radio/esp-now", "dep:trouble-host", "dep:bt-hci"]
++# BLE DATA-MESH (Roy's single-transport rung): the R2 data plane runs over the L2CAP CoC (Transport::Ble)
++# instead of ESP-NOW. Reuses the proven io_task PLL + GroupHmac via the same DATA_TX/RX bridge; only the
++# data-plane carrier swaps (espnow_task off → serve_data_coc bridges DATA over the CoC). Implies ble.
++blemesh = ["ble"]
  
  [profile.release]
  opt-level = "s"
@@ -102,10 +106,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..17bef55 100644
+index 8c49f1c..c2c7ed2 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1848 @@
+@@ -1,83 +1,1920 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -260,20 +264,15 @@ index 8c49f1c..17bef55 100644
 +    };
 +    let is_ap = mac_low3 == AP_MAC_MATCH; // soft-AP role stays MAC-based
 +    let (has_screen, led_active_low) = read_board_profile(); // DFR1195 vs XIAO-S3 (LED polarity)
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
 +    let timg0 = TimerGroup::new(p.TIMG0);
 +    let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
 +    esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
  
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +    println!("r2-dfr1195: PHASE 1a — esp-rtos/embassy + esp-radio (build {BUILD_ID})");
 +    println!(
 +        "r2-dfr1195: DEV {mac_low3:06x} hive={my_hive:08x} TG={tg_label} (persona={}) role={}",
@@ -281,7 +280,12 @@ index 8c49f1c..17bef55 100644
 +        if is_ap { "SOFT-AP" } else { "STA" }
 +    );
 +    println!("r2-dfr1195: carrier has_screen={has_screen} led_active_low={led_active_low}");
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +    // 4. Status LED (GPIO21) via LEDC PWM — for the organic lub-DUB heartbeat envelope.
 +    //    io_task signals the FIRE (conductor-PLL = WHEN); main renders the SHAPE below.
 +    let mut ledc = Ledc::new(p.LEDC);
@@ -347,7 +351,7 @@ index 8c49f1c..17bef55 100644
 +
 +    // ESP-NOW true-mesh data plane (Mode 2): take the connectionless esp_now interface (distinct field;
 +    // coexists with the STA/AP netif + BLE). M-ESPNOW-1: validate broadcast/recv mechanics on metal.
-+    #[cfg(feature = "ble")]
++    #[cfg(all(feature = "ble", not(feature = "blemesh")))]
 +    let esp_now = interfaces.esp_now;
 +
 +    // 7. Static IPs by role (deterministic 2-node net; no DHCP server needed).
@@ -435,7 +439,9 @@ index 8c49f1c..17bef55 100644
 +                println!("r2-dfr1195: BLE controller init OK (coex with WiFi)");
 +                spawner.spawn(ble_task(c, my_hive, my_tg_hash, hk).unwrap());
 +                spawner.spawn(engine_task(my_hive).unwrap()); // M9: run the S0–S4 engine over the bridge
-+                spawner.spawn(espnow_task(esp_now, my_hive).unwrap()); // ESP-NOW true-mesh data plane (Mode 2)
++                // ESP-NOW data plane (Mode 2) — OFF in blemesh (the data plane is the BLE L2CAP CoC instead).
++                #[cfg(not(feature = "blemesh"))]
++                spawner.spawn(espnow_task(esp_now, my_hive).unwrap());
 +
 +            }
 +            Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
@@ -613,14 +619,16 @@ index 8c49f1c..17bef55 100644
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
-+
-+    loop {
+ 
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        // Heartbeat transport: ESP-NOW broadcast for the mesh (ble), UDP socket for infra (default).
 +        // The conductor-PLL + decode below are UNCHANGED (reused intact); only the recv source differs.
 +        #[cfg(not(feature = "ble"))]
 +        let recv_fut = socket.recv_from(&mut scratch);
 +        #[cfg(feature = "ble")]
-+        let recv_fut = ESPNOW_RX.receive();
++        let recv_fut = DATA_RX.receive();
 +        match select(Timer::after(Duration::from_millis(HB_TICK_MS)), recv_fut).await {
 +            // ── phase tick: advance, manage the LED beat, FIRE at phase>=1 ──
 +            Either::First(_) => {
@@ -671,14 +679,14 @@ index 8c49f1c..17bef55 100644
 +                    let do_broadcast = true;
 +                    if do_broadcast {
 +                        if let Ok(n) = encode_extended(&msg, &mut txbuf) {
-+                            // MESH (ble): broadcast the beat over ESP-NOW (espnow_task drains ESPNOW_TX →
++                            // MESH (ble): broadcast the beat over ESP-NOW (espnow_task drains DATA_TX →
 +                            // ESP-NOW broadcast). No AP needed. try_send so a full queue never stalls the PLL.
 +                            #[cfg(feature = "ble")]
 +                            {
 +                                let mut f = [0u8; 256];
 +                                let m = n.min(256);
 +                                f[..m].copy_from_slice(&txbuf[..m]);
-+                                let _ = ESPNOW_TX.try_send((f, m));
++                                let _ = DATA_TX.try_send((f, m));
 +                            }
 +                            // INFRA (default): UDP broadcast, TIMEOUT-guarded (SoftAP-no-STA-yet can block).
 +                            #[cfg(not(feature = "ble"))]
@@ -729,7 +737,13 @@ index 8c49f1c..17bef55 100644
 +                                        IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 1)),
 +                                        R2_UDP_PORT,
 +                                    );
++                                    // INFRA/ESP-NOW: report health to the AP collector. BLE data-mesh has no
++                                    // WiFi collector AND no WiFi controller up → socket.send_to would BLOCK
++                                    // the io_task (the beats=25 freeze). Skip it; health-over-BLE is later.
++                                    #[cfg(not(feature = "blemesh"))]
 +                                    let _ = socket.send_to(&txbuf[..n], cep).await;
++                                    #[cfg(feature = "blemesh")]
++                                    let _ = (n, cep);
 +                                }
 +                            }
 +                        }
@@ -750,9 +764,11 @@ index 8c49f1c..17bef55 100644
 +                    // INFRA: broadcast within TG (DeliverOnly at each node). MESH (M-ESPNOW-3b): DIRECTED to
 +                    // the far node C (f91c8911) — A↔C are NOT direct neighbours (allow-list) so r2-route must
 +                    // route it A→B→C (B returns Directed → relays). Proves real multi-hop, not flood-deliver.
-+                    #[cfg(not(feature = "ble"))]
++                    // INFRA + BLE data-mesh (single-hop): broadcast within TG (the peer delivers/blocks).
++                    // ESP-NOW multi-hop only: directed to the far node C (f91c8911) to force A→B→C relay.
++                    #[cfg(any(not(feature = "ble"), feature = "blemesh"))]
 +                    let ev_target: u32 = 0;
-+                    #[cfg(feature = "ble")]
++                    #[cfg(all(feature = "ble", not(feature = "blemesh")))]
 +                    let ev_target: u32 = 0xf91c_8911;
 +                    let header = ExtendedHeader {
 +                        version: 0,
@@ -779,7 +795,7 @@ index 8c49f1c..17bef55 100644
 +                            let mut f = [0u8; 256];
 +                            let m = n.min(256);
 +                            f[..m].copy_from_slice(&txbuf[..m]);
-+                            let _ = ESPNOW_TX.try_send((f, m));
++                            let _ = DATA_TX.try_send((f, m));
 +                        }
 +                        #[cfg(not(feature = "ble"))]
 +                        let _ = socket.send_to(&txbuf[..n], peer_ep).await;
@@ -807,7 +823,7 @@ index 8c49f1c..17bef55 100644
 +                let (n, from) = {
 +                    let len = got.1.min(scratch.len());
 +                    scratch[..len].copy_from_slice(&got.0[..len]);
-+                    (len, "esp-now")
++                    (len, MESH_LABEL)
 +                };
 +                match decode_extended(&scratch[..n]) {
 +                Ok(m) => match m.header.msg_type {
@@ -975,7 +991,7 @@ index 8c49f1c..17bef55 100644
 +                                        let mut f = [0u8; 256];
 +                                        let mm = n.min(256);
 +                                        f[..mm].copy_from_slice(&txbuf[..mm]);
-+                                        let _ = ESPNOW_TX.try_send((f, mm));
++                                        let _ = DATA_TX.try_send((f, mm));
 +                                    }
 +                                    #[cfg(not(feature = "ble"))]
 +                                    let _ = socket.send_to(&txbuf[..n], peer_ep).await;
@@ -1267,8 +1283,11 @@ index 8c49f1c..17bef55 100644
 +                        continue;
 +                    }
 +                };
-+                println!("r2-dfr1195: NEG provider — CoC up, serving control plane");
++                println!("r2-dfr1195: NEG provider — CoC up, serving {COC_PLANE}");
++                #[cfg(not(feature = "blemesh"))]
 +                serve_coc(&stack, ch, peer_hive).await;
++                #[cfg(feature = "blemesh")]
++                serve_data_coc(&stack, ch, peer_hive).await;
 +                println!("r2-dfr1195: NEG provider — CoC closed");
 +            }
 +        };
@@ -1318,8 +1337,11 @@ index 8c49f1c..17bef55 100644
 +                        continue;
 +                    }
 +                };
-+                println!("r2-dfr1195: NEG joiner — CoC up, serving control plane");
++                println!("r2-dfr1195: NEG joiner — CoC up, serving {COC_PLANE}");
++                #[cfg(not(feature = "blemesh"))]
 +                serve_coc(&stack, ch, peer_hive).await;
++                #[cfg(feature = "blemesh")]
++                serve_data_coc(&stack, ch, peer_hive).await;
 +                println!("r2-dfr1195: NEG joiner — CoC closed");
 +            }
 +        };
@@ -1382,6 +1404,53 @@ index 8c49f1c..17bef55 100644
 +                println!("r2-dfr1195: NEG CoC SENT to {target:08x} ({n} B)");
 +            } else {
 +                Timer::after(Duration::from_millis(50)).await;
++            }
++        }
++    };
++    match select(recv, send).await {
++        Either::First(()) | Either::Second(()) => {}
++    }
++}
++
++/// BLE DATA-MESH (blemesh): bridge the L2CAP CoC ↔ the DATA_TX/DATA_RX mesh channels, carrying R2-WIRE
++/// frames (heartbeat + Events) — io_task's PROVEN conductor-PLL + GroupHmac deliver-gate run over BLE
++/// EXACTLY as over ESP-NOW (the bridge's payoff: transport-agnostic). Frame: [len_lo, len_hi, R2-frame].
++#[cfg(feature = "blemesh")]
++async fn serve_data_coc<'d, C: trouble_host::prelude::Controller>(
++    stack: &trouble_host::prelude::Stack<'d, C, trouble_host::prelude::DefaultPacketPool>,
++    ch: trouble_host::prelude::L2capChannel<'d, trouble_host::prelude::DefaultPacketPool>,
++    _peer: u32,
++) {
++    use embassy_futures::select::{select, Either};
++    let (mut tx, mut rx) = ch.split();
++    let recv = async {
++        let mut buf = [0u8; 256];
++        loop {
++            match rx.receive(stack, &mut buf).await {
++                Ok(n) if n >= 2 => {
++                    let len = buf[0] as usize | ((buf[1] as usize) << 8);
++                    if 2 + len <= n {
++                        let l = len.min(256);
++                        let mut f = [0u8; 256];
++                        f[..l].copy_from_slice(&buf[2..2 + l]);
++                        let _ = DATA_RX.try_send((f, l)); // → io_task PLL / deliver-gate
++                    }
++                }
++                Ok(_) => {}
++                Err(_) => break,
++            }
++        }
++    };
++    let send = async {
++        loop {
++            let (frame, n) = DATA_TX.receive().await; // io_task's beat / Event
++            let m = n.min(240); // CoC MTU-safe (DefaultPacketPool mtu 251 − len prefix − headroom)
++            let mut out = [0u8; 242];
++            out[0] = (m & 0xff) as u8;
++            out[1] = ((m >> 8) & 0xff) as u8;
++            out[2..2 + m].copy_from_slice(&frame[..m]);
++            if tx.send(stack, &out[..2 + m]).await.is_err() {
++                break;
 +            }
 +        }
 +    };
@@ -1472,15 +1541,24 @@ index 8c49f1c..17bef55 100644
 +static DATA_PLANE_JOIN: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 +
 +/// Heartbeat-over-ESP-NOW BRIDGE (mesh): io_task's PROVEN conductor-PLL drives these channels instead of
-+/// the UDP socket (cfg-gated). ESPNOW_TX = beats io_task wants broadcast → espnow_task ESP-NOW-broadcasts.
-+/// ESPNOW_RX = frames espnow_task received → io_task's recv-select reads them. Reuses the exact PLL, no AP.
++/// the UDP socket (cfg-gated). DATA_TX = beats io_task wants broadcast → espnow_task ESP-NOW-broadcasts.
++/// DATA_RX = frames espnow_task received → io_task's recv-select reads them. Reuses the exact PLL, no AP.
 +#[cfg(feature = "ble")]
 +type MeshFrame = ([u8; 256], usize);
++// Transport label for accurate serial evidence (Roy's eyes = ground truth — never log "esp-now" over BLE).
++#[cfg(all(feature = "ble", not(feature = "blemesh")))]
++const MESH_LABEL: &str = "esp-now";
++#[cfg(feature = "blemesh")]
++const MESH_LABEL: &str = "ble";
++#[cfg(all(feature = "ble", not(feature = "blemesh")))]
++const COC_PLANE: &str = "control plane";
++#[cfg(feature = "blemesh")]
++const COC_PLANE: &str = "BLE data-mesh (R2 frames: heartbeat + GroupHmac delivery)";
 +#[cfg(feature = "ble")]
-+static ESPNOW_TX: embassy_sync::channel::Channel<CriticalSectionRawMutex, MeshFrame, 4> =
++static DATA_TX: embassy_sync::channel::Channel<CriticalSectionRawMutex, MeshFrame, 4> =
 +    embassy_sync::channel::Channel::new();
 +#[cfg(feature = "ble")]
-+static ESPNOW_RX: embassy_sync::channel::Channel<CriticalSectionRawMutex, MeshFrame, 4> =
++static DATA_RX: embassy_sync::channel::Channel<CriticalSectionRawMutex, MeshFrame, 4> =
 +    embassy_sync::channel::Channel::new();
 +
 +/// M-ESPNOW-2: hive_id↔WiFi-MAC map, LEARNED from the ESP-NOW recv src (core's design — no MAC in the
@@ -1624,7 +1702,7 @@ index 8c49f1c..17bef55 100644
 +/// ESP-NOW true-mesh data plane (Mode 2) — M-ESPNOW-1: validate broadcast/recv on metal. Every device
 +/// peers connectionlessly (no AP); the src MAC on each frame learns the hive_id↔MAC map (core's design).
 +/// Broadcasts an R2M probe + logs observed peers. Next: feed r2-route + heartbeat-over-broadcast + unicast.
-+#[cfg(feature = "ble")]
++#[cfg(all(feature = "ble", not(feature = "blemesh")))]
 +#[embassy_executor::task]
 +async fn espnow_task(esp_now: esp_radio::esp_now::EspNow<'static>, my_hive: u32) {
 +    use embassy_futures::join::join;
@@ -1634,11 +1712,11 @@ index 8c49f1c..17bef55 100644
 +    // channel). Every mesh node must use the same channel; ch1 is the R2 mesh default.
 +    let _ = manager.set_channel(1);
 +    println!("r2-dfr1195: ESP-NOW mesh up (hive {my_hive:08x}) ch1 — heartbeat over ESP-NOW broadcast");
-+    // BRIDGE: drain ESPNOW_TX (io_task's conductor beats) → ESP-NOW broadcast; ESP-NOW recv → ESPNOW_RX
++    // BRIDGE: drain DATA_TX (io_task's conductor beats) → ESP-NOW broadcast; ESP-NOW recv → DATA_RX
 +    // (io_task's PROVEN conductor-PLL decodes + syncs). M-ESPNOW-2: learn peer hive↔src-MAC from the recv.
 +    let tx = async {
 +        loop {
-+            let (frame, n) = ESPNOW_TX.receive().await;
++            let (frame, n) = DATA_TX.receive().await;
 +            let _ = sender.send_async(&BROADCAST_ADDRESS, &frame[..n]).await;
 +        }
 +    };
@@ -1654,7 +1732,7 @@ index 8c49f1c..17bef55 100644
 +            let n = d.len().min(256);
 +            let mut f = [0u8; 256];
 +            f[..n].copy_from_slice(&d[..n]);
-+            let _ = ESPNOW_RX.try_send((f, n)); // → io_task PLL (the sync)
++            let _ = DATA_RX.try_send((f, n)); // → io_task PLL (the sync)
 +            // M-ESPNOW-2: learn hive_id↔MAC from the recv — the R2-WIRE Heartbeat payload carries the
 +            // originator hive (be32), the L2 src MAC is r.info.src_address. Map for r2-route unicast (M-ESPNOW-3).
 +            if let Ok(m) = r2_wire::decode_extended(&d[..n]) {
@@ -1741,7 +1819,7 @@ index 8c49f1c..17bef55 100644
 +    let on = it.next()? != "0";
 +    Some((target, on))
 +}
- 
++
 +/// OTA network receiver (#17) — FLASH-WRITE-WHILE-WIFI DE-RISK (esp-storage#31).
 +/// The slot-switch/commit path is already proven (test b). The open hardware question is
 +/// whether an esp-storage flash write (cache-suspend) RETURNS PROMPTLY with esp-radio
@@ -1795,9 +1873,7 @@ index 8c49f1c..17bef55 100644
 +    let mut secfill = 0usize;
 +    let mut secbase = 0u32;
 +    let mut pkt = [0u8; 1500];
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        let (n, from) = match socket.recv_from(&mut pkt).await {
 +            Ok(v) => v,
 +            Err(_) => continue,
