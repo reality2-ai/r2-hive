@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..a412716 100644
+index 8c49f1c..135ac2a 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1564 @@
+@@ -1,83 +1,1603 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -300,21 +300,31 @@ index 8c49f1c..a412716 100644
 +        })
 +        .unwrap();
 +
-+    // 5. WiFi config for the role.
-+    let wifi_cfg = if is_ap {
++    // 5. WiFi config for the role. M8c (--features ble): the engine-elected provider serves its OWN
++    //    SoftAP "r2-tn-form" (the formed data plane); other boards are STAs that JOIN it on negotiation.
++    //    Default build = the static r2-fieldlab mesh by MAC (UNCHANGED — protects the live mesh).
++    #[cfg(feature = "ble")]
++    let serve_ap = my_hive == M7_PROVIDER_HIVE;
++    #[cfg(not(feature = "ble"))]
++    let serve_ap = is_ap;
++    #[cfg(feature = "ble")]
++    let (dp_ssid, dp_pass): (&str, &str) = ("r2-tn-form", "r2tnform123");
++    #[cfg(not(feature = "ble"))]
++    let (dp_ssid, dp_pass): (&str, &str) = (FIELDLAB_SSID, FIELDLAB_PASS);
++    let wifi_cfg = if serve_ap {
 +        WifiConfig::AccessPoint(
 +            AccessPointConfig::default()
-+                .with_ssid(FIELDLAB_SSID)
++                .with_ssid(dp_ssid)
 +                .with_channel(6)
 +                .with_auth_method(AuthenticationMethod::Wpa2Personal)
-+                .with_password(FIELDLAB_PASS.into()),
++                .with_password(dp_pass.into()),
 +        )
 +    } else {
 +        WifiConfig::Station(
 +            StationConfig::default()
-+                .with_ssid(FIELDLAB_SSID)
++                .with_ssid(dp_ssid)
 +                .with_auth_method(AuthenticationMethod::Wpa2Personal)
-+                .with_password(FIELDLAB_PASS.into()),
++                .with_password(dp_pass.into()),
 +        )
 +    };
 +
@@ -324,7 +334,7 @@ index 8c49f1c..a412716 100644
 +        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
 +
 +    // 7. Static IPs by role (deterministic 2-node net; no DHCP server needed).
-+    let (device, ip) = if is_ap {
++    let (device, ip) = if serve_ap {
 +        (interfaces.access_point, Ipv4Address::new(192, 168, 4, 1))
 +    } else {
 +        // N-board: unique per-board STA IP from the low MAC byte (embassy-net 0.9 has
@@ -347,13 +357,15 @@ index 8c49f1c..a412716 100644
 +    let seed = 0x0123_4567_89ab_cdef_u64 ^ (mac_low3 as u64);
 +    let (stack, runner) = embassy_net::new(device, net_config, resources, seed);
 +    spawner.spawn(net_task(runner).unwrap());
-+    spawner.spawn(wifi_task(controller, is_ap).unwrap());
++    spawner.spawn(wifi_task(controller, serve_ap).unwrap());
 +
-+    // 9. Wait for the netif, then run the UDP io task (PHASE 2a: raw board↔board
-+    //    frames over the WiFi link — proves the transport pipe before R2-WIRE/RouteEngine).
++    // 9. Wait for the netif, then run the UDP io task. SKIP the wait for --features ble: the M8c joiner
++    //    forms its data plane LATER (on BLE negotiation), so blocking here would deadlock (the BLE tasks
++    //    that drive the form are spawned below). The provider's AP is up regardless.
++    #[cfg(not(feature = "ble"))]
 +    stack.wait_config_up().await;
-+    let peer = if is_ap { Ipv4Address::new(192, 168, 4, 2) } else { Ipv4Address::new(192, 168, 4, 1) };
-+    println!("r2-dfr1195: net UP — {} {} (peer {peer})", if is_ap { "AP serving" } else { "STA got" }, ip);
++    let peer = if serve_ap { Ipv4Address::new(192, 168, 4, 2) } else { Ipv4Address::new(192, 168, 4, 1) };
++    println!("r2-dfr1195: net — {} {} (peer {peer})", if serve_ap { "AP serving" } else { "STA" }, ip);
 +    let _ = peer;
 +    spawner.spawn(io_task(stack, is_ap, ip, hk, my_tg_hash, my_hive).unwrap());
 +    spawner.spawn(ota_task(is_ap, stack).unwrap());
@@ -583,8 +595,10 @@ index 8c49f1c..a412716 100644
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
-+
-+    loop {
+ 
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        match select(
 +            Timer::after(Duration::from_millis(HB_TICK_MS)),
 +            socket.recv_from(&mut scratch),
@@ -1242,7 +1256,7 @@ index 8c49f1c..a412716 100644
 +/// L2CAP CoC PSM for the R2 control plane (R2-WIRE event transport, R2-BLE §6). OTA = 0x00D3.
 +#[cfg(feature = "ble")]
 +const R2_PSM: u16 = 0x00D2;
- 
++
 +/// M7 CoC-connectivity test: the provider board (lowest of the 2 test boards). The M9 engine does
 +/// real §4A.3 election (lowest eligible hive_id) — this const is just the 2-board CoC bring-up.
 +#[cfg(feature = "ble")]
@@ -1316,6 +1330,9 @@ index 8c49f1c..a412716 100644
 +    embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(heapless::Deque::new()));
 +#[cfg(feature = "ble")]
 +static DATA_PLANE_AVAIL: AtomicBool = AtomicBool::new(false);
++/// Signalled by join_provider → the wifi task connects the joiner to the provider's SoftAP (M8c).
++#[cfg(feature = "ble")]
++static DATA_PLANE_JOIN: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 +
 +/// Push a resolved scan observation for the engine's poll_scan (called from on_adv_reports).
 +#[cfg(feature = "ble")]
@@ -1360,12 +1377,14 @@ index 8c49f1c..a412716 100644
 +        item.and_then(|(h, b, n)| r2_discovery::negotiation::ControlMsg::decode(&b[..n]).map(|m| (h, m)))
 +    }
 +    fn bring_up_provider(&mut self, _p: &r2_discovery::negotiation::DataPlaneParams) -> bool {
-+        // M8c TODO: start the SoftAP. Interim: the existing WiFi mesh is the data plane → mark available.
++        // M8c: the provider already serves the "r2-tn-form" SoftAP from boot → data plane is up.
 +        DATA_PLANE_AVAIL.store(true, Ordering::Relaxed);
 +        true
 +    }
 +    fn join_provider(&mut self, _p: &r2_discovery::negotiation::DataPlaneParams) -> bool {
-+        DATA_PLANE_AVAIL.store(true, Ordering::Relaxed);
++        // M8c: signal the wifi task to connect this joiner to the provider's SoftAP (real WiFi form).
++        // DATA_PLANE_AVAIL is set by the wifi task once the link is actually up.
++        DATA_PLANE_JOIN.signal(());
 +        true
 +    }
 +    fn data_plane_state(&self) -> r2_discovery::negotiation::DataPlaneState {
@@ -1394,9 +1413,7 @@ index 8c49f1c..a412716 100644
 +    let mut prev: Option<NegotiationState> = None;
 +    let mut ticks = 0u32;
 +    let mut requested = false;
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        // Discover for ~3s first (let the roster fill from scans/injected obs) BEFORE requesting the
 +        // data plane, so the election sees peers instead of self-electing alone.
 +        if !requested && ticks >= 15 {
@@ -1713,8 +1730,8 @@ index 8c49f1c..a412716 100644
 +
 +/// WiFi event loop. STA: connect + reconnect on drop. AP: already up; observe joins.
 +#[embassy_executor::task]
-+async fn wifi_task(mut controller: WifiController<'static>, is_ap: bool) {
-+    if is_ap {
++async fn wifi_task(mut controller: WifiController<'static>, serve_ap: bool) {
++    if serve_ap {
 +        loop {
 +            match controller.wait_for_access_point_connected_event_async().await {
 +                Ok(_) => println!("r2-dfr1195: [ap] station joined"),
@@ -1722,6 +1739,28 @@ index 8c49f1c..a412716 100644
 +            }
 +        }
 +    } else {
++        // M8c joiner (ble): connect to the formed SoftAP ONLY when the engine elects+offers
++        // (join_provider → DATA_PLANE_JOIN). The boot controller config is already "r2-tn-form".
++        #[cfg(feature = "ble")]
++        loop {
++            DATA_PLANE_JOIN.wait().await;
++            println!("r2-dfr1195: data plane — joining provider SoftAP r2-tn-form (on negotiation)");
++            match controller.connect_async().await {
++                Ok(_) => {
++                    DATA_PLANE_AVAIL.store(true, Ordering::Relaxed);
++                    println!("r2-dfr1195: data plane UP — joined r2-tn-form (REAL WiFi formed, B->W)");
++                    let _ = controller.wait_for_disconnect_async().await;
++                    DATA_PLANE_AVAIL.store(false, Ordering::Relaxed);
++                    println!("r2-dfr1195: data plane LOST — r2-tn-form disconnected");
++                }
++                Err(e) => {
++                    println!("r2-dfr1195: data plane join failed {e:?}, retry 2s");
++                    Timer::after(Duration::from_secs(2)).await;
++                }
++            }
++        }
++        // Default (mesh) STA: auto-connect to r2-fieldlab (UNCHANGED).
++        #[cfg(not(feature = "ble"))]
 +        loop {
 +            match controller.connect_async().await {
 +                Ok(_) => {
