@@ -210,11 +210,14 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     the 0xFF manufacturer AD; metal: `BLE advertising R2-BEACON rbid=471a93a8.. (24 B)`; external scan
     confirms `ManufacturerData 0x01b2` (the encode_advert output, vs the old 0x3252 placeholder).
     **VERSION-COMPAT (the #1 risk) SOLVED: trouble 0.6.0 = bt-hci 0.8** (esp-radio 0.18; 0.2=bt-hci0.3 /
-    0.7=bt-hci0.9 both mismatch). Built against core's **r2-discovery @7b4666e** (beacon+negotiation modules
-    pulled into the worktree build env; default + --features ble both build clean). session_key=hk[..16],
-    epoch=0 PLACEHOLDERS (asked core: the TG-synced epoch clock + per-device-vs-TG session_key — for the
-    rotating RBID schedule + resolve). **NEXT: SCAN** (trouble central → decode_advert + resolve_rbid →
-    NegObservation; 2-board test pairing) → **L2CAP CoC** (control) → **NegotiationRadio** over core's engine.
+    0.7=bt-hci0.9 both mismatch). Built against core's **r2-discovery @fb5b189** (beacon+negotiation;
+    default + --features ble both build clean). **Advertise CANON-CORRECT**: `my_key =
+    derive_beacon_session_key(&hk, my_hive)` (PER-MEMBER, HKDF(hk, salt=r2-beacon-rbid-v1, info=hive_be32)[..16]
+    — core fb5b189; a TG-wide key would make all RBIDs identical) → compute_rbid; metal-verified rbid changed
+    471a93a8(placeholder)→33c31152(per-member). epoch=0 still placeholder until a shared coarse-time base.
+    **NEXT: SCAN** (trouble EventHandler.on_adv_reports + run_with_handler + Scanner.scan → decode_advert →
+    resolve_rbid_windowed(observed, [(peer_id, derive_beacon_session_key(&hk, peer_id))], epoch, 1) →
+    NegObservation; 2-board test) → **L2CAP CoC** (control) → **NegotiationRadio** over core's engine.
     (FIX noted: the crates index was stale → `cargo search` refreshes it before resolving trouble.)
   - **Per-carrier Cargo features** (composer board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO
     octal-PSRAM@80MHz baked via PsramConfig in code — esp-hal has no psram Cargo feature); next deliverable.
