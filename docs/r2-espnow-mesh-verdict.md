@@ -142,3 +142,18 @@ end-to-end (L5 trust boundary over the true mesh, R2-RUNTIME §13). Multi-hop re
    hive+MAC). (3 demos: dedup-correctness [no mask], multi-hop-topology [mask], real-range [Roy's rig].)
 5. Then DYNAMIC: N-join (a new same-TG board auto-maps+syncs+delivers — already works as it ingests on map);
    mobility-reform = re-route (drop a peer's neighbour-obs on silence → r2-route reselects; no AP-failover, no AP).
+
+## ✅ M-ESPNOW-3b — 3-board MULTI-HOP relay on metal (2026-06-21): A→B→C
+Genuine R2-ROUTE multi-hop over ESP-NOW, no AP. A(0dcadbf8) originates signed directed Events (target=C);
+B(2cab5f69) RELAYS (plan_forward Flood → re-broadcast, ttl 4→3→2); C(f91c8911) DELIVERS via B with the
+GroupHmac gate: `DELIVERED msg_id=4/6/10 (tg+hmac ok)` + `DELIVER-BLOCKED msg_id=3/7 hmac_ok=false` + dedup
+`DROP Duplicate`. C cannot hear A directly (core's bench allow-list A={B},B={A,C},C={B}) so every C delivery
+is provably 2-hop via B.
+KEY FIX (core's catch): Observation mcu_origin:FALSE — mcu_origin:true → neighbour mcu_only → not
+relay-viable → build_flood_plan finds 0 → Drop(NoViableNeighbour). Full ESP32 nodes ingest mcu_origin:false.
+Confirmed: single ingest instantly viable (conf 0.5≥floor 0.1); broadcast(target=0)=DeliverOnly everywhere
+(never relays) so multi-hop needs directed→flood-fallthrough; directed-no-path falls through to Flood (no Drop).
+METHODOLOGY BUG caught+fixed: default `cargo build` after the ble build overwrote the same binary path
+pre-scp (flashed default mislabeled -ble) — now ble-only build + verify mesh-strings in the binary.
+FULL MESH ON METAL: discover(BLE) → ESP-NOW mesh → SYNC → 1-hop gated delivery → MULTI-HOP relay, no infra.
+REMAINING: dynamic — N-join (auto-join), mobility-reform (re-route on neighbour silence/decay).
