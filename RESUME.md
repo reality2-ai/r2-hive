@@ -125,6 +125,16 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     activate ok + test-b slot-switch. NOT yet cleanly e2e (board-to-board boot-INTO-ota_1 snagged on test-
     corrupted otadata + can't test on the live AP). Test sender gated OFF (OTA_SELFTEST=false). Next clean
     verify: a fresh-otadata board, NOT the live soft-AP. LESSON: never re-flash the live soft-AP mid-demo.
+  - **LATEST (0621.1227):** **per-carrier LED polarity** — XIAO-S3 GPIO21 is ACTIVE-LOW (inverse of DFR1195);
+    profile byte1 @0x13001 (0x01=active-low; erased→active-low iff no-screen, so XIAO byte0=0x00 already works);
+    LEDC idle + lub-DUB envelope polarity-mapped ✅. **#23a conductor-timeout re-elect** — forget a SILENT
+    conductor after 4 beats → re-elect next-lowest; healthy conductor = no churn (replaced the churny every-3
+    forget) ✅. **AP-SPOF live (#23b):** the soft-AP (502698) went dark (my live re-flash wedged it) → STAs
+    stranded (no network → no app-layer election can help; my STA came up alone/CONDUCTOR). FIX = revive 502698
+    (Roy physical RST; port held by composer's health reader so no remote reset). **#23b AP-FAILOVER = the real
+    fix, NOT YET built:** pre-designated backup (lowest AP-capable hive from the heartbeat roster) detects
+    esp-radio disassociation + promotes STA→AP at runtime @192.168.4.1; others re-scan/associate. Substantial +
+    risky (runtime WiFi mode switch) — implement on a test pairing, not the live mesh.
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
     → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA network receiver (#17)** — the
     slot-switch is PROVEN (test b); remaining = UDP image transfer + write ota_1 with esp-radio QUIESCED
