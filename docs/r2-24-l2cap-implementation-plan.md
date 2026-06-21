@@ -133,3 +133,27 @@ M8c = real form DONE. The full success demo + the 4 remaining behaviors (each su
    runtime (the interface-binding issue — needs the access_point interface; M8c pre-assigns by boot role). Real
    runtime AP-bring-up on re-election = the delicate piece (set_config AP + the AP interface/stack).
 Each is a focused milestone; report each. core's canonical contract: docs/R2-24-NEGOTIATION-BRIEF.md (631b758).
+
+## CORRECTION (Roy, reverses TG-gate-on-forming) — FORMING is TG-AGNOSTIC
+"TG doesn't matter below the trust layer." So:
+- **FORM/JOIN = TG-AGNOSTIC** — any devices (any TG) discover → negotiate → form/join the SHARED transient
+  network (the transport substrate). Do NOT gate forming on TG. Elect/form among ALL discovered peers.
+- **SYNC = per-TG** (trust overlay): same-TG devices heartbeat-sync together (Goal#2 per-TG heartbeats), over
+  the shared formed net. Cross-TG boards on the same net sync SEPARATELY.
+- **DELIVER = per-TG** (GroupHmac; cross-TG via entanglement). Already have the deliver-gate.
+- **RBID-resolution = trust-recognition** (is-this-my-TG-peer, for sync/deliver scoping), NOT a forming-gate.
+- So the M8b synthetic-obs/inject EFFECT (form regardless of TG) is ALIGNED with TG-agnostic forming — but it
+  should be REAL discovery (see all peers, any TG). The earlier "TG-gate the form / cross-TG don't form" = WRONG;
+  cross-TG DO form/join, they just don't sync/deliver together.
+- **OPEN (flag core/specs): the TG-agnostic ELECTION mechanism.** The engine elects lowest hive_id, but hive_id
+  comes from resolve_rbid (same-TG only) — you CAN'T resolve a cross-TG peer's hive_id. So how to elect/join
+  across TGs? Options: same-TG elects via hive_id + cross-TG JOINS the provider (provider_capable flag + BLE addr,
+  no election); OR a TG-agnostic election key (RBID/addr-based). Needs a core/specs ruling for the cross-TG case.
+  (For 2 SAME-TG boards — the immediate demo — the current hive_id election works; this only affects cross-TG.)
+
+## Revised next milestones
+- **FORM→SYNC** (2 same-TG boards): form (TG-agnostic, M8c) + per-TG heartbeat-sync over the formed net. The
+  io_task formed-net fix (provider stall ~beat 8 / joiner no-HB) is the blocker — NOT a TG-gate.
+- TELEMETRY (composer M10): designate ONE r2-tn-form board to print "r2-...: HEALTH <hex>" (key13/14/15) on
+  its USB-serial; composer's health-reader is now MULTI-SOURCE (--ap-port repeatable) → add it as a 2nd source
+  → the forming boards' phase-strip shows alongside the mesh (distinct wire_ids).
