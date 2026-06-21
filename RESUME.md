@@ -236,6 +236,14 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     bridge + engine integration PROVEN on metal. NEXT M8b: rewire ble_task to FEED the bridge — scan→SCAN_OBS
     (real peers) + conn-mgr (CTRL_OUT↔CoC↔CTRL_IN, the M7 CoC) → multi-board discover→negotiate→form; then
     M8c real WiFi bring_up/join (currently stubbed Available) + M10 fallback/reform + telemetry.
+    (8) **M9 NETWORK-FORMING on metal — discover→negotiate→form, 2 boards.** Both elect 0dcadbf8 (lowest
+    provider_capable, leaderless §4A.3); joiner sends WifiReq [0x01] over the L2CAP CoC → provider RECV →
+    WifiOffer (7B) → joiner RECV → both reach DATA. serve_coc bridges CTRL_OUT/IN↔CoC; engine drives via the
+    sync façade; shared ControlMsg codec byte-exact cross-board. Election-race fixes: continuous peer-obs
+    refresh + ~3s discover-delay. **HONEST:** bring_up/join_provider STUB the WiFi (DATA_PLANE_AVAIL=true) →
+    "Data" = forming-logic reaching S2, not a real SoftAP. So **discover→negotiate→FORM negotiation PROVEN on
+    metal**; data-plane bring-up is M8c. NEXT: **M8c** real SoftAP/STA (runtime WiFi reconfig) → **M10**
+    fallback/reform (lose-AP→S3→S4→reform) + composer telemetry (key13/14/15). THE TWO-PLANE: S0+M7+M8+M9 all on metal.
     (FIX noted: the crates index was stale → `cargo search` refreshes it before resolving trouble.)
   - **Per-carrier Cargo features** (composer board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO
     octal-PSRAM@80MHz baked via PsramConfig in code — esp-hal has no psram Cargo feature); next deliverable.
