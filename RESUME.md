@@ -180,13 +180,17 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     app-half DONE, WiFi-layer half TODO. **BLE-BEACON discovery** (R2-DISCOVERY) = the out-of-band substrate
     that solves the no-network-to-elect chicken-and-egg (beacon presence/hive_id/TG/AP-capability/roster over
     BLE, independent of the WiFi-AP) — #23 negotiation rides it. **IDENTIFY** cmd (LED solid on /r2 identify).
-    **CARRIER-CONFIG = COMPOSER's domain (architecture ruling).** hive provides the no_std RUNTIME + a
-    carrier-DETECTION primitive (probe PSRAM/flash/MAC → expose carrier-identity); composer composes the
-    per-carrier firmware-config (LED/PSRAM/screen/radios) on the runtime. So the **dedicated-XIAO-build is
-    DEPRIORITIZED** (it was the LED stopgap — the active-high DEFAULT already fixed the LED robustly; the
-    PSRAM/8MB-partition boot-flakiness fix becomes composer's carrier-composition). My job: runtime + the
-    detection primitive + #24. (esp-hal `psram` module exists; flash-size is compile-time-const not
-    runtime-probable, so carrier is per-build — info for composer's composition.)
+    **PER-CARRIER PLATFORM BUILDS — REQUIRED (Roy, reverses the earlier deprioritization).** Next firmware
+    deliverable = SEPARATE DFR1195 (4MB/no-PSRAM) + XIAO (8MB/octal-PSRAM) binaries running the SAME ENSEMBLE
+    (identical logic; only the platform layer differs) = unified-hive proof (logical=portable, platform=
+    per-carrier). Architecture in docs/r2-per-carrier-builds.md: ONE crate, features carrier-dfr1195(default)/
+    carrier-xiao; ensemble shared (no cfg) — io_task heartbeat+route+trust+persona+health+IDENTIFY+#24 engine;
+    platform #[cfg]-gated — PSRAM init (xiao), LCD init (dfr1195), LED/screen. Partition flash-time (4MB/8MB
+    CSVs both pushed). hive builds the 2 binaries (esp toolchain) from composer's ONE ensemble + 2 board.tomls;
+    composer flashes per MAC-reservation. **The has_screen/LED bytes become #[cfg] carrier CONSTS → RETIRES
+    the fragile profile-byte.** Carrier-detection boot-guard (MAC-OUI + PSRAM-probe → reject wrong-build) =
+    hive's. composer leads composition (CARRIER-COMPOSITION.md, sdkconfig=Path-A/std only; my Path-B uses Cargo
+    features). FOLD into the SAME next deliverable as the #24 BLE stack. (composer driving both S3 targets now.)
   - **IDENTIFY (Roy locate-a-board) — device-side DONE (0621.1322):** Directed r2.hb.identify frame
     (event_hash + target_hive + payload on/off) → target board LED SOLID ~5s override (polarity-aware),
     refresh-on-repeat / clear-on-off. Down-path (orchestrator→serial-bridge→mesh-inject) = the remaining
