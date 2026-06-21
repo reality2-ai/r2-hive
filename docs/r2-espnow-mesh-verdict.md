@@ -102,3 +102,14 @@ no SPOF, no two-AP. Infra-SoftAP (Mode 1b, criterion#1 PROVEN on metal) kept LIG
 - WHY the bridge (not an io_task transport-swap or a PLL re-impl): the io_task PLL is PROVEN (criterion#1 on
   metal); a bridge reuses it intact + cfg-keeps the infra-mode UDP path untouched. The recv-select restructure
   is the one careful part — do it deliberately, not rushed.
+
+## ✅ NO-AP MESH SYNC — DONE ON METAL (2026-06-21)
+The demo target HIT: 2 boards, NO AP, discover(BLE) → ESP-NOW mesh → SYNC over ESP-NOW broadcast.
+Follower (2cab5f69): `HB<-esp-now cond=dcadbf8 e=0.249→0.057→-0.084 (lock)` + `synced=true`. The conductor
+(0dcadbf8) broadcasts beats over ESP-NOW; the follower PLL-locks over ESP-NOW (e→0). The PROVEN conductor-PLL
+reused INTACT via the bridge (io_task↔espnow_task static channels, cfg-gated; default UDP path untouched) —
+zero re-impl. Fixes that made it sync: (1) NO AP for the mesh (serve_ap=false ble; M8c SoftAP-star dropped —
+it forced ch6 + diverged the radios; AP-SPOF gone); (2) EspNow.set_channel(1) — all mesh nodes align without
+an AP-join. RSSI absent in esp-radio ReceiveInfo → seed link_quality 0.7 (M-ESPNOW-3). Mobility-native, no SPOF.
+REMAINING for the routed-data mesh: M-ESPNOW-2 (hive↔MAC map from recv src) + M-ESPNOW-3 (r2-route
+forward-by-hive_id over Transport::EspNow id5 + GroupHmac per-TG delivery). The SYNC half is proven on metal.
