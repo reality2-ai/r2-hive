@@ -88,10 +88,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..bd4b335 100644
+index 8c49f1c..59b416e 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1053 @@
+@@ -1,83 +1,1080 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -377,27 +377,36 @@ index 8c49f1c..bd4b335 100644
 +    let mut beat_t: i32 = -1;
 +    let mut lcd_tick: u32 = 0;
 +    loop {
-+        // ── organic lub-DUB LED heartbeat (conductor-PLL fired it; this is the SHAPE) ──
-+        if FIRE_SIGNAL.try_take().is_some() {
-+            beat_t = 0;
-+        }
-+        if beat_t >= 0 {
-+            // lub-DUB segments as (brightness_from, brightness_to, ms); polarity-mapped to
-+            // PWM duty so active-low carriers (XIAO-S3 GPIO21) render the same visible beat.
-+            let seg = match beat_t {
-+                0 => Some((0u8, 100u8, 45u16)),   // lub rise
-+                50 => Some((100, 0, 95)),          // lub fall
-+                200 => Some((0, 70, 45)),          // DUB rise
-+                250 => Some((70, 0, 150)),         // DUB fall (rest)
-+                _ => None,
-+            };
-+            if let Some((a, b, ms)) = seg {
-+                let (a, b) = if led_active_low { (100 - a, 100 - b) } else { (a, b) };
-+                let _ = hb_led.start_duty_fade(a, b, ms);
++        // ── IDENTIFY override (Roy dashboard locate): SOLID LED for the countdown, then resume ──
++        let id = IDENTIFY_TICKS.load(Ordering::Relaxed);
++        if id > 0 {
++            let solid = if led_active_low { 0 } else { 100 }; // full-on (polarity-aware)
++            let _ = hb_led.set_duty(solid);
++            IDENTIFY_TICKS.store(id - 1, Ordering::Relaxed);
++            beat_t = -1; // drop any in-flight beat so the lub-dub resumes cleanly after
++        } else {
++            // ── organic lub-DUB LED heartbeat (conductor-PLL fired it; this is the SHAPE) ──
++            if FIRE_SIGNAL.try_take().is_some() {
++                beat_t = 0;
 +            }
-+            beat_t += 50;
-+            if beat_t > 450 {
-+                beat_t = -1;
++            if beat_t >= 0 {
++                // lub-DUB segments as (brightness_from, brightness_to, ms); polarity-mapped to
++                // PWM duty so active-low carriers render the same visible beat.
++                let seg = match beat_t {
++                    0 => Some((0u8, 100u8, 45u16)),   // lub rise
++                    50 => Some((100, 0, 95)),          // lub fall
++                    200 => Some((0, 70, 45)),          // DUB rise
++                    250 => Some((70, 0, 150)),         // DUB fall (rest)
++                    _ => None,
++                };
++                if let Some((a, b, ms)) = seg {
++                    let (a, b) = if led_active_low { (100 - a, 100 - b) } else { (a, b) };
++                    let _ = hb_led.start_duty_fade(a, b, ms);
++                }
++                beat_t += 50;
++                if beat_t > 450 {
++                    beat_t = -1;
++                }
 +            }
 +        }
 +
@@ -687,6 +696,18 @@ index 8c49f1c..bd4b335 100644
 +                    }
 +                    _ => {
 +                        let h = &m.header;
++                        if h.event_hash == IDENTIFY_HASH {
++                            // Roy dashboard locate: target board lights SOLID for ~5s (override).
++                            if h.target_hive == my_hive {
++                                let on = !m.payload.is_empty() && m.payload[0] != 0;
++                                IDENTIFY_TICKS.store(if on { 100 } else { 0 }, Ordering::Relaxed);
++                                println!(
++                                    "r2-dfr1195: IDENTIFY {}",
++                                    if on { "ON (solid LED ~5s)" } else { "OFF" }
++                                );
++                            }
++                            continue;
++                        }
 +                        if h.event_hash == HEALTH_HASH {
 +                            // #18 health to the collector (AP): log hex for the orchestrator
 +                            // serial-reader. Not a routable Event.
@@ -777,6 +798,12 @@ index 8c49f1c..bd4b335 100644
 +/// for composer's orchestrator serial-reader (the AP↔tuxedo USB uplink feeds the dashboard).
 +const HEALTH_HASH: u32 = r2_fnv::fnv1a_32(b"r2.hb.health");
 +const R2_COLLECTOR_HIVE: u32 = 0x480e_900e; // AP board KS1-canonical hive_id = collector
++
++/// IDENTIFY (Roy dashboard locate-a-board): a Directed r2.hb.identify frame (payload[0]=1 on /
++/// 0 off) addressed to a hive_id makes THAT board light its LED SOLID, overriding the lub-dub,
++/// for ~5s (or until an off frame). Set as a 50ms-tick countdown (no clock needed).
++const IDENTIFY_HASH: u32 = r2_fnv::fnv1a_32(b"r2.hb.identify");
++static IDENTIFY_TICKS: AtomicU32 = AtomicU32::new(0); // 50ms LED-loop ticks of SOLID remaining
 +
 +// ─────────────────────────── Real-TG persona (#20) ───────────────────────────
 +/// Flash offset of the provisioned persona bundle (composer write-bins it raw here).
