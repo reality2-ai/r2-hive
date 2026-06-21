@@ -171,13 +171,17 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     app-half DONE, WiFi-layer half TODO. **BLE-BEACON discovery** (R2-DISCOVERY) = the out-of-band substrate
     that solves the no-network-to-elect chicken-and-egg (beacon presence/hive_id/TG/AP-capability/roster over
     BLE, independent of the WiFi-AP) — #23 negotiation rides it. **IDENTIFY** cmd (LED solid on /r2 identify).
-    **DEDICATED XIAO BUILD — PROMOTED TO ACTIVE (Roy, fixes boot-flakiness/replug):** the XIAO run the
-    4MB/no-PSRAM DFR1195 binary DEGRADED → boot-flaky (needed replug). Build a 2nd no_std target: esp-hal
-    `psram` octal-PSRAM init + 8MB partition table + active-high LED + has_screen=false BAKED (the build IS
-    the carrier — flash-size is a compile-time const, NOT runtime-probable, so per-build not one-binary).
-    + CARRIER-DETECTION boot-confirm: probe (MAC-OUI: DFR1195=F4:12:FA vs XIAO others / PSRAM-present) →
-    log carrier + WARN on wrong-build. Substantial 2nd build-config (Cargo feature/profile + partition +
-    psram feature) — fresh focused effort. composer flashes the right build per carrier.
+    **CARRIER-CONFIG = COMPOSER's domain (architecture ruling).** hive provides the no_std RUNTIME + a
+    carrier-DETECTION primitive (probe PSRAM/flash/MAC → expose carrier-identity); composer composes the
+    per-carrier firmware-config (LED/PSRAM/screen/radios) on the runtime. So the **dedicated-XIAO-build is
+    DEPRIORITIZED** (it was the LED stopgap — the active-high DEFAULT already fixed the LED robustly; the
+    PSRAM/8MB-partition boot-flakiness fix becomes composer's carrier-composition). My job: runtime + the
+    detection primitive + #24. (esp-hal `psram` module exists; flash-size is compile-time-const not
+    runtime-probable, so carrier is per-build — info for composer's composition.)
+  - **IDENTIFY (Roy locate-a-board) — device-side DONE (0621.1322):** Directed r2.hb.identify frame
+    (event_hash + target_hive + payload on/off) → target board LED SOLID ~5s override (polarity-aware),
+    refresh-on-repeat / clear-on-off. Down-path (orchestrator→serial-bridge→mesh-inject) = the remaining
+    piece: UART RX on USB-Serial-JTAG, on a NON-AP/test board first (don't risk the live AP health-feed TX).
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
     → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA network receiver (#17)** — the
     slot-switch is PROVEN (test b); remaining = UDP image transfer + write ota_1 with esp-radio QUIESCED
