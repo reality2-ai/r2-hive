@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..a439f59 100644
+index 8c49f1c..5616809 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1398 @@
+@@ -1,83 +1,1503 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -314,10 +314,7 @@ index 8c49f1c..a439f59 100644
 +    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
 +    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
 +        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +    // 7. Static IPs by role (deterministic 2-node net; no DHCP server needed).
 +    let (device, ip) = if is_ap {
 +        (interfaces.access_point, Ipv4Address::new(192, 168, 4, 1))
@@ -335,12 +332,7 @@ index 8c49f1c..a439f59 100644
 +        gateway: Some(Ipv4Address::new(192, 168, 4, 1)),
 +        dns_servers: Default::default(),
 +    });
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +    // 8. embassy-net stack.
 +    static RESOURCES: StaticCell<StackResources<4>> = StaticCell::new();
 +    let resources = RESOURCES.init(StackResources::new());
@@ -348,7 +340,10 @@ index 8c49f1c..a439f59 100644
 +    let (stack, runner) = embassy_net::new(device, net_config, resources, seed);
 +    spawner.spawn(net_task(runner).unwrap());
 +    spawner.spawn(wifi_task(controller, is_ap).unwrap());
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +    // 9. Wait for the netif, then run the UDP io task (PHASE 2a: raw board↔board
 +    //    frames over the WiFi link — proves the transport pipe before R2-WIRE/RouteEngine).
 +    stack.wait_config_up().await;
@@ -361,7 +356,12 @@ index 8c49f1c..a439f59 100644
 +    // via raw regs; we take only the RX half). composer points --identify-port at the chosen board.
 +    let (usb_rx, _usb_tx) = UsbSerialJtag::new(p.USB_DEVICE).split();
 +    spawner.spawn(uart_rx_task(stack, my_tg_hash, usb_rx).unwrap());
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +    // #24 BLE control plane (feature-gated). Controller init (coex with WiFi, metal-verified)
 +    // -> bt-hci ExternalController -> trouble-host advertise. The ble_task owns the connector.
 +    #[cfg(feature = "ble")]
@@ -405,6 +405,8 @@ index 8c49f1c..a439f59 100644
 +            Ok(c) => {
 +                println!("r2-dfr1195: BLE controller init OK (coex with WiFi)");
 +                spawner.spawn(ble_task(c, my_hive, my_tg_hash, hk).unwrap());
++                spawner.spawn(engine_task(my_hive).unwrap()); // M9: run the S0–S4 engine over the bridge
++
 +            }
 +            Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
 +        }
@@ -1188,7 +1190,7 @@ index 8c49f1c..a439f59 100644
 +/// L2CAP CoC PSM for the R2 control plane (R2-WIRE event transport, R2-BLE §6). OTA = 0x00D3.
 +#[cfg(feature = "ble")]
 +const R2_PSM: u16 = 0x00D2;
- 
++
 +/// M7 CoC-connectivity test: the provider board (lowest of the 2 test boards). The M9 engine does
 +/// real §4A.3 election (lowest eligible hive_id) — this const is just the 2-board CoC bring-up.
 +#[cfg(feature = "ble")]
@@ -1199,7 +1201,7 @@ index 8c49f1c..a439f59 100644
 +#[cfg(feature = "ble")]
 +#[allow(dead_code)]
 +const KNOWN_HIVE_IDS: &[u32] = &[0x480e_900e, 0x2cab_5f69, 0x06ae_082b, 0x0dca_dbf8];
-+
+ 
 +/// Scan event handler: decode each observed R2-BEACON + resolve its RBID → hive_id.
 +#[cfg(feature = "ble")]
 +struct R2ScanHandler<'a> {
@@ -1246,6 +1248,109 @@ index 8c49f1c..a439f59 100644
 +    None
 +}
 +
++// ── M8: NegotiationRadio sync↔async bridge ─────────────────────────────────────
++// The trait is SYNC (engine.poll); BLE is async. Bridge via static queues: the async BLE tasks
++// (scan handler / conn-manager) fill+drain them; the sync EspNegRadio façade push/pops for the engine.
++#[cfg(feature = "ble")]
++type CtrlItem = (u32, [u8; 103], usize); // (peer_hive, encoded ControlMsg, len)
++#[cfg(feature = "ble")]
++static SCAN_OBS: embassy_sync::blocking_mutex::Mutex<CriticalSectionRawMutex, core::cell::RefCell<heapless::Deque<(u32, bool, u8), 16>>> =
++    embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(heapless::Deque::new()));
++#[cfg(feature = "ble")]
++static CTRL_OUT: embassy_sync::blocking_mutex::Mutex<CriticalSectionRawMutex, core::cell::RefCell<heapless::Deque<CtrlItem, 8>>> =
++    embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(heapless::Deque::new()));
++#[cfg(feature = "ble")]
++static CTRL_IN: embassy_sync::blocking_mutex::Mutex<CriticalSectionRawMutex, core::cell::RefCell<heapless::Deque<CtrlItem, 8>>> =
++    embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(heapless::Deque::new()));
++#[cfg(feature = "ble")]
++static DATA_PLANE_AVAIL: AtomicBool = AtomicBool::new(false);
++
++/// Push a resolved scan observation for the engine's poll_scan (called from on_adv_reports).
++#[cfg(feature = "ble")]
++#[allow(dead_code)]
++fn push_scan_obs(hive: u32, provider_capable: bool, power_bits: u8) {
++    SCAN_OBS.lock(|c| {
++        let mut q = c.borrow_mut();
++        if q.is_full() {
++            let _ = q.pop_front();
++        }
++        let _ = q.push_back((hive, provider_capable, power_bits));
++    });
++}
++
++/// Sync NegotiationRadio façade over the async BLE bridge + the WiFi data plane.
++#[cfg(feature = "ble")]
++struct EspNegRadio;
++#[cfg(feature = "ble")]
++impl r2_discovery::negotiation::NegotiationRadio for EspNegRadio {
++    fn advertise(&mut self, _beacon: &r2_discovery::negotiation::BeaconAd) {
++        // the async advertise loop keeps the beacon up continuously (S0–S4); nothing per-poll.
++    }
++    fn poll_scan(&mut self) -> Option<r2_discovery::negotiation::NegObservation> {
++        let obs = SCAN_OBS.lock(|c| c.borrow_mut().pop_front());
++        obs.map(|(h, pc, ps)| {
++            r2_discovery::negotiation::NegObservation::new(h, pc, r2_discovery::beacon::PowerState::from_bits(ps))
++        })
++    }
++    fn send_control(&mut self, peer: r2_discovery::HiveId, msg: &r2_discovery::negotiation::ControlMsg) {
++        let mut b = [0u8; r2_discovery::negotiation::ControlMsg::MAX_ENCODED_LEN];
++        let n = msg.encode(&mut b);
++        CTRL_OUT.lock(|c| {
++            let mut q = c.borrow_mut();
++            if q.is_full() {
++                let _ = q.pop_front();
++            }
++            let _ = q.push_back((peer, b, n));
++        });
++    }
++    fn poll_control(&mut self) -> Option<(r2_discovery::HiveId, r2_discovery::negotiation::ControlMsg)> {
++        let item = CTRL_IN.lock(|c| c.borrow_mut().pop_front());
++        item.and_then(|(h, b, n)| r2_discovery::negotiation::ControlMsg::decode(&b[..n]).map(|m| (h, m)))
++    }
++    fn bring_up_provider(&mut self, _p: &r2_discovery::negotiation::DataPlaneParams) -> bool {
++        // M8c TODO: start the SoftAP. Interim: the existing WiFi mesh is the data plane → mark available.
++        DATA_PLANE_AVAIL.store(true, Ordering::Relaxed);
++        true
++    }
++    fn join_provider(&mut self, _p: &r2_discovery::negotiation::DataPlaneParams) -> bool {
++        DATA_PLANE_AVAIL.store(true, Ordering::Relaxed);
++        true
++    }
++    fn data_plane_state(&self) -> r2_discovery::negotiation::DataPlaneState {
++        if DATA_PLANE_AVAIL.load(Ordering::Relaxed) {
++            r2_discovery::negotiation::DataPlaneState::Available
++        } else {
++            r2_discovery::negotiation::DataPlaneState::Unavailable
++        }
++    }
++    fn teardown_data_plane(&mut self) {
++        DATA_PLANE_AVAIL.store(false, Ordering::Relaxed);
++    }
++    fn now_ms(&self) -> u64 {
++        embassy_time::Instant::now().as_millis()
++    }
++}
++
++/// M9: run the S0–S4 negotiation engine over the sync EspNegRadio (driven by the async bridge).
++#[cfg(feature = "ble")]
++#[embassy_executor::task]
++async fn engine_task(my_hive: u32) {
++    use r2_discovery::beacon::PowerState;
++    use r2_discovery::negotiation::{NegotiationEngine, NegotiationState, NodeCaps};
++    let mut radio = EspNegRadio;
++    let mut eng = NegotiationEngine::<16>::new(my_hive, NodeCaps::new(true, PowerState::Normal), 5000, 10000);
++    eng.request_data_plane(); // we want to form a data plane
++    let mut prev: Option<NegotiationState> = None;
++    loop {
++        let st = eng.poll(&mut radio);
++        if prev != Some(st) {
++            println!("r2-dfr1195: NEG state -> {st:?} provider={:?}", eng.provider());
++            prev = Some(st);
++        }
++        Timer::after(Duration::from_millis(200)).await;
++    }
++}
++
 +/// IDENTIFY inject-bridge: read "IDENTIFY <wire_hex> <1|0>" lines off the USB-Serial-JTAG RX
 +/// (composer's orchestrator writes them to the chosen board's USB-serial) and broadcast the
 +/// r2.hb.identify Directed frame so the target board lights SOLID. Runs on every board (the RX
@@ -1265,9 +1370,7 @@ index 8c49f1c..a439f59 100644
 +    let bcast = IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
 +    let mut line = [0u8; 64];
 +    let mut n = 0usize;
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        if let Ok(c) = usb_rx.read_byte() {
 +            if c == b'\n' || c == b'\r' {
 +                if n > 0 {
@@ -1369,7 +1472,9 @@ index 8c49f1c..a439f59 100644
 +    let mut secfill = 0usize;
 +    let mut secbase = 0u32;
 +    let mut pkt = [0u8; 1500];
-+    loop {
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        let (n, from) = match socket.recv_from(&mut pkt).await {
 +            Ok(v) => v,
 +            Err(_) => continue,
