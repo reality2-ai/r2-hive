@@ -88,10 +88,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..260e892 100644
+index 8c49f1c..89b6d99 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1037 @@
+@@ -1,83 +1,1054 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -241,7 +241,7 @@ index 8c49f1c..260e892 100644
 +        None => (TG_HK_DEMO, MY_TG_HASH, mac_low3, TG_ID),
 +    };
 +    let is_ap = mac_low3 == AP_MAC_MATCH; // soft-AP role stays MAC-based
-+    let has_screen = read_has_screen(); // carrier: DFR1195=ST7735S, XIAO-S3=none
++    let (has_screen, led_active_low) = read_board_profile(); // DFR1195 vs XIAO-S3 (LED polarity)
 +
 +    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
 +    let timg0 = TimerGroup::new(p.TIMG0);
@@ -271,7 +271,7 @@ index 8c49f1c..260e892 100644
 +    hb_led
 +        .configure(channel::config::Config {
 +            timer: &hb_timer,
-+            duty_pct: 0,
++            duty_pct: if led_active_low { 100 } else { 0 }, // idle = LED off (polarity-aware)
 +            drive_mode: DriveMode::PushPull,
 +        })
 +        .unwrap();
@@ -381,20 +381,18 @@ index 8c49f1c..260e892 100644
 +            beat_t = 0;
 +        }
 +        if beat_t >= 0 {
-+            match beat_t {
-+                0 => {
-+                    let _ = hb_led.start_duty_fade(0, 100, 45);
-+                } // lub rise
-+                50 => {
-+                    let _ = hb_led.start_duty_fade(100, 0, 95);
-+                } // lub fall
-+                200 => {
-+                    let _ = hb_led.start_duty_fade(0, 70, 45);
-+                } // DUB rise
-+                250 => {
-+                    let _ = hb_led.start_duty_fade(70, 0, 150);
-+                } // DUB fall (rest)
-+                _ => {}
++            // lub-DUB segments as (brightness_from, brightness_to, ms); polarity-mapped to
++            // PWM duty so active-low carriers (XIAO-S3 GPIO21) render the same visible beat.
++            let seg = match beat_t {
++                0 => Some((0u8, 100u8, 45u16)),   // lub rise
++                50 => Some((100, 0, 95)),          // lub fall
++                200 => Some((0, 70, 45)),          // DUB rise
++                250 => Some((70, 0, 150)),         // DUB fall (rest)
++                _ => None,
++            };
++            if let Some((a, b, ms)) = seg {
++                let (a, b) = if led_active_low { (100 - a, 100 - b) } else { (a, b) };
++                let _ = hb_led.start_duty_fade(a, b, ms);
 +            }
 +            beat_t += 50;
 +            if beat_t > 450 {
@@ -482,13 +480,14 @@ index 8c49f1c..260e892 100644
 +    // hive_id heard this window (incl. self); reset every 3 periods so a departed
 +    // conductor is forgotten + election re-runs.
 +    let mut lowest_heard: u32 = my_hive;
-+    let mut hb_window: u32 = 0;
++    let mut since_conductor: u32 = 0; // beats since the conductor's last beat (#23 re-elect timeout)
 +
 +    // Pulse-coupled oscillator. Tick = phase resolution; epsilon = coupling.
 +    const HB_PERIOD_MS: f32 = 2000.0;
 +    const HB_TICK_MS: u64 = 50;
 +    const HB_EPSILON: f32 = 0.30; // 2nd-order PLL proportional (phase) gain (alpha)
 +    const HB_BETA: f32 = 0.02; // 2nd-order PLL integral (frequency) gain — kills steady-state offset
++    const HB_CONDUCTOR_TIMEOUT: u32 = 4; // forget a SILENT conductor after N beats -> re-elect (#23)
 +    let mut phase: f32 = if is_ap { 0.0 } else { 0.55 }; // out of phase → watch them converge
 +    let mut freq_adj: f32 = 0.0; // accumulated per-tick frequency correction (the integral term)
 +    let mut am_conductor = true; // = (my hive_id is the lowest heard); updated on each heard beat
@@ -511,11 +510,20 @@ index 8c49f1c..260e892 100644
 +                if phase >= 1.0 {
 +                    phase = 0.0;
 +                    FIRE_SIGNAL.signal(()); // main renders the organic lub-DUB envelope
-+                    // Conductor-election window: forget stale conductors every 3 periods.
-+                    hb_window += 1;
-+                    if hb_window >= 3 {
-+                        lowest_heard = my_hive;
-+                        hb_window = 0;
++                    // Conductor-TIMEOUT re-election (#23): a follower forgets the conductor
++                    // ONLY after it's been silent HB_CONDUCTOR_TIMEOUT beats, then resets to
++                    // self + re-elects (next-lowest survivor takes over). A healthy conductor
++                    // keeps since_conductor=0 -> no churn, no spurious follower beacons.
++                    if !am_conductor {
++                        since_conductor += 1;
++                        if since_conductor >= HB_CONDUCTOR_TIMEOUT {
++                            println!(
++                                "r2-dfr1195: conductor SILENT {since_conductor} beats -> re-elect"
++                            );
++                            lowest_heard = my_hive;
++                            am_conductor = true;
++                            since_conductor = 0;
++                        }
 +                    }
 +                    // Heartbeat payload: originator hive_id (4B) + firmware version (4B, #18).
 +                    let mut hb_payload = [0u8; 8];
@@ -644,8 +652,10 @@ index 8c49f1c..260e892 100644
 +                            if am_conductor {
 +                                // The conductor free-runs at the nominal rate — it IS the reference.
 +                                freq_adj = 0.0;
++                                since_conductor = 0;
 +                                SYNCED.store(true, Ordering::Relaxed);
 +                            } else if sender_hive == lowest_heard {
++                                since_conductor = 0; // heard the conductor — reset the silence timer
 +                                // 2nd-order conductor-PLL (R2-HEARTBEAT §4): conductor just fired
 +                                // (phase ~0). Proportional pulls phase toward 0; integral (freq_adj)
 +                                // cancels the residual rate mismatch → zero steady-state offset.
@@ -796,20 +806,27 @@ index 8c49f1c..260e892 100644
 +    Some(Persona { tg_label, tg_hash: p.tg_hash, hk: p.hk, hive_id: p.hive_id })
 +}
 +
-+/// Carrier-aware screen flag (9-board: one binary on DFR1195 + screenless XIAO-S3).
-+/// Board-profile byte @0x13000: 0x00 = no screen (XIAO), else/0xFF(erased) = screen
-+/// (DFR1195). composer write-bins 0x00 on the XIAO so the LCD init/render is skipped and
-+/// the binary runs cleanly there (LED+heartbeat+TN+trust+health unaffected). Read before
-+/// the radio starts (no flash-vs-WiFi collision).
++/// Carrier-aware board profile (9-board: one binary on DFR1195 + screenless XIAO-S3).
++/// Byte 0 @0x13000: 0x00 = no screen (XIAO), else/0xFF(erased) = screen (DFR1195).
++/// Byte 1: LED polarity — 0x01 = active-low, 0x00 = active-high, 0xFF(erased) = default to
++/// (active-low iff no-screen) — so the existing XIAO 1-byte profile (byte0=0x00) already
++/// yields active-low without re-provisioning (Seeed XIAO-S3 user LED GPIO21 is ACTIVE-LOW;
++/// DFR1195 GPIO21 is active-high). Read before the radio starts (no flash-vs-WiFi collision).
 +const BOARD_PROFILE_OFFSET: u32 = 0x13000;
-+fn read_has_screen() -> bool {
++fn read_board_profile() -> (bool, bool) {
 +    use embedded_storage::ReadStorage;
 +    let mut flash = esp_storage::FlashStorage::new();
-+    let mut b = [0u8; 1];
++    let mut b = [0u8; 2];
 +    if flash.read(BOARD_PROFILE_OFFSET, &mut b).is_err() {
-+        return true; // default to the DFR1195 screen on read error
++        return (true, false); // default: DFR1195 screen + active-high LED
 +    }
-+    b[0] != 0x00
++    let has_screen = b[0] != 0x00;
++    let led_active_low = match b[1] {
++        0x01 => true,
++        0x00 => false,
++        _ => !has_screen, // erased: no-screen carriers (XIAO) are active-low by default
++    };
++    (has_screen, led_active_low)
 +}
  
 -/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
