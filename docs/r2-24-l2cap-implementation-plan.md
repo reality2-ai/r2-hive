@@ -109,3 +109,27 @@ controller owned by wifi_task @1541). M8c architecture:
 - DELICACY: the controller is in wifi_task; refactor to a control task that handles reconfig cmds; sequence
   the set_config/connect vs the existing io_task using the stack; keep BLE coex. Then M10: lose-AP →
   DATA_PLANE_AVAIL=false → engine S2→S3→S4→reform + emit key13/14/15 telemetry.
+
+## ACCEPTANCE TEST (Roy's canonical TN success) — remaining dynamic behaviors after M8c
+M8c = real form DONE. The full success demo + the 4 remaining behaviors (each substantial):
+1. **FORM → SYNC** (next): the 2 formed boards lub-dub-sync over the formed WiFi. FINDING (metal): they
+   FORM but DON'T sync yet — joiner `synced=false` (no HB<- received), provider beats stuck ~8. The io_task
+   heartbeat needs formed-net work: (a) socket lifecycle — io_task spawns before the joiner's stack is up
+   (wait_config_up skipped for ble) → bind/rebind after the data plane is up; (b) SoftAP broadcast AP↔STA
+   (192.168.4.255 over r2-tn-form); (c) conductor-PLL on the formed net (provider 0dcadbf8 = lowest = conductor;
+   note is_ap≠serve_ap mismatch — io_task uses is_ap[MAC] not serve_ap[elected], so the WiFi-AP runs STA-role).
+2. **TG-GATE (real resolve)** — CONFIRM forming is TG-gated. CURRENTLY BYPASSED: M8b/M8c inject a SYNTHETIC
+   peer obs (push_scan_obs(peer_hive)) + deterministic addr — NOT via resolve. Must replace with the REAL
+   S0 scan→decode_advert→resolve_rbid_windowed (proven in S0 DISCOVER) feeding push_scan_obs: same-TG peers
+   resolve (shared hk via derive_beacon_session_key) → obs; cross-TG can't resolve → no obs → no elect → no
+   form (the negative test). CENTRAL CONFLICT: provider scans freely (it accepts, doesn't connect); joiner
+   must scan-to-resolve THEN connect (time-share central: Scanner → resolve → into_inner → connect on join_provider).
+3. **N-DEVICE-JOIN** — a later same-TG board AUTO-joins the EXISTING provider (don't form new). The engine
+   elects the lowest; a higher new board elects the existing lower provider → join_provider → joins. Needs the
+   real scan (sees the existing provider) + the provider accepting N CoCs (multi-channel, vs the M8c single).
+4. **AP-FAILOVER/REFORM (M10, subsumes #23)** — provider off → joiner data_plane_state→Failed (wait_for_disconnect
+   → AVAIL=false) → engine S2→S3→S4 → re-elect next-lowest provider_capable → NEW provider brings up its AP →
+   others re-join. HARD PART: the re-elected provider was a STA (booted station interface) → must become AP at
+   runtime (the interface-binding issue — needs the access_point interface; M8c pre-assigns by boot role). Real
+   runtime AP-bring-up on re-election = the delicate piece (set_config AP + the AP interface/stack).
+Each is a focused milestone; report each. core's canonical contract: docs/R2-24-NEGOTIATION-BRIEF.md (631b758).
