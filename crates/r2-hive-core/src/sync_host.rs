@@ -195,6 +195,9 @@ pub fn route_inbound_sync(
     let advice = engine.plan_forward(ForwardRequest {
         now,
         msg_id: header.msg_id as u16,
+        // R2-WIRE v0.4 dedup origin (originator hive) — sync_host has the real originator, so per-origin
+        // multi-hop dedup works across paths (unlike the MCU firmware's route:None=0 placeholder).
+        origin: originator,
         source_hop: (originator >> 16) as u16,
         ttl: header.ttl,
         k: header.k,
