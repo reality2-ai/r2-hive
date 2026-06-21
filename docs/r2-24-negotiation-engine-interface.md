@@ -167,3 +167,31 @@ subsystem, not a beacon tweak. Open DESIGN questions for core (the trait/engine 
 Platform bits I'll own (decide + surface): the 2-adv-sets vs switch, the central/peripheral driver, the
 connection map. core owns the trait semantics. Then: NegotiationRadio impl → run the S0–S4 engine →
 BLE→WiFi network-forming (S2 = the existing SoftAP/UDP data plane) → disruption→S3→S4→reform.
+
+## S1 DESIGN CLOSED (all-hands 2026-06-21) — workshop's proven L2CAP spec + interop contract
+workshop's esp-idf/NimBLE l2cap.rs is the cross-platform reference; esp-radio side MATCHES for interop:
+- **PSM = 0x00D2** (R2_PSM), **MTU = 512**.
+- **Framing (R2-BLE §6.4):** each SDU = `[len_lo, len_hi, payload...]` — 2-byte **LITTLE-ENDIAN** length prefix
+  (NB: LE, unlike R2-WIRE's BE). MAX_FRAME 4096. One ControlMsg per SDU.
+- **HiveId↔BLE-addr MAP** (the key bridge): NegotiationRadio is HiveId-addressed; L2CAP is BLE-addr-addressed.
+  Populate the map from SCANS — the scan report carries BOTH `rep.addr` AND the resolved hive_id (I already
+  resolve RBID→hive_id; just also store rep.addr). Then `send_control(hid,msg)` = map hid→addr → l2cap
+  send_to(addr, frame(encode(msg))); `poll_control()` = drain_received→(payload,addr) → map addr→hid →
+  (hid, decode(payload)).
+- **ControlMsg wire encoding** (mine; ≤101 B, fits MTU 512 → NO fragmentation): `[tag:u8]` where
+  tag 0x01=WifiReq (no body), 0x02=WifiOffer + body = `ssid[32] || psk[64] || ap_hint_be32` (100 B), 0x03=WifiDone.
+  Wrapped in workshop's `[len_lo,len_hi]` frame. (Confirm byte-compat with workshop before first interop.)
+- **Roles:** provider (lowest hive_id) = BLE peripheral (connectable adv + accept CoC); joiners = central
+  (connect → CoC). Provider runs 2 adv-sets (non-conn RBID beacon for discovery + connectable for control) OR
+  switches during NEGOTIATE — platform decision, leaning 2-sets for always-discoverable.
+
+## Network-forming TELEMETRY (for composer's proof surface) — emit when the engine runs
+Extend r2.hb.health: **key13 = forming_phase** (0=discover 1=negotiate 2=form 3=fallback 4=reform, from the
+engine S0–S4 state), **key14 = neighbor_count** (resolved peers in roster), **key15 = role** (0=none 1=provider
+2=joiner). composer renders the discover→negotiate→form→heal sequence live (alongside the existing key10
+transport set B→W). Populated once the NegotiationRadio + engine are wired; static/absent until then.
+
+## Engine: reform-hardening adopted
+Bumped r2-discovery to core's 1496916 (Fallback resets exclusions on full candidate-set exhaustion → a node
+that disrupts through every provider RECOVERS instead of stranding; test reform_after_all_providers_excluded).
+No API change.
