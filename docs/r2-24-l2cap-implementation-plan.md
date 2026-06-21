@@ -58,3 +58,32 @@ Build: `cargo build --release --features ble`. 2-board test on ACM1 (b79010=2cab
 core: engine+beacon ready @1496916, lockstep on any trait gap (none expected). workshop: byte-compatible
 l2cap.rs (PSM 0x00D2, LE framing) + will mirror framing + offers esp-idf NegotiationRadio for cross-platform
 proof (greenlight when my CoC sends). composer: proof surface prepped for key13/14/15 + flashes on ready.
+
+## M8 ARCHITECTURE — sync↔async bridge (trait is SYNC; codec landed @53c1e58)
+NegotiationRadio is SYNC (fn advertise/poll_scan/send_control/poll_control/bring_up_provider/
+join_provider/data_plane_state/teardown_data_plane/now_ms) + `engine.poll(&mut radio)` SYNC. BLE
+(trouble) is ASYNC. So the radio impl is a sync façade over async BLE via STATIC shared state:
+- **Async background tasks** (spawned in ble_task / its own task): runner.run_with_handler(&handler);
+  advertise loop (non-conn RBID beacon + connectable adv on provider_capable nodes); scan loop
+  (handler pushes observations + populates HiveId↔addr); a CONNECTION-MANAGER loop (drains CTRL_OUT →
+  connect-if-needed via HiveId↔addr → L2capChannel::create → frame+send; CoC receive → strip frame →
+  push CTRL_IN with the src hive).
+- **Static shared state** (embassy_sync blocking Mutex<RefCell<…>> or heapless queues):
+  SCAN_OBS: Deque<(hive_id, provider_capable, power_state)> — handler push / poll_scan pop → NegObservation::new.
+  HIVE_ADDR: map hive_id→(AddrKind,[u8;6]) from scans (current connectable addr; rotates).
+  CTRL_OUT: Deque<(hive_id, [u8;MAX_ENCODED_LEN], len)> — send_control push / conn-mgr drain.
+  CTRL_IN: Deque<(hive_id, ControlMsg)> — conn-mgr push / poll_control pop.
+  DATA_PLANE: atomic state (Available/Failed) ← WiFi link.
+- **Sync NegotiationRadio impl** (the façade): advertise = no-op (async loop already advertises the beacon);
+  poll_scan = SCAN_OBS.pop → NegObservation::new(hive,provider_capable,power); send_control = msg.encode →
+  CTRL_OUT.push; poll_control = CTRL_IN.pop; bring_up_provider = start SoftAP (existing wifi); join_provider
+  = STA connect (existing wifi, AP-IP via gateway); data_plane_state = DATA_PLANE atomic; teardown; now_ms
+  = embassy Instant ms.
+- **Engine task:** `let mut eng = NegotiationEngine::<16>::new(my_hive, NodeCaps::new(provider_capable, power),
+  5000, 10000);` loop { eng.poll(&mut radio); eng.request_data_plane() when app needs it; Timer tick }.
+- **ControlMsg codec (landed @53c1e58):** `let mut b=[0u8;ControlMsg::MAX_ENCODED_LEN(=103)]; let n=msg.encode(&mut b);`
+  send &b[..n] (wrapped in [len_lo,len_hi]); `ControlMsg::decode(payload)->Option` (after stripping the frame).
+  Wire: WifiReq=[0x01] / WifiOffer=[0x02][ssid_len][ssid][psk_len][psk][ap_hint:4 BE] / WifiDone=[0x03]. Both
+  platforms identical (workshop folded the same API → zero-drift).
+- **Provider/joiner roles now ENGINE-DRIVEN** (not the M7 const): the engine elects (lowest provider_capable
+  hive); the conn-mgr opens CoC to the elected provider. M7's M7_PROVIDER_HIVE const retires.
