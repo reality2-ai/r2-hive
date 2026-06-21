@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..d7e3247 100644
+index 8c49f1c..36e1495 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1743 @@
+@@ -1,83 +1,1758 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -732,7 +732,12 @@ index 8c49f1c..d7e3247 100644
 +                // Trust demo: AP originates a SIGNED intra-TG Event ~every 3s,
 +                // alternating good/bad HMAC to exercise the B1 deliver-gate at B.
 +                ev_tick += 1;
-+                if is_ap && ev_tick >= 60 {
++                // Who originates the periodic signed Event: infra = the AP; mesh = the conductor (no AP).
++                #[cfg(not(feature = "ble"))]
++                let orig = is_ap;
++                #[cfg(feature = "ble")]
++                let orig = am_conductor;
++                if orig && ev_tick >= 60 {
 +                    ev_tick = 0;
 +                    let good = ev_seq % 2 == 0;
 +                    let payload = b"in-TG";
@@ -754,6 +759,16 @@ index 8c49f1c..d7e3247 100644
 +                    msg.header.flags = flags;
 +                    msg.hmac_tag = Some(tag);
 +                    if let Ok(n) = encode_extended(&msg, &mut txbuf) {
++                        // MESH: broadcast the Event over ESP-NOW (the follower's RX + deliver-gate run via
++                        // the bridge). INFRA: UDP broadcast.
++                        #[cfg(feature = "ble")]
++                        {
++                            let mut f = [0u8; 256];
++                            let m = n.min(256);
++                            f[..m].copy_from_slice(&txbuf[..m]);
++                            let _ = ESPNOW_TX.try_send((f, m));
++                        }
++                        #[cfg(not(feature = "ble"))]
 +                        let _ = socket.send_to(&txbuf[..n], peer_ep).await;
 +                        println!(
 +                            "r2-dfr1195: ORIG Event ev_seq={ev_seq} hmac={}",
