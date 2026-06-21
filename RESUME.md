@@ -156,6 +156,15 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     no rebuild, still synced). If Roy confirms mostly-off+pulse → update the firmware DEFAULT (don't infer
     active-low from no-screen). I CANNOT self-observe the LED — Roy is ground truth. **R2-WIRE v0.6**
     (msg_id-in-HMAC-span) = deferred: SEPARATE all-9-coordinated update; current bench all on the same span.
+  - **#24 BLE↔WiFi TWO-PLANE — STARTED (Roy: now the focus; AP wedged again = the motivating need).**
+    Architecture settled (workshop+core, r2-route pattern): pure no_std S0–S4 negotiation ENGINE in
+    **r2-discovery** (core lands it from my interface) behind a **NegotiationRadio trait**; radio glue
+    per-platform (hive=esp-radio, workshop=esp-idf); protocol primitives reused (r2-wire/trust/beacon);
+    reuse `lowest_live_id` (conductor election). DELIVERED: the engine interface (S0–S4 table + trait
+    surface) → core (docs/r2-24-negotiation-engine-interface.md). BLE foundation scouted: esp-radio
+    `ble` HCI + **trouble-host** (bt-hci). NEXT (fresh focused effort, TEST PAIRING first): the esp-radio
+    BLE-stack bring-up (deps+coex → HCI↔trouble-host → advertise RBID → scan → L2CAP CoC → NegotiationRadio
+    impl). Subsumes #23/#23b (wedged AP → auto-renegotiate over BLE, no manual reset). §4A Profile-A conformant.
   - **NAMED REQUIREMENTS (roadmap, careful test-pairing — NOT on the live mesh):** #23b **AP-FAILOVER** (Roy:
     "TN should renegotiate the hotspot if it goes away") — pre-designated backup (lowest AP-capable hive from
     the roster) detects disassociation → promotes STA→AP (same SSID/IP) → others re-associate; conductor-timeout
