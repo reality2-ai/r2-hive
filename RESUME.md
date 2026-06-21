@@ -191,10 +191,20 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     the fragile profile-byte.** Carrier-detection boot-guard (MAC-OUI + PSRAM-probe → reject wrong-build) =
     hive's. composer leads composition (CARRIER-COMPOSITION.md, sdkconfig=Path-A/std only; my Path-B uses Cargo
     features). FOLD into the SAME next deliverable as the #24 BLE stack. (composer driving both S3 targets now.)
-  - **IDENTIFY (Roy locate-a-board) — device-side DONE (0621.1322):** Directed r2.hb.identify frame
-    (event_hash + target_hive + payload on/off) → target board LED SOLID ~5s override (polarity-aware),
-    refresh-on-repeat / clear-on-off. Down-path (orchestrator→serial-bridge→mesh-inject) = the remaining
-    piece: UART RX on USB-Serial-JTAG, on a NON-AP/test board first (don't risk the live AP health-feed TX).
+  - **IDENTIFY (Roy locate-a-board) — DONE + VALIDATED.** Device-side: r2.hb.identify Directed frame →
+    target LED SOLID ~5s override (polarity-aware), refresh/clear. INJECT-BRIDGE (uart_rx_task): reads
+    "IDENTIFY <wire_hex> <1|0>" off the USB-Serial-JTAG RX half + broadcasts the frame; runs on every board,
+    composer points --identify-port at b79010. VALIDATED on b79010: RX-sharing OK (esp-println TX intact)
+    + inject works. composer flipping --identify-port now (composer-side done, 7ec3706). NOTE: the device-
+    side override needs the IDENTIFY build on each TARGET board (only b79010 has it now → rides the next
+    fleet re-flash). sync_state→0/1/2 (composer dashboard now treats 1=locked; resolved). LED byte DROPPED
+    by composer (byte1 reserved; polarity = my active-high default + a Cargo feature) — fragility gone for good.
+  - **BLE deep-dive DEFERRED to a fresh session (supervisor-agreed)** — checkpoint complete in
+    docs/r2-24-negotiation-engine-interface.md (scout + S0–S4 + step-sequence + hurdles + core-provides +
+    beacon-AD gating). No BLE deps added yet → live firmware builds clean; fresh session step 1 = add the
+    `ble` Cargo feature OFF-by-default + the optional deps. **Per-carrier Cargo features** (for composer's
+    board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO octal-PSRAM@80MHz baked via PsramConfig in
+    code — esp-hal has no psram Cargo feature); created with the per-carrier restructure (next deliverable).
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
     → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA network receiver (#17)** — the
     slot-switch is PROVEN (test b); remaining = UDP image transfer + write ota_1 with esp-radio QUIESCED
