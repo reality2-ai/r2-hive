@@ -111,10 +111,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..f2c4d6a 100644
+index 8c49f1c..2df4c71 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1990 @@
+@@ -1,83 +1,1962 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -223,6 +223,7 @@ index 8c49f1c..f2c4d6a 100644
 +// conductor hive (a CHANGE = a reform/re-elect). Published each beat; surfaced on the status serial line.
 +static NBRS: AtomicU32 = AtomicU32::new(0);
 +static CONDUCTOR: AtomicU32 = AtomicU32::new(0);
++static SPREAD_MS: AtomicU32 = AtomicU32::new(0); // leaderless phase-spread (ms) = convergence tightness (dashboard)
 +/// io_task signals a heartbeat FIRE → main renders the organic lub-DUB LED envelope.
 +static FIRE_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 +
@@ -544,6 +545,7 @@ index 8c49f1c..f2c4d6a 100644
 +            let blk = BLOCKED.load(Ordering::Relaxed);
 +            let nbrs = NBRS.load(Ordering::Relaxed); // mesh size (dashboard: grow/shrink)
 +            let cond = CONDUCTOR.load(Ordering::Relaxed); // sync conductor (dashboard: change = reform)
++            let spread = SPREAD_MS.load(Ordering::Relaxed); // leaderless convergence tightness (ms)
 +            // LCD render only when this carrier has a screen (DFR1195); skipped on XIAO-S3.
 +            if let Some(d) = display.as_mut() {
 +                let green = MonoTextStyle::new(&FONT_6X10, Rgb565::GREEN);
@@ -571,7 +573,7 @@ index 8c49f1c..f2c4d6a 100644
 +            //   nbrs = mesh neighbour count (join→++ / leave→--), synced = sync-state,
 +            //   cond = current conductor hive (a CHANGE between samples = a reform/re-elect).
 +            println!(
-+                "r2-dfr1195: status beats={beats} dlv={dlv} blk={blk} synced={synced} nbrs={nbrs} cond={cond:06x} role={role}"
++                "r2-dfr1195: status beats={beats} dlv={dlv} blk={blk} synced={synced} nbrs={nbrs} cond={cond:06x} spread_ms={spread} role={role}"
 +            );
 +        }
 +        Timer::after(Duration::from_millis(50)).await;
@@ -582,7 +584,6 @@ index 8c49f1c..f2c4d6a 100644
 +/// r2-harness firefly::Coupling::ConcaveMs{b:3}). Returns the bidirectional concave nudge factor for a phase
 +/// error e ∈ [-0.5, 0.5); the full phase kick is K_phi · w_ij · phase_response(e). Concave (not a linear/
 +/// constant kick) is load-bearing: linear clusters for N>2, the concave M&S form provably synchronises for any N.
-+#[cfg(feature = "ble")]
 +fn phase_response(e: f32) -> f32 {
 +    // resp = ln(1 + (e^3 − 1)·m) / 3, m = min(2|e|, 1).  e^3 = Euler^3 (precomputed constant), NOT phase err.
 +    const EXP3_MINUS_1: f32 = 19.085_537; // e^3 − 1, b = 3
@@ -629,28 +630,26 @@ index 8c49f1c..f2c4d6a 100644
 +    let bad_hmac = GroupHmac::new([0xFF; 32]);
 +    let mut ev_tick: u32 = 0;
 +    let mut ev_seq: u32 = 1;
-+    // Conductor-PLL (R2-HEARTBEAT v0.1): the lowest live hive_id is the conductor;
-+    // it free-runs, everyone else phase-locks to its beat. `lowest_heard` = lowest
-+    // hive_id heard this window (incl. self); reset every 3 periods so a departed
-+    // conductor is forgotten + election re-runs.
++    // Leaderless reachback-PCO (R2-HEARTBEAT v0.4 — PINNED CANON, replacing conductor-PLL after the
++    // 3-node-flap refutation): flat identical nodes, NO conductor, NO election, NO single originator.
++    // `lowest_heard` is kept ONLY as a deterministic demo-Event originator + dashboard hint — the SYNC
++    // does NOT use it (the §4.1 coupling is flat, which is exactly why a flapping node has no election
++    // to thrash → HBSYNC-01).
 +    let mut lowest_heard: u32 = my_hive;
-+    let mut since_conductor: u32 = 0; // beats since the conductor's last beat (#23 re-elect timeout)
 +    // Dashboard liveness: (peer_hive, last_heard_secs) for a FAST mesh-size signal — join shows immediately,
 +    // leave decrements within MESH_PEER_TTL_S (the route-engine decay is 300s for Mobile = too slow to SEE).
 +    let mut seen: heapless::Vec<(u32, u32), 16> = heapless::Vec::new();
 +    const MESH_PEER_TTL_S: u32 = 7; // ~3 missed beats → counts as left
 +
-+    // Pulse-coupled oscillator. Tick = phase resolution; epsilon = coupling.
++    // Leaderless PCO constants (R2-HEARTBEAT v0.4 §4).
 +    const HB_PERIOD_MS: f32 = 2000.0;
 +    const HB_TICK_MS: u64 = 50;
-+    const HB_EPSILON: f32 = 0.30; // 2nd-order PLL proportional (phase) gain (alpha)
-+    const HB_BETA: f32 = 0.02; // 2nd-order PLL integral (frequency) gain — kills steady-state offset
-+    const HB_CONDUCTOR_TIMEOUT: u32 = 4; // forget a SILENT conductor after N beats -> re-elect (#23)
++    const K_PHI: f32 = 0.25; // §4.1 phase coupling gain (concave M&S, critically damped)
++    const HB_RATE_BETA: f32 = 0.01; // §4.3 rate/skew correction toward zero phase error (drift absorption)
 +    let mut phase: f32 = if is_ap { 0.0 } else { 0.55 }; // out of phase → watch them converge
-+    let mut freq_adj: f32 = 0.0; // accumulated per-tick frequency correction (the integral term)
-+    let mut am_conductor = true; // = (my hive_id is the lowest heard); updated on each heard beat
++    let mut freq_adj: f32 = 0.0; // rate offset (cycles/tick) — the §4.3 consensus correction
 +    let mut fire_seq: u32 = 1;
-+    let mut last_err_ms: u32 = 0; // latest PLL phase error in ms (#18 health field 8)
++    let mut last_err_ms: u32 = 0; // latest coupling phase error in ms = the leaderless spread_ms metric
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
@@ -667,23 +666,9 @@ index 8c49f1c..f2c4d6a 100644
 +            Either::First(_) => {
 +                phase += HB_TICK_MS as f32 / HB_PERIOD_MS + freq_adj;
 +                if phase >= 1.0 {
-+                    phase = 0.0;
++                    phase -= 1.0; // preserve overshoot — leaderless PCO fire (R2-HEARTBEAT v0.4)
 +                    FIRE_SIGNAL.signal(()); // main renders the organic lub-DUB envelope
-+                    // Conductor-TIMEOUT re-election (#23): a follower forgets the conductor
-+                    // ONLY after it's been silent HB_CONDUCTOR_TIMEOUT beats, then resets to
-+                    // self + re-elects (next-lowest survivor takes over). A healthy conductor
-+                    // keeps since_conductor=0 -> no churn, no spurious follower beacons.
-+                    if !am_conductor {
-+                        since_conductor += 1;
-+                        if since_conductor >= HB_CONDUCTOR_TIMEOUT {
-+                            println!(
-+                                "r2-dfr1195: conductor SILENT {since_conductor} beats -> re-elect"
-+                            );
-+                            lowest_heard = my_hive;
-+                            am_conductor = true;
-+                            since_conductor = 0;
-+                        }
-+                    }
++                    // No conductor, no re-election (leaderless §2): every node fires + emits flat.
 +                    // Heartbeat payload: originator hive_id (4B) + firmware version (4B, #18).
 +                    let mut hb_payload = [0u8; 8];
 +                    hb_payload[0..4].copy_from_slice(&my_hive.to_be_bytes());
@@ -702,13 +687,8 @@ index 8c49f1c..f2c4d6a 100644
 +                    };
 +                    let msg =
 +                        ExtendedMessage { header, route: None, payload: &hb_payload, hmac_tag: None };
-+                    // INFRA (default): NO-FLOOD — ONLY the conductor beacons (1 beat on the AP, not N).
-+                    // MESH (ble): ALL nodes beat — the heartbeat doubles as the neighbour-discovery presence
-+                    // (so r2-route learns who's reachable → relay/route), and sync chains to the lowest
-+                    // hive hop-by-hop (C locks to B locks to A). PLL still locks to lowest_heard only.
-+                    #[cfg(not(feature = "ble"))]
-+                    let do_broadcast = am_conductor;
-+                    #[cfg(feature = "ble")]
++                    // Leaderless (§2/§7): EVERY node emits its own fire — flat, one-hop, no relay; the
++                    // heartbeat is both the sync pulse AND the neighbour-discovery presence.
 +                    let do_broadcast = true;
 +                    if do_broadcast {
 +                        if let Ok(n) = encode_extended(&msg, &mut txbuf) {
@@ -742,12 +722,9 @@ index 8c49f1c..f2c4d6a 100644
 +                        .filter(|(_, t)| now_s.saturating_sub(*t) <= MESH_PEER_TTL_S)
 +                        .count();
 +                    NBRS.store(live as u32, Ordering::Relaxed);
-+                    CONDUCTOR.store(
-+                        if am_conductor { my_hive } else { lowest_heard },
-+                        Ordering::Relaxed,
-+                    );
-+                    let r = if am_conductor { "CONDUCTOR" } else { "follower" };
-+                    println!("r2-dfr1195: FIRE seq={fire_seq} beat ({r})");
++                    CONDUCTOR.store(0, Ordering::Relaxed); // leaderless: no conductor (dashboard blank)
++                    SPREAD_MS.store(last_err_ms, Ordering::Relaxed); // publish convergence tightness
++                    println!("r2-dfr1195: FIRE seq={fire_seq} beat (leaderless)");
 +
 +                    // #18 health telemetry: every 3rd beat (~6s) emit the health frame on serial — comfortably
 +                    // under composer's 12s "node silent → grey" threshold so live nodes never falsely grey.
@@ -755,7 +732,7 @@ index 8c49f1c..f2c4d6a 100644
 +                        let mut hbuf = [0u8; 96];
 +                        let synced = SYNCED.load(Ordering::Relaxed);
 +                        if let Some(hn) = build_health(
-+                            &mut hbuf, my_hive, my_tg_hash, is_ap, am_conductor, my_ip, synced,
++                            &mut hbuf, my_hive, my_tg_hash, is_ap, false, my_ip, synced,
 +                            last_err_ms, fire_seq,
 +                        ) {
 +                            // MESH (ble): EVERY board logs its OWN health on its serial (no AP forwarder in
@@ -806,11 +783,12 @@ index 8c49f1c..f2c4d6a 100644
 +                // Trust demo: AP originates a SIGNED intra-TG Event ~every 3s,
 +                // alternating good/bad HMAC to exercise the B1 deliver-gate at B.
 +                ev_tick += 1;
-+                // Who originates the periodic signed Event: infra = the AP; mesh = the conductor (no AP).
++                // Who originates the periodic signed Event: infra = the AP; mesh (leaderless) = the
++                // lowest-hive-seen node (a deterministic originator for the trust-demo; NOT a sync leader).
 +                #[cfg(not(feature = "ble"))]
 +                let orig = is_ap;
 +                #[cfg(feature = "ble")]
-+                let orig = am_conductor;
++                let orig = my_hive == lowest_heard;
 +                if orig && ev_tick >= 60 {
 +                    ev_tick = 0;
 +                    let good = ev_seq % 2 == 0;
@@ -895,8 +873,7 @@ index 8c49f1c..f2c4d6a 100644
 +                            } else {
 +                                u32::MAX
 +                            };
-+                            lowest_heard = lowest_heard.min(sender_hive);
-+                            am_conductor = my_hive <= lowest_heard; // persistent (gates beaconing)
++                            lowest_heard = lowest_heard.min(sender_hive); // tracking only (ev orig + dashboard), NOT sync
 +                            // M-ESPNOW-3b: the heartbeat sender is a direct ESP-NOW neighbour → feed
 +                            // r2-route's neighbour table so plan_forward can route/relay over the mesh.
 +                            // (link_quality 0.7 cold-start seed; living-routing reinforces on delivery.)
@@ -921,39 +898,34 @@ index 8c49f1c..f2c4d6a 100644
 +                                    let _ = seen.push((sender_hive, now_s));
 +                                }
 +                            }
-+                            if am_conductor {
-+                                // The conductor free-runs at the nominal rate — it IS the reference.
-+                                freq_adj = 0.0;
-+                                since_conductor = 0;
-+                                SYNCED.store(true, Ordering::Relaxed);
-+                            } else if sender_hive == lowest_heard {
-+                                since_conductor = 0; // heard the conductor — reset the silence timer
-+                                // 2nd-order conductor-PLL (R2-HEARTBEAT §4): conductor just fired
-+                                // (phase ~0). Proportional pulls phase toward 0; integral (freq_adj)
-+                                // cancels the residual rate mismatch → zero steady-state offset.
-+                                let before = phase;
-+                                let e = if phase <= 0.5 { -phase } else { 1.0 - phase };
-+                                phase += HB_EPSILON * e; // proportional (alpha)
-+                                if phase < 0.0 {
-+                                    phase += 1.0;
-+                                }
-+                                if phase >= 1.0 {
-+                                    phase -= 1.0;
-+                                }
-+                                freq_adj += HB_BETA * e; // integral (beta) — eliminates the offset
-+                                if freq_adj > 0.003 {
-+                                    freq_adj = 0.003;
-+                                }
-+                                if freq_adj < -0.003 {
-+                                    freq_adj = -0.003;
-+                                }
-+                                let eabs = if e < 0.0 { -e } else { e };
-+                                last_err_ms = (eabs * HB_PERIOD_MS) as u32; // #18 phase_err_ms
-+                                SYNCED.store(eabs < 0.04, Ordering::Relaxed); // <~80ms = "in sync"
-+                                println!(
-+                                    "r2-dfr1195: HB<-{from} cond={sender_hive:06x} e={e:.3} fadj={freq_adj:.4} (lock)"
-+                                );
++                            // ── Leaderless reachback-PCO coupling (R2-HEARTBEAT v0.4 §4.1) ──
++                            // Couple toward THIS neighbour's fire on EVERY heard beat — flat, no conductor,
++                            // no election to thrash (that flatness is exactly why the canon survives the
++                            // 3-node flap = HBSYNC-01). The sender emitted on its own fire (phase 0);
++                            // single-transport ESP-NOW transit << T so delay-comp ≈ 0 here (the §4.2
++                            // reachback term is added with the frame tx_time for the LoRa/HBSYNC-03 gate).
++                            let e = if phase <= 0.5 { -phase } else { 1.0 - phase }; // wrap(0 − phase) ∈ [−0.5,0.5)
++                            let w: f32 = 1.0; // uniform ESP-NOW link weight (per-neighbour w = HBSYNC-09)
++                            phase += K_PHI * w * phase_response(e); // concave bidirectional kick (§4.1)
++                            if phase < 0.0 {
++                                phase += 1.0;
 +                            }
++                            if phase >= 1.0 {
++                                phase -= 1.0;
++                            }
++                            freq_adj += HB_RATE_BETA * w * e; // §4.3 rate/skew toward zero residual error
++                            if freq_adj > 0.003 {
++                                freq_adj = 0.003;
++                            }
++                            if freq_adj < -0.003 {
++                                freq_adj = -0.003;
++                            }
++                            let eabs = if e < 0.0 { -e } else { e };
++                            last_err_ms = (eabs * HB_PERIOD_MS) as u32; // leaderless spread_ms metric
++                            SYNCED.store(eabs < 0.04, Ordering::Relaxed); // <~80ms = phase-converged
++                            println!(
++                                "r2-dfr1195: HB<-{from} from={sender_hive:06x} e={e:.3} spread={last_err_ms}ms (leaderless)"
++                            );
 +                        }
 +                    }
 +                    _ => {
