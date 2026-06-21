@@ -1,50 +1,69 @@
-# #24 — Network-negotiation protocol (BLE control plane ↔ WiFi data plane, self-healing)
+# #24 — Network-negotiation protocol (two-plane, self-healing)
 
-Roadmap item, **after the 9-board cleanup** (now done). SPEC-FIRST: implement FROM the canon
-(below), referencing workshop's simpler conforming impl (location pending from supervisor).
-**Subsumes #23 / #23b** (AP-failover = phase 4 — BLE survives WiFi loss, so no chicken-and-egg).
+Roadmap item, after the 9-board cleanup (done). **CANON = R2-DISCOVERY v0.2 §4A** (baa0a94) — the
+consolidated two-plane state machine; implement FROM it (not re-derived). Reuses the existing
+R2-WIFI §3.3/§3.4 handoff (#wifi_req/#wifi_offer/#wifi_done) — **no new wire format**. Workshop's
+simpler impl + building-blocks are the reference. **Subsumes #23/#23b** (AP-failover = S3→S4→S1).
 
-## The canonical two-phase model (transport-general)
-Per **R2-WIFI §1.1** ("Discover, Then Talk", universal across ALL transports) + **R2-BLE §15
-ADR-BLE-001** ("BLE is the control plane, WiFi is the data plane"; validated: WiFi 176× BLE
-throughput). BEACON = BLE (short) or LoRa (long); DATA = WiFi (local) or LoRa (long).
+## Two-plane model (R2-WIFI §1.1 + R2-BLE ADR-BLE-001)
+- **Control plane (beacon)** — presence/discovery/negotiation-signalling/fallback-rendezvous;
+  always-on, low-power. BLE beacon (R2-BEACON §7) or LoRa beacon (§8.1). **MUST stay active while
+  the data plane is up** (reduced duty OK per R2-BEACON §7.5, but never silenced).
+- **Data plane (negotiated)** — bulk event/payload (R2-WIRE). WiFi SoftAP/UDP (my existing mesh)
+  or LoRa-long. Established on demand over the control plane; may be lost without losing control.
 
-## State machine (4 phases)
-1. **DISCOVER** — BLE beacon advertise + scan. Declare RBID / hive_id / TG / capabilities /
-   supported-transports / **AP-capability** / roster. Canon: **R2-BEACON** (BLE §7, LoRa §8.1),
-   **R2-BEACON §3/§3.1** (discovery→connection flow), **R2-DISCOVERY §3** (RBID→hive_id) + **§4.6**
-   (beacon discovery API).
-2. **NEGOTIATE** — over BLE, agree the data plane: who's AP, SSID/creds, **AP IP**, roster.
-   Canon: **R2-BLE §12** (negotiate_transport, flags-based) + **R2-WIFI §3.3/§3.4** (#wifi_req →
-   #wifi_offer(creds) → #wifi_done; pseudocode §3.3.1) + **R2-TRANSPORT §2.4** (wire-format
-   selection) + **R2-ROUTE §5** (transport selection scoring).
-3. **TALK (data plane)** — WiFi SoftAP + UDP R2-WIRE (my existing mesh: routing + conductor-PLL
-   heartbeat + trust). Canon: **R2-WIFI §3-4** / **R2-LORA §5** / **R2-TRANSPORT §3** (bindings).
-4. **DISRUPTED → FALLBACK → RENEGOTIATE** (self-healing) — a failed data transport
-   (**R2-TRANSPORT §2.3** Transport State, incl. FAILED) triggers routing reselection
-   (**R2-ROUTE §5.6**: routing MUST respect transport state) → fall back to the always-on BLE
-   beacon plane → re-negotiate → re-form WiFi. **This is #23 AP-renegotiation, done right.**
+## State machine (R2-DISCOVERY §4A — canonical S0–S4)
+- **S0 DISCOVER** — advertise+scan control plane (§4.6); resolve peers (§3). → S1 when peer(s)
+  found + a data-plane need arises.
+- **S1 NEGOTIATE** — agree the data-plane transport+params over the control plane; for a
+  shared-medium plane, ELECT the provider (§4A.3). WiFi = R2-WIFI §3.3/§3.4 handoff. → S2 on
+  established; → S0 on fail/timeout.
+- **S2 DATA** — data plane up; R2-WIRE flows; control plane at reduced duty. → S3 on disruption;
+  → S0 on graceful teardown (#wifi_done).
+- **S3 DISRUPTED** — data plane lost/degraded. Triggers: assoc/link loss; provider control-plane
+  **silence > T_fallback**; provider advertises power_state Critical/Survival (R2-BEACON §7.2.1);
+  data-plane address unreachable (R2-WIFI §4.3). → S4.
+- **S4 FALLBACK + RENEGOTIATE** — return to the control plane; re-enter NEGOTIATE excluding the
+  failed provider/transport. → S2.
+- **Self-healing loop = S2→S3→S4→S1→S2.** Control plane never went down → recovery is automatic.
 
-## Firmware impact / prerequisites (no_std, esp-radio)
-- **BLE stack** on the S3/C6 — NEW (not yet touched). Need a no_std BLE controller+host
-  (esp-radio BLE feature, or trouble/bleps). The biggest lift. Beacon advertise + scan + GATT/
-  L2CAP for the WIFI_REQ/OFFER/DONE signalling.
-- **R2-BEACON** beacon format (BLE §7) + R2-DISCOVERY RBID→hive_id resolution.
-- The WiFi data plane already exists (this firmware) — wire it as the negotiated phase-3 transport.
-- **Transport-state fallback** — adopt R2-TRANSPORT TransportState (FAILED) + R2-ROUTE §5.6
-  reselection so a dead AP/WiFi triggers the BLE re-negotiate.
-- **AP-IP must NOT be hardcoded** (R2-WIFI v0.6 §3.2/§4.3, hw-confirmed workshop+hive): the
-  SoftAP IP is stack-dependent (embassy 192.168.4.1, esp-idf 192.168.71.1, …). **CURRENT FIRMWARE
-  DIVERGES** — it hardcodes 192.168.4.1 (AP), the collector hive @.1, and the .255 broadcast.
-  OK for the all-embassy 9-board (AP=.1), but for #24/interop the AP IP comes from the #wifi_offer
-  (and a joining STA uses its DHCP default-gateway). Fix as part of #24.
+## §4A.4 conformance (confirmed to specs)
+1. **Control plane active while data plane up** — YES (BLE beacon always-on underneath; reduced
+   duty, never silenced).
+2. **Disruption→beacon-fallback→renegotiate (S2→S3→S4→S1→S2)** — YES (the self-healing loop).
+3. **Shared-medium provider election (§4A.3) = lowest eligible hive_id (AP-capable + power_state
+   Normal/Eco) + silence-failover** — YES, and it directly REUSES my proven mechanisms: the
+   conductor election (lowest hive_id) + canonical derive_hive_id + the conductor-TIMEOUT
+   (silence-failover, already built #23a). Add the AP-capable + power_state Normal/Eco eligibility
+   filter + exclude Critical/Survival.
+4. **Documented T_fallback + triggers** — adopt §4A triggers (assoc/link loss; silence>T_fallback;
+   power_state Critical/Survival; addr unreachable). T_fallback TBD (align with the conductor
+   timeout ~4 beats / the §4A profile). DOC them in the impl.
 
-## Implementation order
-1. **BLE↔WiFi (local)** FIRST — reference workshop's simpler impl (location pending) + the canon.
-2. **LoRa-as-beacon + LoRa-as-data** follow the SX1262 driver (#22, core leading) — same state
-   machine, transport-generalized (BEACON=BLE|LoRa, DATA=WiFi|LoRa).
+## BEACON PRIVACY (correction — my earlier note was wrong)
+The beacon carries **RBID only** — `RBID = HMAC-SHA256(session_key, epoch_counter)[0:8]`
+(R2-BEACON §6.1), rotating + privacy-preserving. **NO hive_id / TG / roster in the beacon**
+(R2-DISCOVERY §3.2: hive_id MUST NOT be derivable from RBID). RBID→hive_id is a LOOKUP against
+known peers' precomputed RBID schedules (needs their session_key); unknown advertisers stay
+unknown until **post-connect + auth**. TG-recognition is post-connect+auth, not in the beacon.
 
-## Status
-Roadmap. The 9-board (WiFi data plane + conductor-PLL + trust + health) is the proven phase-3
-substrate. #24 adds the BLE discovery/negotiation control plane around it + the self-healing
-fallback. Big fresh effort — needs the BLE stack bring-up + workshop's reference + a test pairing.
+## NET-NEW orchestration (the gap — build on workshop's building-blocks)
+Workshop has the pieces (beacon / l2cap / wifi_prov / connect_static / wifi_ap + boot-fallback +
+docs/BLE-WIFI-NEGOTIATION.md). My net-new no_std orchestration:
+1. **Peer-AP election over BLE** (= §4A.3) — lowest eligible hive_id; reuse the conductor logic +
+   derive_hive_id + the silence-failover (#23a).
+2. **Roster + PSK generated + distributed peer-to-peer over L2CAP** (wifi_prov codec, peer-sourced
+   — no central provisioner).
+3. **Runtime WiFi-health → BLE-renegotiate closed loop** (S2→S3 triggers → S4 → S1).
+
+## Firmware prereqs
+- **no_std BLE stack** (the big lift) — beacon advertise/scan + L2CAP CoC for signalling. New.
+- R2-BEACON (RBID schedule) + R2-DISCOVERY §3 RBID↔hive_id lookup.
+- Transport-state fallback: R2-TRANSPORT §2.3 (FAILED) + R2-ROUTE §5.6 reselect.
+- **FIX hardcoded AP IP** (R2-WIFI v0.6 §3.2/§4.3): current fw hardcodes 192.168.4.1 — for #24 the
+  AP IP comes from the #wifi_offer (joining STA uses its DHCP gateway). OK for the all-embassy
+  9-board now; fix for interop.
+
+## Order
+BLE↔WiFi (local) FIRST (workshop ref + canon) → then LoRa-as-beacon + LoRa-as-data per #22 (core's
+SX1262 driver). Same state machine, transport-generalized.
