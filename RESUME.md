@@ -149,12 +149,12 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     480e900e, role=AP, beats as follower. **AP later re-wedged → composer un-wedged it (espflash-reset,
     firmware intact) → all 9 back to sync_state=1; composer fixed the dashboard feed (their plugin poll bug,
     NOT my HEALTH format — parsed all 9 byte-exact). Health dashboard LIVE.**
-  - **XIAO LED — EVIDENCE-BASED FLIP to active-HIGH (pending Roy's eyes):** the invert WAS applied
-    (led_active_low=true confirmed) but Roy saw mostly-ON; the DFR1195 (active-high, no-invert) is correct
-    mostly-off+pulse → the XIAO GPIO21 LED behaves ACTIVE-HIGH here (likely external LEDs, not the built-in
-    active-low user LED). Flipped the 4 XIAO to no-invert via profile byte 0x13001 (led_active_low=false now,
-    no rebuild, still synced). If Roy confirms mostly-off+pulse → update the firmware DEFAULT (don't infer
-    active-low from no-screen). I CANNOT self-observe the LED — Roy is ground truth. **R2-WIRE v0.6**
+  - **XIAO LED FIXED + ROBUST (Roy confirmed correct).** The XIAO GPIO21 LEDs are EXTERNAL active-HIGH (not
+    the built-in active-low user LED). The byte-toggle (0x13001) was FRAGILE (composer's 1-byte re-provisioning
+    leaves byte1 erased → the old !has_screen inference re-inverted on every re-flash). FIX (committed, 0621.1314,
+    re-flashed the 4 XIAO): read_board_profile DEFAULTS active-high — led_active_low only on byte1==0x01 explicit
+    override; NEVER infer from has_screen (polarity is hardware/wiring-specific, not SoC-derivable). Robust across
+    re-flash + re-provisioning. **R2-WIRE v0.6**
     (msg_id-in-HMAC-span) = deferred: SEPARATE all-9-coordinated update; current bench all on the same span.
   - **#24 BLE↔WiFi TWO-PLANE — STARTED (Roy: now the focus; AP wedged again = the motivating need).**
     Architecture settled (workshop+core, r2-route pattern): pure no_std S0–S4 negotiation ENGINE in
@@ -171,7 +171,13 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     app-half DONE, WiFi-layer half TODO. **BLE-BEACON discovery** (R2-DISCOVERY) = the out-of-band substrate
     that solves the no-network-to-elect chicken-and-egg (beacon presence/hive_id/TG/AP-capability/roster over
     BLE, independent of the WiFi-AP) — #23 negotiation rides it. **IDENTIFY** cmd (LED solid on /r2 identify).
-    Dedicated XIAO 8MB/Octal-PSRAM no_std build (robustness — runs degraded on the DFR1195 binary now).
+    **DEDICATED XIAO BUILD — PROMOTED TO ACTIVE (Roy, fixes boot-flakiness/replug):** the XIAO run the
+    4MB/no-PSRAM DFR1195 binary DEGRADED → boot-flaky (needed replug). Build a 2nd no_std target: esp-hal
+    `psram` octal-PSRAM init + 8MB partition table + active-high LED + has_screen=false BAKED (the build IS
+    the carrier — flash-size is a compile-time const, NOT runtime-probable, so per-build not one-binary).
+    + CARRIER-DETECTION boot-confirm: probe (MAC-OUI: DFR1195=F4:12:FA vs XIAO others / PSRAM-present) →
+    log carrier + WARN on wrong-build. Substantial 2nd build-config (Cargo feature/profile + partition +
+    psram feature) — fresh focused effort. composer flashes the right build per carrier.
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
     → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA network receiver (#17)** — the
     slot-switch is PROVEN (test b); remaining = UDP image transfer + write ota_1 with esp-radio QUIESCED
