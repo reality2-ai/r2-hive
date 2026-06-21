@@ -157,3 +157,28 @@ Each is a focused milestone; report each. core's canonical contract: docs/R2-24-
 - TELEMETRY (composer M10): designate ONE r2-tn-form board to print "r2-...: HEALTH <hex>" (key13/14/15) on
   its USB-serial; composer's health-reader is now MULTI-SOURCE (--ap-port repeatable) → add it as a 2nd source
   → the forming boards' phase-strip shows alongside the mesh (distinct wire_ids).
+
+## DIAGNOSIS — "two same-IP hotspots" (Roy bug) + the exactly-one-elected-AP fix
+ROOT (structural): the WiFi-AP role is decided at BOOT, DECOUPLED from the engine's dynamic election.
+- (1) **Static boot-AP ≠ dynamic election.** serve_ap = a BOOT const (M7_PROVIDER_HIVE test value, or MAC for
+  the mesh) — not the engine's elected provider (lowest-PRESENT provider_capable). The stack interface
+  (AP vs STA) is BOUND at stack-creation (boot) → can't change to match the election without a refactor. So
+  the board that serves the AP can be one the engine did NOT elect.
+- (2) **is_ap[boot-MAC] != serve_ap** (role mismatch — FIXED 434a972): io_task used is_ap (boot-MAC=502698) for
+  AP-relay/IP/health, diverging from serve_ap (WiFi role) → a board acting AP in heartbeat logic while STA in
+  WiFi (or vice versa) = a second AP identity. Fixed: for ble, is_ap = serve_ap (exactly the AP board acts AP).
+- (3) **Trigger candidates for the actual two-AP/same-IP** (need Roy's specifics): (a) a MIX of builds — a
+  default board (is_ap=502698 → r2-fieldlab @192.168.4.1) + a ble board (serve_ap → r2-tn-form @192.168.4.1) =
+  two APs same IP, different SSID; (b) the serve_ap test-const not matching the fleet's true lowest → engine
+  elects X but the const board serves → divergence; (c) >2 boards / the ACM-renumbering scrambling roles.
+
+THE FIX (Roy/supervisor ask = election-driven single-AP, supersede ALL static boot-AP):
+- NO static boot-AP. The engine elects the lowest-PRESENT provider_capable; ONLY that elected provider brings
+  up the SoftAP at RUNTIME (bring_up_provider → real AP-bring-up); ALL others are STA-joiners (no AP, no IP
+  conflict). Guarantees exactly ONE AP for ANY subset — no static-boot divergence.
+- IMPL = the M10 runtime AP-bring-up: needs the access_point interface available at runtime (boot APSTA or a
+  dual-stack, since the stack-interface is bound at creation) → on bring_up_provider, set_config AP + AP-IP
+  (.1) + stack.set_config_v4; joiners get distinct IPs (no collision). M8c pre-assigned by boot const (the bug);
+  M10 makes it election-driven.
+- ENV-BLOCK: metal-verify blocked by the ACM device RENUMBERING (test boards unflashable at their paths) →
+  needs a rig replug + the DFR1195 by-id (MAC) paths.
