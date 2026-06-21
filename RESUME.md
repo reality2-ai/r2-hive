@@ -229,6 +229,13 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     **NEXT: M8 NegotiationRadio** (re-integrate non-conn beacon + scan + HiveId↔addr map + HiveId↔Connection map +
     shared r2_discovery::ControlMsg codec [core landing]) → **M9 run S0–S4 engine** → **M10 network-forming + fallback/reform + telemetry**.
     Full plan: docs/r2-24-l2cap-implementation-plan.md.
+    (7) **M8a — NEGOTIATION ENGINE LIVE on metal.** EspNegRadio (sync NegotiationRadio façade) over static
+    bridge queues (SCAN_OBS/CTRL_OUT/CTRL_IN/DATA_PLANE) + engine_task running NegotiationEngine::<16>. METAL
+    (ACM1): `NEG state -> Negotiate provider=Some(0x2cab5f69)` -> `Data` — the §4A S0→S1→S2 state machine RUNS,
+    elected itself provider (alone, provider_capable), bring_up_provider→Available→Data (formed). Sync↔async
+    bridge + engine integration PROVEN on metal. NEXT M8b: rewire ble_task to FEED the bridge — scan→SCAN_OBS
+    (real peers) + conn-mgr (CTRL_OUT↔CoC↔CTRL_IN, the M7 CoC) → multi-board discover→negotiate→form; then
+    M8c real WiFi bring_up/join (currently stubbed Available) + M10 fallback/reform + telemetry.
     (FIX noted: the crates index was stale → `cargo search` refreshes it before resolving trouble.)
   - **Per-carrier Cargo features** (composer board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO
     octal-PSRAM@80MHz baked via PsramConfig in code — esp-hal has no psram Cargo feature); next deliverable.
