@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..135ac2a 100644
+index 8c49f1c..fdd4ef4 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1603 @@
+@@ -1,83 +1,1611 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -649,7 +649,15 @@ index 8c49f1c..135ac2a 100644
 +                    // do NOT broadcast. 1 beacon/beat on the AP, not N.
 +                    if am_conductor {
 +                        if let Ok(n) = encode_extended(&msg, &mut txbuf) {
-+                            let _ = socket.send_to(&txbuf[..n], peer_ep).await;
++                            // TIMEOUT-GUARD: on a SoftAP with no associated STA yet (e.g. a freshly-formed
++                            // provider before its joiner connects), the broadcast send blocks once the TX
++                            // buffer fills → the whole io_task stalls. Guard it so an unsendable beat is
++                            // skipped (not blocked); it sends fine once a STA is associated.
++                            let _ = embassy_time::with_timeout(
++                                Duration::from_millis(150),
++                                socket.send_to(&txbuf[..n], peer_ep),
++                            )
++                            .await;
 +                        }
 +                    }
 +                    fire_seq = fire_seq.wrapping_add(1);
