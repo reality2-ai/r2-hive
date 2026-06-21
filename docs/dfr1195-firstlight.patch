@@ -100,10 +100,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..6c9d3ef 100644
+index 8c49f1c..ff6e45d 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1248 @@
+@@ -1,83 +1,1249 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -402,8 +402,7 @@ index 8c49f1c..6c9d3ef 100644
 +        match BleConnector::new(p.BT, Default::default()) {
 +            Ok(c) => {
 +                println!("r2-dfr1195: BLE controller init OK (coex with WiFi)");
-+                let ble_key: [u8; 16] = hk[..16].try_into().unwrap_or([0u8; 16]);
-+                spawner.spawn(ble_task(c, my_hive, my_tg_hash, ble_key).unwrap());
++                spawner.spawn(ble_task(c, my_hive, my_tg_hash, hk).unwrap());
 +            }
 +            Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
 +        }
@@ -1027,12 +1026,12 @@ index 8c49f1c..6c9d3ef 100644
 +    connector: esp_radio::ble::controller::BleConnector<'static>,
 +    my_hive: u32,
 +    my_tg_hash: u32,
-+    session_key: [u8; 16],
++    hk: [u8; 32],
 +) {
 +    use embassy_futures::join::join;
 +    use r2_discovery::beacon::{
-+        compute_rbid, encode_advert, BeaconFlags, LegacyBeacon, PowerState, ADVERT_PAYLOAD_LEN,
-+        BEACON_VERSION,
++        compute_rbid, derive_beacon_session_key, encode_advert, BeaconFlags, LegacyBeacon,
++        PowerState, ADVERT_PAYLOAD_LEN, BEACON_VERSION,
 +    };
 +    use trouble_host::prelude::*; // ExternalController + DefaultPacketPool (bt-hci version-matched to esp-radio)
 +    let controller: ExternalController<_, 20> = ExternalController::new(connector);
@@ -1047,11 +1046,13 @@ index 8c49f1c..6c9d3ef 100644
 +    ]);
 +    let stack = trouble_host::new(controller, &mut resources).set_random_address(addr);
 +    let Host { mut peripheral, mut runner, .. } = stack.build();
-+    // Real R2-BEACON advert (r2_discovery::beacon, byte-exact to specs). RBID = HMAC(session_key,
-+    // epoch)[0:8] (RBID-only, privacy-preserving). epoch=0 placeholder until the TG-synced epoch
-+    // (from the heartbeat clock) wires in alongside scan→resolve_rbid.
++    // Real R2-BEACON advert (r2_discovery::beacon, byte-exact). PER-MEMBER session_key =
++    // derive_beacon_session_key(hk, my_hive) (HKDF(hk, salt=r2-beacon-rbid-v1, info=hive_be32)) — distinct
++    // per member, resolvable by TG peers (shared hk), opaque to strangers. RBID = HMAC(key, epoch)[0:8].
++    // epoch=0 placeholder until the shared coarse-time base wires in alongside scan→resolve_rbid_windowed.
++    let my_key = derive_beacon_session_key(&hk, my_hive);
 +    let epoch: u64 = 0;
-+    let rbid = compute_rbid(&session_key, epoch);
++    let rbid = compute_rbid(&my_key, epoch);
 +    let beacon = LegacyBeacon {
 +        version: BEACON_VERSION,
 +        flags: BeaconFlags { power_state: PowerState::Normal, ..Default::default() },
