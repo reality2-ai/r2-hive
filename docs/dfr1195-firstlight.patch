@@ -117,10 +117,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..7cfbe46 100644
+index 8c49f1c..c9c4c58 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2022 @@
+@@ -1,83 +1,2027 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -566,14 +566,19 @@ index 8c49f1c..7cfbe46 100644
 +                let _ = write!(s, "TG:{} b{BUILD_ID}", &tg_label[..tg_label.len().min(10)]);
 +                let _ = Text::new(&s, Point::new(2, 18), cyan).draw(d);
 +                s.clear();
-+                let _ = write!(s, "ip {ip}");
++                // Leaderless mesh telemetry (NOT the WiFi IP — the mesh is ESP-NOW, AP-less): peer count
++                // + phase-spread convergence. cond=0 = no leader, so the screen says LEADERLESS, not an IP.
++                let _ = write!(s, "peers:{nbrs} sp{spread}");
 +                let _ = Text::new(&s, Point::new(2, 30), white).draw(d);
 +                s.clear();
 +                let _ = write!(s, "b{beats} dlv{dlv} blk{blk}");
 +                let _ = Text::new(&s, Point::new(2, 42), white).draw(d);
 +                s.clear();
-+                let _ = write!(s, "fleet: {}", if synced { "IN SYNC" } else { "converging" });
-+                let _ = Text::new(&s, Point::new(2, 56), if synced { green } else { amber }).draw(d);
++                let _ = write!(s, "LEADERLESS (no ldr)");
++                let _ = Text::new(&s, Point::new(2, 54), cyan).draw(d);
++                s.clear();
++                let _ = write!(s, "mesh: {}", if synced { "IN SYNC" } else { "converging" });
++                let _ = Text::new(&s, Point::new(2, 66), if synced { green } else { amber }).draw(d);
 +            }
 +            // Dashboard telemetry line (composer multi-source reader parses this):
 +            //   nbrs = mesh neighbour count (join→++ / leave→--), synced = sync-state,
