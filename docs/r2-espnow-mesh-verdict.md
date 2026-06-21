@@ -82,3 +82,23 @@ Sequence: specs reality2-mesh canon → core Transport::EspNow (+ prefer-infra S
    for discovery; NO M7-M9 provider-election/WifiReq-Offer-join (no provider).
 DEMO TARGET: 2+ boards → BLE-discover → enable ESP-NOW mesh (no AP) → R2-ROUTE relay + heartbeat-SYNC → mobile,
 no SPOF, no two-AP. Infra-SoftAP (Mode 1b, criterion#1 PROVEN on metal) kept LIGHT for fixed/workshop.
+
+## ESP-NOW mesh demo — BUILD STATUS (2026-06-21)
+- **M-ESPNOW-1 DONE on metal:** ESP-NOW true-mesh FORMS — board A recvs board B's connectionless broadcast
+  (`ESP-NOW RECV peer_hive=2cab5f69 src=f4:12:fa:b7:90:10`), no AP, src-MAC captured, coex w/ WiFi+BLE.
+- **Canon:** Transport::EspNow = **id 5 / 0x20** (R2-TRANSPORT §2.2; USB owns 4) — core re-landing at id 5.
+  Affects core's transport tag, NOT my esp-radio ESP-NOW mechanics; I wire r2-route against id 5.
+- **NEXT — sync over ESP-NOW (the heartbeat):** route io_task's PROVEN conductor-PLL over ESP-NOW via a BRIDGE
+  (don't re-impl the PLL; don't risk the proven io_task). Static embassy Channels ESPNOW_TX/ESPNOW_RX between
+  io_task (PLL) + espnow_task (ESP-NOW): io_task conductor-broadcast → ESPNOW_TX.send → espnow_task ESP-NOW
+  broadcast; espnow recv → ESPNOW_RX.send → io_task recv-select reads it (into scratch → existing decode/PLL).
+  cfg-gated: `#[cfg(feature="ble")]` uses the bridge, default uses the UDP socket UNCHANGED (infra-mode safe).
+  The heartbeat frame carries the originator hive_id → on recv, map[hive_id]=src_MAC (M-ESPNOW-2 peer-map for
+  unicast). Reuses the exact PLL (phase/fire/lock/conductor-timeout) — zero PLL re-impl risk.
+- **M-ESPNOW-2:** the recv frame's originator hive_id + src_MAC → hive_id↔MAC peer-map (in espnow_task).
+- **M-ESPNOW-3:** feed r2-route neighbour-observations (hive_id reachable on Transport::EspNow + RSSI link-q if
+  esp-radio ReceiveInfo exposes it) + r2-route forward-by-hive_id → map[hive_id] → ESP-NOW unicast; GroupHmac
+  per-TG delivery above. Then the demo: discover → ESP-NOW mesh → SYNC, no AP, mobile.
+- WHY the bridge (not an io_task transport-swap or a PLL re-impl): the io_task PLL is PROVEN (criterion#1 on
+  metal); a bridge reuses it intact + cfg-keeps the infra-mode UDP path untouched. The recv-select restructure
+  is the one careful part — do it deliberately, not rushed.
