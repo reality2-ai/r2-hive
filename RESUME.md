@@ -114,6 +114,17 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     screenless XIAO-S3 (9-board) ✅ · **perfect sync** — 2nd-order PLL now locks to e=-0.000 (zero offset) ✅.
     r2-trust pinned 1b93108. 9-board = 5 DFR1195 + 4 XIAO-S3 (all-S3, true PLL, GPIO21 LED); role-by-MAC →
     only 502698=AP, XIAO=STA; composer flashes my binary + provisions XIAO (persona@0x12000 + 0x00@0x13000).
+  - **9-BOARD MESH CONFIRMED (metal) 🎉** — composer flashed all 4 XIAO + 3 DFR1195; ALL on tuxedo USB
+    (my ACM0=AP/ACM1=STA, XIAO ACM2-5, DFR1195 ACM9-11). Verified synced=true + dlv climbing (trust delivering)
+    across composer's DFR1195 (ACM9/10/11 dlv~1692) AND a XIAO (ACM2) = cross-arch (S3 DFR1195 + XIAO)
+    beat-as-one on real TG 4b3df45d, conductor = lowest canon id 06ae082b. AP serial held by r2-compos
+    (composer orchestrator) = the health #18 dashboard feed working by design; do NOT re-flash the live AP.
+  - **OTA network receiver (#17)** — DE-RISK PASSED (flash-write-while-WiFi: 20ms/sector, heartbeat-safe, no
+    quiesce). Receiver built (UDP 21043 START/DATA/COMMIT stream → sector-write → SHA-256 → activate+reboot) +
+    otadata anchor (Factory→ota_0 so activate→ota_1 seq=2). PROVEN: 512KB stream+write+sha_ok+valid 0xE9 image+
+    activate ok + test-b slot-switch. NOT yet cleanly e2e (board-to-board boot-INTO-ota_1 snagged on test-
+    corrupted otadata + can't test on the live AP). Test sender gated OFF (OTA_SELFTEST=false). Next clean
+    verify: a fresh-otadata board, NOT the live soft-AP. LESSON: never re-flash the live soft-AP mid-demo.
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
     → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA network receiver (#17)** — the
     slot-switch is PROVEN (test b); remaining = UDP image transfer + write ota_1 with esp-radio QUIESCED
