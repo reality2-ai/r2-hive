@@ -88,10 +88,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..89b6d99 100644
+index 8c49f1c..b70b88b 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1054 @@
+@@ -1,83 +1,1055 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -254,6 +254,7 @@ index 8c49f1c..89b6d99 100644
 +        persona.is_some(),
 +        if is_ap { "SOFT-AP" } else { "STA" }
 +    );
++    println!("r2-dfr1195: carrier has_screen={has_screen} led_active_low={led_active_low}");
 +
 +    // 4. Status LED (GPIO21) via LEDC PWM — for the organic lub-DUB heartbeat envelope.
 +    //    io_task signals the FIRE (conductor-PLL = WHEN); main renders the SHAPE below.
