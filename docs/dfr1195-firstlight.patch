@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..5616809 100644
+index 8c49f1c..a412716 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1503 @@
+@@ -1,83 +1,1564 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -245,7 +245,10 @@ index 8c49f1c..5616809 100644
 +    //     BL's otadata slot-switch + activate_next_partition() are PROVEN. No flip if
 +    //     the next slot is empty (no boot-loop) — this is the receiver's COMMIT path.
 +    ota_slot_report();
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +    // 1b. Read identity + the provisioned PERSONA (#20) BEFORE the radio starts, so the
 +    //     efuse/flash reads can't collide with WiFi. Real TG (hk/tg/hive) if a persona is
 +    //     present at 0x12000; else fall back to the demo TG.
@@ -257,7 +260,12 @@ index 8c49f1c..5616809 100644
 +    };
 +    let is_ap = mac_low3 == AP_MAC_MATCH; // soft-AP role stays MAC-based
 +    let (has_screen, led_active_low) = read_board_profile(); // DFR1195 vs XIAO-S3 (LED polarity)
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
 +    let timg0 = TimerGroup::new(p.TIMG0);
 +    let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
@@ -340,10 +348,7 @@ index 8c49f1c..5616809 100644
 +    let (stack, runner) = embassy_net::new(device, net_config, resources, seed);
 +    spawner.spawn(net_task(runner).unwrap());
 +    spawner.spawn(wifi_task(controller, is_ap).unwrap());
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +    // 9. Wait for the netif, then run the UDP io task (PHASE 2a: raw board↔board
 +    //    frames over the WiFi link — proves the transport pipe before R2-WIRE/RouteEngine).
 +    stack.wait_config_up().await;
@@ -356,12 +361,7 @@ index 8c49f1c..5616809 100644
 +    // via raw regs; we take only the RX half). composer points --identify-port at the chosen board.
 +    let (usb_rx, _usb_tx) = UsbSerialJtag::new(p.USB_DEVICE).split();
 +    spawner.spawn(uart_rx_task(stack, my_tg_hash, usb_rx).unwrap());
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +    // #24 BLE control plane (feature-gated). Controller init (coex with WiFi, metal-verified)
 +    // -> bt-hci ExternalController -> trouble-host advertise. The ble_task owns the connector.
 +    #[cfg(feature = "ble")]
@@ -1033,7 +1033,7 @@ index 8c49f1c..5616809 100644
 +    hk: [u8; 32],
 +) {
 +    use bt_hci::param::{AddrKind, BdAddr};
-+    use embassy_futures::join::join;
++    use embassy_futures::join::{join, join3};
 +    use r2_discovery::beacon::{
 +        compute_rbid, derive_beacon_session_key, encode_advert, BeaconFlags, LegacyBeacon,
 +        PowerState, ADVERT_PAYLOAD_LEN, BEACON_VERSION,
@@ -1080,11 +1080,13 @@ index 8c49f1c..5616809 100644
 +    adv[5..5 + plen].copy_from_slice(&payload[..plen]);
 +    let alen = 5 + plen;
 +    let _ = (rbid, plen, epoch); // (beacon vals reused as the connectable adv_data below)
-+    // M7 — L2CAP CoC connectivity (2-board). Provider (lowest test hive) connectable-advertises the RBID
-+    // + accepts ACL + accepts the L2CAP CoC on PSM 0x00D2; joiner connects (deterministic M7 addr) +
-+    // opens the CoC + sends a framed test SDU. PROVES the BLE control-plane data path cross-board.
-+    // (M8 re-integrates the non-conn beacon + scan + the HiveId↔addr map + the shared ControlMsg codec.)
++    // M8b — feed the engine bridge so two boards NEGOTIATE over the CoC. Provider (lowest test hive)
++    // connectable-advertises + accepts the CoC; joiner connects. Both inject the known peer obs (each
++    // engine then elects the lower as provider) + serve the CoC bidirectionally: recv→CTRL_IN (poll_control),
++    // CTRL_OUT→send (send_control). So the engines' WifiReq/Offer/Done cross. (2-board; M8c = real WiFi data plane.)
 +    let am_provider = my_hive == M7_PROVIDER_HIVE;
++    let peer_hive: u32 = if am_provider { 0x2cab_5f69 } else { M7_PROVIDER_HIVE };
++    push_scan_obs(peer_hive, true, 0); // inject the peer (provider_capable, power Normal) so the engine sees it
 +    if am_provider {
 +        let work = async {
 +            loop {
@@ -1097,39 +1099,37 @@ index 8c49f1c..5616809 100644
 +                {
 +                    Ok(a) => a,
 +                    Err(_) => {
-+                        println!("r2-dfr1195: M7 provider advertise ERR");
++                        println!("r2-dfr1195: NEG provider adv ERR");
 +                        Timer::after(Duration::from_secs(1)).await;
 +                        continue;
 +                    }
 +                };
-+                println!("r2-dfr1195: M7 provider connectable-advertising (hive {my_hive:08x}), awaiting CoC");
++                println!("r2-dfr1195: NEG provider connectable-adv (hive {my_hive:08x})");
 +                let conn = match advertiser.accept().await {
 +                    Ok(c) => c,
-+                    Err(_) => {
-+                        println!("r2-dfr1195: M7 provider ACL accept ERR");
-+                        continue;
-+                    }
++                    Err(_) => continue,
 +                };
-+                println!("r2-dfr1195: M7 provider — ACL CONNECTION accepted");
-+                let mut ch = match L2capChannel::accept(&stack, &conn, &[R2_PSM], &L2capChannelConfig::default()).await {
++                let ch = match L2capChannel::accept(&stack, &conn, &[R2_PSM], &L2capChannelConfig::default()).await {
 +                    Ok(c) => c,
 +                    Err(_) => {
-+                        println!("r2-dfr1195: M7 provider — L2CAP accept ERR");
++                        println!("r2-dfr1195: NEG provider CoC accept ERR");
 +                        continue;
 +                    }
 +                };
-+                println!("r2-dfr1195: M7 provider — L2CAP CoC ACCEPTED on PSM 0x00D2");
-+                let mut buf = [0u8; 256];
-+                match ch.receive(&stack, &mut buf).await {
-+                    Ok(n) => println!("r2-dfr1195: M7 provider — CoC RECV {n} B: {:02x?}", &buf[..n.min(8)]),
-+                    Err(_) => println!("r2-dfr1195: M7 provider — CoC recv ERR"),
-+                }
++                println!("r2-dfr1195: NEG provider — CoC up, serving control plane");
++                serve_coc(&stack, ch, peer_hive).await;
++                println!("r2-dfr1195: NEG provider — CoC closed");
 +            }
 +        };
-+        let _ = join(runner.run(), work).await;
++        let refresh = async {
++            loop {
++                push_scan_obs(peer_hive, true, 0); // keep the peer alive in the engine's roster
++                Timer::after(Duration::from_secs(1)).await;
++            }
++        };
++        let _ = join3(runner.run(), work, refresh).await;
 +    } else {
 +        let work = async {
-+            // Provider's deterministic M7 addr (Address::random([hive_le.., 0x52, 0xC0])); M8 uses the scan-resolved addr.
 +            let paddr = BdAddr::new([
 +                (M7_PROVIDER_HIVE & 0xff) as u8,
 +                ((M7_PROVIDER_HIVE >> 8) & 0xff) as u8,
@@ -1151,46 +1151,98 @@ index 8c49f1c..5616809 100644
 +                    },
 +                    connect_params: RequestedConnParams::default(),
 +                };
-+                println!("r2-dfr1195: M7 joiner (hive {my_hive:08x}) connecting to provider {M7_PROVIDER_HIVE:08x}");
++                println!("r2-dfr1195: NEG joiner connecting to {M7_PROVIDER_HIVE:08x}");
 +                let conn = match central.connect(&cfg).await {
 +                    Ok(c) => c,
 +                    Err(_) => {
-+                        println!("r2-dfr1195: M7 joiner connect ERR");
 +                        Timer::after(Duration::from_secs(2)).await;
 +                        continue;
 +                    }
 +                };
-+                println!("r2-dfr1195: M7 joiner — ACL CONNECTED to provider");
-+                let mut ch = match L2capChannel::create(&stack, &conn, R2_PSM, &L2capChannelConfig::default()).await {
++                let ch = match L2capChannel::create(&stack, &conn, R2_PSM, &L2capChannelConfig::default()).await {
 +                    Ok(c) => c,
 +                    Err(_) => {
-+                        println!("r2-dfr1195: M7 joiner — L2CAP create ERR");
++                        println!("r2-dfr1195: NEG joiner CoC create ERR");
 +                        Timer::after(Duration::from_secs(2)).await;
 +                        continue;
 +                    }
 +                };
-+                println!("r2-dfr1195: M7 joiner — L2CAP CoC OPEN on PSM 0x00D2");
-+                // framed test SDU: [len_lo, len_hi, payload] (R2-BLE §6.4 LE prefix)
-+                let pl = b"R2-M7";
-+                let mut frame = [0u8; 8];
-+                frame[0] = pl.len() as u8;
-+                frame[1] = 0;
-+                frame[2..2 + pl.len()].copy_from_slice(pl);
-+                match ch.send(&stack, &frame[..2 + pl.len()]).await {
-+                    Ok(_) => println!("r2-dfr1195: M7 joiner — CoC SENT test SDU 'R2-M7'"),
-+                    Err(_) => println!("r2-dfr1195: M7 joiner — CoC send ERR"),
-+                }
-+                Timer::after(Duration::from_secs(8)).await;
++                println!("r2-dfr1195: NEG joiner — CoC up, serving control plane");
++                serve_coc(&stack, ch, peer_hive).await;
++                println!("r2-dfr1195: NEG joiner — CoC closed");
 +            }
 +        };
-+        let _ = join(runner.run(), work).await;
++        let refresh = async {
++            loop {
++                push_scan_obs(peer_hive, true, 0); // keep the peer alive in the engine's roster
++                Timer::after(Duration::from_secs(1)).await;
++            }
++        };
++        let _ = join3(runner.run(), work, refresh).await;
++    }
++}
++
++/// Serve a CoC bidirectionally as the bridge data path: recv frames → CTRL_IN (tagged with `peer`),
++/// CTRL_OUT → send frames. Frame = [len_lo,len_hi, payload] (R2-BLE §6.4 LE prefix). Returns on disconnect.
++#[cfg(feature = "ble")]
++async fn serve_coc<'d, C: trouble_host::prelude::Controller>(
++    stack: &trouble_host::prelude::Stack<'d, C, trouble_host::prelude::DefaultPacketPool>,
++    ch: trouble_host::prelude::L2capChannel<'d, trouble_host::prelude::DefaultPacketPool>,
++    peer: u32,
++) {
++    use embassy_futures::select::{select, Either};
++    let (mut tx, mut rx) = ch.split();
++    let recv = async {
++        let mut buf = [0u8; 256];
++        loop {
++            match rx.receive(stack, &mut buf).await {
++                Ok(n) if n >= 2 => {
++                    let len = buf[0] as usize | ((buf[1] as usize) << 8);
++                    if 2 + len <= n {
++                        let l = len.min(103);
++                        let mut pb = [0u8; 103];
++                        pb[..l].copy_from_slice(&buf[2..2 + l]);
++                        CTRL_IN.lock(|c| {
++                            let mut q = c.borrow_mut();
++                            if q.is_full() {
++                                let _ = q.pop_front();
++                            }
++                            let _ = q.push_back((peer, pb, l));
++                        });
++                        println!("r2-dfr1195: NEG CoC RECV from {peer:08x} ({l} B)");
++                    }
++                }
++                Ok(_) => {}
++                Err(_) => break,
++            }
++        }
++    };
++    let send = async {
++        loop {
++            let item = CTRL_OUT.lock(|c| c.borrow_mut().pop_front());
++            if let Some((target, b, n)) = item {
++                let mut frame = [0u8; 105];
++                frame[0] = (n & 0xff) as u8;
++                frame[1] = ((n >> 8) & 0xff) as u8;
++                frame[2..2 + n].copy_from_slice(&b[..n]);
++                if tx.send(stack, &frame[..2 + n]).await.is_err() {
++                    break;
++                }
++                println!("r2-dfr1195: NEG CoC SENT to {target:08x} ({n} B)");
++            } else {
++                Timer::after(Duration::from_millis(50)).await;
++            }
++        }
++    };
++    match select(recv, send).await {
++        Either::First(()) | Either::Second(()) => {}
 +    }
 +}
 +
 +/// L2CAP CoC PSM for the R2 control plane (R2-WIRE event transport, R2-BLE §6). OTA = 0x00D3.
 +#[cfg(feature = "ble")]
 +const R2_PSM: u16 = 0x00D2;
-+
+ 
 +/// M7 CoC-connectivity test: the provider board (lowest of the 2 test boards). The M9 engine does
 +/// real §4A.3 election (lowest eligible hive_id) — this const is just the 2-board CoC bring-up.
 +#[cfg(feature = "ble")]
@@ -1201,7 +1253,7 @@ index 8c49f1c..5616809 100644
 +#[cfg(feature = "ble")]
 +#[allow(dead_code)]
 +const KNOWN_HIVE_IDS: &[u32] = &[0x480e_900e, 0x2cab_5f69, 0x06ae_082b, 0x0dca_dbf8];
- 
++
 +/// Scan event handler: decode each observed R2-BEACON + resolve its RBID → hive_id.
 +#[cfg(feature = "ble")]
 +struct R2ScanHandler<'a> {
@@ -1339,9 +1391,20 @@ index 8c49f1c..5616809 100644
 +    use r2_discovery::negotiation::{NegotiationEngine, NegotiationState, NodeCaps};
 +    let mut radio = EspNegRadio;
 +    let mut eng = NegotiationEngine::<16>::new(my_hive, NodeCaps::new(true, PowerState::Normal), 5000, 10000);
-+    eng.request_data_plane(); // we want to form a data plane
 +    let mut prev: Option<NegotiationState> = None;
-+    loop {
++    let mut ticks = 0u32;
++    let mut requested = false;
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++        // Discover for ~3s first (let the roster fill from scans/injected obs) BEFORE requesting the
++        // data plane, so the election sees peers instead of self-electing alone.
++        if !requested && ticks >= 15 {
++            eng.request_data_plane();
++            requested = true;
++            println!("r2-dfr1195: NEG requesting data plane (roster discovered)");
++        }
++        ticks += 1;
 +        let st = eng.poll(&mut radio);
 +        if prev != Some(st) {
 +            println!("r2-dfr1195: NEG state -> {st:?} provider={:?}", eng.provider());
@@ -1472,9 +1535,7 @@ index 8c49f1c..5616809 100644
 +    let mut secfill = 0usize;
 +    let mut secbase = 0u32;
 +    let mut pkt = [0u8; 1500];
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        let (n, from) = match socket.recv_from(&mut pkt).await {
 +            Ok(v) => v,
 +            Err(_) => continue,
