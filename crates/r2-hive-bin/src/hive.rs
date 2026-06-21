@@ -435,6 +435,11 @@ impl HiveState {
     ) -> bool {
         use r2_route::transport::Transport;
         match transport {
+            // r2-route gained Usb/EspNow/Udp (R2-TRANSPORT). These have no host-side send path in
+            // this daemon yet (EspNow is firmware-mesh-only; Usb is the dongle LINK itself; Udp is
+            // carried via the Wifi/udp_transport arm) — STUB false to keep the match exhaustive.
+            // TODO: wire host-side Udp/Usb forwarding if the daemon ever originates on them.
+            Transport::Usb | Transport::EspNow | Transport::Udp => false,
             Transport::Internet => {
                 if self.ws_transport.send(hive_id, frame).await.is_ok() {
                     return true;
@@ -806,6 +811,9 @@ fn transport_to_caps_kind(
         Transport::Ble => 2,
         Transport::Wifi => 3,
         Transport::Internet => 4,
+        Transport::Usb => 5,
+        Transport::EspNow => 6,
+        Transport::Udp => 7,
     };
     TransportKind::Enumerated(id)
 }

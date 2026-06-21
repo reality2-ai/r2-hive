@@ -189,6 +189,7 @@ pub async fn route_frame(
     let req = ForwardRequest {
         now: now_secs,
         msg_id: header.msg_id as u16,
+        origin: originator,
         source_hop: (originator >> 16) as u16,
         ttl: header.ttl,
         k: header.k,

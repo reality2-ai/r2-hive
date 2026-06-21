@@ -41,11 +41,11 @@ const APP_TO_HIVE: &[&str] = &[
     "r2.mgmt.daemon.status",
     "r2.mgmt.identity.status",
     "r2.mgmt.web.provision",
-    "r2.mgmt.ensemble.load",
+    "r2.mgmt.ensemble.deploy",
     "r2.mgmt.ensemble.list",
     "r2.mgmt.ensemble.info",
     "r2.mgmt.ensemble.stop",
-    "r2.mgmt.ensemble.reset",
+    "r2.mgmt.ensemble.remove",
     // usb.* are app_to_hive requests on every platform (R2-HOST-API §6 —
     // platform-gating does not change direction). Handler dispatch is
     // cfg(target_os = "linux"); the conformance test runs on Linux.
@@ -110,13 +110,17 @@ fn main() {
 
     let doc = serde_json::json!({
         "spec": "R2-HOST-API",
-        "version": "0.1",
+        "version": "0.2",
         "description": "Conformance vectors for the R2-HOST-API r2.api.* / r2.mgmt.* \
             event surface. Each vector is a byte-exact EXTENDED R2-WIRE frame \
             (r2_wire::encode_extended) with event_hash == r2_fnv::r2_hash(event_class), \
             a representative CBOR payload, and the UDS framing len_be32(frame)||frame \
             (R2-HOST-API §2). GENERATED from r2-hive's canonical encoders via \
-            examples/gen_host_api_vectors.rs — do not hand-edit.",
+            examples/gen_host_api_vectors.rs — do not hand-edit. [v0.2, 2026-06-22: \
+            ensemble verbs synced to R2-TG-TOOL §5.3 canonical set — HA13 load->deploy \
+            (0xAFA2A20A), HA17 reset->remove (0xE1336311); FNV-verified, payload ordinals \
+            unchanged. r2-hive MUST sync examples/gen_host_api_vectors.rs ensemble verb \
+            names so a regen reproduces these bytes.]",
         "vectors": vectors,
     });
 
