@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..a49770b 100644
+index 5a3c89f..fb907f3 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,7 +54,7 @@ index 5a3c89f..a49770b 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,43 @@ embassy-futures = "0.1"
+@@ -40,6 +55,47 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -95,6 +95,10 @@ index 5a3c89f..a49770b 100644
 +meshmask = ["ble"]
 +# HBSYNC-06 OFF control arm: rate-consensus beta=0 (refuted — drifts through a connectivity blackout).
 +rateoff = ["ble"]
++# HBSYNC-06 drift stand-in: +0.4% period on this board (injected rate offset; real xtal drift too small to see).
++driftinject = ["ble"]
++# HBSYNC-06 blackout: mute TX during [60s,90s) uptime = 30s connectivity blackout (rate must pre-match to hold).
++blackout = ["ble"]
  
  [profile.release]
  opt-level = "s"
@@ -113,10 +117,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..eebc78d 100644
+index 8c49f1c..fe49b86 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1995 @@
+@@ -1,83 +1,2019 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -644,7 +648,14 @@ index 8c49f1c..eebc78d 100644
 +    const MESH_PEER_TTL_S: u32 = 7; // ~3 missed beats → counts as left
 +
 +    // Leaderless PCO constants (R2-HEARTBEAT v0.4 §4).
++    // Board period. Feature `driftinject` = +0.4% (2008ms ≈ 4000ppm) on THIS board = a KNOWN rate-offset
++    // stand-in for crystal drift (core: real ESP32 ±10-40ppm drifts <3ms in 30s = below spread resolution →
++    // a real-xtal blackout test would be VACUOUS; the injected offset makes the rate loop visibly load-bearing).
++    #[cfg(not(feature = "driftinject"))]
 +    const HB_PERIOD_MS: f32 = 2000.0;
++    #[cfg(feature = "driftinject")]
++    const HB_PERIOD_MS: f32 = 2008.0;
++    const CANON_PERIOD_MS: f32 = 2000.0; // canonical nominal = rate-clamp center (consensus pulls a biased board back)
 +    const HB_TICK_MS: u64 = 50;
 +    const K_PHI: f32 = 0.25; // §4.1 phase coupling gain (concave M&S, critically damped)
 +    // §4.3 rate-consensus gain β. Feature `rateoff` = the HBSYNC-06 OFF control arm (refuted: with β=0 a node
@@ -702,7 +713,16 @@ index 8c49f1c..eebc78d 100644
 +                        ExtendedMessage { header, route: None, payload: &hb_payload, hmac_tag: None };
 +                    // Leaderless (§2/§7): EVERY node emits its own fire — flat, one-hop, no relay; the
 +                    // heartbeat is both the sync pulse AND the neighbour-discovery presence.
++                    #[cfg(not(feature = "blackout"))]
 +                    let do_broadcast = true;
++                    // HBSYNC-06: mute TX during [60s, 90s) uptime = a 30s connectivity blackout. Both boards
++                    // boot together so the windows overlap → neither hears the other → each free-runs on its
++                    // rate (consensus-matched ON, native-offset OFF). The first beat after 90s logs the drift.
++                    #[cfg(feature = "blackout")]
++                    let do_broadcast = {
++                        let up = embassy_time::Instant::now().as_secs();
++                        !(60..90).contains(&up)
++                    };
 +                    if do_broadcast {
 +                        if let Ok(n) = encode_extended(&msg, &mut txbuf) {
 +                            // MESH (ble): broadcast the beat over ESP-NOW (espnow_task drains DATA_TX →
@@ -932,17 +952,25 @@ index 8c49f1c..eebc78d 100644
 +                            //    refuted OFF arm (free-runs on the raw crystal → drifts in the blackout).
 +                            let now_ms = embassy_time::Instant::now().as_millis();
 +                            if RATE_BETA > 0.0 {
++                                let n_heard = last_rx.len().max(1); // Σw = heard-set size (capture before iter_mut borrow)
 +                                if let Some(slot) = last_rx.iter_mut().find(|(h, _)| *h == sender_hive) {
 +                                    let interval = now_ms.saturating_sub(slot.1) as f32; // LOCAL rx-interval (ms)
-+                                    if interval > 0.0 {
-+                                        let mut k = libm::roundf(interval * rate); // de-alias missed/decimated beats
++                                    // A1 (core): only learn rate from SANE intervals (~[0.5, 3] periods). Skip the
++                                    // huge first-post-blackout interval (~15 periods → misrounded k = garbage rate
++                                    // sample exactly when measuring); the phase term re-locks phase anyway.
++                                    if interval > 0.5 * HB_PERIOD_MS && interval < 3.0 * HB_PERIOD_MS {
++                                        let mut k = libm::roundf(interval * rate); // de-alias missed beats
 +                                        if k < 1.0 {
 +                                            k = 1.0;
 +                                        }
 +                                        let r_src = k / interval; // sender's apparent rate in MY ms-units
-+                                        let sum_w = NBRS.load(Ordering::Relaxed).max(1) as f32; // Σw (uniform w=1)
++                                        // A3 (core): Σw over the HEARD/coupling set (distinct senders in last_rx),
++                                        // NOT total mesh size — else under-relax/bias when some counted nodes aren't heard.
++                                        let sum_w = n_heard as f32;
 +                                        rate += RATE_BETA * (w / sum_w) * (r_src - rate);
-+                                        let nom = 1.0 / HB_PERIOD_MS; // clamp to ±1% (sane crystal bound)
++                                        // A2 (core): clamp around the CANONICAL nominal (not this board's own period)
++                                        // so the consensus has room to pull a rate-biased board back. ±1% ≫ real xtal drift.
++                                        let nom = 1.0 / CANON_PERIOD_MS;
 +                                        if rate > nom * 1.01 {
 +                                            rate = nom * 1.01;
 +                                        }
@@ -950,7 +978,7 @@ index 8c49f1c..eebc78d 100644
 +                                            rate = nom * 0.99;
 +                                        }
 +                                    }
-+                                    slot.1 = now_ms;
++                                    slot.1 = now_ms; // always refresh last-rx (even when the interval is gated out)
 +                                } else {
 +                                    let _ = last_rx.push((sender_hive, now_ms));
 +                                }
