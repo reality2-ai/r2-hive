@@ -117,10 +117,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..c9c4c58 100644
+index 8c49f1c..0ea5009 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2027 @@
+@@ -1,83 +1,2033 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -238,6 +238,12 @@ index 8c49f1c..c9c4c58 100644
 +
 +const HEAP_SIZE: usize = 96 * 1024; // WiFi needs a larger heap than bare-metal.
 +const BUILD_ID: &str = env!("R2_BUILD_ID");
++// Human-readable firmware version — surfaced on the LCD + the status line (Roy reads SCREENS as ground truth;
++// composer parses fw= from telemetry). cfg-correct so each board self-declares its sync model + canon version.
++#[cfg(feature = "ble")]
++const FW_VERSION: &str = "leaderless-0.4";
++#[cfg(not(feature = "ble"))]
++const FW_VERSION: &str = "conductor-0.3";
 +const FIELDLAB_SSID: &str = "r2-fieldlab";
 +const FIELDLAB_PASS: &str = "r2fieldlab"; // >=8 chars (WPA2)
 +const AP_MAC_MATCH: u32 = 0x0050_2698; // low-3 MAC bytes selecting the soft-AP role
@@ -574,7 +580,7 @@ index 8c49f1c..c9c4c58 100644
 +                let _ = write!(s, "b{beats} dlv{dlv} blk{blk}");
 +                let _ = Text::new(&s, Point::new(2, 42), white).draw(d);
 +                s.clear();
-+                let _ = write!(s, "LEADERLESS (no ldr)");
++                let _ = write!(s, "fw:{FW_VERSION}");
 +                let _ = Text::new(&s, Point::new(2, 54), cyan).draw(d);
 +                s.clear();
 +                let _ = write!(s, "mesh: {}", if synced { "IN SYNC" } else { "converging" });
@@ -584,7 +590,7 @@ index 8c49f1c..c9c4c58 100644
 +            //   nbrs = mesh neighbour count (join→++ / leave→--), synced = sync-state,
 +            //   cond = current conductor hive (a CHANGE between samples = a reform/re-elect).
 +            println!(
-+                "r2-dfr1195: status beats={beats} dlv={dlv} blk={blk} synced={synced} nbrs={nbrs} cond={cond:06x} spread_ms={spread} role={role}"
++                "r2-dfr1195: status beats={beats} dlv={dlv} blk={blk} synced={synced} nbrs={nbrs} cond={cond:06x} spread_ms={spread} fw={FW_VERSION} role={role}"
 +            );
 +        }
 +        Timer::after(Duration::from_millis(50)).await;
