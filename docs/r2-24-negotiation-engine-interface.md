@@ -114,8 +114,26 @@ trouble-host surfaces adv reports via an **EventHandler**, NOT a return value:
   `join(runner.run_with_handler(h), advertise_hold, scan_loop)`. If the controller won't do simultaneous
   adv+scan cleanly, alternate (advertise N ms / scan N ms) or split roles for the first test.
 - TEST: flash a 2nd DFR1195 with --features ble OFF the live mesh (or a spare); the two observe each other's
-  R2-BEACON → decode_advert logs the peer's rbid. resolve_rbid stays stubbed until core answers the
-  epoch-clock + per-device-vs-TG-session_key Qs (sent). Then L2CAP CoC → NegotiationRadio over the engine.
+  R2-BEACON → decode_advert logs the peer's rbid → resolve_rbid_windowed → hive_id. Then L2CAP CoC →
+  NegotiationRadio over the engine.
+
+### RBID session_key + epoch — CANON RESOLVED (core+specs, 2026-06-21; specs blessed the interim)
+§6.1's literal "random per-session key" CONTRADICTS §3.3 (resolver derives the peer's key from the trust
+relationship); specs ruled §6.1 the outlier. So the RESOLVABLE, canon-aligned model (replace my hk[..16]/
+epoch=0 placeholders with this in BOTH advertise + resolve):
+- **session_key = HKDF-Expand(hk, info="r2-beacon-rbid-v1")[..16]** — domain-separated from hk (NOT raw hk,
+  which is the frame-HMAC key). All TG members derive the SAME key → every board resolves any peer's RBID
+  with zero key distribution; strangers (no hk) still can't predict the rotating RBID. (hk = the member-shared
+  group HMAC key I already hold from the persona. Hand-roll HKDF(hk,info)[..16] for the homogeneous 9-board
+  now; core will ship a vector-tested `r2_trust::derive_beacon_session_key` once Roy rules hk-vs-dek as the root
+  → import it then. Needs an HKDF/HMAC-SHA256 impl: I have sha2; add `hkdf` (or hand-roll HKDF-Expand =
+  HMAC-SHA256(hk, info||0x01)[..16]).)
+- **epoch = floor(shared_coarse_time_ms / 900_000)** (T_rotate=900s) from ANY shared time base — heartbeat
+  beat_seq when present (do NOT hard-couple; R2-HEARTBEAT is OPTIONAL per specs), else RTC/NTP/GPS.
+- **resolve_rbid_windowed(observed, &[(hive_id, session_key) per known peer], epoch, 1)** — the ±1 window
+  (R2-DISCOVERY §3.3) absorbs clock skew, so tight time-sync is NOT required; a synced clock just narrows it.
+  Since the key is TG-derived-identical, every peer entry uses the SAME derived key.
+  Both functions already shipped (core 3420389) — no core change, just call windowed with window=1.
 - FIX noted: the local crates index was stale (showed trouble 0.2.4 as max) — `cargo search trouble-host`
   refreshes it; then `cargo update -p trouble-host --precise 0.6.0` pins the bt-hci-0.8 version.
 
