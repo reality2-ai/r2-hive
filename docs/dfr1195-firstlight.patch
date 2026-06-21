@@ -117,10 +117,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..fe49b86 100644
+index 8c49f1c..7cfbe46 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2019 @@
+@@ -1,83 +1,2022 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -715,13 +715,16 @@ index 8c49f1c..fe49b86 100644
 +                    // heartbeat is both the sync pulse AND the neighbour-discovery presence.
 +                    #[cfg(not(feature = "blackout"))]
 +                    let do_broadcast = true;
-+                    // HBSYNC-06: mute TX during [60s, 90s) uptime = a 30s connectivity blackout. Both boards
-+                    // boot together so the windows overlap → neither hears the other → each free-runs on its
-+                    // rate (consensus-matched ON, native-offset OFF). The first beat after 90s logs the drift.
++                    // HBSYNC-06: 300s warmup THEN mute TX during [300s, 330s) = a 30s MUTUAL connectivity
++                    // blackout (core: at canon β=0.01 the rate-difference decays (1−2β)^n = 0.98^n two-sided →
++                    // ~150 beats/300s ⇒ ~4.8% residual ⇒ ON blackout-drift ≈6ms vs OFF ≈120ms = 20× clean).
++                    // Both boards mute (reset together → ~1-2s offset ≪ 30s) so neither hears the other → pure
++                    // free-run. GROUND TRUTH = the LED-unison through the blackout (Roy's eyes): ON stay locked,
++                    // OFF visibly drift apart. (Serial spread_ms POST-recovery is vacuous — phase re-locks both.)
 +                    #[cfg(feature = "blackout")]
 +                    let do_broadcast = {
 +                        let up = embassy_time::Instant::now().as_secs();
-+                        !(60..90).contains(&up)
++                        !(300..330).contains(&up)
 +                    };
 +                    if do_broadcast {
 +                        if let Ok(n) = encode_extended(&msg, &mut txbuf) {
