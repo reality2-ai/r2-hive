@@ -113,3 +113,14 @@ it forced ch6 + diverged the radios; AP-SPOF gone); (2) EspNow.set_channel(1) �
 an AP-join. RSSI absent in esp-radio ReceiveInfo → seed link_quality 0.7 (M-ESPNOW-3). Mobility-native, no SPOF.
 REMAINING for the routed-data mesh: M-ESPNOW-2 (hive↔MAC map from recv src) + M-ESPNOW-3 (r2-route
 forward-by-hive_id over Transport::EspNow id5 + GroupHmac per-TG delivery). The SYNC half is proven on metal.
+
+## ✅ FULL MESH on metal (2026-06-21): discover → mesh → SYNC + trust-gated DELIVERY, no AP
+M-ESPNOW-1 (form) + sync (conductor-PLL over ESP-NOW broadcast) + M-ESPNOW-2 (hive↔MAC map) + M-ESPNOW-3
+(routed delivery + GroupHmac gate) ALL on metal, NO AP. The conductor originates signed intra-TG Events over
+ESP-NOW; the follower deliver-gates: `DELIVERED msg_id=4 in-TG (tg+hmac ok)` (good HMAC) / `DELIVER-BLOCKED
+hmac_ok=false` (bad HMAC) — concurrent with `HB<-esp-now cond=dcadbf8 (lock)`. So the reality2 transient
+network DISCOVERS (BLE), SYNCS (heartbeat over ESP-NOW), and DELIVERS (GroupHmac per-TG over ESP-NOW),
+mobility-native, no fixed infra. (1-hop deliver, 2 boards.)
+REMAINING: MULTI-HOP relay (3+ boards — r2-route neighbour-obs Transport::EspNow.bit()=0x20 + forward-by-hive_id
+→ HIVE_MAC unicast + originator-in-frame for per-origin dedup) + dynamic behaviors (N-join = auto-join the mesh;
+mobility-reform = re-route as nodes move, no AP-failover needed since no AP).
