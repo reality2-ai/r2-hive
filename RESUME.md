@@ -221,8 +221,14 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     (0dcadbf8) scans → `BLE scan -> peer hive=2cab5f69 (rbid baf6..)` resolving ACM1, both advertising +
     WiFi-synced. Full cross-board crypto chain proven. (BUG fixed: ScanSession must be HELD — its Drop
     cancels the scan.) registry=KNOWN_HIVE_IDS bring-up roster (real roster from peers.rs/persona later).
-    **NEXT: S1 = L2CAP CoC** (connectable adv + central.connect + CoC channel for WifiReq/Offer/Done) →
-    wire **NegotiationRadio** over core's S0–S4 engine → **BLE→WiFi NETWORK-FORMING** + fallback/reform.
+    (6) **M7 L2CAP CoC CONNECTIVITY on metal** — provider (lowest test hive 0dcadbf8) connectable-advertises →
+    Advertiser::accept (ACL) → L2capChannel::accept(PSM 0x00D2); joiner (2cab5f69) central.connect →
+    L2capChannel::create → send. METAL: provider `CoC RECV 7 B: [05,00,52,32,2d,4d,37]` = `[len_lo=5,len_hi=0,
+    "R2-M7"]` — the LE len-prefix frame (R2-BLE §6.4) crossed BYTE-EXACT, matching workshop's esp-idf l2cap.rs
+    (interop-ready). Repeatable. **So the two-plane is REAL on metal: S0 DISCOVER + control-plane data path both proven.**
+    **NEXT: M8 NegotiationRadio** (re-integrate non-conn beacon + scan + HiveId↔addr map + HiveId↔Connection map +
+    shared r2_discovery::ControlMsg codec [core landing]) → **M9 run S0–S4 engine** → **M10 network-forming + fallback/reform + telemetry**.
+    Full plan: docs/r2-24-l2cap-implementation-plan.md.
     (FIX noted: the crates index was stale → `cargo search` refreshes it before resolving trouble.)
   - **Per-carrier Cargo features** (composer board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO
     octal-PSRAM@80MHz baked via PsramConfig in code — esp-hal has no psram Cargo feature); next deliverable.
