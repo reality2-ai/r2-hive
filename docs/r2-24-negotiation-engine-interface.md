@@ -89,6 +89,36 @@ fresh, on the test pairing, before touching the live mesh.
   NegotiationRadio impl over the ready engine. New-stack integration = a focused dive (iterates on
   versions/coex), not a marathon-tail rush.
 
+## BLE bring-up STATUS (2026-06-21) — 4 metal milestones DONE; SCAN is next (fully researched)
+DONE on b79010 (--features ble), all metal-verified + externally scan-confirmed:
+1. deps resolve+compile (esp-radio ble+coex + bt-hci 0.8.1 + **trouble-host 0.6.0** = the bt-hci-0.8 pin;
+   0.2=bt-hci0.3 / 0.7=bt-hci0.9 mismatch). Feature-gated `ble` OFF by default; live fleet still builds.
+2. BLE controller inits + WiFi+BLE **COEX holds** (mesh stays synced).
+3. trouble-host **ADVERTISE** up + external bluetoothctl confirms `C0:52:2C:AB:5F:69`.
+4. **REAL R2-BEACON codec** — `ble_task` uses r2_discovery::beacon::{compute_rbid, encode_advert,
+   LegacyBeacon, BeaconFlags, PowerState}; 24-byte canonical payload in 0xFF mfg AD; external scan
+   confirms `ManufacturerData 0x01b2` (the encode_advert output). Built vs core's r2-discovery @7b4666e.
+
+### SCAN — the EXACT implementation path (researched, ready to code next session)
+trouble-host surfaces adv reports via an **EventHandler**, NOT a return value:
+- `impl trouble_host::prelude::EventHandler for MyHandler { fn on_adv_reports(&self, reports: LeAdvReportsIter) {...} }`
+  (host.rs:696). For ext-adv use `on_ext_adv_reports` + scan_ext. Each report: addr + `data` (raw AD bytes).
+- Drive: `runner.run_with_handler(&handler)` (NOT `run()`) so the handler fires; concurrently
+  `Scanner::new(central).scan(&ScanConfig{active:false, interval, window, timeout, phys:PhySet::LE_1M, filter_accept_list:&[]})`
+  in a loop (scan() returns a ScanSession per report-batch; call repeatedly).
+- In on_adv_reports: walk the AD structures in `report.data`, find the 0xFF manufacturer element, take its
+  payload → `r2_discovery::beacon::decode_advert(payload) -> LegacyBeacon` → `resolve_rbid(&beacon.rbid,
+  &peers, epoch) -> Option<HiveId>` → build `NegObservation::new(hive_id, ap_capable, beacon.flags.power_state)`.
+  Store into a fixed-cap observed-roster (Signal/Mutex<heapless::Vec>) for the engine to poll.
+- CONCURRENCY Q to verify on metal: one Host doing BOTH advertise (hold Advertiser) AND scan — likely needs
+  `join(runner.run_with_handler(h), advertise_hold, scan_loop)`. If the controller won't do simultaneous
+  adv+scan cleanly, alternate (advertise N ms / scan N ms) or split roles for the first test.
+- TEST: flash a 2nd DFR1195 with --features ble OFF the live mesh (or a spare); the two observe each other's
+  R2-BEACON → decode_advert logs the peer's rbid. resolve_rbid stays stubbed until core answers the
+  epoch-clock + per-device-vs-TG-session_key Qs (sent). Then L2CAP CoC → NegotiationRadio over the engine.
+- FIX noted: the local crates index was stale (showed trouble 0.2.4 as max) — `cargo search trouble-host`
+  refreshes it; then `cargo update -p trouble-host --precise 0.6.0` pins the bt-hci-0.8 version.
+
 ## Params for core
 T_fallback (Profile A WiFi/BLE) = 5s (documented per §4A.4(A)). T_negotiate ~10s (R2-WIFI §3.3.1
 #wifi_offer timeout). Send back: confirm the module home + the trait names, and whether the
