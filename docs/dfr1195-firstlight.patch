@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..36e1495 100644
+index 8c49f1c..17bef55 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1758 @@
+@@ -1,83 +1,1848 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -170,7 +170,10 @@ index 8c49f1c..36e1495 100644
 +
 +// R2 transient-networking core (no_std, the portable substance — unchanged on metal).
 +use r2_cbor::Encoder;
-+use r2_route::{DropReason, ForwardAction, ForwardRequest, RouteEngine, Target};
++use r2_route::{
++    DropReason, ForwardAction, ForwardRequest, MobilityClass, Observation, QualitySample,
++    RouteEngine, Target, Transport,
++};
 +use r2_trust::GroupHmac;
 +use r2_wire::{
 +    decode_extended, encode_extended, sign_extended, verify_extended, ExtendedHeader,
@@ -433,7 +436,7 @@ index 8c49f1c..36e1495 100644
 +                spawner.spawn(ble_task(c, my_hive, my_tg_hash, hk).unwrap());
 +                spawner.spawn(engine_task(my_hive).unwrap()); // M9: run the S0–S4 engine over the bridge
 +                spawner.spawn(espnow_task(esp_now, my_hive).unwrap()); // ESP-NOW true-mesh data plane (Mode 2)
- 
++
 +            }
 +            Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
 +        }
@@ -480,9 +483,7 @@ index 8c49f1c..36e1495 100644
 +    // Segments are kicked at 50 ms tick boundaries; LEDC hardware fades between them.
 +    let mut beat_t: i32 = -1;
 +    let mut lcd_tick: u32 = 0;
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        // ── IDENTIFY override (Roy dashboard locate): SOLID LED for the countdown, then resume ──
 +        let id = IDENTIFY_TICKS.load(Ordering::Relaxed);
 +        if id > 0 {
@@ -660,10 +661,15 @@ index 8c49f1c..36e1495 100644
 +                    };
 +                    let msg =
 +                        ExtendedMessage { header, route: None, payload: &hb_payload, hmac_tag: None };
-+                    // NO-FLOOD (Roy): ONLY the conductor (lowest hive_id) beacons the fire
-+                    // frame each beat; followers beat their LED locally + PLL-listen, they
-+                    // do NOT broadcast. 1 beacon/beat on the AP, not N.
-+                    if am_conductor {
++                    // INFRA (default): NO-FLOOD — ONLY the conductor beacons (1 beat on the AP, not N).
++                    // MESH (ble): ALL nodes beat — the heartbeat doubles as the neighbour-discovery presence
++                    // (so r2-route learns who's reachable → relay/route), and sync chains to the lowest
++                    // hive hop-by-hop (C locks to B locks to A). PLL still locks to lowest_heard only.
++                    #[cfg(not(feature = "ble"))]
++                    let do_broadcast = am_conductor;
++                    #[cfg(feature = "ble")]
++                    let do_broadcast = true;
++                    if do_broadcast {
 +                        if let Ok(n) = encode_extended(&msg, &mut txbuf) {
 +                            // MESH (ble): broadcast the beat over ESP-NOW (espnow_task drains ESPNOW_TX →
 +                            // ESP-NOW broadcast). No AP needed. try_send so a full queue never stalls the PLL.
@@ -741,6 +747,13 @@ index 8c49f1c..36e1495 100644
 +                    ev_tick = 0;
 +                    let good = ev_seq % 2 == 0;
 +                    let payload = b"in-TG";
++                    // INFRA: broadcast within TG (DeliverOnly at each node). MESH (M-ESPNOW-3b): DIRECTED to
++                    // the far node C (f91c8911) — A↔C are NOT direct neighbours (allow-list) so r2-route must
++                    // route it A→B→C (B returns Directed → relays). Proves real multi-hop, not flood-deliver.
++                    #[cfg(not(feature = "ble"))]
++                    let ev_target: u32 = 0;
++                    #[cfg(feature = "ble")]
++                    let ev_target: u32 = 0xf91c_8911;
 +                    let header = ExtendedHeader {
 +                        version: 0,
 +                        msg_type: MsgType::Event,
@@ -751,7 +764,7 @@ index 8c49f1c..36e1495 100644
 +                        event_hash: 0,
 +                        payload_len: payload.len() as u32,
 +                        target_group: my_tg_hash,
-+                        target_hive: 0, // broadcast within TG (all co-members deliver/block)
++                        target_hive: ev_target, // 0=broadcast (infra) / C (mesh directed multi-hop)
 +                    };
 +                    let mut msg = ExtendedMessage { header, route: None, payload, hmac_tag: None };
 +                    let signer = if good { &group_hmac } else { &bad_hmac };
@@ -813,6 +826,24 @@ index 8c49f1c..36e1495 100644
 +                            };
 +                            lowest_heard = lowest_heard.min(sender_hive);
 +                            am_conductor = my_hive <= lowest_heard; // persistent (gates beaconing)
++                            // M-ESPNOW-3b: the heartbeat sender is a direct ESP-NOW neighbour → feed
++                            // r2-route's neighbour table so plan_forward can route/relay over the mesh.
++                            // (link_quality 0.7 cold-start seed; living-routing reinforces on delivery.)
++                            #[cfg(feature = "ble")]
++                            {
++                                let now_s = embassy_time::Instant::now().as_secs() as u32;
++                                let _ = engine.ingest_observation(Observation {
++                                    hive_id: sender_hive,
++                                    transport: Transport::EspNow,
++                                    timestamp: now_s,
++                                    quality: QualitySample::Direct(0.7),
++                                    rssi: None,
++                                    // FULL ESP32 node, NOT mcu_only — must be relay-viable (core: mcu_origin:true
++                                    // → is_viable=false → build_flood_plan finds 0 neighbours → Drop(NoViableNeighbour)).
++                                    mcu_origin: false,
++                                    mobility: MobilityClass::Mobile, // wearables move → continual reform
++                                });
++                            }
 +                            if am_conductor {
 +                                // The conductor free-runs at the nominal rate — it IS the reference.
 +                                freq_adj = 0.0;
@@ -890,6 +921,28 @@ index 8c49f1c..36e1495 100644
 +                            dice_roll: 0.0,
 +                        };
 +                        let advice = engine.plan_forward(req);
++                        #[cfg(feature = "ble")]
++                        {
++                            let nbrs = engine.neighbours().len();
++                            match &advice.action {
++                                ForwardAction::Drop(r) => println!(
++                                    "r2-dfr1195: RX-EV msg_id={} tgt={:08x} DROP {:?} nbrs={nbrs}",
++                                    h.msg_id, h.target_hive, r
++                                ),
++                                ForwardAction::DeliverOnly => println!(
++                                    "r2-dfr1195: RX-EV msg_id={} DeliverOnly nbrs={nbrs}",
++                                    h.msg_id
++                                ),
++                                ForwardAction::Directed(_) => println!(
++                                    "r2-dfr1195: RX-EV msg_id={} Directed nbrs={nbrs}",
++                                    h.msg_id
++                                ),
++                                ForwardAction::Flood(_) => println!(
++                                    "r2-dfr1195: RX-EV msg_id={} Flood nbrs={nbrs}",
++                                    h.msg_id
++                                ),
++                            }
++                        }
 +                        let for_me = h.target_hive == my_hive || h.target_hive == 0;
 +                        if matches!(advice.action, ForwardAction::Drop(DropReason::Duplicate)) {
 +                            println!("r2-dfr1195: DEDUP msg_id={} dropped", h.msg_id);
@@ -899,7 +952,13 @@ index 8c49f1c..36e1495 100644
 +                            // mesh, independent of any soft-AP L2 rebroadcast. dedup-guarded
 +                            // (above) + ttl-bounded. The HMAC covers IMMUTABLE fields only
 +                            // (ttl excluded, §10.6) so it survives the decrement.
-+                            if is_ap
++                            // RELAY role: infra = the AP forwards; MESH = ANY node forwards (no AP) —
++                            // dedup (msg_id,origin) + ttl bound it; the allow-list shapes the topology.
++                            #[cfg(not(feature = "ble"))]
++                            let relay_role = is_ap;
++                            #[cfg(feature = "ble")]
++                            let relay_role = true;
++                            if relay_role
 +                                && h.ttl > 1
 +                                && matches!(
 +                                    advice.action,
@@ -909,6 +968,16 @@ index 8c49f1c..36e1495 100644
 +                                let mut fwd = m; // ExtendedMessage is Copy
 +                                fwd.header.ttl -= 1;
 +                                if let Ok(n) = encode_extended(&fwd, &mut txbuf) {
++                                    // MESH: re-broadcast over ESP-NOW (Flood one-shot reaches all in-range
++                                    // allow-listed neighbours). INFRA: UDP re-broadcast.
++                                    #[cfg(feature = "ble")]
++                                    {
++                                        let mut f = [0u8; 256];
++                                        let mm = n.min(256);
++                                        f[..mm].copy_from_slice(&txbuf[..mm]);
++                                        let _ = ESPNOW_TX.try_send((f, mm));
++                                    }
++                                    #[cfg(not(feature = "ble"))]
 +                                    let _ = socket.send_to(&txbuf[..n], peer_ep).await;
 +                                    RELAYED.fetch_add(1, Ordering::Relaxed);
 +                                    println!(
@@ -1423,6 +1492,23 @@ index 8c49f1c..36e1495 100644
 +    core::cell::RefCell<heapless::Vec<(u32, [u8; 6]), 16>>,
 +> = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(heapless::Vec::new()));
 +
++/// M-ESPNOW-3b BENCH multi-hop allow-list (core's technique): a per-board can-hear MAC set, applied at
++/// the ESP-NOW recv BEFORE r2-route, so A→B→C relay is exercised on a bench (all 1-hop in-range) without
++/// physical separation. Topology: A(0dcadbf8)={B}, B(2cab5f69)={A,C}, C(f91c8911)={B} → A↔C NOT direct →
++/// A→C only via B's relay. Other boards: no mask (true). Invisible to r2-route (just shapes its neighbours).
++#[cfg(feature = "ble")]
++fn can_hear(my_hive: u32, src: &[u8; 6]) -> bool {
++    const A: [u8; 6] = [0xf4, 0x12, 0xfa, 0x50, 0x23, 0xe4]; // 0dcadbf8
++    const B: [u8; 6] = [0xf4, 0x12, 0xfa, 0xb7, 0x90, 0x10]; // 2cab5f69
++    const C: [u8; 6] = [0xf4, 0x12, 0xfa, 0xb6, 0x0a, 0xa0]; // f91c8911
++    match my_hive {
++        0x0dca_dbf8 => *src == B,
++        0x2cab_5f69 => *src == A || *src == C,
++        0xf91c_8911 => *src == B,
++        _ => true,
++    }
++}
++
 +/// Upsert a learned hive_id↔MAC pair (M-ESPNOW-2). Returns true if newly mapped (for logging).
 +#[cfg(feature = "ble")]
 +fn map_peer(hive: u32, mac: [u8; 6]) -> bool {
@@ -1557,9 +1643,13 @@ index 8c49f1c..36e1495 100644
 +        }
 +    };
 +    let rx = async {
-+        let mut logged = 0u32;
 +        loop {
 +            let r = receiver.receive_async().await;
++            let s = r.info.src_address;
++            // M-ESPNOW-3b bench allow-list: drop non-neighbour src BEFORE r2-route (shapes the topology).
++            if !can_hear(my_hive, &s) {
++                continue;
++            }
 +            let d = r.data();
 +            let n = d.len().min(256);
 +            let mut f = [0u8; 256];
@@ -1567,7 +1657,6 @@ index 8c49f1c..36e1495 100644
 +            let _ = ESPNOW_RX.try_send((f, n)); // → io_task PLL (the sync)
 +            // M-ESPNOW-2: learn hive_id↔MAC from the recv — the R2-WIRE Heartbeat payload carries the
 +            // originator hive (be32), the L2 src MAC is r.info.src_address. Map for r2-route unicast (M-ESPNOW-3).
-+            let s = r.info.src_address;
 +            if let Ok(m) = r2_wire::decode_extended(&d[..n]) {
 +                if m.header.msg_type == MsgType::Heartbeat && m.payload.len() >= 4 {
 +                    let origin =
@@ -1580,7 +1669,6 @@ index 8c49f1c..36e1495 100644
 +                    }
 +                }
 +            }
-+            let _ = logged;
 +        }
 +    };
 +    join(tx, rx).await;
@@ -1653,7 +1741,7 @@ index 8c49f1c..36e1495 100644
 +    let on = it.next()? != "0";
 +    Some((target, on))
 +}
-+
+ 
 +/// OTA network receiver (#17) — FLASH-WRITE-WHILE-WIFI DE-RISK (esp-storage#31).
 +/// The slot-switch/commit path is already proven (test b). The open hardware question is
 +/// whether an esp-storage flash write (cache-suspend) RETURNS PROMPTLY with esp-radio
@@ -1707,7 +1795,9 @@ index 8c49f1c..36e1495 100644
 +    let mut secfill = 0usize;
 +    let mut secbase = 0u32;
 +    let mut pkt = [0u8; 1500];
-+    loop {
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        let (n, from) = match socket.recv_from(&mut pkt).await {
 +            Ok(v) => v,
 +            Err(_) => continue,
