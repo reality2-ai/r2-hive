@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..e30ccf8 100644
+index 5a3c89f..f90fe6f 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,7 +54,7 @@ index 5a3c89f..e30ccf8 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,36 @@ embassy-futures = "0.1"
+@@ -40,6 +55,39 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -88,6 +88,9 @@ index 5a3c89f..e30ccf8 100644
 +# instead of ESP-NOW. Reuses the proven io_task PLL + GroupHmac via the same DATA_TX/RX bridge; only the
 +# data-plane carrier swaps (espnow_task off → serve_data_coc bridges DATA over the CoC). Implies ble.
 +blemesh = ["ble"]
++# BENCH multi-hop topology mask: hides A↔C so A→B→C relay is forced on a bench (core's allow-list technique).
++# OFF by default → the GENERAL no-AP mesh (every node hears every in-range peer = self-growing/self-healing).
++meshmask = ["ble"]
  
  [profile.release]
  opt-level = "s"
@@ -106,10 +109,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..c2c7ed2 100644
+index 8c49f1c..0bcc6ba 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1920 @@
+@@ -1,83 +1,1931 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -447,7 +450,7 @@ index 8c49f1c..c2c7ed2 100644
 +            Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
 +        }
 +    }
-+
+ 
 +    // ── LCD (ST7735S 160x80) status surface — CARRIER-GATED (has_screen). PWR(GPIO48)
 +    //    ACTIVE-LOW. Skipped entirely on the screenless XIAO-S3 so the binary runs cleanly
 +    //    there (no driving non-existent hardware / GPIO conflict). di_buf stays in main
@@ -489,7 +492,9 @@ index 8c49f1c..c2c7ed2 100644
 +    // Segments are kicked at 50 ms tick boundaries; LEDC hardware fades between them.
 +    let mut beat_t: i32 = -1;
 +    let mut lcd_tick: u32 = 0;
-+    loop {
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        // ── IDENTIFY override (Roy dashboard locate): SOLID LED for the countdown, then resume ──
 +        let id = IDENTIFY_TICKS.load(Ordering::Relaxed);
 +        if id > 0 {
@@ -619,10 +624,8 @@ index 8c49f1c..c2c7ed2 100644
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
- 
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++
++    loop {
 +        // Heartbeat transport: ESP-NOW broadcast for the mesh (ble), UDP socket for infra (default).
 +        // The conductor-PLL + decode below are UNCHANGED (reused intact); only the recv source differs.
 +        #[cfg(not(feature = "ble"))]
@@ -737,12 +740,13 @@ index 8c49f1c..c2c7ed2 100644
 +                                        IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 1)),
 +                                        R2_UDP_PORT,
 +                                    );
-+                                    // INFRA/ESP-NOW: report health to the AP collector. BLE data-mesh has no
-+                                    // WiFi collector AND no WiFi controller up → socket.send_to would BLOCK
-+                                    // the io_task (the beats=25 freeze). Skip it; health-over-BLE is later.
-+                                    #[cfg(not(feature = "blemesh"))]
++                                    // INFRA only: report health to the AP collector. ANY mesh build (ESP-NOW
++                                    // OR BLE) has no AP collector + the socket.send_to BLOCKS the io_task when
++                                    // the WiFi controller/link isn't ready (the intermittent beats=25 freeze).
++                                    // Skip it for all ble meshes; mesh-health (over DATA_TX) is a later refinement.
++                                    #[cfg(not(feature = "ble"))]
 +                                    let _ = socket.send_to(&txbuf[..n], cep).await;
-+                                    #[cfg(feature = "blemesh")]
++                                    #[cfg(feature = "ble")]
 +                                    let _ = (n, cep);
 +                                }
 +                            }
@@ -1575,15 +1579,25 @@ index 8c49f1c..c2c7ed2 100644
 +/// physical separation. Topology: A(0dcadbf8)={B}, B(2cab5f69)={A,C}, C(f91c8911)={B} → A↔C NOT direct →
 +/// A→C only via B's relay. Other boards: no mask (true). Invisible to r2-route (just shapes its neighbours).
 +#[cfg(feature = "ble")]
-+fn can_hear(my_hive: u32, src: &[u8; 6]) -> bool {
-+    const A: [u8; 6] = [0xf4, 0x12, 0xfa, 0x50, 0x23, 0xe4]; // 0dcadbf8
-+    const B: [u8; 6] = [0xf4, 0x12, 0xfa, 0xb7, 0x90, 0x10]; // 2cab5f69
-+    const C: [u8; 6] = [0xf4, 0x12, 0xfa, 0xb6, 0x0a, 0xa0]; // f91c8911
-+    match my_hive {
-+        0x0dca_dbf8 => *src == B,
-+        0x2cab_5f69 => *src == A || *src == C,
-+        0xf91c_8911 => *src == B,
-+        _ => true,
++fn can_hear(_my_hive: u32, _src: &[u8; 6]) -> bool {
++    // GENERAL no-AP mesh (default): every node hears every in-range peer → self-growing (N-join) +
++    // self-healing (reform). This is the real-world TN case for mobile wearables.
++    #[cfg(not(feature = "meshmask"))]
++    {
++        true
++    }
++    // BENCH multi-hop mask (meshmask): hide A↔C so A→B→C relay is forced on a bench (no physical range).
++    #[cfg(feature = "meshmask")]
++    {
++        const A: [u8; 6] = [0xf4, 0x12, 0xfa, 0x50, 0x23, 0xe4]; // 0dcadbf8
++        const B: [u8; 6] = [0xf4, 0x12, 0xfa, 0xb7, 0x90, 0x10]; // 2cab5f69
++        const C: [u8; 6] = [0xf4, 0x12, 0xfa, 0xb6, 0x0a, 0xa0]; // f91c8911
++        match _my_hive {
++            0x0dca_dbf8 => *_src == B,
++            0x2cab_5f69 => *_src == A || *_src == C,
++            0xf91c_8911 => *_src == B,
++            _ => true,
++        }
 +    }
 +}
 +
