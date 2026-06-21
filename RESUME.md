@@ -135,6 +135,14 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     fix, NOT YET built:** pre-designated backup (lowest AP-capable hive from the heartbeat roster) detects
     esp-radio disassociation + promotes STA→AP at runtime @192.168.4.1; others re-scan/associate. Substantial +
     risky (runtime WiFi mode switch) — implement on a test pairing, not the live mesh.
+  - **CONVERGENCE BUG FOUND + FIXED (serial-verified, 0621.1227):** the 9-board "not converged" root was a
+    VERSION MISMATCH — 3 DFR1195 (ACM9/10/11) were on a STALE pre-KS1 build (0621.0858) computing WRONG hive_ids
+    (a0dce700/63f798ea/b658276e) → SPLIT-BRAIN conductor election (boards disagreed on the lowest id). XIAO were
+    on 0621.1148 (pre-LED-polarity → dark). FIX: re-flashed all 7 accessible boards to 0621.1227 (KS1 ids + LED
+    polarity + conductor-timeout). RESULT (direct serial): 8/9 lock to cond=06ae082b (=529928/ACM10), e≈0.000,
+    synced=true, cross-arch (DFR1195 + XIAO). 9th = AP 502698/ACM0 still dark on old build (port held by
+    composer's health reader) → revive via Roy RST (beats+follows) or composer port-release + re-flash to canon.
+    LESSON: a mixed-build fleet WILL split — keep ALL nodes on one build; verify by SERIAL not telemetry.
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
     → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA network receiver (#17)** — the
     slot-switch is PROVEN (test b); remaining = UDP image transfer + write ota_1 with esp-radio QUIESCED
