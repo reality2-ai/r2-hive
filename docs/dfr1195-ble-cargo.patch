@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..bbc5f37 100644
+index 5a3c89f..5ebc476 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,7 +54,7 @@ index 5a3c89f..bbc5f37 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,30 @@ embassy-futures = "0.1"
+@@ -40,6 +55,32 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -77,11 +77,13 @@ index 5a3c89f..bbc5f37 100644
 +# L2CAP CoC). WiFi+BLE coex via esp-radio/coex. trouble MUST use the same bt-hci major as esp-radio
 +# (0.8) — trouble 0.2 used bt-hci 0.3 (mismatch); let cargo pick the bt-hci-0.8-compatible trouble.
 +# trouble 0.6 = the version pinned to bt-hci 0.8 (matches esp-radio 0.18's bt-hci). 0.2=bt-hci0.3, 0.7=bt-hci0.9 (both mismatch).
-+trouble-host = { version = "0.6", optional = true, default-features = false, features = ["central", "peripheral", "default-packet-pool", "default-packet-pool-mtu-251"] }
++trouble-host = { version = "0.6", optional = true, default-features = false, features = ["central", "peripheral", "scan", "default-packet-pool", "default-packet-pool-mtu-251"] }
++# bt-hci 0.8 = the version trouble 0.6 + esp-radio 0.18 both use (unified) — needed to name LeAdvReportsIter in the EventHandler.
++bt-hci = { version = "0.8", optional = true, default-features = false }
 +
 +[features]
 +default = []
-+ble = ["esp-radio/ble", "esp-radio/coex", "dep:trouble-host"]
++ble = ["esp-radio/ble", "esp-radio/coex", "dep:trouble-host", "dep:bt-hci"]
  
  [profile.release]
  opt-level = "s"

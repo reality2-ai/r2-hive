@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..bbc5f37 100644
+index 5a3c89f..5ebc476 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,7 +54,7 @@ index 5a3c89f..bbc5f37 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,30 @@ embassy-futures = "0.1"
+@@ -40,6 +55,32 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -77,11 +77,13 @@ index 5a3c89f..bbc5f37 100644
 +# L2CAP CoC). WiFi+BLE coex via esp-radio/coex. trouble MUST use the same bt-hci major as esp-radio
 +# (0.8) — trouble 0.2 used bt-hci 0.3 (mismatch); let cargo pick the bt-hci-0.8-compatible trouble.
 +# trouble 0.6 = the version pinned to bt-hci 0.8 (matches esp-radio 0.18's bt-hci). 0.2=bt-hci0.3, 0.7=bt-hci0.9 (both mismatch).
-+trouble-host = { version = "0.6", optional = true, default-features = false, features = ["central", "peripheral", "default-packet-pool", "default-packet-pool-mtu-251"] }
++trouble-host = { version = "0.6", optional = true, default-features = false, features = ["central", "peripheral", "scan", "default-packet-pool", "default-packet-pool-mtu-251"] }
++# bt-hci 0.8 = the version trouble 0.6 + esp-radio 0.18 both use (unified) — needed to name LeAdvReportsIter in the EventHandler.
++bt-hci = { version = "0.8", optional = true, default-features = false }
 +
 +[features]
 +default = []
-+ble = ["esp-radio/ble", "esp-radio/coex", "dep:trouble-host"]
++ble = ["esp-radio/ble", "esp-radio/coex", "dep:trouble-host", "dep:bt-hci"]
  
  [profile.release]
  opt-level = "s"
@@ -100,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..ff6e45d 100644
+index 8c49f1c..294467b 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1249 @@
+@@ -1,83 +1,1329 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -289,10 +291,7 @@ index 8c49f1c..ff6e45d 100644
 +            drive_mode: DriveMode::PushPull,
 +        })
 +        .unwrap();
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +    // 5. WiFi config for the role.
 +    let wifi_cfg = if is_ap {
 +        WifiConfig::AccessPoint(
@@ -310,17 +309,15 @@ index 8c49f1c..ff6e45d 100644
 +                .with_password(FIELDLAB_PASS.into()),
 +        )
 +    };
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
 +    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
 +    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
 +        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +    // 7. Static IPs by role (deterministic 2-node net; no DHCP server needed).
 +    let (device, ip) = if is_ap {
 +        (interfaces.access_point, Ipv4Address::new(192, 168, 4, 1))
@@ -338,7 +335,12 @@ index 8c49f1c..ff6e45d 100644
 +        gateway: Some(Ipv4Address::new(192, 168, 4, 1)),
 +        dns_servers: Default::default(),
 +    });
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +    // 8. embassy-net stack.
 +    static RESOURCES: StaticCell<StackResources<4>> = StaticCell::new();
 +    let resources = RESOURCES.init(StackResources::new());
@@ -407,7 +409,7 @@ index 8c49f1c..ff6e45d 100644
 +            Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
 +        }
 +    }
-+
+ 
 +    // ── LCD (ST7735S 160x80) status surface — CARRIER-GATED (has_screen). PWR(GPIO48)
 +    //    ACTIVE-LOW. Skipped entirely on the screenless XIAO-S3 so the binary runs cleanly
 +    //    there (no driving non-existent hardware / GPIO conflict). di_buf stays in main
@@ -449,7 +451,9 @@ index 8c49f1c..ff6e45d 100644
 +    // Segments are kicked at 50 ms tick boundaries; LEDC hardware fades between them.
 +    let mut beat_t: i32 = -1;
 +    let mut lcd_tick: u32 = 0;
-+    loop {
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        // ── IDENTIFY override (Roy dashboard locate): SOLID LED for the countdown, then resume ──
 +        let id = IDENTIFY_TICKS.load(Ordering::Relaxed);
 +        if id > 0 {
@@ -1028,7 +1032,7 @@ index 8c49f1c..ff6e45d 100644
 +    my_tg_hash: u32,
 +    hk: [u8; 32],
 +) {
-+    use embassy_futures::join::join;
++    use embassy_futures::join::join3;
 +    use r2_discovery::beacon::{
 +        compute_rbid, derive_beacon_session_key, encode_advert, BeaconFlags, LegacyBeacon,
 +        PowerState, ADVERT_PAYLOAD_LEN, BEACON_VERSION,
@@ -1045,7 +1049,7 @@ index 8c49f1c..ff6e45d 100644
 +        0xC0,
 +    ]);
 +    let stack = trouble_host::new(controller, &mut resources).set_random_address(addr);
-+    let Host { mut peripheral, mut runner, .. } = stack.build();
++    let Host { mut peripheral, central, mut runner, .. } = stack.build();
 +    // Real R2-BEACON advert (r2_discovery::beacon, byte-exact). PER-MEMBER session_key =
 +    // derive_beacon_session_key(hk, my_hive) (HKDF(hk, salt=r2-beacon-rbid-v1, info=hive_be32)) — distinct
 +    // per member, resolvable by TG peers (shared hk), opaque to strangers. RBID = HMAC(key, epoch)[0:8].
@@ -1072,7 +1076,22 @@ index 8c49f1c..ff6e45d 100644
 +    adv[4] = 0xFF;
 +    adv[5..5 + plen].copy_from_slice(&payload[..plen]);
 +    let alen = 5 + plen;
-+    let _ = join(runner.run(), async {
++    // SCAN resolve-registry: each known TG peer's per-member beacon key (derive_beacon_session_key(hk,id)).
++    let registry: [(u32, [u8; 16]); KNOWN_HIVE_IDS.len()] =
++        core::array::from_fn(|i| (KNOWN_HIVE_IDS[i], derive_beacon_session_key(&hk, KNOWN_HIVE_IDS[i])));
++    let handler = R2ScanHandler { registry: &registry, epoch };
++    let mut scanner = Scanner::new(central);
++    let scan_cfg = ScanConfig {
++        active: false,
++        filter_accept_list: &[],
++        phys: PhySet::M1,
++        interval: Duration::from_millis(100),
++        window: Duration::from_millis(100),
++        timeout: Duration::from_secs(0),
++    };
++    // CONTROL PLANE: advertise own RBID + scan peers concurrently; the runner drives HCI and
++    // dispatches adv reports to handler.on_adv_reports (decode_advert + resolve_rbid_windowed).
++    let advertise_fut = async {
 +        match peripheral
 +            .advertise(
 +                &AdvertisementParameters::default(),
@@ -1091,8 +1110,73 @@ index 8c49f1c..ff6e45d 100644
 +            }
 +            Err(_) => println!("r2-dfr1195: BLE advertise ERR"),
 +        }
-+    })
-+    .await;
++    };
++    let scan_fut = async {
++        println!("r2-dfr1195: BLE scanning for R2-BEACON peers");
++        loop {
++            match scanner.scan(&scan_cfg).await {
++                // HOLD the ScanSession alive — dropping it cancels the scan (Drop impl). Reports flow
++                // to handler.on_adv_reports via run_with_handler while the session is held.
++                Ok(session) => {
++                    let _session = session;
++                    Timer::after(Duration::from_secs(4)).await;
++                }
++                Err(_) => Timer::after(Duration::from_millis(500)).await,
++            }
++        }
++    };
++    let _ = join3(runner.run_with_handler(&handler), advertise_fut, scan_fut).await;
++}
++
++/// Known TG hive_ids (bring-up registry for RBID→hive_id resolution; the real roster comes from
++/// peers.rs / the persona later). KS1-canonical ids of the 9-board TG.
++#[cfg(feature = "ble")]
++const KNOWN_HIVE_IDS: &[u32] = &[0x480e_900e, 0x2cab_5f69, 0x06ae_082b, 0x0dca_dbf8];
++
++/// Scan event handler: decode each observed R2-BEACON + resolve its RBID → hive_id.
++#[cfg(feature = "ble")]
++struct R2ScanHandler<'a> {
++    registry: &'a [(u32, [u8; 16])],
++    epoch: u64,
++}
++
++#[cfg(feature = "ble")]
++impl trouble_host::prelude::EventHandler for R2ScanHandler<'_> {
++    fn on_adv_reports(&self, reports: bt_hci::param::LeAdvReportsIter) {
++        use r2_discovery::beacon::{decode_advert, resolve_rbid_windowed};
++        for rep in reports.flatten() {
++            let Some(payload) = ble_find_mfg_ad(rep.data) else { continue };
++            let Ok(b) = decode_advert(payload) else { continue };
++            // ±1 epoch window absorbs clock skew (R2-DISCOVERY §3.3)
++            match resolve_rbid_windowed(&b.rbid, self.registry, self.epoch, 1) {
++                Some(hive) => println!(
++                    "r2-dfr1195: BLE scan -> peer hive={hive:08x} (rbid {:02x}{:02x}..)",
++                    b.rbid[0], b.rbid[1]
++                ),
++                None => println!(
++                    "r2-dfr1195: BLE scan -> R2-BEACON rbid={:02x}{:02x}.. unresolved",
++                    b.rbid[0], b.rbid[1]
++                ),
++            }
++        }
++    }
++}
++
++/// Walk BLE AD structures, return the manufacturer-specific (0xFF) element's data.
++#[cfg(feature = "ble")]
++fn ble_find_mfg_ad(data: &[u8]) -> Option<&[u8]> {
++    let mut i = 0;
++    while i + 1 < data.len() {
++        let len = data[i] as usize;
++        if len == 0 || i + 1 + len > data.len() {
++            break;
++        }
++        if data[i + 1] == 0xFF {
++            return Some(&data[i + 2..i + 1 + len]);
++        }
++        i += 1 + len;
++    }
++    None
 +}
 +
 +/// IDENTIFY inject-bridge: read "IDENTIFY <wire_hex> <1|0>" lines off the USB-Serial-JTAG RX
@@ -1186,7 +1270,7 @@ index 8c49f1c..ff6e45d 100644
 +        ota_receiver(stack).await; // the deliverable: accept a streamed network OTA
 +    }
 +}
- 
++
 +/// OTA network receiver (#17). Streams an image over UDP into the INACTIVE OTA slot and,
 +/// on a SHA-256-verified COMMIT, activates it + reboots — the no-USB update path. The
 +/// flash writes run with WiFi up (de-risked: ~20ms/sector, heartbeat-safe), so no quiesce.
@@ -1216,9 +1300,7 @@ index 8c49f1c..ff6e45d 100644
 +    let mut secfill = 0usize;
 +    let mut secbase = 0u32;
 +    let mut pkt = [0u8; 1500];
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        let (n, from) = match socket.recv_from(&mut pkt).await {
 +            Ok(v) => v,
 +            Err(_) => continue,
