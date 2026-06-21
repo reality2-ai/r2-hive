@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..6435904 100644
+index 8c49f1c..5ae6119 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1662 @@
+@@ -1,83 +1,1667 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -829,6 +829,11 @@ index 8c49f1c..6435904 100644
 +                        let req = ForwardRequest {
 +                            now,
 +                            msg_id: h.msg_id as u16,
++                            // R2-WIRE v0.4 dedup origin (originator hive). These fw frames are route:None
++                            // (no carried originator) → 0 here = dedup-by-msg_id (the star/field.lab behavior,
++                            // unchanged). MESH TODO (M-ESPNOW-3): carry the originator in the frame (route_stack[0])
++                            // so multi-hop relay dedups per-origin, not just per-msg_id.
++                            origin: 0,
 +                            source_hop: (my_hive & 0xFFFF) as u16,
 +                            ttl: h.ttl,
 +                            k: h.k,
