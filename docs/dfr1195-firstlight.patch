@@ -88,10 +88,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..b70b88b 100644
+index 8c49f1c..bd4b335 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1055 @@
+@@ -1,83 +1,1053 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -809,10 +809,12 @@ index 8c49f1c..b70b88b 100644
 +
 +/// Carrier-aware board profile (9-board: one binary on DFR1195 + screenless XIAO-S3).
 +/// Byte 0 @0x13000: 0x00 = no screen (XIAO), else/0xFF(erased) = screen (DFR1195).
-+/// Byte 1: LED polarity — 0x01 = active-low, 0x00 = active-high, 0xFF(erased) = default to
-+/// (active-low iff no-screen) — so the existing XIAO 1-byte profile (byte0=0x00) already
-+/// yields active-low without re-provisioning (Seeed XIAO-S3 user LED GPIO21 is ACTIVE-LOW;
-+/// DFR1195 GPIO21 is active-high). Read before the radio starts (no flash-vs-WiFi collision).
++/// Byte 1: LED polarity — 0x01 = active-LOW (explicit override), else/0xFF(erased)/0x00 =
++/// **active-HIGH (default)**. LED polarity is hardware/WIRING-specific, NOT derivable from the
++/// SoC or has_screen — so we DEFAULT active-high and never infer active-low from no-screen
++/// (these XIAO have EXTERNAL active-high LEDs on GPIO21, not the built-in active-low user LED;
++/// confirmed by Roy). Robust across re-flash + 1-byte re-provisioning (no fragile byte1 reliance).
++/// Read before the radio starts (no flash-vs-WiFi collision).
 +const BOARD_PROFILE_OFFSET: u32 = 0x13000;
 +fn read_board_profile() -> (bool, bool) {
 +    use embedded_storage::ReadStorage;
@@ -822,11 +824,7 @@ index 8c49f1c..b70b88b 100644
 +        return (true, false); // default: DFR1195 screen + active-high LED
 +    }
 +    let has_screen = b[0] != 0x00;
-+    let led_active_low = match b[1] {
-+        0x01 => true,
-+        0x00 => false,
-+        _ => !has_screen, // erased: no-screen carriers (XIAO) are active-low by default
-+    };
++    let led_active_low = b[1] == 0x01; // active-HIGH unless explicitly overridden to active-low
 +    (has_screen, led_active_low)
 +}
  
