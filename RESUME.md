@@ -199,12 +199,19 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     side override needs the IDENTIFY build on each TARGET board (only b79010 has it now → rides the next
     fleet re-flash). sync_state→0/1/2 (composer dashboard now treats 1=locked; resolved). LED byte DROPPED
     by composer (byte1 reserved; polarity = my active-high default + a Cargo feature) — fragility gone for good.
-  - **BLE deep-dive DEFERRED to a fresh session (supervisor-agreed)** — checkpoint complete in
-    docs/r2-24-negotiation-engine-interface.md (scout + S0–S4 + step-sequence + hurdles + core-provides +
-    beacon-AD gating). No BLE deps added yet → live firmware builds clean; fresh session step 1 = add the
-    `ble` Cargo feature OFF-by-default + the optional deps. **Per-carrier Cargo features** (for composer's
-    board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO octal-PSRAM@80MHz baked via PsramConfig in
-    code — esp-hal has no psram Cargo feature); created with the per-carrier restructure (next deliverable).
+  - **#24 BLE→WiFi — ACTIVE, 3 METAL MILESTONES HIT (Roy: push now, not parked).** Off-by-default `ble`
+    Cargo feature (live fleet still builds). On b79010 (--features ble), all metal-verified:
+    (1) **deps resolve+compile** — esp-radio ble+coex + bt-hci 0.8.1 + trouble-host 0.6.0;
+    (2) **BLE controller inits + WiFi+BLE COEX holds** (BleConnector + WiFi mesh stays synced);
+    (3) **trouble-host ADVERTISE up + EXTERNALLY SCAN-CONFIRMED** — bluetoothctl on tuxedo sees
+    `Device C0:52:2C:AB:5F:69` (= my random addr, hive 2cab5f69) + `ManufacturerData 0x3252` ("R2" LE),
+    while the board stays WiFi-synced. **VERSION-COMPAT (the #1 risk) SOLVED: trouble 0.6.0 = bt-hci 0.8**
+    (matches esp-radio 0.18; trouble 0.2=bt-hci0.3 / 0.7=bt-hci0.9 both mismatch BleConnector's Transport).
+    Code: `ble_task` (BleConnector→ExternalController→Stack→advertise) in main.rs, behind `#[cfg(feature="ble")]`.
+    NEXT: real RBID/R2-BEACON AD codec (core compute_rbid) → SCAN peers → L2CAP CoC (control) →
+    NegotiationRadio impl over core's engine (S0–S4). FIX (deferred): index was stale → `cargo search` to refresh.
+  - **Per-carrier Cargo features** (composer board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO
+    octal-PSRAM@80MHz baked via PsramConfig in code — esp-hal has no psram Cargo feature); next deliverable.
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
     → all 5 OFF DEMO on the real TG; I verify 5-board real-TG sync. (2) **OTA network receiver (#17)** — the
     slot-switch is PROVEN (test b); remaining = UDP image transfer + write ota_1 with esp-radio QUIESCED
