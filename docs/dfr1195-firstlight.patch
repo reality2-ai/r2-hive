@@ -109,10 +109,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..0bcc6ba 100644
+index 8c49f1c..790085d 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1931 @@
+@@ -1,83 +1,1966 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -217,6 +217,10 @@ index 8c49f1c..0bcc6ba 100644
 +static BLOCKED: AtomicU32 = AtomicU32::new(0);
 +static RELAYED: AtomicU32 = AtomicU32::new(0); // AP L3-relayed frames (STA↔STA forwarding)
 +static SYNCED: AtomicBool = AtomicBool::new(false);
++// Dashboard telemetry (composer): mesh neighbour count (join→++ / leave→-- via decay) + the current sync
++// conductor hive (a CHANGE = a reform/re-elect). Published each beat; surfaced on the status serial line.
++static NBRS: AtomicU32 = AtomicU32::new(0);
++static CONDUCTOR: AtomicU32 = AtomicU32::new(0);
 +/// io_task signals a heartbeat FIRE → main renders the organic lub-DUB LED envelope.
 +static FIRE_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 +
@@ -536,6 +540,8 @@ index 8c49f1c..0bcc6ba 100644
 +            let beats = FIRE_COUNT.load(Ordering::Relaxed);
 +            let dlv = DELIVERED.load(Ordering::Relaxed);
 +            let blk = BLOCKED.load(Ordering::Relaxed);
++            let nbrs = NBRS.load(Ordering::Relaxed); // mesh size (dashboard: grow/shrink)
++            let cond = CONDUCTOR.load(Ordering::Relaxed); // sync conductor (dashboard: change = reform)
 +            // LCD render only when this carrier has a screen (DFR1195); skipped on XIAO-S3.
 +            if let Some(d) = display.as_mut() {
 +                let green = MonoTextStyle::new(&FONT_6X10, Rgb565::GREEN);
@@ -559,7 +565,12 @@ index 8c49f1c..0bcc6ba 100644
 +                let _ = write!(s, "fleet: {}", if synced { "IN SYNC" } else { "converging" });
 +                let _ = Text::new(&s, Point::new(2, 56), if synced { green } else { amber }).draw(d);
 +            }
-+            println!("r2-dfr1195: status beats={beats} dlv={dlv} synced={synced} role={role}");
++            // Dashboard telemetry line (composer multi-source reader parses this):
++            //   nbrs = mesh neighbour count (join→++ / leave→--), synced = sync-state,
++            //   cond = current conductor hive (a CHANGE between samples = a reform/re-elect).
++            println!(
++                "r2-dfr1195: status beats={beats} dlv={dlv} blk={blk} synced={synced} nbrs={nbrs} cond={cond:06x} role={role}"
++            );
 +        }
 +        Timer::after(Duration::from_millis(50)).await;
 +    }
@@ -609,6 +620,10 @@ index 8c49f1c..0bcc6ba 100644
 +    // conductor is forgotten + election re-runs.
 +    let mut lowest_heard: u32 = my_hive;
 +    let mut since_conductor: u32 = 0; // beats since the conductor's last beat (#23 re-elect timeout)
++    // Dashboard liveness: (peer_hive, last_heard_secs) for a FAST mesh-size signal — join shows immediately,
++    // leave decrements within MESH_PEER_TTL_S (the route-engine decay is 300s for Mobile = too slow to SEE).
++    let mut seen: heapless::Vec<(u32, u32), 16> = heapless::Vec::new();
++    const MESH_PEER_TTL_S: u32 = 7; // ~3 missed beats → counts as left
 +
 +    // Pulse-coupled oscillator. Tick = phase resolution; epsilon = coupling.
 +    const HB_PERIOD_MS: f32 = 2000.0;
@@ -702,6 +717,20 @@ index 8c49f1c..0bcc6ba 100644
 +                    }
 +                    fire_seq = fire_seq.wrapping_add(1);
 +                    FIRE_COUNT.store(fire_seq, Ordering::Relaxed);
++                    // Dashboard telemetry: prune silent neighbours (LEAVE → nbrs--) then publish mesh size +
++                    // the current conductor (CHANGE = reform/re-elect). composer reads these off the status line.
++                    let now_s = embassy_time::Instant::now().as_secs() as u32;
++                    engine.decay_neighbours(now_s); // route-engine pruning (routing)
++                    // Dashboard mesh size = peers heard within MESH_PEER_TTL_S (fast join++/leave--).
++                    let live = seen
++                        .iter()
++                        .filter(|(_, t)| now_s.saturating_sub(*t) <= MESH_PEER_TTL_S)
++                        .count();
++                    NBRS.store(live as u32, Ordering::Relaxed);
++                    CONDUCTOR.store(
++                        if am_conductor { my_hive } else { lowest_heard },
++                        Ordering::Relaxed,
++                    );
 +                    let r = if am_conductor { "CONDUCTOR" } else { "follower" };
 +                    println!("r2-dfr1195: FIRE seq={fire_seq} beat ({r})");
 +
@@ -863,6 +892,12 @@ index 8c49f1c..0bcc6ba 100644
 +                                    mcu_origin: false,
 +                                    mobility: MobilityClass::Mobile, // wearables move → continual reform
 +                                });
++                                // Dashboard liveness: mark this peer heard now (fast join/leave for the mesh size).
++                                if let Some(e) = seen.iter_mut().find(|(h, _)| *h == sender_hive) {
++                                    e.1 = now_s;
++                                } else {
++                                    let _ = seen.push((sender_hive, now_s));
++                                }
 +                            }
 +                            if am_conductor {
 +                                // The conductor free-runs at the nominal rate — it IS the reference.
