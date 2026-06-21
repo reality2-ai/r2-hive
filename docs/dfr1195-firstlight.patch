@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..d1241ed 100644
+index 8c49f1c..d7e3247 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1713 @@
+@@ -1,83 +1,1743 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -433,12 +433,12 @@ index 8c49f1c..d1241ed 100644
 +                spawner.spawn(ble_task(c, my_hive, my_tg_hash, hk).unwrap());
 +                spawner.spawn(engine_task(my_hive).unwrap()); // M9: run the S0–S4 engine over the bridge
 +                spawner.spawn(espnow_task(esp_now, my_hive).unwrap()); // ESP-NOW true-mesh data plane (Mode 2)
-+
+ 
 +            }
 +            Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
 +        }
 +    }
- 
++
 +    // ── LCD (ST7735S 160x80) status surface — CARRIER-GATED (has_screen). PWR(GPIO48)
 +    //    ACTIVE-LOW. Skipped entirely on the screenless XIAO-S3 so the binary runs cleanly
 +    //    there (no driving non-existent hardware / GPIO conflict). di_buf stays in main
@@ -1399,6 +1399,30 @@ index 8c49f1c..d1241ed 100644
 +static ESPNOW_RX: embassy_sync::channel::Channel<CriticalSectionRawMutex, MeshFrame, 4> =
 +    embassy_sync::channel::Channel::new();
 +
++/// M-ESPNOW-2: hive_id↔WiFi-MAC map, LEARNED from the ESP-NOW recv src (core's design — no MAC in the
++/// beacon). Populated from each received frame's originator hive + its L2 src MAC. r2-route unicast
++/// (M-ESPNOW-3) looks up map[hive_id] → ESP-NOW send_to(mac). Broadcast (heartbeat) needs no map.
++#[cfg(feature = "ble")]
++static HIVE_MAC: embassy_sync::blocking_mutex::Mutex<
++    CriticalSectionRawMutex,
++    core::cell::RefCell<heapless::Vec<(u32, [u8; 6]), 16>>,
++> = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(heapless::Vec::new()));
++
++/// Upsert a learned hive_id↔MAC pair (M-ESPNOW-2). Returns true if newly mapped (for logging).
++#[cfg(feature = "ble")]
++fn map_peer(hive: u32, mac: [u8; 6]) -> bool {
++    HIVE_MAC.lock(|c| {
++        let mut v = c.borrow_mut();
++        if let Some(e) = v.iter_mut().find(|(h, _)| *h == hive) {
++            e.1 = mac;
++            false
++        } else {
++            let _ = v.push((hive, mac));
++            true
++        }
++    })
++}
++
 +/// Push a resolved scan observation for the engine's poll_scan (called from on_adv_reports).
 +#[cfg(feature = "ble")]
 +#[allow(dead_code)]
@@ -1526,16 +1550,22 @@ index 8c49f1c..d1241ed 100644
 +            let mut f = [0u8; 256];
 +            f[..n].copy_from_slice(&d[..n]);
 +            let _ = ESPNOW_RX.try_send((f, n)); // → io_task PLL (the sync)
-+            // peer-map foundation: the R2-WIRE Heartbeat payload carries the originator hive (be32 at [.. ]);
-+            // record it with the L2 src MAC (full hive↔MAC map for r2-route unicast = M-ESPNOW-3).
++            // M-ESPNOW-2: learn hive_id↔MAC from the recv — the R2-WIRE Heartbeat payload carries the
++            // originator hive (be32), the L2 src MAC is r.info.src_address. Map for r2-route unicast (M-ESPNOW-3).
 +            let s = r.info.src_address;
-+            if logged < 6 {
-+                println!(
-+                    "r2-dfr1195: ESP-NOW mesh RX {n}B src={:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-+                    s[0], s[1], s[2], s[3], s[4], s[5]
-+                );
-+                logged += 1;
++            if let Ok(m) = r2_wire::decode_extended(&d[..n]) {
++                if m.header.msg_type == MsgType::Heartbeat && m.payload.len() >= 4 {
++                    let origin =
++                        u32::from_be_bytes([m.payload[0], m.payload[1], m.payload[2], m.payload[3]]);
++                    if map_peer(origin, s) {
++                        println!(
++                            "r2-dfr1195: ESP-NOW peer MAPPED hive={origin:08x} mac={:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
++                            s[0], s[1], s[2], s[3], s[4], s[5]
++                        );
++                    }
++                }
 +            }
++            let _ = logged;
 +        }
 +    };
 +    join(tx, rx).await;
