@@ -109,10 +109,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..790085d 100644
+index 8c49f1c..9ecbce2 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1966 @@
+@@ -1,83 +1,1976 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -734,15 +734,21 @@ index 8c49f1c..790085d 100644
 +                    let r = if am_conductor { "CONDUCTOR" } else { "follower" };
 +                    println!("r2-dfr1195: FIRE seq={fire_seq} beat ({r})");
 +
-+                    // #18 health telemetry: every 5th beat, report to the collector (AP).
-+                    // Collector logs its own; followers Direct to the AP over TN (no flood).
-+                    if fire_seq % 5 == 0 {
++                    // #18 health telemetry: every 3rd beat (~6s) emit the health frame on serial — comfortably
++                    // under composer's 12s "node silent → grey" threshold so live nodes never falsely grey.
++                    if fire_seq % 3 == 0 {
 +                        let mut hbuf = [0u8; 96];
 +                        let synced = SYNCED.load(Ordering::Relaxed);
 +                        if let Some(hn) = build_health(
 +                            &mut hbuf, my_hive, my_tg_hash, is_ap, am_conductor, my_ip, synced,
 +                            last_err_ms, fire_seq,
 +                        ) {
++                            // MESH (ble): EVERY board logs its OWN health on its serial (no AP forwarder in
++                            // the no-AP mesh) so composer's multi-source reader sees all members. INFRA: the
++                            // AP logs locally; followers report to the AP collector.
++                            #[cfg(feature = "ble")]
++                            log_health(&hbuf[..hn]);
++                            #[cfg(not(feature = "ble"))]
 +                            if is_ap {
 +                                log_health(&hbuf[..hn]);
 +                            } else {
@@ -1194,7 +1200,7 @@ index 8c49f1c..790085d 100644
 +    let _ = write!(sha_s, "{VERSION_FNV:08x}");
 +    let uptime = embassy_time::Instant::now().as_secs();
 +    let mut e = Encoder::new(buf);
-+    e.map(13).ok()?;
++    e.map(15).ok()?;
 +    e.uint(0).ok()?; e.uint(my_hive as u64).ok()?;
 +    e.uint(1).ok()?; e.uint(tg as u64).ok()?;
 +    e.uint(2).ok()?; e.uint(role).ok()?;
@@ -1208,6 +1214,10 @@ index 8c49f1c..790085d 100644
 +    e.uint(10).ok()?; e.uint(1).ok()?; // transports bitset: WiFi
 +    e.uint(11).ok()?; e.uint(uptime).ok()?;
 +    e.uint(12).ok()?; e.uint(beat_seq as u64).ok()?;
++    // Dashboard dynamics (composer): key13 = current conductor hive (a CHANGE = reform/re-elect),
++    // key14 = neighbor_count (live mesh size — grows on join, shrinks on leave).
++    e.uint(13).ok()?; e.uint(CONDUCTOR.load(Ordering::Relaxed) as u64).ok()?;
++    e.uint(14).ok()?; e.uint(NBRS.load(Ordering::Relaxed) as u64).ok()?;
 +    Some(e.len())
 +}
 +
