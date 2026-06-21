@@ -144,3 +144,26 @@ T_fallback (Profile A WiFi/BLE) = 5s (documented per §4A.4(A)). T_negotiate ~10
 #wifi_offer timeout). Send back: confirm the module home + the trait names, and whether the
 existing PeerTable/BeaconObservation cover the roster needs or the engine needs a thin roster of
 its own.
+
+## S1 L2CAP CoC — researched; DESIGN GATE (core lockstep) before implementing
+S0 DISCOVER is DONE on metal (advertise+scan+resolve cross-board). S1 = the bidirectional control
+channel for WifiReq/Offer/Done. trouble-host pieces located: `L2capChannel` (create/accept) +
+`L2capChannelWriter/Reader`; connection via `central.connect(&ConnectConfig)` (central side) +
+connectable advertise → `Connection::accept` (peripheral side). It's CONNECTION-ORIENTED — a real
+subsystem, not a beacon tweak. Open DESIGN questions for core (the trait/engine side) before I build:
+1. **Role model.** Proposal: elected provider (lowest hive_id) = BLE **peripheral** (connectable-advertises
+   + accepts L2CAP); joiners = **central** (connect → L2CAP). Does the engine's `send_control(peer, msg)`
+   assume ONE connection to the provider, or a connection-per-peer mesh? (Provider-star is simplest + matches
+   §4A.3 election.)
+2. **Connectable adv vs the RBID beacon.** The RBID beacon is non-connectable (discovery). The CoC needs
+   connectable advertising. Provider runs BOTH (non-conn RBID beacon + connectable control adv = 2 adv-sets),
+   or switches to connectable during NEGOTIATE? (2 adv-sets = always-discoverable; mode-switch = simpler radio.)
+3. **Address-for-connect.** Beacon address rotates (privacy). `central.connect` needs a target address —
+   from a separate connectable-adv scan, or carry the connectable addr in/derived-from the resolved identity?
+4. **PSM** for the R2 control CoC (pick a dynamic PSM, e.g. 0x0080?).
+5. **NegotiationRadio.send_control/poll_control over L2CAP** — exact trait shape: does the radio own the
+   HiveId→Connection map + the connection lifecycle (open-on-demand, teardown on S3), and just expose
+   send/poll? Confirm so I impl the glue while the engine stays transport-agnostic.
+Platform bits I'll own (decide + surface): the 2-adv-sets vs switch, the central/peripheral driver, the
+connection map. core owns the trait semantics. Then: NegotiationRadio impl → run the S0–S4 engine →
+BLE→WiFi network-forming (S2 = the existing SoftAP/UDP data plane) → disruption→S3→S4→reform.
