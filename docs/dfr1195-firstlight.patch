@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..faad98f 100644
+index 5a3c89f..a49770b 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,7 +54,7 @@ index 5a3c89f..faad98f 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,41 @@ embassy-futures = "0.1"
+@@ -40,6 +55,43 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -93,6 +93,8 @@ index 5a3c89f..faad98f 100644
 +# BENCH multi-hop topology mask: hides A↔C so A→B→C relay is forced on a bench (core's allow-list technique).
 +# OFF by default → the GENERAL no-AP mesh (every node hears every in-range peer = self-growing/self-healing).
 +meshmask = ["ble"]
++# HBSYNC-06 OFF control arm: rate-consensus beta=0 (refuted — drifts through a connectivity blackout).
++rateoff = ["ble"]
  
  [profile.release]
  opt-level = "s"
@@ -111,10 +113,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..2df4c71 100644
+index 8c49f1c..eebc78d 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1962 @@
+@@ -1,83 +1,1995 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -645,9 +647,20 @@ index 8c49f1c..2df4c71 100644
 +    const HB_PERIOD_MS: f32 = 2000.0;
 +    const HB_TICK_MS: u64 = 50;
 +    const K_PHI: f32 = 0.25; // §4.1 phase coupling gain (concave M&S, critically damped)
-+    const HB_RATE_BETA: f32 = 0.01; // §4.3 rate/skew correction toward zero phase error (drift absorption)
++    // §4.3 rate-consensus gain β. Feature `rateoff` = the HBSYNC-06 OFF control arm (refuted: with β=0 a node
++    // free-runs on its raw crystal and drifts apart through a connectivity blackout).
++    #[cfg(not(feature = "rateoff"))]
++    const RATE_BETA: f32 = 0.01;
++    #[cfg(feature = "rateoff")]
++    const RATE_BETA: f32 = 0.0;
 +    let mut phase: f32 = if is_ap { 0.0 } else { 0.55 }; // out of phase → watch them converge
-+    let mut freq_adj: f32 = 0.0; // rate offset (cycles/tick) — the §4.3 consensus correction
++    // §4.3 rate in cycles/MS (continuous, so the LOCAL-ms interval math is clean). Converges toward the
++    // proximity-weighted neighbour-rate consensus so each node's RATE is pre-matched BEFORE coupling drops.
++    let mut rate: f32 = 1.0 / HB_PERIOD_MS;
++    // Per-sender last LOCAL rx instant (ms) for the rate interval — measured on the RECEIVER's clock (core:
++    // NOT the sender's tx_time, which reads the sender's nominal period → r_src≈nominal → zero drift learned
++    // → HBSYNC-06 false-negative). A fast sender's beats arrive in fewer of MY ms → r_src>rate → I speed up.
++    let mut last_rx: heapless::Vec<(u32, u64), 16> = heapless::Vec::new();
 +    let mut fire_seq: u32 = 1;
 +    let mut last_err_ms: u32 = 0; // latest coupling phase error in ms = the leaderless spread_ms metric
 +
@@ -664,7 +677,7 @@ index 8c49f1c..2df4c71 100644
 +        match select(Timer::after(Duration::from_millis(HB_TICK_MS)), recv_fut).await {
 +            // ── phase tick: advance, manage the LED beat, FIRE at phase>=1 ──
 +            Either::First(_) => {
-+                phase += HB_TICK_MS as f32 / HB_PERIOD_MS + freq_adj;
++                phase += rate * HB_TICK_MS as f32; // advance at the consensus rate (cycles/ms × tick-ms)
 +                if phase >= 1.0 {
 +                    phase -= 1.0; // preserve overshoot — leaderless PCO fire (R2-HEARTBEAT v0.4)
 +                    FIRE_SIGNAL.signal(()); // main renders the organic lub-DUB envelope
@@ -913,12 +926,34 @@ index 8c49f1c..2df4c71 100644
 +                            if phase >= 1.0 {
 +                                phase -= 1.0;
 +                            }
-+                            freq_adj += HB_RATE_BETA * w * e; // §4.3 rate/skew toward zero residual error
-+                            if freq_adj > 0.003 {
-+                                freq_adj = 0.003;
-+                            }
-+                            if freq_adj < -0.003 {
-+                                freq_adj = -0.003;
++                            // ── §4.3 rate/skew consensus (distributed-β) — converge toward the neighbour RATE
++                            //    on the RECEIVER's LOCAL clock, so each node's rate is pre-matched BEFORE a
++                            //    connectivity blackout drops coupling (HBSYNC-06). β=0 (feature rateoff) = the
++                            //    refuted OFF arm (free-runs on the raw crystal → drifts in the blackout).
++                            let now_ms = embassy_time::Instant::now().as_millis();
++                            if RATE_BETA > 0.0 {
++                                if let Some(slot) = last_rx.iter_mut().find(|(h, _)| *h == sender_hive) {
++                                    let interval = now_ms.saturating_sub(slot.1) as f32; // LOCAL rx-interval (ms)
++                                    if interval > 0.0 {
++                                        let mut k = libm::roundf(interval * rate); // de-alias missed/decimated beats
++                                        if k < 1.0 {
++                                            k = 1.0;
++                                        }
++                                        let r_src = k / interval; // sender's apparent rate in MY ms-units
++                                        let sum_w = NBRS.load(Ordering::Relaxed).max(1) as f32; // Σw (uniform w=1)
++                                        rate += RATE_BETA * (w / sum_w) * (r_src - rate);
++                                        let nom = 1.0 / HB_PERIOD_MS; // clamp to ±1% (sane crystal bound)
++                                        if rate > nom * 1.01 {
++                                            rate = nom * 1.01;
++                                        }
++                                        if rate < nom * 0.99 {
++                                            rate = nom * 0.99;
++                                        }
++                                    }
++                                    slot.1 = now_ms;
++                                } else {
++                                    let _ = last_rx.push((sender_hive, now_ms));
++                                }
 +                            }
 +                            let eabs = if e < 0.0 { -e } else { e };
 +                            last_err_ms = (eabs * HB_PERIOD_MS) as u32; // leaderless spread_ms metric
