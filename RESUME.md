@@ -243,8 +243,19 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     refresh + ~3s discover-delay. **HONEST:** bring_up/join_provider STUB the WiFi (DATA_PLANE_AVAIL=true) →
     "Data" = forming-logic reaching S2, not a real SoftAP. So **discover→negotiate→FORM negotiation PROVEN on
     metal**; data-plane bring-up is M8c. NEXT: **M8c** real SoftAP/STA (runtime WiFi reconfig) → **M10**
-    fallback/reform (lose-AP→S3→S4→reform) + composer telemetry (key13/14/15). THE TWO-PLANE: S0+M7+M8+M9 all on metal.
+    fallback/reform (lose-AP→S3→S4→reform) + composer telemetry (key13/14/15).
     (FIX noted: the crates index was stale → `cargo search` refreshes it before resolving trouble.)
+    (9) **M8c — REAL two-board WiFi FORM on metal (BLE→WiFi network-forming COMPLETE).** Provider serves its
+    own SoftAP "r2-tn-form" from boot; joiner is a STA configured for it but connects ONLY on the engine's
+    join_provider (after the BLE WifiOffer) via DATA_PLANE_JOIN→wifi_task connect_async. METAL: joiner
+    `data plane UP — joined r2-tn-form (REAL WiFi formed, B->W)` + provider `[ap] station joined` = a REAL WiFi
+    association formed by BLE negotiation. Full chain on hardware: discover→elect lowest (0dcadbf8)→negotiate
+    WifiReq/WifiOffer over the BLE L2CAP CoC→FORM real WiFi. **cfg-gated: default (mesh) build UNTOUCHED**
+    (serve_ap=is_ap/r2-fieldlab/wait_config_up); ble = M8c (serve_ap=elected/r2-tn-form/form-on-negotiation).
+    **THE WHOLE TN ON HARDWARE: S0 discovery + M7 CoC + M8 engine-bridge + M9 forming-negotiation + M8c REAL
+    WiFi form** — it discovers, negotiates, and forms a real infra-less WiFi network. NEXT: **M10** = lose-AP →
+    S3→S4→reform (self-HEALING) + composer telemetry (key13/14/15); the M8c boards form their own net
+    (r2-tn-form) separate from the mesh — coordinate proof-surface wiring w/ composer at M10.
   - **Per-carrier Cargo features** (composer board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO
     octal-PSRAM@80MHz baked via PsramConfig in code — esp-hal has no psram Cargo feature); next deliverable.
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
