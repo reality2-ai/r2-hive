@@ -146,10 +146,16 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   - **9/9 CONVERGED + UNIFIED + AP REVIVED (0621.1244, serial-verified) 🎉** — all 9 on ONE build/span;
     single conductor = ACM10 (529928→06ae082b); all 8 others (incl the AP) lock cond=6ae082b synced=true
     e≈0.000 cross-arch (5 DFR1195 + 4 XIAO). AP 502698 revived via composer port-release re-flash → canon id
-    480e900e, role=AP, beats as follower. XIAO LED: led_active_low=true CONFIRMED via boot-print + spec-correct
-    inversion (duty=100-brightness, idle=pin-HIGH=off) — awaiting Roy's eyes on the lub-dub visual (firmware
-    side verified; can't self-observe the LED). **R2-WIRE v0.6** (msg_id-in-HMAC-span, replay-fix) = deferred:
-    a SEPARATE all-9-coordinated update (mixed v0.5/v0.6 DELIVER-BLOCKs); current bench all on the same span.
+    480e900e, role=AP, beats as follower. **AP later re-wedged → composer un-wedged it (espflash-reset,
+    firmware intact) → all 9 back to sync_state=1; composer fixed the dashboard feed (their plugin poll bug,
+    NOT my HEALTH format — parsed all 9 byte-exact). Health dashboard LIVE.**
+  - **XIAO LED — EVIDENCE-BASED FLIP to active-HIGH (pending Roy's eyes):** the invert WAS applied
+    (led_active_low=true confirmed) but Roy saw mostly-ON; the DFR1195 (active-high, no-invert) is correct
+    mostly-off+pulse → the XIAO GPIO21 LED behaves ACTIVE-HIGH here (likely external LEDs, not the built-in
+    active-low user LED). Flipped the 4 XIAO to no-invert via profile byte 0x13001 (led_active_low=false now,
+    no rebuild, still synced). If Roy confirms mostly-off+pulse → update the firmware DEFAULT (don't infer
+    active-low from no-screen). I CANNOT self-observe the LED — Roy is ground truth. **R2-WIRE v0.6**
+    (msg_id-in-HMAC-span) = deferred: SEPARATE all-9-coordinated update; current bench all on the same span.
   - **NAMED REQUIREMENTS (roadmap, careful test-pairing — NOT on the live mesh):** #23b **AP-FAILOVER** (Roy:
     "TN should renegotiate the hotspot if it goes away") — pre-designated backup (lowest AP-capable hive from
     the roster) detects disassociation → promotes STA→AP (same SSID/IP) → others re-associate; conductor-timeout
