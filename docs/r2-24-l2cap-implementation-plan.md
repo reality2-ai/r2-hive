@@ -19,8 +19,11 @@ Build: `cargo build --release --features ble`. 2-board test on ACM1 (b79010=2cab
   (send_control/poll_control only). Engine tolerates async connect (WifiReq → wait data_plane_state==Available,
   else T_negotiate timeout → S0 retry). If CoC still opening when send_control fires → buffer.
 - **Framing (R2-BLE §6.4):** SDU = `[len_lo, len_hi, payload]` 2-byte LITTLE-ENDIAN prefix. One ControlMsg/SDU.
-- **ControlMsg encoding (mine):** `[tag]` 0x01=WifiReq / 0x02=WifiOffer + `ssid[32]‖psk[64]‖ap_hint_be32` /
-  0x03=WifiDone. ≤101 B ≪ MTU 512 → no fragmentation.
+- **ControlMsg codec = SHARED `r2_discovery::ControlMsg` encode/decode** (NOT hand-rolled per platform —
+  workshop's call, north-star like beacon+engine: one codec → esp-idf↔esp-radio byte-exact, no drift).
+  Proposed layout (core to land + own the bytes): `[tag]` 0x01=WifiReq / 0x02=WifiOffer + `ssid[32]‖psk[64]‖
+  ap_hint_be32` / 0x03=WifiDone. ≤101 B ≪ MTU 512 → no fragmentation. l2cap.rs is OPAQUE transport (strips the
+  LE frame, hands raw payload up); the decode is in NegotiationRadio via the shared codec. PENDING: core adds it.
 
 ## trouble-host APIs (gathered, v0.6.0)
 - `HostResources<DefaultPacketPool, CONNS, CHANNELS, ADV_SETS>` — size CONNS≥2, CHANNELS≥2, ADV_SETS≥2.
