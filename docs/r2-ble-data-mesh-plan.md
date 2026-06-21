@@ -44,3 +44,14 @@ Multi-hop relay is PROVEN on metal (ESP-NOW A→B→C) + the seam answers are ba
 viable), K=15-flood OR K=2+handle-Drop(SprayWait)→direct-deliver via HIVE_MAC, directed flood-fallthrough,
 broadcast=flood (not DeliverOnly), paths self-build on record_delivery_success. Resume after each single-
 transport mesh (BLE, WiFi/ESP-NOW✓, LoRa) is proven.
+
+## ✅ DONE on metal (2026-06-21) — heartbeat-SYNC + GroupHmac delivery over BLE
+2 boards (A provider 0dcadbf8 / B joiner 2cab5f69), data plane = L2CAP CoC (`blemesh` feature):
+B PLL-locks to conductor A over BLE — `HB<-ble cond=dcadbf8 e=-0.050→-0.000→0.018 (lock)` synced=true — AND
+delivers A's signed Events with the GroupHmac gate — `DELIVERED msg_id=16 in-TG (tg+hmac ok)` dlv=8. The
+PROVEN conductor-PLL + GroupHmac deliver-gate reused VERBATIM via the transport-agnostic DATA_TX/RX bridge;
+`serve_data_coc` bridges the CoC ↔ DATA carrying R2-WIRE frames. Renamed ESPNOW_TX/RX → DATA_TX/RX (generic).
+FIXES on metal: health-send cfg-gated off for blemesh (blocked io_task at beat 25 — no WiFi controller up in
+BLE-only mode); ev_target=0 broadcast for single-hop; MESH_LABEL='ble' (accurate serial evidence).
+BOTH single-transport data-meshes now proven on metal (WiFi/ESP-NOW + BLE) with the same reused PLL+GroupHmac.
+NEXT per Roy: LoRa-mesh later; multi-hop across transports (banked, proven on ESP-NOW A→B→C).
