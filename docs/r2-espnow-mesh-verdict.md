@@ -63,3 +63,22 @@ SoftAP-star for the general (mobile) case; keep SoftAP-join for the INFRASTRUCTU
 - **DROP the deep SoftAP AP-role investment** (per supervisor — moot for mesh). Keep the role-align (harmless).
 - Cross-TG (core's ruling): election is within-TG (hive_id); cross-TG = JOIN (provider_capable flag readable
   without resolve + the below-L5 control plane) — a platform association path beside the engine (no engine change).
+
+## ESP-NOW true-mesh REALIZATION PLAN (what hive builds when core lands Transport::EspNow)
+Sequence: specs reality2-mesh canon → core Transport::EspNow (+ prefer-infra StrategyVector preset) → hive realizes.
+1. **ESP-NOW init** — esp-radio EspNow on the STA interface (PeerInfo.interface = Station); coexists with WiFi +
+   the BLE control plane (esp-radio/coex). No AP, no association for the data plane.
+2. **hive_id↔MAC peer-map (LEARN from recv-src — core's design call, privacy-preserving):** recv ESP-NOW
+   broadcast → (src_MAC, payload) → decode_advert(payload) → resolve_rbid → hive_id → map[hive_id]=src_MAC.
+   NO MAC in the beacon (would re-leak a trackable id vs the rotating RBID). Map lives in hive's Transport impl
+   (platform), exactly like the BLE HiveId↔addr map.
+3. **Transport::EspNow trait impl (hive):** enable + the peer-map + send (unicast→map[hive_id] / broadcast) +
+   recv → feed r2-route. core gives the Transport routing-tag/metadata + r2-route forwarding-by-hive_id.
+4. **r2-route relay over ESP-NOW** — "forward to hive_id N" → map[N] → ESP-NOW unicast; multi-hop/dedup/TTL/decay
+   (the RouteEngine, already proven on the 9-board). NO provider election (Mode 2 = true mesh).
+5. **heartbeat-SYNC over ESP-NOW broadcast** — reuse the conductor-PLL (the FORM→SYNC work; broadcast addr, no MAC).
+6. **GroupHmac per-TG delivery** — reuse (forming TG-agnostic, deliver TG-scoped).
+7. **BLE S0 discovery** feeds peer identities (beacon/scan/resolve) — the only #24 piece the true mesh reuses
+   for discovery; NO M7-M9 provider-election/WifiReq-Offer-join (no provider).
+DEMO TARGET: 2+ boards → BLE-discover → enable ESP-NOW mesh (no AP) → R2-ROUTE relay + heartbeat-SYNC → mobile,
+no SPOF, no two-AP. Infra-SoftAP (Mode 1b, criterion#1 PROVEN on metal) kept LIGHT for fixed/workshop.
