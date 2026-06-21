@@ -37,8 +37,11 @@ simpler impl + building-blocks are the reference. **Subsumes #23/#23b** (AP-fail
    (silence-failover, already built #23a). Add the AP-capable + power_state Normal/Eco eligibility
    filter + exclude Critical/Survival.
 4. **Documented T_fallback + triggers** — adopt §4A triggers (assoc/link loss; silence>T_fallback;
-   power_state Critical/Survival; addr unreachable). T_fallback TBD (align with the conductor
-   timeout ~4 beats / the §4A profile). DOC them in the impl.
+   power_state Critical/Survival; addr unreachable). **T_fallback (Profile A, WiFi/BLE) = provisional
+   5 s** control-plane silence (≈ a few BLE beacon intervals). The FAST path is the immediate
+   WiFi-disassociation trigger; T_fallback only covers *silent* degradation (no disassoc event).
+   §4A leaves it transport-profiled/unpinned — this is the documented Profile A value per §4A.4(A),
+   to be pinned alongside the #21/#22 LoRa profile (LoRa T_fallback will be much larger).
 
 ## BEACON PRIVACY (correction — my earlier note was wrong)
 The beacon carries **RBID only** — `RBID = HMAC-SHA256(session_key, epoch_counter)[0:8]`
