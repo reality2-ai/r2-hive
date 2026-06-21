@@ -1,5 +1,26 @@
 # ESP-NOW true-mesh — feasibility VERDICT (hive, 2026-06-21)
 
+## ⚠ CORRECTION (core, 2026-06-21) — (A) star-over-ESP-NOW vs (B) TRUE mesh are DIFFERENT code paths
+My "ESP-NOW reuses S0–M9 unchanged" conflated two things. specs ruled Mode 2 true-mesh has NO provider election:
+- **(A) STAR-over-ESP-NOW (Mode 1b transport-swap):** the #24 engine DOES reuse (election picks ONE provider;
+  bring_up/join_provider swap SoftAP→ESP-NOW peering, no trait change). BUT it's STILL A STAR — the elected
+  provider is a SPOF; it moving out of range = full reform. Does NOT solve the mobile AP-SPOF.
+- **(B) TRUE ESP-NOW MESH (Mode 2 — the mobile general case Roy wants, THE TARGET):** NO provider, NO election,
+  NO bring_up/join_provider. Every device enables ESP-NOW + relays peer-to-peer via **R2-ROUTE** (multi-hop +
+  dedup + TTL + decay + flood). This is **r2-route territory, NOT the #24 negotiation engine.**
+  REUSES from the proven stack: the BLE **BEACON/S0 discovery**, **RBID/resolve** (peer identity + WiFi MAC),
+  the **conductor-PLL heartbeat-sync** (over ESP-NOW broadcast), **R2-ROUTE** relay (proven on the 9-board mesh),
+  **GroupHmac** per-TG delivery. Does NOT use the provider election or the WifiReq/Offer/join handshake (no
+  provider). The NegotiationRadio trait's bring_up/join_provider are N/A for Mode 2.
+- **M7/M8/M9 (L2CAP CoC + negotiation engine + SoftAP form) = the STEPPING-STONE** (proved the BLE control
+  plane + the form→sync logic on metal). The TRUE-mesh demo doesn't run the provider election for forming.
+- **TARGET (Roy/supervisor): rebuild the demo on (B)** — discover → enable ESP-NOW mesh (no AP) → R2-ROUTE relay
+  → heartbeat-SYNC. Mobility-native, no SPOF, no two-AP. Infra-SoftAP (Mode 1b) kept LIGHT for fixed/workshop.
+- SEQUENCE: specs canon (Mode 2 / reality2-mesh) → core **Transport::EspNow** → hive rebuilds the demo on it.
+
+---
+
+
 **VERDICT: FEASIBLE + STRONGLY FAVORED** for the mobile-wearable true-mesh data plane. It SUPERSEDES the
 SoftAP-star for the general (mobile) case; keep SoftAP-join for the INFRASTRUCTURE case. R2-ROUTE selects.
 
