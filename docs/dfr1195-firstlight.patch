@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..57af40b 100644
+index 5a3c89f..ab885b2 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -53,13 +53,15 @@ index 5a3c89f..57af40b 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,17 @@ embassy-futures = "0.1"
+@@ -40,6 +55,19 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
 +# Network-OTA (#17): flash backend (esp-hal 1.1 has no flash module) + the storage trait.
 +esp-storage = { version = "0.6", features = ["esp32s3"] }
 +embedded-storage = "0.3.1"
++# OTA receiver (#17): streamed-image integrity (SHA-256 over the unpadded image).
++sha2 = { version = "0.10", default-features = false }
 +# Real-TG persona (#20): hive_id derived via the CANONICAL r2_trust::derive_hive_id.
 +
 +# On-device proof-surface LCD (ST7735S 160x80) — first-light liveness screen:
@@ -86,10 +88,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..835423f 100644
+index 8c49f1c..260e892 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,821 @@
+@@ -1,83 +1,1037 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -330,7 +332,7 @@ index 8c49f1c..835423f 100644
 +    println!("r2-dfr1195: net UP — {} {} (peer {peer})", if is_ap { "AP serving" } else { "STA got" }, ip);
 +    let _ = peer;
 +    spawner.spawn(io_task(stack, is_ap, ip, hk, my_tg_hash, my_hive).unwrap());
-+    spawner.spawn(ota_task().unwrap());
++    spawner.spawn(ota_task(is_ap, stack).unwrap());
 +
 +    // ── LCD (ST7735S 160x80) status surface — CARRIER-GATED (has_screen). PWR(GPIO48)
 +    //    ACTIVE-LOW. Skipped entirely on the screenless XIAO-S3 so the binary runs cleanly
@@ -492,26 +494,7 @@ index 8c49f1c..835423f 100644
 +    let mut am_conductor = true; // = (my hive_id is the lowest heard); updated on each heard beat
 +    let mut fire_seq: u32 = 1;
 +    let mut last_err_ms: u32 = 0; // latest PLL phase error in ms (#18 health field 8)
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
--
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
--    {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
++
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
 +
@@ -769,12 +752,14 @@ index 8c49f1c..835423f 100644
 +                Err(e) => println!("r2-dfr1195: decode err {e:?}"),
 +            },
 +            Either::Second(Err(e)) => println!("r2-dfr1195: RX err {e:?}"),
-         }
-     }
++        }
++    }
 +}
 +
 +/// R2 mesh UDP port (R2-WIFI §4).
 +const R2_UDP_PORT: u16 = 21042;
++/// OTA network-receiver port (#17): START/DATA/COMMIT image transfer.
++const R2_OTA_PORT: u16 = 21043;
 +
 +/// #18 health telemetry: event_hash discriminator + the collector (AP) wire hive_id.
 +/// Followers Direct r2.hb.health to the collector over TN; the collector logs it as hex
@@ -810,6 +795,72 @@ index 8c49f1c..835423f 100644
 +    tg_label.push_str(p.tg_id).ok()?;
 +    Some(Persona { tg_label, tg_hash: p.tg_hash, hk: p.hk, hive_id: p.hive_id })
 +}
++
++/// Carrier-aware screen flag (9-board: one binary on DFR1195 + screenless XIAO-S3).
++/// Board-profile byte @0x13000: 0x00 = no screen (XIAO), else/0xFF(erased) = screen
++/// (DFR1195). composer write-bins 0x00 on the XIAO so the LCD init/render is skipped and
++/// the binary runs cleanly there (LED+heartbeat+TN+trust+health unaffected). Read before
++/// the radio starts (no flash-vs-WiFi collision).
++const BOARD_PROFILE_OFFSET: u32 = 0x13000;
++fn read_has_screen() -> bool {
++    use embedded_storage::ReadStorage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 1];
++    if flash.read(BOARD_PROFILE_OFFSET, &mut b).is_err() {
++        return true; // default to the DFR1195 screen on read error
++    }
++    b[0] != 0x00
++}
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
+-
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
+-    {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
++/// Report the active OTA slot at boot. The otadata slot-switch was PROVEN on metal
++/// (test b: wrote a valid image to ota_1 → activate_next_partition() → reboot → ESP-IDF
++/// BL booted ota_1 @0x200000). Now report-only — the real network receiver (#17) does
++/// the write+activate on COMMIT, not auto-on-boot, so this is safe/dormant on the mesh.
++fn ota_slot_report() {
++    use esp_bootloader_esp_idf::ota_updater::OtaUpdater;
++    use esp_bootloader_esp_idf::partitions::{AppPartitionSubType, PARTITION_TABLE_MAX_LEN};
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut tbl = [0u8; PARTITION_TABLE_MAX_LEN];
++    if let Ok(mut ota) = OtaUpdater::new(&mut flash, &mut tbl) {
++        // ANCHOR otadata if erased/Factory: a fresh board (espflash doesn't init otadata)
++        // reads as Factory, and activating ota_1 from Factory computes seq=0 (selects ota_0,
++        // not ota_1) — so OTA wouldn't switch. Anchoring to the running slot (ota_0) makes
++        // current=ota_0 (seq=1), so a later activate -> ota_1 (seq=2) selects correctly.
++        if matches!(
++            ota.ota_data().and_then(|mut o| o.current_app_partition()),
++            Ok(AppPartitionSubType::Factory)
++        ) {
++            let _ = ota
++                .ota_data()
++                .and_then(|mut o| o.set_current_app_partition(AppPartitionSubType::Ota0));
++            println!("r2-dfr1195: OTA otadata anchored -> ota_0 (was erased/Factory)");
++        }
++        if let Ok((_region, next_sub)) = ota.next_partition() {
++            // next == ota_1 ⇒ we're running from ota_0, and vice-versa.
++            let slot = if next_sub == AppPartitionSubType::Ota1 { "ota_0" } else { "ota_1" };
++            println!("r2-dfr1195: OTA slot={slot} (otadata slot-switch verified — test b PASS)");
+         }
+     }
++}
  
 -    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
 -
@@ -833,40 +884,6 @@ index 8c49f1c..835423f 100644
 -    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
 -    // resolves hive ids per medium. The route logic is fully validated in the
 -    // r2-harness sim — this firmware only supplies the real radios.
-+/// Carrier-aware screen flag (9-board: one binary on DFR1195 + screenless XIAO-S3).
-+/// Board-profile byte @0x13000: 0x00 = no screen (XIAO), else/0xFF(erased) = screen
-+/// (DFR1195). composer write-bins 0x00 on the XIAO so the LCD init/render is skipped and
-+/// the binary runs cleanly there (LED+heartbeat+TN+trust+health unaffected). Read before
-+/// the radio starts (no flash-vs-WiFi collision).
-+const BOARD_PROFILE_OFFSET: u32 = 0x13000;
-+fn read_has_screen() -> bool {
-+    use embedded_storage::ReadStorage;
-+    let mut flash = esp_storage::FlashStorage::new();
-+    let mut b = [0u8; 1];
-+    if flash.read(BOARD_PROFILE_OFFSET, &mut b).is_err() {
-+        return true; // default to the DFR1195 screen on read error
-+    }
-+    b[0] != 0x00
-+}
- 
-+/// Report the active OTA slot at boot. The otadata slot-switch was PROVEN on metal
-+/// (test b: wrote a valid image to ota_1 → activate_next_partition() → reboot → ESP-IDF
-+/// BL booted ota_1 @0x200000). Now report-only — the real network receiver (#17) does
-+/// the write+activate on COMMIT, not auto-on-boot, so this is safe/dormant on the mesh.
-+fn ota_slot_report() {
-+    use esp_bootloader_esp_idf::ota_updater::OtaUpdater;
-+    use esp_bootloader_esp_idf::partitions::{AppPartitionSubType, PARTITION_TABLE_MAX_LEN};
-+    let mut flash = esp_storage::FlashStorage::new();
-+    let mut tbl = [0u8; PARTITION_TABLE_MAX_LEN];
-+    if let Ok(mut ota) = OtaUpdater::new(&mut flash, &mut tbl) {
-+        if let Ok((_region, next_sub)) = ota.next_partition() {
-+            // next == ota_1 ⇒ we're running from ota_0, and vice-versa.
-+            let slot = if next_sub == AppPartitionSubType::Ota1 { "ota_0" } else { "ota_1" };
-+            println!("r2-dfr1195: OTA slot={slot} (otadata slot-switch verified — test b PASS)");
-+        }
-+    }
-+}
-+
 +/// Build the #18 r2.hb.health CBOR (int-keyed map, composer's contract) into `buf`.
 +/// Keys: 0 hive_id, 1 tg, 2 role-bitset (1=conductor|2=AP|4=STA|8=relay), 3 ip, 4 fw_version,
 +/// 5 fw_sha, 6 ota_status, 7 sync_state, 8 phase_err_ms, 9 link_q, 10 transports, 11 uptime, 12 beat_seq.
@@ -905,7 +922,7 @@ index 8c49f1c..835423f 100644
 +    e.uint(12).ok()?; e.uint(beat_seq as u64).ok()?;
 +    Some(e.len())
 +}
-+
+ 
 +/// Log an aggregated/received health CBOR as a hex line for composer's serial-reader.
 +fn log_health(cbor: &[u8]) {
 +    let mut hx: heapless::String<320> = heapless::String::new();
@@ -928,26 +945,227 @@ index 8c49f1c..835423f 100644
 +/// active): erase+write one 4 KB sector to the INACTIVE OTA slot (harmless — not booted)
 +/// and report the elapsed time. A printed "wtest write_ok=.. Nms" = per-chunk streaming is
 +/// viable; a hang (no line, heartbeat stops) = the radio must be quiesced around the burst.
++/// Board-to-board auto-OTA push is TEST scaffolding only — OFF for the live mesh so the
++/// AP behaves as a normal soft-AP/conductor candidate. The receiver stays active on STAs;
++/// real OTA pushes come from the orchestrator over the same START/DATA/COMMIT protocol.
++const OTA_SELFTEST: bool = false;
++
 +#[embassy_executor::task]
-+async fn ota_task() {
-+    use embedded_storage::Storage;
-+    Timer::after(Duration::from_secs(15)).await;
++async fn ota_task(is_ap: bool, stack: embassy_net::Stack<'static>) {
++    Timer::after(Duration::from_secs(12)).await; // let WiFi + the mesh settle
++    if is_ap {
++        if OTA_SELFTEST {
++            ota_sender(stack).await; // TEST: one-shot board-to-board push
++        }
++    } else {
++        ota_receiver(stack).await; // the deliverable: accept a streamed network OTA
++    }
++}
++
++/// OTA network receiver (#17). Streams an image over UDP into the INACTIVE OTA slot and,
++/// on a SHA-256-verified COMMIT, activates it + reboots — the no-USB update path. The
++/// flash writes run with WiFi up (de-risked: ~20ms/sector, heartbeat-safe), so no quiesce.
++/// Protocol (stop-and-wait): OST<total:4><sha:32> -> OAK; ODT<off:4><payload> -> OAK<written:4>;
++/// OCM -> verify -> ODN + activate + reboot (or OER).
++async fn ota_receiver(stack: embassy_net::Stack<'static>) {
++    use embedded_storage::{ReadStorage, Storage};
++    use sha2::{Digest, Sha256};
++    let mut rx_meta = [PacketMetadata::EMPTY; 8];
++    let mut rx_buf = [0u8; 2048];
++    let mut tx_meta = [PacketMetadata::EMPTY; 4];
++    let mut tx_buf = [0u8; 256];
++    let mut socket = UdpSocket::new(stack, &mut rx_meta, &mut rx_buf, &mut tx_meta, &mut tx_buf);
++    socket.bind(R2_OTA_PORT).expect("bind OTA port");
 +    let mut flash = esp_storage::FlashStorage::new();
 +    let mut tbl = [0u8; esp_bootloader_esp_idf::partitions::PARTITION_TABLE_MAX_LEN];
-+    let t0 = embassy_time::Instant::now();
-+    let mut ok = false;
-+    if let Ok(mut ota) = esp_bootloader_esp_idf::ota_updater::OtaUpdater::new(&mut flash, &mut tbl) {
-+        if let Ok((mut region, _sub)) = ota.next_partition() {
-+            let buf = [0xABu8; 4096];
-+            ok = region.write(0, &buf).is_ok();
-+        }
-+    }
-+    let dt = t0.elapsed().as_millis();
-+    println!("r2-dfr1195: OTA wtest write_ok={ok} {dt}ms (flash write w/ WiFi up)");
++    let mut ota = match esp_bootloader_esp_idf::ota_updater::OtaUpdater::new(&mut flash, &mut tbl) {
++        Ok(o) => o,
++        Err(_) => return,
++    };
++    let mut region = None;
++    let mut hasher = Sha256::new();
++    let mut expected = [0u8; 32];
++    let mut total = 0u32;
++    let mut written = 0u32;
++    let mut secbuf = [0u8; 4096];
++    let mut secfill = 0usize;
++    let mut secbase = 0u32;
++    let mut pkt = [0u8; 1500];
      loop {
 -        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
 -        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
-+        Timer::after(Duration::from_secs(60)).await;
++        let (n, from) = match socket.recv_from(&mut pkt).await {
++            Ok(v) => v,
++            Err(_) => continue,
++        };
++        if n < 3 {
++            continue;
++        }
++        match &pkt[0..3] {
++            b"OST" if n >= 39 => {
++                total = u32::from_be_bytes([pkt[3], pkt[4], pkt[5], pkt[6]]);
++                expected.copy_from_slice(&pkt[7..39]);
++                region = match ota.next_partition() {
++                    Ok((r, _)) => Some(r),
++                    Err(_) => None,
++                };
++                hasher = Sha256::new();
++                written = 0;
++                secfill = 0;
++                secbase = 0;
++                println!("r2-dfr1195: OTA RX start total={total}");
++                let _ = socket.send_to(b"OAK\0\0\0\0", from).await;
++            }
++            b"ODT" if n >= 7 => {
++                let off = u32::from_be_bytes([pkt[3], pkt[4], pkt[5], pkt[6]]);
++                if off == written {
++                    if let Some(r) = region.as_mut() {
++                        let mut p = &pkt[7..n];
++                        while !p.is_empty() {
++                            let take = core::cmp::min(4096 - secfill, p.len());
++                            secbuf[secfill..secfill + take].copy_from_slice(&p[..take]);
++                            secfill += take;
++                            p = &p[take..];
++                            if secfill == 4096 {
++                                let _ = r.write(secbase, &secbuf);
++                                secbase += 4096;
++                                secfill = 0;
++                            }
++                        }
++                        hasher.update(&pkt[7..n]);
++                        written += (n - 7) as u32;
++                    }
++                }
++                let mut ack = *b"OAK\0\0\0\0";
++                ack[3..7].copy_from_slice(&written.to_be_bytes());
++                let _ = socket.send_to(&ack, from).await;
++            }
++            b"OCM" => {
++                let mut magic = [0u8; 4];
++                if let Some(r) = region.as_mut() {
++                    if secfill > 0 {
++                        let _ = r.write(secbase, &secbuf[..secfill]);
++                    }
++                    let _ = r.read(0, &mut magic); // read back ota_1 image header (expect 0xE9)
++                }
++                let got = hasher.finalize_reset();
++                let sha_ok = got.as_slice() == expected;
++                let ok = written == total && sha_ok;
++                println!(
++                    "r2-dfr1195: OTA RX commit written={written}/{total} sha_ok={sha_ok} ota1_hdr={:02x}{:02x}{:02x}{:02x}",
++                    magic[0], magic[1], magic[2], magic[3]
++                );
++                if ok {
++                    region = None; // drop the FlashRegion borrow before activate
++                    let _ = socket.send_to(b"ODN\0\0\0\0", from).await;
++                    let ar = ota.activate_next_partition();
++                    println!("r2-dfr1195: OTA activate ok={}", ar.is_ok());
++                    Timer::after(Duration::from_millis(300)).await;
++                    esp_hal::system::software_reset();
++                } else {
++                    let _ = socket.send_to(b"OER\0\0\0\0", from).await;
++                }
++            }
++            _ => {}
++        }
++    }
++}
++
++/// TEST scaffolding (one-shot, AP only): push our running ota_0 image to the STA's OTA
++/// receiver so the OTA path is verifiable board-to-board (no soft-AP host needed). Reads
++/// ota_0[0..LEN], SHA-256s it, streams OST/ODT/OCM to 192.168.4.16:21043 stop-and-wait.
++async fn ota_sender(stack: embassy_net::Stack<'static>) {
++    use embedded_storage::ReadStorage;
++    use sha2::{Digest, Sha256};
++    const LEN: u32 = 0x8_0000; // 512 KB covers the ~512 KB app image (+ 0xFF tail)
++    const SRC: u32 = 0x2_0000; // ota_0 base
++    let mut rx_meta = [PacketMetadata::EMPTY; 4];
++    let mut rx_buf = [0u8; 256];
++    let mut tx_meta = [PacketMetadata::EMPTY; 4];
++    let mut tx_buf = [0u8; 1500];
++    let mut socket = UdpSocket::new(stack, &mut rx_meta, &mut rx_buf, &mut tx_meta, &mut tx_buf);
++    socket.bind(R2_OTA_PORT + 1).expect("bind OTA sender port");
++    let dst = IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 16)), R2_OTA_PORT);
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut buf = [0u8; 1024];
++    let mut ack = [0u8; 16];
++
++    // 1) SHA-256 over the image bytes we'll send.
++    let mut hasher = Sha256::new();
++    let mut off = 0u32;
++    while off < LEN {
++        let take = core::cmp::min(1024, (LEN - off) as usize);
++        if flash.read(SRC + off, &mut buf[..take]).is_err() {
++            println!("r2-dfr1195: OTA TX read err");
++            return;
++        }
++        hasher.update(&buf[..take]);
++        off += take as u32;
++    }
++    let sha = hasher.finalize();
++
++    // 2) START (retry until OAK).
++    let mut start = [0u8; 39];
++    start[0..3].copy_from_slice(b"OST");
++    start[3..7].copy_from_slice(&LEN.to_be_bytes());
++    start[7..39].copy_from_slice(&sha);
++    for _ in 0..10 {
++        let _ = socket.send_to(&start, dst).await;
++        match select(Timer::after(Duration::from_millis(800)), socket.recv_from(&mut ack)).await {
++            Either::Second(Ok(_)) => break,
++            _ => continue,
++        }
++    }
++    println!("r2-dfr1195: OTA TX start sent (LEN={LEN})");
++
++    // 3) DATA stop-and-wait (ACK echoes cumulative `written`).
++    off = 0;
++    let mut pktbuf = [0u8; 1031];
++    while off < LEN {
++        let take = core::cmp::min(1024, (LEN - off) as usize);
++        let _ = flash.read(SRC + off, &mut buf[..take]);
++        pktbuf[0..3].copy_from_slice(b"ODT");
++        pktbuf[3..7].copy_from_slice(&off.to_be_bytes());
++        pktbuf[7..7 + take].copy_from_slice(&buf[..take]);
++        let mut acked = false;
++        for _ in 0..12 {
++            let _ = socket.send_to(&pktbuf[..7 + take], dst).await;
++            if let Either::Second(Ok((an, _))) =
++                select(Timer::after(Duration::from_millis(400)), socket.recv_from(&mut ack)).await
++            {
++                if an >= 7 && &ack[0..3] == b"OAK" {
++                    let w = u32::from_be_bytes([ack[3], ack[4], ack[5], ack[6]]);
++                    if w >= off + take as u32 {
++                        acked = true;
++                        break;
++                    }
++                }
++            }
++        }
++        if !acked {
++            println!("r2-dfr1195: OTA TX stalled at off={off}");
++            return;
++        }
++        off += take as u32;
++        if off % 0x10000 == 0 {
++            println!("r2-dfr1195: OTA TX {off}/{LEN}");
++        }
++    }
++
++    // 4) COMMIT.
++    for _ in 0..10 {
++        let _ = socket.send_to(b"OCM", dst).await;
++        match select(Timer::after(Duration::from_millis(800)), socket.recv_from(&mut ack)).await {
++            Either::Second(Ok((an, _))) if an >= 3 && &ack[0..3] == b"ODN" => {
++                println!("r2-dfr1195: OTA TX done — STA committed + rebooting");
++                return;
++            }
++            Either::Second(Ok((an, _))) if an >= 3 && &ack[0..3] == b"OER" => {
++                println!("r2-dfr1195: OTA TX commit REJECTED (sha/len mismatch)");
++                return;
++            }
++            _ => continue,
++        }
 +    }
 +}
 +
