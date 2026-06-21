@@ -435,10 +435,13 @@ impl HiveState {
     ) -> bool {
         use r2_route::transport::Transport;
         match transport {
-            // r2-route gained Usb/EspNow/Udp (R2-TRANSPORT). These have no host-side send path in
-            // this daemon yet (EspNow is firmware-mesh-only; Usb is the dongle LINK itself; Udp is
-            // carried via the Wifi/udp_transport arm) — STUB false to keep the match exhaustive.
-            // TODO: wire host-side Udp/Usb forwarding if the daemon ever originates on them.
+            // r2-route gained Usb/EspNow/Udp (R2-TRANSPORT §2.2 7-transport canon). Host-side handling
+            // per specs steer (these are HOST-IMPL, not spec; conform to the refs when built out):
+            //  - EspNow: correctly UNAVAILABLE on a Linux/cloud host (it's an ESP32 radio) — leave stubbed
+            //    ("not available on this platform", R2-TRANSPORT §2.2 role).
+            //  - Udp: the IP/global transport + the WiFi-UDP critical path — SHOULD become real next
+            //    (route via udp_transport, R2-ROUTE §5.7.1 selection); compile-stub false for now.
+            //  - Usb: implement the R2-USB framer + R2-PROVISION §5.3.x pairing when built out.
             Transport::Usb | Transport::EspNow | Transport::Udp => false,
             Transport::Internet => {
                 if self.ws_transport.send(hive_id, frame).await.is_ok() {
