@@ -88,7 +88,7 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..59b416e 100644
+index 8c49f1c..3132ad0 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
 @@ -1,83 +1,1080 @@
@@ -836,12 +836,12 @@ index 8c49f1c..59b416e 100644
 +
 +/// Carrier-aware board profile (9-board: one binary on DFR1195 + screenless XIAO-S3).
 +/// Byte 0 @0x13000: 0x00 = no screen (XIAO), else/0xFF(erased) = screen (DFR1195).
-+/// Byte 1: LED polarity — 0x01 = active-LOW (explicit override), else/0xFF(erased)/0x00 =
-+/// **active-HIGH (default)**. LED polarity is hardware/WIRING-specific, NOT derivable from the
-+/// SoC or has_screen — so we DEFAULT active-high and never infer active-low from no-screen
-+/// (these XIAO have EXTERNAL active-high LEDs on GPIO21, not the built-in active-low user LED;
-+/// confirmed by Roy). Robust across re-flash + 1-byte re-provisioning (no fragile byte1 reliance).
-+/// Read before the radio starts (no flash-vs-WiFi collision).
++/// LED polarity DEFAULTS active-high; only an explicit byte1==0x01 forces active-low. Polarity is
++/// hardware/wiring-specific, NOT derivable from the SoC/has_screen (these XIAO have EXTERNAL
++/// active-high LEDs, confirmed by Roy). Robust: default active-high so a re-flash/re-provision
++/// can't re-invert. NOTE: composer's board.toml uses byte1=led_active_HIGH (1=high) — the OPPOSITE
++/// of this byte — so we do NOT consume composer's byte1; per Roy the real path is dedicated
++/// per-carrier builds + carrier-detection (this shared binary = active-high default, no byte1 needed).
 +const BOARD_PROFILE_OFFSET: u32 = 0x13000;
 +fn read_board_profile() -> (bool, bool) {
 +    use embedded_storage::ReadStorage;
@@ -851,7 +851,7 @@ index 8c49f1c..59b416e 100644
 +        return (true, false); // default: DFR1195 screen + active-high LED
 +    }
 +    let has_screen = b[0] != 0x00;
-+    let led_active_low = b[1] == 0x01; // active-HIGH unless explicitly overridden to active-low
++    let led_active_low = b[1] == 0x01; // active-HIGH default; only explicit 0x01 overrides to active-low
 +    (has_screen, led_active_low)
 +}
  
@@ -957,7 +957,7 @@ index 8c49f1c..59b416e 100644
 +    e.uint(4).ok()?; e.text(BUILD_ID).ok()?;
 +    e.uint(5).ok()?; e.text(&sha_s).ok()?;
 +    e.uint(6).ok()?; e.uint(0).ok()?; // ota_status=0 (running slot is current)
-+    e.uint(7).ok()?; e.uint(synced as u64).ok()?;
++    e.uint(7).ok()?; e.uint(if synced { 2 } else { 1 }).ok()?; // sync_state: 2=locked, 1=converging
 +    e.uint(8).ok()?; e.uint(phase_err_ms as u64).ok()?;
 +    e.uint(9).ok()?; e.uint(0).ok()?; // link_q (RSSI not wired yet)
 +    e.uint(10).ok()?; e.uint(1).ok()?; // transports bitset: WiFi
