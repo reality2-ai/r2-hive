@@ -204,12 +204,18 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     (1) **deps resolve+compile** — esp-radio ble+coex + bt-hci 0.8.1 + trouble-host 0.6.0;
     (2) **BLE controller inits + WiFi+BLE COEX holds** (BleConnector + WiFi mesh stays synced);
     (3) **trouble-host ADVERTISE up + EXTERNALLY SCAN-CONFIRMED** — bluetoothctl on tuxedo sees
-    `Device C0:52:2C:AB:5F:69` (= my random addr, hive 2cab5f69) + `ManufacturerData 0x3252` ("R2" LE),
-    while the board stays WiFi-synced. **VERSION-COMPAT (the #1 risk) SOLVED: trouble 0.6.0 = bt-hci 0.8**
-    (matches esp-radio 0.18; trouble 0.2=bt-hci0.3 / 0.7=bt-hci0.9 both mismatch BleConnector's Transport).
-    Code: `ble_task` (BleConnector→ExternalController→Stack→advertise) in main.rs, behind `#[cfg(feature="ble")]`.
-    NEXT: real RBID/R2-BEACON AD codec (core compute_rbid) → SCAN peers → L2CAP CoC (control) →
-    NegotiationRadio impl over core's engine (S0–S4). FIX (deferred): index was stale → `cargo search` to refresh.
+    `Device C0:52:2C:AB:5F:69` (= my random addr, hive 2cab5f69), while the board stays WiFi-synced.
+    (4) **REAL R2-BEACON codec wired + advertising** — `ble_task` uses `r2_discovery::beacon::{compute_rbid,
+    encode_advert, LegacyBeacon, BeaconFlags, PowerState}` (core, byte-exact) → 24-byte canonical payload in
+    the 0xFF manufacturer AD; metal: `BLE advertising R2-BEACON rbid=471a93a8.. (24 B)`; external scan
+    confirms `ManufacturerData 0x01b2` (the encode_advert output, vs the old 0x3252 placeholder).
+    **VERSION-COMPAT (the #1 risk) SOLVED: trouble 0.6.0 = bt-hci 0.8** (esp-radio 0.18; 0.2=bt-hci0.3 /
+    0.7=bt-hci0.9 both mismatch). Built against core's **r2-discovery @7b4666e** (beacon+negotiation modules
+    pulled into the worktree build env; default + --features ble both build clean). session_key=hk[..16],
+    epoch=0 PLACEHOLDERS (asked core: the TG-synced epoch clock + per-device-vs-TG session_key — for the
+    rotating RBID schedule + resolve). **NEXT: SCAN** (trouble central → decode_advert + resolve_rbid →
+    NegObservation; 2-board test pairing) → **L2CAP CoC** (control) → **NegotiationRadio** over core's engine.
+    (FIX noted: the crates index was stale → `cargo search` refreshes it before resolving trouble.)
   - **Per-carrier Cargo features** (composer board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO
     octal-PSRAM@80MHz baked via PsramConfig in code — esp-hal has no psram Cargo feature); next deliverable.
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)
