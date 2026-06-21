@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..5ebc476 100644
+index 5a3c89f..1c3a7a8 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -83,7 +83,7 @@ index 5a3c89f..5ebc476 100644
 +
 +[features]
 +default = []
-+ble = ["esp-radio/ble", "esp-radio/coex", "dep:trouble-host", "dep:bt-hci"]
++ble = ["esp-radio/ble", "esp-radio/coex", "esp-radio/esp-now", "dep:trouble-host", "dep:bt-hci"]
  
  [profile.release]
  opt-level = "s"

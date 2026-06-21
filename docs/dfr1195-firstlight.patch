@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..5ebc476 100644
+index 5a3c89f..1c3a7a8 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -83,7 +83,7 @@ index 5a3c89f..5ebc476 100644
 +
 +[features]
 +default = []
-+ble = ["esp-radio/ble", "esp-radio/coex", "dep:trouble-host", "dep:bt-hci"]
++ble = ["esp-radio/ble", "esp-radio/coex", "esp-radio/esp-now", "dep:trouble-host", "dep:bt-hci"]
  
  [profile.release]
  opt-level = "s"
@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..6a4e3fb 100644
+index 8c49f1c..6435904 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1617 @@
+@@ -1,83 +1,1662 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -245,10 +245,7 @@ index 8c49f1c..6a4e3fb 100644
 +    //     BL's otadata slot-switch + activate_next_partition() are PROVEN. No flip if
 +    //     the next slot is empty (no boot-loop) — this is the receiver's COMMIT path.
 +    ota_slot_report();
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +    // 1b. Read identity + the provisioned PERSONA (#20) BEFORE the radio starts, so the
 +    //     efuse/flash reads can't collide with WiFi. Real TG (hk/tg/hive) if a persona is
 +    //     present at 0x12000; else fall back to the demo TG.
@@ -261,16 +258,19 @@ index 8c49f1c..6a4e3fb 100644
 +    let is_ap = mac_low3 == AP_MAC_MATCH; // soft-AP role stays MAC-based
 +    let (has_screen, led_active_low) = read_board_profile(); // DFR1195 vs XIAO-S3 (LED polarity)
  
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
++    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
++    let timg0 = TimerGroup::new(p.TIMG0);
++    let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
++    esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
+ 
 -#[esp_hal_embassy::main]
 -async fn main(_spawner: embassy_executor::Spawner) {
 -    // ── Chip + heap + embassy time ──────────────────────────────────────────
 -    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
 -    let _peripherals = esp_hal::init(esp_hal::Config::default());
-+    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
-+    let timg0 = TimerGroup::new(p.TIMG0);
-+    let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
-+    esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
-+
 +    println!("r2-dfr1195: PHASE 1a — esp-rtos/embassy + esp-radio (build {BUILD_ID})");
 +    println!(
 +        "r2-dfr1195: DEV {mac_low3:06x} hive={my_hive:08x} TG={tg_label} (persona={}) role={}",
@@ -338,6 +338,11 @@ index 8c49f1c..6a4e3fb 100644
 +    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
 +    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
 +        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
++
++    // ESP-NOW true-mesh data plane (Mode 2): take the connectionless esp_now interface (distinct field;
++    // coexists with the STA/AP netif + BLE). M-ESPNOW-1: validate broadcast/recv mechanics on metal.
++    #[cfg(feature = "ble")]
++    let esp_now = interfaces.esp_now;
 +
 +    // 7. Static IPs by role (deterministic 2-node net; no DHCP server needed).
 +    let (device, ip) = if serve_ap {
@@ -424,6 +429,7 @@ index 8c49f1c..6a4e3fb 100644
 +                println!("r2-dfr1195: BLE controller init OK (coex with WiFi)");
 +                spawner.spawn(ble_task(c, my_hive, my_tg_hash, hk).unwrap());
 +                spawner.spawn(engine_task(my_hive).unwrap()); // M9: run the S0–S4 engine over the bridge
++                spawner.spawn(espnow_task(esp_now, my_hive).unwrap()); // ESP-NOW true-mesh data plane (Mode 2)
 +
 +            }
 +            Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
@@ -601,10 +607,8 @@ index 8c49f1c..6a4e3fb 100644
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
- 
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++
++    loop {
 +        match select(
 +            Timer::after(Duration::from_millis(HB_TICK_MS)),
 +            socket.recv_from(&mut scratch),
@@ -1281,7 +1285,7 @@ index 8c49f1c..6a4e3fb 100644
 +#[cfg(feature = "ble")]
 +#[allow(dead_code)]
 +const KNOWN_HIVE_IDS: &[u32] = &[0x480e_900e, 0x2cab_5f69, 0x06ae_082b, 0x0dca_dbf8];
-+
+ 
 +/// Scan event handler: decode each observed R2-BEACON + resolve its RBID → hive_id.
 +#[cfg(feature = "ble")]
 +struct R2ScanHandler<'a> {
@@ -1445,6 +1449,45 @@ index 8c49f1c..6a4e3fb 100644
 +    }
 +}
 +
++/// ESP-NOW true-mesh data plane (Mode 2) — M-ESPNOW-1: validate broadcast/recv on metal. Every device
++/// peers connectionlessly (no AP); the src MAC on each frame learns the hive_id↔MAC map (core's design).
++/// Broadcasts an R2M probe + logs observed peers. Next: feed r2-route + heartbeat-over-broadcast + unicast.
++#[cfg(feature = "ble")]
++#[embassy_executor::task]
++async fn espnow_task(esp_now: esp_radio::esp_now::EspNow<'static>, my_hive: u32) {
++    use embassy_futures::join::join;
++    use esp_radio::esp_now::BROADCAST_ADDRESS;
++    let (_manager, mut sender, mut receiver) = esp_now.split();
++    println!("r2-dfr1195: ESP-NOW mesh up (hive {my_hive:08x}) — broadcasting + listening");
++    let tx = async {
++        loop {
++            let mut msg = [0u8; 8];
++            msg[0] = b'R';
++            msg[1] = b'2';
++            msg[2] = b'M';
++            msg[4..8].copy_from_slice(&my_hive.to_le_bytes());
++            let _ = sender.send_async(&BROADCAST_ADDRESS, &msg).await;
++            Timer::after(Duration::from_secs(2)).await;
++        }
++    };
++    let rx = async {
++        loop {
++            let r = receiver.receive_async().await;
++            let d = r.data();
++            let s = r.info.src_address;
++            if d.len() >= 8 && &d[0..3] == b"R2M" {
++                let peer = u32::from_le_bytes([d[4], d[5], d[6], d[7]]);
++                // (M-ESPNOW-2: map[peer] = s, after resolving the real R2-BEACON payload)
++                println!(
++                    "r2-dfr1195: ESP-NOW RECV peer_hive={peer:08x} src={:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
++                    s[0], s[1], s[2], s[3], s[4], s[5]
++                );
++            }
++        }
++    };
++    join(tx, rx).await;
++}
++
 +/// IDENTIFY inject-bridge: read "IDENTIFY <wire_hex> <1|0>" lines off the USB-Serial-JTAG RX
 +/// (composer's orchestrator writes them to the chosen board's USB-serial) and broadcast the
 +/// r2.hb.identify Directed frame so the target board lights SOLID. Runs on every board (the RX
@@ -1464,7 +1507,9 @@ index 8c49f1c..6a4e3fb 100644
 +    let bcast = IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
 +    let mut line = [0u8; 64];
 +    let mut n = 0usize;
-+    loop {
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        if let Ok(c) = usb_rx.read_byte() {
 +            if c == b'\n' || c == b'\r' {
 +                if n > 0 {
