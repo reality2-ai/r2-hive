@@ -102,10 +102,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..fdd4ef4 100644
+index 8c49f1c..6a4e3fb 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1611 @@
+@@ -1,83 +1,1617 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -307,6 +307,12 @@ index 8c49f1c..fdd4ef4 100644
 +    let serve_ap = my_hive == M7_PROVIDER_HIVE;
 +    #[cfg(not(feature = "ble"))]
 +    let serve_ap = is_ap;
++    // ROLE FIX (Roy bug: is_ap[boot-MAC] != serve_ap[elected] → two-AP / same-IP collision): the heartbeat /
++    // AP-relay / IP / health role MUST follow the actual WiFi role. For ble, unify is_ap = serve_ap so exactly
++    // the AP-serving board acts as AP everywhere (no boot-MAC role leaking a second AP identity).
++    // (FULL fix = election-driven runtime AP-bring-up so ONLY the engine-elected provider serves — see M10.)
++    #[cfg(feature = "ble")]
++    let is_ap = serve_ap;
 +    #[cfg(feature = "ble")]
 +    let (dp_ssid, dp_pass): (&str, &str) = ("r2-tn-form", "r2tnform123");
 +    #[cfg(not(feature = "ble"))]
