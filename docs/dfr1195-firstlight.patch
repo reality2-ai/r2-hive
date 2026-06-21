@@ -88,10 +88,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..3132ad0 100644
+index 8c49f1c..7eb409b 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,1080 @@
+@@ -1,83 +1,1156 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -176,6 +176,7 @@ index 8c49f1c..3132ad0 100644
 +use esp_hal::time::Rate;
 +use esp_hal::delay::Delay;
 +use esp_hal::gpio::DriveMode;
++use esp_hal::usb_serial_jtag::{UsbSerialJtag, UsbSerialJtagRx};
 +use esp_hal::ledc::channel::ChannelIFace;
 +use esp_hal::ledc::timer::TimerIFace;
 +use esp_hal::ledc::{channel, timer, LSGlobalClkSource, Ledc, LowSpeed};
@@ -334,6 +335,10 @@ index 8c49f1c..3132ad0 100644
 +    let _ = peer;
 +    spawner.spawn(io_task(stack, is_ap, ip, hk, my_tg_hash, my_hive).unwrap());
 +    spawner.spawn(ota_task(is_ap, stack).unwrap());
++    // IDENTIFY inject-bridge: read commands off the USB-Serial-JTAG (esp-println keeps the TX FIFO
++    // via raw regs; we take only the RX half). composer points --identify-port at the chosen board.
++    let (usb_rx, _usb_tx) = UsbSerialJtag::new(p.USB_DEVICE).split();
++    spawner.spawn(uart_rx_task(stack, my_tg_hash, usb_rx).unwrap());
 +
 +    // ── LCD (ST7735S 160x80) status surface — CARRIER-GATED (has_screen). PWR(GPIO48)
 +    //    ACTIVE-LOW. Skipped entirely on the screenless XIAO-S3 so the binary runs cleanly
@@ -792,6 +797,9 @@ index 8c49f1c..3132ad0 100644
 +const R2_UDP_PORT: u16 = 21042;
 +/// OTA network-receiver port (#17): START/DATA/COMMIT image transfer.
 +const R2_OTA_PORT: u16 = 21043;
++/// IDENTIFY inject-bridge port: a board reads "IDENTIFY <wire_hex> <1|0>" from its USB-serial
++/// (composer's orchestrator writes it) + broadcasts the r2.hb.identify Directed frame.
++const R2_IDENTIFY_BRIDGE_PORT: u16 = 21045;
 +
 +/// #18 health telemetry: event_hash discriminator + the collector (AP) wire hive_id.
 +/// Followers Direct r2.hb.health to the collector over TN; the collector logs it as hex
@@ -904,29 +912,7 @@ index 8c49f1c..3132ad0 100644
          }
      }
 +}
- 
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++
 +/// Build the #18 r2.hb.health CBOR (int-keyed map, composer's contract) into `buf`.
 +/// Keys: 0 hive_id, 1 tg, 2 role-bitset (1=conductor|2=AP|4=STA|8=relay), 3 ip, 4 fw_version,
 +/// 5 fw_sha, 6 ota_status, 7 sync_state, 8 phase_err_ms, 9 link_q, 10 transports, 11 uptime, 12 beat_seq.
@@ -965,7 +951,7 @@ index 8c49f1c..3132ad0 100644
 +    e.uint(12).ok()?; e.uint(beat_seq as u64).ok()?;
 +    Some(e.len())
 +}
- 
++
 +/// Log an aggregated/received health CBOR as a hex line for composer's serial-reader.
 +fn log_health(cbor: &[u8]) {
 +    let mut hx: heapless::String<320> = heapless::String::new();
@@ -974,11 +960,101 @@ index 8c49f1c..3132ad0 100644
 +    }
 +    println!("r2-dfr1195: HEALTH {hx}");
 +}
-+
+ 
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +/// embassy-net background runner — required for the stack to make progress.
 +#[embassy_executor::task]
 +async fn net_task(mut runner: Runner<'static, wifi::Interface<'static>>) -> ! {
 +    runner.run().await
++}
++
++/// IDENTIFY inject-bridge: read "IDENTIFY <wire_hex> <1|0>" lines off the USB-Serial-JTAG RX
++/// (composer's orchestrator writes them to the chosen board's USB-serial) and broadcast the
++/// r2.hb.identify Directed frame so the target board lights SOLID. Runs on every board (the RX
++/// FIFO is empty unless composer's --identify-port targets it; esp-println keeps the TX FIFO).
++#[embassy_executor::task]
++async fn uart_rx_task(
++    stack: embassy_net::Stack<'static>,
++    my_tg_hash: u32,
++    mut usb_rx: UsbSerialJtagRx<'static, esp_hal::Blocking>,
++) {
++    let mut rx_meta = [PacketMetadata::EMPTY; 2];
++    let mut rx_buf = [0u8; 128];
++    let mut tx_meta = [PacketMetadata::EMPTY; 2];
++    let mut tx_buf = [0u8; 128];
++    let mut socket = UdpSocket::new(stack, &mut rx_meta, &mut rx_buf, &mut tx_meta, &mut tx_buf);
++    let _ = socket.bind(R2_IDENTIFY_BRIDGE_PORT);
++    let bcast = IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
++    let mut line = [0u8; 64];
++    let mut n = 0usize;
++    loop {
++        if let Ok(c) = usb_rx.read_byte() {
++            if c == b'\n' || c == b'\r' {
++                if n > 0 {
++                    if let Some((target, on)) = parse_identify(&line[..n]) {
++                        let payload = [u8::from(on)];
++                        let hdr = ExtendedHeader {
++                            version: 0,
++                            msg_type: MsgType::Event,
++                            flags: Flags { mcu_origin: true, ..Default::default() },
++                            ttl: 2,
++                            k: 1,
++                            msg_id: 0,
++                            event_hash: IDENTIFY_HASH,
++                            payload_len: 1,
++                            target_group: my_tg_hash,
++                            target_hive: target,
++                        };
++                        let m = ExtendedMessage { header: hdr, route: None, payload: &payload, hmac_tag: None };
++                        let mut txb = [0u8; 64];
++                        if let Ok(sz) = encode_extended(&m, &mut txb) {
++                            let _ = socket.send_to(&txb[..sz], bcast).await;
++                        }
++                        println!("r2-dfr1195: IDENTIFY-inject target={target:08x} on={on}");
++                    }
++                    n = 0;
++                }
++            } else if n < line.len() {
++                line[n] = c;
++                n += 1;
++            }
++        } else {
++            Timer::after(Duration::from_millis(20)).await;
++        }
++    }
++}
++
++/// Parse "IDENTIFY <wire_hex> <1|0>" → (target_hive, on).
++fn parse_identify(s: &[u8]) -> Option<(u32, bool)> {
++    let s = core::str::from_utf8(s).ok()?;
++    let mut it = s.split_ascii_whitespace();
++    if it.next()? != "IDENTIFY" {
++        return None;
++    }
++    let target = u32::from_str_radix(it.next()?, 16).ok()?;
++    let on = it.next()? != "0";
++    Some((target, on))
 +}
 +
 +/// OTA network receiver (#17) — FLASH-WRITE-WHILE-WIFI DE-RISK (esp-storage#31).
@@ -1004,7 +1080,7 @@ index 8c49f1c..3132ad0 100644
 +        ota_receiver(stack).await; // the deliverable: accept a streamed network OTA
 +    }
 +}
-+
+ 
 +/// OTA network receiver (#17). Streams an image over UDP into the INACTIVE OTA slot and,
 +/// on a SHA-256-verified COMMIT, activates it + reboots — the no-USB update path. The
 +/// flash writes run with WiFi up (de-risked: ~20ms/sector, heartbeat-safe), so no quiesce.
