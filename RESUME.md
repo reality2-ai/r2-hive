@@ -215,9 +215,14 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
     derive_beacon_session_key(&hk, my_hive)` (PER-MEMBER, HKDF(hk, salt=r2-beacon-rbid-v1, info=hive_be32)[..16]
     — core fb5b189; a TG-wide key would make all RBIDs identical) → compute_rbid; metal-verified rbid changed
     per-member key, Expand-only construction @9996fa3, metal rbid=baf64d9d. epoch=0 still placeholder until a shared coarse-time base.
-    **NEXT: SCAN** (trouble EventHandler.on_adv_reports + run_with_handler + Scanner.scan → decode_advert →
-    resolve_rbid_windowed(observed, [(peer_id, derive_beacon_session_key(&hk, peer_id))], epoch, 1) →
-    NegObservation; 2-board test) → **L2CAP CoC** (control) → **NegotiationRadio** over core's engine.
+    (5) **SCAN + RESOLVE on metal — S0 DISCOVER COMPLETE.** ble_task ADVERTISES + SCANS concurrently
+    (join3: run_with_handler + advertise + scan). R2ScanHandler.on_adv_reports → ble_find_mfg_ad →
+    decode_advert → resolve_rbid_windowed(rbid, registry, epoch, 1) → hive_id. 2-board metal: ACM11
+    (0dcadbf8) scans → `BLE scan -> peer hive=2cab5f69 (rbid baf6..)` resolving ACM1, both advertising +
+    WiFi-synced. Full cross-board crypto chain proven. (BUG fixed: ScanSession must be HELD — its Drop
+    cancels the scan.) registry=KNOWN_HIVE_IDS bring-up roster (real roster from peers.rs/persona later).
+    **NEXT: S1 = L2CAP CoC** (connectable adv + central.connect + CoC channel for WifiReq/Offer/Done) →
+    wire **NegotiationRadio** over core's S0–S4 engine → **BLE→WiFi NETWORK-FORMING** + fallback/reform.
     (FIX noted: the crates index was stale → `cargo search` refreshes it before resolving trouble.)
   - **Per-carrier Cargo features** (composer board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO
     octal-PSRAM@80MHz baked via PsramConfig in code — esp-hal has no psram Cargo feature); next deliverable.
