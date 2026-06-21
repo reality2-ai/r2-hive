@@ -50,22 +50,37 @@ The beacon carries **RBID only** — `RBID = HMAC-SHA256(session_key, epoch_coun
 known peers' precomputed RBID schedules (needs their session_key); unknown advertisers stay
 unknown until **post-connect + auth**. TG-recognition is post-connect+auth, not in the beacon.
 
-## NET-NEW orchestration (the gap — build on workshop's building-blocks)
-Workshop has the pieces (beacon / l2cap / wifi_prov / connect_static / wifi_ap + boot-fallback +
-docs/BLE-WIFI-NEGOTIATION.md). My net-new no_std orchestration:
+## Reference: workshop's building-blocks (r2-workshop/docs/BLE-WIFI-NEGOTIATION.md)
+Workshop's pieces (in `crates/r2-esp/src/`, **ESP-IDF/std**): `beacon.rs` (R2-BEACON advert/scan/
+peers), `wifi_prov.rs` (BLE WiFi-credential exchange + NVS), `l2cap.rs` (BLE CoC R2-WIRE events),
+`wifi_ap.rs` (`start()` SoftAP), `wifi_sta.rs` (`connect_static()` no-DHCP join + `get_gateway()`
+AP-IP discovery + `reconnect()`). Workshop uses a CONFIGURED provider (R2_TN_AP_MAC/ID), NOT
+auto-election — the lowest-hive_id election is explicitly **hive's** job. Has a conformance table +
+composition diagram.
+
+**⚠ std vs no_std:** workshop's `r2-esp` is ESP-IDF (std); my firmware is no_std (esp-hal/esp-radio).
+So workshop's doc is the **composition/API/conformance REFERENCE**, but I must re-implement the
+radio glue in no_std (esp-radio BLE / trouble / bleps) — I can't link std `r2-esp` directly. OPEN
+QUESTION to workshop/supervisor: can the r2-esp blocks be factored no_std-shared, or do I re-impl?
+(Determines the #24 effort size — the BLE-stack bring-up is the big delta either way.)
+
+## NET-NEW orchestration (the gap — confirmed by workshop's doc as hive's)
 1. **Peer-AP election over BLE** (= §4A.3) — lowest eligible hive_id; reuse the conductor logic +
-   derive_hive_id + the silence-failover (#23a).
-2. **Roster + PSK generated + distributed peer-to-peer over L2CAP** (wifi_prov codec, peer-sourced
+   derive_hive_id + the silence-failover (#23a). (Workshop uses a configured provider → this is mine.)
+2. **Negotiation state machine** (S0–S4) over the building-blocks — offer/accept/teardown.
+3. **Roster + PSK generated + distributed peer-to-peer over L2CAP** (wifi_prov codec, peer-sourced
    — no central provisioner).
-3. **Runtime WiFi-health → BLE-renegotiate closed loop** (S2→S3 triggers → S4 → S1).
+4. **Runtime WiFi-health → BLE-renegotiate closed loop** (S2→S3 triggers → S4 → S1) — workshop has
+   no runtime detector / T_fallback timer; that's mine.
 
 ## Firmware prereqs
 - **no_std BLE stack** (the big lift) — beacon advertise/scan + L2CAP CoC for signalling. New.
 - R2-BEACON (RBID schedule) + R2-DISCOVERY §3 RBID↔hive_id lookup.
 - Transport-state fallback: R2-TRANSPORT §2.3 (FAILED) + R2-ROUTE §5.6 reselect.
 - **FIX hardcoded AP IP** (R2-WIFI v0.6 §3.2/§4.3): current fw hardcodes 192.168.4.1 — for #24 the
-  AP IP comes from the #wifi_offer (joining STA uses its DHCP gateway). OK for the all-embassy
-  9-board now; fix for interop.
+  AP IP comes from the #wifi_offer / gateway discovery. Pattern = workshop's `wifi_sta::get_gateway()`
+  (the AP IS the gateway, never hardcoded; designed for the no-DHCP embassy r2-fieldlab). OK for the
+  all-embassy 9-board now; fix for interop.
 
 ## Order
 BLE↔WiFi (local) FIRST (workshop ref + canon) → then LoRa-as-beacon + LoRa-as-data per #22 (core's
