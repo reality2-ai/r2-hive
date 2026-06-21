@@ -57,6 +57,23 @@ esp-radio WiFi SoftAP/UDP for the data plane (wire `data_plane_state` to Transpo
 Available/FAILED). AP-IP via gateway discovery (workshop `wifi_sta::get_gateway()` pattern),
 NOT hardcoded.
 
+## Hive BLE-stack bring-up plan (the platform layer — fresh focused effort, test pairing first)
+Scouted-feasible: esp-radio `ble` feature exposes an HCI interface (`read_hci`/`write_hci`);
+pair with **trouble-host** (no_std BLE host, uses `bt-hci` — installed). Steps:
+1. **Deps + coex** — add esp-radio `ble` + `coex` features (WiFi+BLE coexist on one radio — the
+   init/controller-sharing is the main risk), trouble-host, bt-hci. esp-rtos already schedules.
+2. **Controller↔host wiring** — bridge esp-radio HCI (read_hci/write_hci) to trouble-host's
+   Controller. Verify on a TEST PAIRING (2 boards), NOT the live 9-board.
+3. **ADVERTISE** — R2-BEACON RBID beacon (rbid = HMAC(session_key, epoch)[0:8]; reuse r2-core
+   beacon build). First milestone: board advertises, observable by a phone/another board scan.
+4. **SCAN** — observe peers → BeaconObservation (caps/power_state). RBID→hive_id via known-peer
+   schedule lookup (R2-DISCOVERY §3).
+5. **L2CAP CoC** — control channel for WifiReq/Offer/Done.
+6. **NegotiationRadio impl** — wire 1–5 + the existing WiFi data plane to the trait; run the
+   shared engine (once core lands it). data_plane_state ← WiFi TransportState (Available/FAILED).
+RISK: WiFi+BLE coex init + trouble-host↔esp-radio HCI version compat — expect iteration; do it
+fresh, on the test pairing, before touching the live mesh.
+
 ## Params for core
 T_fallback (Profile A WiFi/BLE) = 5s (documented per §4A.4(A)). T_negotiate ~10s (R2-WIFI §3.3.1
 #wifi_offer timeout). Send back: confirm the module home + the trait names, and whether the
