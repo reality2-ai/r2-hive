@@ -37,6 +37,28 @@ the radio's `listen()` IS continuous-RX. So the failure is the **half-duplex car
   a **per-board SF override** firmware knob (which the real relay/leaf deployment needs anyway).
 - (Optional reach-only (OFF,ON) cell for clean attribution if arm1 sustains.)
 
+## DECISION MADE — core specified the fix (2026-06-23, reference pattern delivered)
+The carrier-architecture question is **answered by core**: **jitter the TRANSMISSION + continuous-RX +
+event-driven** (= option A). The PCO keeps the FIRES synchronized (the sync goal); a random jitter only
+staggers the TRANSMISSIONS so while board A TXs, B+C are in RX and HEAR it. Use `r2_route::jitter::relay_jitter_ms`.
+
+**Implementation for hive's structure** (io_task = PCO→DATA_TX; lora_mesh_task = carrier): when an HB is
+drained from DATA_TX, do NOT transmit immediately — set `tx_at = now + relay_jitter_ms(rng, Lora, congested)`
+and hold the HB; keep the radio in RX (poll RxDone → read → §4.2 couple → `radio.listen()` immediately);
+when `now >= tx_at`, `transmit()` → poll TxDone → `radio.listen()`. Net: radio is in RX the entire time
+except the brief jittered transmit. (Events still dropped = the shaping.)
+- **§4.2 + jitter caveat (core):** TXing jitter-after-fire means the sender's phase at TX-start is
+  beat+rate·jitter, not 0. For small jitter (tens of ms vs 2000ms) the ToA-only d_hop has a small bias —
+  fine to start. CLEAN fix = stamp `tx_time`/phase_at_tx into the HB at TX-start → §4.2 uses
+  delay_ms = rx_clock − tx_time (specs' PREFERRED MAC-timestamp path; needs a 4-8B wire add). Start ToA-only.
+- **Use ACTUAL frame_len for the §4.2 ToA** (HB = 30B unsigned on nobt, not 62B).
+- **LBT/CAD:** proper listen-before-talk needs a channel-sense primitive core's driver doesn't expose yet
+  (GetRssiInst 0x15 / SetCad 0xC5). Jitter+continuous-RX should unblock 3-board first; if collisions persist
+  at scale, core adds `radio.channel_rssi()` / a CAD mode (small driver add).
+
+So the MORNING build = implement core's reference (a focused lora_mesh_task restructure + r2_route::jitter),
+re-run arm2 → HBSYNC-03 green, then arm3 mixed-SF. Not an open decision anymore — a specified build.
+
 ## Refs
 core: `HeartbeatPco::on_verified_pulse_delayed` (bdda130), `lora_airtime::time_on_air_ms` (70f831a,
 branch r2-core-consolidation), the "continuous-RX/event-driven/ToA-aware" pattern (asked for a reference
