@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..ac2139d 100644
+index 5a3c89f..afc2cf6 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,7 +54,7 @@ index 5a3c89f..ac2139d 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,49 @@ embassy-futures = "0.1"
+@@ -40,6 +55,54 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -101,6 +101,11 @@ index 5a3c89f..ac2139d 100644
 +nobt = ["ble"]
 +# HBSYNC-06 blackout: mute TX during [60s,90s) uptime = 30s connectivity blackout (rate must pre-match to hold).
 +blackout = ["ble"]
++# 2-TG per-TG keying (CROSS-HOST-2TG #20). Runtime PROVISION over the serial inject-bridge (mirrors IDENTIFY):
++# r2_trust::parse_provision → NVS persist (@0x14000) → install into the io_task GroupHmac. Inc1 = receive+install
++# (gates the existing Event deliver-gate; NO heartbeat wire change). Inc2 (HB-signed coupling gate for cross-TG
++# sync isolation) is an all-9 coordinated wire change — added separately once agreed. Implies ble (ESP-NOW mesh).
++multitg = ["ble"]
  
  [profile.release]
  opt-level = "s"
@@ -119,10 +124,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..ffbeafc 100644
+index 8c49f1c..4e76752 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2044 @@
+@@ -1,83 +1,2163 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -282,10 +287,20 @@ index 8c49f1c..ffbeafc 100644
 +    //     present at 0x12000; else fall back to the demo TG.
 +    let mac_low3 = esp_hal::efuse::read_field_le::<u32>(esp_hal::efuse::MAC0) & 0x00FF_FFFF;
 +    let persona = read_persona();
-+    let (hk, my_tg_hash, my_hive, tg_label) = match &persona {
++    #[allow(unused_mut)]
++    let (mut hk, mut my_tg_hash, my_hive, tg_label) = match &persona {
 +        Some(p) => (p.hk, p.tg_hash, p.hive_id, p.tg_label.as_str()),
 +        None => (TG_HK_DEMO, MY_TG_HASH, mac_low3, TG_ID),
 +    };
++    // 2-TG (#20): a runtime-PROVISIONED key (NVS @0x14000) OVERRIDES the persona/demo TG. my_hive
++    // (the wire id) is unchanged — provisioning swaps the TRUST GROUP, not the board identity. The
++    // io_task picks up later re-PROVISIONs live via PENDING_PROVISION; this is the boot-time restore.
++    #[cfg(feature = "multitg")]
++    if let Some((tg_id, key)) = read_provisioned_tg() {
++        hk = key;
++        my_tg_hash = tg_id;
++        println!("r2-dfr1195: PROVISIONED TG restored from NVS — tg_id={tg_id} (overrides persona/demo)");
++    }
 +    let is_ap = mac_low3 == AP_MAC_MATCH; // soft-AP role stays MAC-based
 +    let (has_screen, led_active_low) = read_board_profile(); // DFR1195 vs XIAO-S3 (LED polarity)
 +
@@ -417,7 +432,7 @@ index 8c49f1c..ffbeafc 100644
 +    // IDENTIFY inject-bridge: read commands off the USB-Serial-JTAG (esp-println keeps the TX FIFO
 +    // via raw regs; we take only the RX half). composer points --identify-port at the chosen board.
 +    let (usb_rx, _usb_tx) = UsbSerialJtag::new(p.USB_DEVICE).split();
-+    spawner.spawn(uart_rx_task(stack, my_tg_hash, usb_rx).unwrap());
++    spawner.spawn(uart_rx_task(stack, my_tg_hash, my_hive, usb_rx).unwrap());
 +
 +    // #24 BLE control plane (feature-gated). Controller init (coex with WiFi, metal-verified)
 +    // -> bt-hci ExternalController -> trouble-host advertise. The ble_task owns the connector.
@@ -482,7 +497,7 @@ index 8c49f1c..ffbeafc 100644
 +        #[cfg(not(feature = "blemesh"))]
 +        spawner.spawn(espnow_task(esp_now, my_hive).unwrap());
 +    }
- 
++
 +    // ── LCD (ST7735S 160x80) status surface — CARRIER-GATED (has_screen). PWR(GPIO48)
 +    //    ACTIVE-LOW. Skipped entirely on the screenless XIAO-S3 so the binary runs cleanly
 +    //    there (no driving non-existent hardware / GPIO conflict). di_buf stays in main
@@ -524,9 +539,7 @@ index 8c49f1c..ffbeafc 100644
 +    // Segments are kicked at 50 ms tick boundaries; LEDC hardware fades between them.
 +    let mut beat_t: i32 = -1;
 +    let mut lcd_tick: u32 = 0;
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        // ── IDENTIFY override (Roy dashboard locate): SOLID LED for the countdown, then resume ──
 +        let id = IDENTIFY_TICKS.load(Ordering::Relaxed);
 +        if id > 0 {
@@ -635,7 +648,7 @@ index 8c49f1c..ffbeafc 100644
 +    is_ap: bool,
 +    my_ip: Ipv4Address,
 +    hk: [u8; 32],
-+    my_tg_hash: u32,
++    #[allow(unused_mut)] mut my_tg_hash: u32,
 +    my_hive: u32,
 +) {
 +    let mut rx_meta = [PacketMetadata::EMPTY; 4];
@@ -656,7 +669,8 @@ index 8c49f1c..ffbeafc 100644
 +    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
 +    // Intra-TG trust: GroupHmac over the (received) group hk. `bad_hmac` = wrong key
 +    // for the negative test (a frame correctly addressed but failing the deliver-gate).
-+    let group_hmac = GroupHmac::new(hk);
++    #[allow(unused_mut)]
++    let mut group_hmac = GroupHmac::new(hk);
 +    let bad_hmac = GroupHmac::new([0xFF; 32]);
 +    let mut ev_tick: u32 = 0;
 +    let mut ev_seq: u32 = 1;
@@ -701,8 +715,22 @@ index 8c49f1c..ffbeafc 100644
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
-+
-+    loop {
+ 
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++        // 2-TG (#20): install a runtime re-PROVISION (uart_rx_task validated + persisted it to NVS).
++        // Swap the live GroupHmac + target_group so the deliver-gate (B1) + TG-scoped sends use the new
++        // key WITHOUT a reboot. The engine retains no key (R2-RUNTIME §13.2) — we take it from the conduit.
++        #[cfg(feature = "multitg")]
++        {
++            let pending = PENDING_PROVISION.lock(|c| c.borrow_mut().take());
++            if let Some((tg_id, key)) = pending {
++                group_hmac = GroupHmac::new(key);
++                my_tg_hash = tg_id;
++                println!("r2-dfr1195: PROVISION installed live — tg_id={tg_id} (GroupHmac + target_group swapped)");
++            }
++        }
 +        // Heartbeat transport: ESP-NOW broadcast for the mesh (ble), UDP socket for infra (default).
 +        // The conductor-PLL + decode below are UNCHANGED (reused intact); only the recv source differs.
 +        #[cfg(not(feature = "ble"))]
@@ -1223,6 +1251,67 @@ index 8c49f1c..ffbeafc 100644
 +    let has_screen = b[0] != 0x00;
 +    let led_active_low = b[1] == 0x01; // active-HIGH default; only explicit 0x01 overrides to active-low
 +    (has_screen, led_active_low)
++}
++
++// ── 2-TG per-TG keying: runtime-PROVISION NVS custody (CROSS-HOST-2TG #20, §6) ──────────────
++// A board's active trust-group key can be (re)provisioned at runtime over the serial inject-bridge
++// (PROVISION mirrors IDENTIFY) — no re-flash. hive firmware owns L5 custody: parse_provision
++// validates, then we PERSIST {tg_id, 32B key} to a raw flash region and INSTALL it into the
++// io_task GroupHmac. Layout @0x14000 (free gap below ota_0, its own 4 KB sector — distinct from
++// persona@0x12000 + board-profile@0x13000): [magic u32 BE][tg_id u32 BE][key 32B] = 40 bytes.
++// `tg_id` (§6) is the WIRE trust-group id = fnv1a_32(UUID) decimal == the frame `target_group`,
++// so no FNV here: tg_id IS my_tg_hash. Re-PROVISION overwrites the sector (parser is stateless).
++#[cfg(feature = "multitg")]
++const PROVISIONED_TG_OFFSET: u32 = 0x14000;
++#[cfg(feature = "multitg")]
++const PROVISION_MAGIC: u32 = 0x5232_5447; // "R2TG"
++
++/// Runtime hand-off uart_rx_task (PROVISION writer) → io_task (GroupHmac installer): the newly
++/// provisioned (tg_id, key), set once and consumed when io_task rebuilds its GroupHmac. The
++/// engine RETAINS no key beyond the install (R2-RUNTIME §13.2) — this cell is the install conduit.
++#[cfg(feature = "multitg")]
++static PENDING_PROVISION: embassy_sync::blocking_mutex::Mutex<
++    CriticalSectionRawMutex,
++    core::cell::RefCell<Option<(u32, [u8; 32])>>,
++> = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(None));
++
++/// Read the persisted provisioned-TG credential, if a valid one is stored. `None` = unprovisioned
++/// (erased/old board) → the caller keeps the persona/demo TG.
++#[cfg(feature = "multitg")]
++fn read_provisioned_tg() -> Option<(u32, [u8; 32])> {
++    use embedded_storage::ReadStorage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 40];
++    flash.read(PROVISIONED_TG_OFFSET, &mut b).ok()?;
++    let magic = u32::from_be_bytes([b[0], b[1], b[2], b[3]]);
++    if magic != PROVISION_MAGIC {
++        return None;
++    }
++    let tg_id = u32::from_be_bytes([b[4], b[5], b[6], b[7]]);
++    let mut key = [0u8; 32];
++    key.copy_from_slice(&b[8..40]);
++    Some((tg_id, key))
++}
++
++/// Persist a provisioned-TG credential to flash (erase+write its 4 KB sector). Returns Ok on a
++/// verified write. Called from uart_rx_task after parse_provision validates the PROVISION line.
++#[cfg(feature = "multitg")]
++fn write_provisioned_tg(tg_id: u32, key: &[u8; 32]) -> Result<(), ()> {
++    use embedded_storage::{ReadStorage, Storage};
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 40];
++    b[0..4].copy_from_slice(&PROVISION_MAGIC.to_be_bytes());
++    b[4..8].copy_from_slice(&tg_id.to_be_bytes());
++    b[8..40].copy_from_slice(key);
++    flash.write(PROVISIONED_TG_OFFSET, &b).map_err(|_| ())?;
++    // Read-back verify (custody must be durable before we ACK applied).
++    let mut rb = [0u8; 40];
++    flash.read(PROVISIONED_TG_OFFSET, &mut rb).map_err(|_| ())?;
++    if rb == b {
++        Ok(())
++    } else {
++        Err(())
++    }
 +}
 +
 +/// Report the active OTA slot at boot. The otadata slot-switch was PROVEN on metal
@@ -1897,6 +1986,7 @@ index 8c49f1c..ffbeafc 100644
 +async fn uart_rx_task(
 +    stack: embassy_net::Stack<'static>,
 +    my_tg_hash: u32,
++    #[allow(unused_variables)] my_hive: u32,
 +    mut usb_rx: UsbSerialJtagRx<'static, esp_hal::Blocking>,
 +) {
 +    let mut rx_meta = [PacketMetadata::EMPTY; 2];
@@ -1912,6 +2002,39 @@ index 8c49f1c..ffbeafc 100644
 +        if let Ok(c) = usb_rx.read_byte() {
 +            if c == b'\n' || c == b'\r' {
 +                if n > 0 {
++                    // PROVISION (#20, CROSS-HOST-2TG §6) — same serial inject-bridge as IDENTIFY. Parse +
++                    // validate via core's primitive (do NOT re-implement), persist to NVS, then hand the key
++                    // to io_task (PENDING_PROVISION) to install into the GroupHmac. ACK on serial for composer.
++                    #[cfg(feature = "multitg")]
++                    let is_provision = line[..n].starts_with(b"PROVISION");
++                    #[cfg(not(feature = "multitg"))]
++                    let is_provision = false;
++                    #[cfg(feature = "multitg")]
++                    if is_provision {
++                        match r2_trust::provision::parse_provision(&line[..n], my_hive) {
++                            Ok(Some(cred)) => match write_provisioned_tg(cred.tg_id, &cred.group_hmac_key) {
++                                Ok(()) => {
++                                    PENDING_PROVISION.lock(|c| {
++                                        *c.borrow_mut() = Some((cred.tg_id, cred.group_hmac_key));
++                                    });
++                                    // ACK r2.provision.applied (§6). CBOR {0:wire,1:tg_id} over /r2 is pending
++                                    // specs' canonical key-map pin; serial line is composer's coverage feed now.
++                                    println!(
++                                        "r2-dfr1195: PROVISION-APPLIED wire={my_hive:08x} tg_id={}",
++                                        cred.tg_id
++                                    );
++                                }
++                                Err(()) => println!(
++                                    "r2-dfr1195: PROVISION-ERR wire={my_hive:08x} nvs-write-failed"
++                                ),
++                            },
++                            Ok(None) => {} // not for me (wire != my_hive) — ignore (§6)
++                            Err(e) => {
++                                println!("r2-dfr1195: PROVISION-ERR wire={my_hive:08x} {e:?}")
++                            }
++                        }
++                    }
++                    if !is_provision {
 +                    if let Some((target, on)) = parse_identify(&line[..n]) {
 +                        let payload = [u8::from(on)];
 +                        let hdr = ExtendedHeader {
@@ -1933,6 +2056,7 @@ index 8c49f1c..ffbeafc 100644
 +                        }
 +                        println!("r2-dfr1195: IDENTIFY-inject target={target:08x} on={on}");
 +                    }
++                    } // end !is_provision
 +                    n = 0;
 +                }
 +            } else if n < line.len() {
@@ -2232,5 +2356,49 @@ index 8c49f1c..ffbeafc 100644
 +                }
 +            }
 +        }
+     }
+ }
+diff --git a/platforms/dfr1195/src/wifi.rs b/platforms/dfr1195/src/wifi.rs
+index 6de59a8..b613369 100644
+--- a/platforms/dfr1195/src/wifi.rs
++++ b/platforms/dfr1195/src/wifi.rs
+@@ -21,8 +21,12 @@
+ 
+ use core::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+ 
++// embassy-net 0.9 (esp-radio/esp-rtos stack). Stack is a Copy handle; an embassy
++// task needs the `'static` flavour. UdpSocket::new + PacketMetadata + bind(port)
++// are unchanged 0.6->0.9; the send_to endpoint construction is the one diff
++// (see udp_writer_task). HIVE: re-confirm against the worktree's pinned versions.
+ use embassy_net::udp::UdpSocket;
+-use embassy_net::Stack;
++use embassy_net::{IpAddress, IpEndpoint, Stack};
+ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+ use embassy_sync::channel::{Channel, Sender};
+ 
+@@ -134,8 +138,22 @@ pub async fn udp_writer_task(
+ 
+     loop {
+         let dg = channel.receive().await;
+-        // send_to is fire-and-forget at our layer; drop on transient error
+-        // (the mesh re-spreads — R2-ROUTE handles loss).
+-        let _ = socket.send_to(&dg.frame, dg.dest).await;
++        // Fire-and-forget; drop on transient error (the mesh re-spreads —
++        // R2-ROUTE handles loss). embassy-net's `send_to` wants an `IpEndpoint`,
++        // not `core::net::SocketAddr`. Construct it explicitly from the IPv4
++        // address + port (the mesh is IPv4-only; `proto-ipv6` is off so the
++        // `From<SocketAddr>` blanket is unavailable). Built explicitly so it is
++        // robust across the embassy-net/smoltcp 0.6 -> 0.9 conversion change.
++        // HIVE (embassy-net 0.9): confirm `IpAddress::Ipv4` takes a
++        // `core::net::Ipv4Addr` (smoltcp >=0.12 core::net) — if your pinned
++        // smoltcp still wraps `Ipv4Address(octets)`, swap to
++        // `Ipv4Address::from_bytes(&v4.ip().octets())`.
++        let _ = match dg.dest {
++            SocketAddr::V4(v4) => {
++                let ep = IpEndpoint::new(IpAddress::Ipv4(*v4.ip()), v4.port());
++                socket.send_to(&dg.frame, ep).await
++            }
++            SocketAddr::V6(_) => Ok(()), // IPv4-only mesh
++        };
      }
  }
