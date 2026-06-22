@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..d7b122a 100644
+index 5a3c89f..07faa5a 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,13 @@ path = "src/main.rs"
@@ -57,7 +57,7 @@ index 5a3c89f..d7b122a 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +58,106 @@ embassy-futures = "0.1"
+@@ -40,6 +58,113 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -161,6 +161,13 @@ index 5a3c89f..d7b122a 100644
 +# A bridge node = loraroute (LoRa carrier) + bridge (un-gates + spawns the ESP-NOW carrier alongside). Leaf
 +# LoRa nodes = loraroute only; the ESP-NOW receiver = routetest only.
 +bridge = ["loraroute"]
++# TN-FR-4 / TN-FR-1-REL fix arm — the reliability fix Roy decided + specs pre-structured as the two-arm.
++# NEG arm = tight-PCO-synchronized-HB (default loraroute = ~2/19 @ SF7, the contention). POS/fix arm =
++# `loosehb`: the heartbeat as LOOSE jittered BACKGROUND path-maintenance (NOT the tight lub-dub PCO) — gates
++# the §4.1 PCO coupling nudge OFF (free-run, no synchronized fire) + jitters the HB period per-board so the
++# fires DECORRELATE on the half-duplex air -> collisions drop -> delivery recovers. (Data-retransmit is the
++# 2nd half of the fix arm, added on top.) Compose with loraroute/bridge for the FR-4 role-sim run.
++loosehb = []
  
  [profile.release]
  opt-level = "s"
@@ -179,10 +186,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..c435ea7 100644
+index 8c49f1c..07d8b63 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3251 @@
+@@ -1,83 +1,3269 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -834,6 +841,10 @@ index 8c49f1c..c435ea7 100644
 +    // → HBSYNC-06 false-negative). A fast sender's beats arrive in fewer of MY ms → r_src>rate → I speed up.
 +    let mut last_rx: heapless::Vec<(u32, u64), 16> = heapless::Vec::new();
 +    let mut fire_seq: u32 = 1;
++    // TN-FR-4 loosehb fix arm: per-board LCG to jitter the HB period (decorrelate fires = loose background
++    // liveness, not tight PCO). Seeded by my_hive so the boards scatter differently.
++    #[cfg(feature = "loosehb")]
++    let mut hb_lcg: u32 = my_hive ^ 0x1234_5678;
 +    let mut last_err_ms: u32 = 0; // latest coupling phase error in ms = the leaderless spread_ms metric
 +
 +    let mut scratch = [0u8; 512];
@@ -864,6 +875,13 @@ index 8c49f1c..c435ea7 100644
 +                phase += rate * HB_TICK_MS as f32; // advance at the consensus rate (cycles/ms × tick-ms)
 +                if phase >= 1.0 {
 +                    phase -= 1.0; // preserve overshoot — leaderless PCO fire (R2-HEARTBEAT v0.4)
++                    // TN-FR-4 loosehb: jitter the NEXT period (subtract 0..0.30 cycle = ~2000..2600ms at
++                    // HB_PERIOD 2s) so this board's fires DECORRELATE from peers' on the half-duplex air.
++                    #[cfg(feature = "loosehb")]
++                    {
++                        hb_lcg = hb_lcg.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
++                        phase -= ((hb_lcg >> 16) & 0xFF) as f32 / 255.0 * 0.30;
++                    }
 +                    FIRE_SIGNAL.signal(()); // main renders the organic lub-DUB envelope
 +                    // No conductor, no re-election (leaderless §2): every node fires + emits flat.
 +                    // Heartbeat payload: originator hive_id (4B) + firmware version (4B, #18).
@@ -1254,7 +1272,14 @@ index 8c49f1c..c435ea7 100644
 +                                }
 +                            };
 +                            let w: f32 = 1.0; // uniform ESP-NOW link weight (per-neighbour w = HBSYNC-09)
-+                            phase += K_PHI * w * phase_response(e); // concave bidirectional kick (§4.1)
++                            // TN-FR-4 loosehb: FREE-RUN (no PCO phase-coupling nudge) so fires don't
++                            // synchronize = loose background path-maintenance. Default = the §4.1 kick.
++                            #[cfg(not(feature = "loosehb"))]
++                            {
++                                phase += K_PHI * w * phase_response(e); // concave bidirectional kick (§4.1)
++                            }
++                            #[cfg(feature = "loosehb")]
++                            let _ = &e; // free-run: e unused for phase coupling (w still used by rate consensus)
 +                            if phase < 0.0 {
 +                                phase += 1.0;
 +                            }
