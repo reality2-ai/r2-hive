@@ -15,6 +15,20 @@ Per supervisor: continue the TN metal refutation campaign autonomously — SPEC-
 (route to specs, queue for Roy, NO canon mandate overnight), RESTORE the 2-TG baseline after each run
 (protect the live demo), commit auditable field.* records, tick off survived refutations, keep this file
 current, don't wait per-conjecture.
+- **TN-FR-2 (LoRa<->ESP-NOW gateway / DG-2 #16) = PASS / metal-green (2026-06-23).** field.* =
+  `docs/field-results/lora-fr2-0623/TN-FR-2.json` (+ raw serial). 4 DFR, ONE TG 'wairoa' (3932969629,
+  composer-prov2'd): D1=origin(480e900e) ->LoRa-> D2=router(2cab5f69) ->LoRa-> D3=BRIDGE(f91c8911, dual-radio
+  SX1262+ESP-NOW) ->ESP-NOW-> D4=receiver(06ae082b). PROVEN: **D4 (ESP-NOW-only) DELIVERED 12 distinct Events
+  that originated at D1 over LoRa (dlv=11) = the Event CROSSED LoRa->ESP-NOW**; the engine AUTO-BRIDGES — D3
+  directed_via next_hop=06ae082b x11 (transport-aware best_transport picks the ESP-NOW egress, NO bridge
+  routing code); dedup-once-across (D3 DROP-Duplicate x36, each msg_id delivered once = DG-2, dedup keys on
+  frame-carried origin, transport-agnostic); bidirectional (D4 replies retrace ESP-NOW->D3->D2->LoRa->D1,
+  D1 reply-DELIVERED x12); forced multihop (D1 masks D3-direct x48 via hardcoded can_hear_hive -> D1->D2->D3).
+  Delivery ~63% (vs FR-1's 11% — the fast ESP-NOW leg). Firmware (eed35f9): `bridge` feature + PER-TRANSPORT TX
+  channels (DATA_TX_LORA vs DATA_TX) + mesh_broadcast (bridge pushes BOTH carriers). Baseline restore in
+  progress (composer reflash+reprovision+reattach-5). NEXT: FR-2b = TRUE LoRa<->WiFi/UDP gateway w/ PI5 (Linux
+  r2-hive RECEIVER over real WiFi, composer pre-provisioned pi5 keystore); then FR-4 capstone (role sim +
+  TN-FR-1-REL loose-jittered-HB two-arm). See [[lora-message-passing-metal]].
 - **TN-FR-2 (LoRa<->WiFi gateway / DG-2 #16) = UNBLOCKED + DESIGNED, build pending composer's board map (2026-06-23).**
   core CONFIRMED (DG-2/BL-300/BL-301 sim-validated): (1) **dedup is transport-agnostic** — DedupCache keys on
   (frame-carried origin, msg_id) ONLY, so a LoRa-received frame re-forwarded on WiFi is NOT re-delivered/looped
