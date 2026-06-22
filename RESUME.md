@@ -15,6 +15,34 @@ Per supervisor: continue the TN metal refutation campaign autonomously — SPEC-
 (route to specs, queue for Roy, NO canon mandate overnight), RESTORE the 2-TG baseline after each run
 (protect the live demo), commit auditable field.* records, tick off survived refutations, keep this file
 current, don't wait per-conjecture.
+- **TN-FR-2 (LoRa<->WiFi gateway / DG-2 #16) = UNBLOCKED + DESIGNED, build pending composer's board map (2026-06-23).**
+  core CONFIRMED (DG-2/BL-300/BL-301 sim-validated): (1) **dedup is transport-agnostic** — DedupCache keys on
+  (frame-carried origin, msg_id) ONLY, so a LoRa-received frame re-forwarded on WiFi is NOT re-delivered/looped
+  (dedup on RECEIVE; engine excludes the inbound source_hop from the flood set). (2) **MTU = handle-the-reject**:
+  engine select_transport uses the FLAT LoRa MTU (222) but the DRIVER transmit() rejects > the actual lora_mtu(SF,BW)
+  (e.g. 51@SF12) — so the bridge MUST check lora.send()/transmit() result and DROP that egress on reject (BL-301;
+  never truncate/fragment, R2-TRANSPORT §2.2). (3) **the engine AUTO-BRIDGES**: NeighbourEntry.transports is a
+  bitmask; plan_forward returns Hop{neighbour,TRANSPORT} and picks egress per hop — NO bridge routing code.
+  FIRMWARE DESIGN (the bridge node = composer's D3, on both LoRa + the WiFi-island carrier):
+  - Run BOTH carriers (lora_route_task + the WiFi-island carrier) feeding the SHARED DATA_RX; pass frame-carried
+    origin (TN-FR-1 proved). Airtime-gate the LoRa egress via service(now_ms)+set_neighbour_count (WiFi->LoRa
+    Events DEFER under load, not drop). Drop-on-LoRa-MTU-reject.
+  - **KEY ARCH CHANGE**: DATA_TX is a CONSUMING channel (each frame -> ONE carrier), so it does NOT broadcast on
+    both. Need PER-TRANSPORT TX routing: either split into DATA_TX_LORA + DATA_TX_WIFI (each carrier drains its
+    own) with io_task pushing per advice's egress transport (Hop.transport for Directed; BOTH for Flood), OR a
+    transport selector on DATA_TX. This honors core's Hop{transport} auto-bridge. Leaf nodes (LoRa-only, WiFi-only)
+    use just their one channel.
+  - **TRANSPORT-TAGGED INGEST**: the HB ingest_observation currently HARDCODES transport=EspNow (main.rs ~954);
+    thread the ingress transport through DATA_RX (add a tag to MeshRxFrame) so the bridge's neighbour table tags
+    LoRa-neighbours vs WiFi-neighbours correctly = what makes plan_forward's auto-bridge work (directed). Flood
+    bridging works WITHOUT it (broadcast both + dedup), so a flood-first proof is the lower-risk first run.
+  PENDING (asked composer, queued): the minimal FR-2 board map (LoRa-island DFR + bridge D3 + WiFi-island
+  receiver) AND whether the "WiFi island" = the ESP-NOW mesh carrier (reuse espnow_task) or actual WiFi/UDP —
+  that decides the bridge's 2nd carrier (don't build it blind = spec-first). composer PROVISIONS the per-island
+  GroupHmac + MASK + roles->boards; hive builds the bridge/leaf fw + flashes + runs via its ssh. PI5-as-RECEIVER
+  is a later option. PROOF target: an Event LoRa-island -> D3 bridge -> WiFi-island, delivered EXACTLY-ONCE across
+  the bridge (DG-2). Reliability (loose-jittered-HB + retransmit) = the TN-FR-4 capstone (two-arm: tight-HB low
+  delivery vs fix-arm recovered), per specs (TN-FR-1-REL). See [[lora-message-passing-metal]].
 - **TN-FR-1 (BL-200-over-LoRa MESSAGE-PASSING) = PASS / metal-green (2026-06-23).** field.* =
   `docs/field-results/lora-fr1-0623/TN-FR-1.json` (+ raw serial). Routed Events A->B->C over LoRa on 3 DFR
   (A=480e900e, B=2cab5f69, C=f91c8911 — all TG-A), MASK-forced multi-hop: **C DELIVERED A's REQUESTs via B
