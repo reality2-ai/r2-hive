@@ -46,6 +46,15 @@ current, don't wait per-conjecture.
   NEXT (supervisor ladder): (1) core's RXEN driver param (drop manual toggle); (2) LoRa MESH = bridge
   io_task (PCO + r2-route) to the LoRa carrier (like espnow/blemesh) = multi-board LoRa heartbeat+routing;
   (3) SF12 real-distance range test; (4) cross-transport LoRa<->WiFi gateway (DG-2 #16 = HBSYNC-07 coherence).
+- **LoRa MESH = PARTIAL-FINDING (`b872008`, HBSYNC-02 transport=lora).** Built loramesh (io_task PCO+routing
+  bridged onto the LoRa carrier via half-duplex lora_mesh_task, ESP-NOW gated off). PCO syncs TIGHT pairwise
+  over LoRa (D2 e=0.001 spread=2ms = engine+bridge WORK) but the 3-board mesh doesn't SUSTAIN (nbrs->0):
+  (1) LoRa airtime (130ms+ SF7) uncompensated in the PCO phase = §4.2 reachback the interop spec flagged
+  for LoRa, METAL-CONFIRMED (D1 spread 245ms desync) -> routed SPEC-FIRST to specs/core; (2) naive bridge
+  floods all traffic over the slow half-duplex link -> HBs starved. NEXT: §4.2 airtime-comp (specs/core +
+  lora_airtime::time_on_air_ms — asked core if landed) + hive carrier traffic-shaping (HBs-prioritized,
+  ToA-aware) -> clean LoRa mesh -> SF12 range -> LoRa<->WiFi gateway (DG-2 #16). **6 metal results: BL-100,
+  BL-200, BL-103, HBSYNC-02/wifi, LoRa-first-light, LoRa-HBSYNC-partial.**
 - THEN (per supervisor): cross-transport LoRa<->WiFi gateway (DG-2, #16); BLE-mesh 'perhaps' (WAIROA-7);
   LR2021 (composer leads). SECONDARY: WiFi MASKED routing (IP-MASK port; specs queued BL-203/200-over-wifi/
   BL-000/AB-000/BL-001) + BL-100 demote sweep (#13). M-ESPNOW-3 (carry frame-origin->ForwardRequest.origin,
