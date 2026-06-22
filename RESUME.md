@@ -20,6 +20,19 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   found → note + route to specs BEFORE any code. CLEAR until the matrix lands; supervisor points me at the
   first tranche. Prereq proven: 9-board co-located 2-TG ESP-NOW mesh LIVE. See memory
   [[tn-refutation-matrix-campaign]].
+- **METAL TIER LIVE — FIRST field.* RESULT LANDED (`34aef54`).** TN-L2-IT-BL-100 (RSSI-σ mobility
+  classifier, tier=hardware-exclusive) **SURVIVED on real ESP-NOW.** Built the `rssicls` firmware (real
+  per-recv RSSI from r.info.rx_control.rssi → rolling per-neighbour σ → §2.4 classify σ<5dBm=Infra →
+  feed obs.mobility; r2-route does the differential decay). 3 XIAO captured ~11min hearing the live
+  9-board mesh: 49/49 settled (n≥20) readings σ<5dBm (min 0.19 / max 3.94 / mean 0.94) → classifier
+  holds; the prior FINDING B refutation did NOT reproduce. ROBUSTNESS finding flagged to specs (worst
+  link 3.94dBm ≈1dBm headroom = thin margin → metal evidence for the §2.4 hysteresis/stationary-margin
+  fix). Auditable record + raw serial: `docs/field-results/TN-L2-IT-BL-100.json` (specs' capture schema).
+  **NEXT: BL-200 wiring** (the first ROUTING field.*) — TrailReinforcer (`r2_route::trail`, core 7201d02)
+  synced into the worktree + compiling; wire topology-mask + reply-send (normal routing + reply_marker) +
+  the 3 reinforcer call-sites + decay_paths-from-tick + directed_via/exactly_once telemetry → run on 5
+  ESP-NOW boards. Then BL-103 (eviction+rediscovery, reuses directed_via telemetry + blackout arm).
+  KEY: metal REUSES r2-route::RouteEngine + r2_route::trail = field.* validates the REAL engine+policy.
 - **🎉 9-BOARD CO-LOCATED CROSS-HOST MESH LIVE (0622.1517, serial-verified).** Roy directive: bring the
   4 XIAO ESP32-S3 on **alfred** into the leaderless mesh with tuxedo's 5 DFR1195. DONE. Built the SAME
   `nobt` leaderless-0.4 firmware ON alfred (esp toolchain; `source ~/Development/homelab/export-esp.sh`
