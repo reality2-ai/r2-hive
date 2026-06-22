@@ -55,6 +55,14 @@ current, don't wait per-conjecture.
   lora_airtime::time_on_air_ms — asked core if landed) + hive carrier traffic-shaping (HBs-prioritized,
   ToA-aware) -> clean LoRa mesh -> SF12 range -> LoRa<->WiFi gateway (DG-2 #16). **6 metal results: BL-100,
   BL-200, BL-103, HBSYNC-02/wifi, LoRa-first-light, LoRa-HBSYNC-partial.**
+- **HBSYNC-03 sustain re-run (§4.2+shaping) = NOT green yet — deeper finding (`4700c0a` has §4.2+shaping+
+  lorareach).** Ran specs' 2x2: arm2 (shaping+§4.2) + arm1 (shaping-only) BOTH = no 3-board reception
+  (nbrs=0). Debug PROVED HBs TX'd fine (b0=0x29 mt=5 txd=true), Events dropped -> NOT shaping/§4.2. ROOT
+  CAUSE = my naive half-duplex lora_mesh_task poll-loop (drain DATA_TX + poll RX + 10ms yield) has an
+  RX/TX listen-window timing flaw -> radio misses peers multi-board. NEXT BUILD = redesign lora_mesh_task
+  per core's CONTINUOUS-RX / event-driven / ToA-aware pattern (DIO1-IRQ RX + listen-before-talk/CSMA for
+  the synchronized-fire collision; asked core for a reference shape). HB on metal = 30B unsigned (nobt),
+  §4.2 ToA used 62B -> use actual frame_len. §4.2+shaping are correct components (kept). Baseline restored.
 - THEN (per supervisor): cross-transport LoRa<->WiFi gateway (DG-2, #16); BLE-mesh 'perhaps' (WAIROA-7);
   LR2021 (composer leads). SECONDARY: WiFi MASKED routing (IP-MASK port; specs queued BL-203/200-over-wifi/
   BL-000/AB-000/BL-001) + BL-100 demote sweep (#13). M-ESPNOW-3 (carry frame-origin->ForwardRequest.origin,
