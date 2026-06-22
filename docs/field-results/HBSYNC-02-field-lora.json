@@ -1,0 +1,18 @@
+{
+  "conjecture_id": "HBSYNC-02",
+  "transport_axis": "lora",
+  "scenario_ref": "HBSYNC-02 (concave-PCO converges N>=3) — field.* on the LoRa transport (4th radio)",
+  "tier": "hardware",
+  "transport": "lora",
+  "run_id": "lora-hbsync-metal-0622",
+  "timestamp_utc": "2026-06-23T13:24:00Z",
+  "runner": "hive; 3 DFR1195 (D1 480e900e, D2 2cab5f69, D3 f91c8911), nobt,loramesh,loratcxo, io_task PCO bridged onto LoRa via lora_mesh_task, SF7/-9dBm bench",
+  "topology": "3-board LoRa broadcast mesh (SF7 BW125 916.8MHz), half-duplex carrier",
+  "expectations": [
+    { "type": "pco_sync_over_lora_pairwise", "observed": "when an HB arrives over LoRa the PCO couples TIGHT: D2 e=0.001 spread=2ms (from D1); D1 early spread 31-56ms building. The leaderless engine + LoRa carrier WORK pairwise.", "serial_ref": "lora-hbsync-0622/pco-over-lora.log", "pass": true },
+    { "type": "pco_mesh_sustain_N3", "observed": "the 3-board mesh does NOT SUSTAIN: nbrs->0 (boards lose each other), D1 desyncs (spread stuck 245ms ~= LoRa airtime, synced=false). The naive all-traffic half-duplex bridge starves HBs on the slow link.", "serial_ref": "lora-hbsync-0622/pco-over-lora.log", "pass": false }
+  ],
+  "verdict": "partial-finding",
+  "raw_serial": "docs/field-results/lora-hbsync-0622/",
+  "notes": "PARTIAL / TRANSPORT-BOUNDARY FINDING (the metal tier finding the LoRa boundary, mirroring BL-200's value). POSITIVE: the leaderless PCO converges TIGHTLY over LoRa pairwise (spread 2ms, e=0.001) = the engine is transport-agnostic to LoRa too, AND the io_task-over-LoRa bridge (one-codebase: same engine, LoRa carrier) works. FINDING: a STABLE multi-board LoRa mesh does NOT sustain with the naive bridge — nbrs->0 (peers lost) because (1) the bridge floods ALL traffic (HBs + Events, dlv/blk 32/22) over the slow half-duplex LoRa (SF7 ~130ms/frame) -> HBs starved/collided -> MESH_PEER_TTL_S eviction; (2) the LoRa AIRTIME (130ms+ SF7, 2466ms SF12) is uncompensated in the PCO phase -> a delayed-arrival HB (D1's 245ms) corrupts coupling = EXACTLY the §4.2 reachback-delay-comp the interop spec flagged as 'matters for LoRa' (metal-confirmed). FIX (routed spec-first): (a) §4.2 reachback/airtime compensation in the PCO for LoRa (using lora_airtime::time_on_air_ms, supervisor's hint) — spec/engine change for specs/core; (b) ToA-aware carrier scheduling + HBs-prioritized/rate-limited traffic over the slow link (hive's lora_mesh_task) -> next refinement. NO firmware fix applied yet (spec-first on the §4.2 aspect). SF12 real-distance + the carrier-shaping are the follow-on."
+}

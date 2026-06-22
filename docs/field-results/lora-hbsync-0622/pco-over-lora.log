@@ -1,0 +1,8 @@
+LoRa HBSYNC (HBSYNC-02 transport=lora) — 3 DFR1195 (D1 480e900e, D2 2cab5f69, D3 f91c8911), nobt,loramesh,loratcxo, SF7/-9dBm, io_task PCO bridged onto LoRa carrier (lora_mesh_task: DATA_TX->LoRa, RX->DATA_RX).
+POSITIVE — PCO SYNCS TIGHT over LoRa when an HB arrives:
+  D2: HB<-...from=480e900e e=0.001 spread=2ms ; status synced=true spread_ms=2   (pairwise sync = TIGHT, the engine + LoRa carrier work)
+  D1: early synced=true spread_ms 31->42->56, nbrs 0->1->2 (building)
+FINDING — the 3-board mesh does NOT SUSTAIN (boards lose each other over LoRa):
+  D1: an HB arrives e=-0.123 spread=245ms (~= LoRa airtime) -> synced=false, spread stuck 245ms, nbrs->0 (sustained ~15 beats)
+  D2: holds spread_ms=2 BUT nbrs 2->1->0 (stops hearing peers); high dlv/blk (32/22) = heavy traffic over the slow LoRa link
+ROOT CAUSE: the naive bridge floods ALL io_task traffic over the slow half-duplex LoRa (SF7 ~130ms/frame); HBs get starved/collided -> peers missed -> MESH_PEER_TTL_S eviction (nbrs->0) -> mesh fragments. Plus the LoRa airtime (130ms+ at SF7, 2466ms at SF12) is uncompensated in the PCO phase (§4.2 reachback) -> the delayed-arrival HB (D1's 245ms) corrupts coupling.
