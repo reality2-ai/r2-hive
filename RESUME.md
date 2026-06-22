@@ -25,8 +25,19 @@ current, don't wait per-conjecture.
   variance (evicted active too); x20 = clean contrast. Reused real engine decay_neighbours. No spec weakness.
   field.* = TN-L1-IT-BL-103.json. Baseline restored. **3 metal field.*: BL-100 survived, BL-200 resolved-pass,
   BL-103 survived.**
-- **NEXT: span radios** — BLE mesh (blemesh) then WiFi/UDP: re-run heartbeat + routing (BL-200 fix applies)
-  conjectures over each transport (matrix TRANSPORT axis). + BL-100 demote-band sweep (task #13).
+- **DONE: WiFi HB-sync SURVIVED** (`c4082c0`, TN-L0-IT-HBSYNC-WIFI). Leaderless PCO converges over WiFi/UDP
+  (3 XIAO SoftAP star, X1=AP via AP_MAC_MATCH flip, spread_ms->0-4ms, synced=true) = engine is TRANSPORT-
+  AGNOSTIC (ESP-NOW + WiFi). **4 metal field.*: BL-100, BL-200, BL-103, HBSYNC-WIFI.**
+- **BLE 2-board sync BLOCKED** (finding): blemesh M8b negotiation hardcodes M7_PROVIDER_HIVE=0x0dcadbf8 (a
+  fixed test peer) -> elects an absent provider for arbitrary pairs -> no CoC. Needs generalizing; BLE is
+  L0-2-node-only regardless -> BLE-mesh = WAIROA-7 queued for Roy.
+- **⚠️ X4 (2c81b4a3) NEEDS A POWER-CYCLE (Roy, morning):** its USB-JTAG de-enumerated during the WiFi run
+  (port vanished from /dev/serial/by-id); X1/X2/X3 restored fine to multitg (one-off X4 USB casualty, not a
+  defect). X4 is OFFLINE / stuck on the WiFi build until physically re-plugged. The 5 DFR + 3 XIAO are clean.
+- **NEXT (gated/queued):** WiFi MASKED routing (BL-200/103 over WiFi via the can_hear MASK ported to the
+  UDP/IP path — supervisor-directed; needs the IP-MASK port, now justified post-HB-sync) + BL-100 demote
+  sweep (#13) + SX1262 LoRa bring-up (core's r2-sx1262 ready; 3 confirms TCXO/RF-switch/DIO1).
+  SIM-ONLY (per specs, NOT metal): BL-204 idle-fade, L2-XT-BL-200, silence-is-signal (need ~40000s idle).
 - **M-ESPNOW-3 follow-up:** carry frame-origin in the relay frame -> ForwardRequest.origin -> r2_route
   (origin,msg_id) dedup = the canonical fix that kills the origin-degraded class (beyond BL-200).
 
