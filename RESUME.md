@@ -11,6 +11,24 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
 **Current branch:** `platform-trait` (local + pushed). Built atop the v0.2 work (`0aa6ab7`).
 
 ## Active (besides the branch) — priorities per Roy (2026-06-16)
+- **🎉 9-BOARD CO-LOCATED CROSS-HOST MESH LIVE (0622.1517, serial-verified).** Roy directive: bring the
+  4 XIAO ESP32-S3 on **alfred** into the leaderless mesh with tuxedo's 5 DFR1195. DONE. Built the SAME
+  `nobt` leaderless-0.4 firmware ON alfred (esp toolchain; `source ~/Development/homelab/export-esp.sh`
+  for the xtensa-esp-elf gcc — NOT `~/export-esp.sh`), flashed all 4 XIAO via espflash + the 4MB OTA
+  partition table (`r2-hive/docs/dfr1195-partitions.csv`) + board-profile `0x00 0x00 @0x13000`
+  (has_screen=false, led_active_low=false). Per board: ttyACM1 14:C1:9F:C4:FC:8C→af1464f4 · ttyACM2
+  E8:3D:C1:FB:DB:44 · ttyACM3 D8:3B:DA:75:C3:3C→2c81b4a3 · ttyACM4 E8:3D:C1:FB:E5:20→998de7fc.
+  RESULT: all 4 XIAO `synced=true nbrs=8` — each hears the other 8; peer maps include ALL 5 tuxedo DFR
+  hive_ids (50:23:E4=0dcadbf8, 52:99:28=06ae082b, B6:0A:A0=f91c8911, B7:90:10=2cab5f69, 50:26:98=480e900e).
+  spread 749ms→0-3ms cross-host (alfred+tuxedo, SAME ROOM) + cross-arch (XIAO+DFR1195) — RF is board-to-board,
+  host-agnostic, exactly as Roy predicted. **XIAO LED = NO code change:** GPIO21 is hardcoded for BOTH
+  carriers + polarity DEFAULTS active-HIGH (read_board_profile) = exactly what the XIAO external LEDs need;
+  a per-target LED change would have DIVERGED the build and split the mesh. **8MB vs 4MB:** XIAO flash=8MB,
+  DFR=4MB; used the 4MB table for production-parity (meshing unaffected by unused upper flash) — revisit an
+  8MB layout (`docs/dfr1195-partitions-8mb.csv`) at the OTA phase. **NEXT = STEP 3:** the 2-TG per-TG keying
+  firmware port (core `080b724` run_leaderless_multi_tg + PROVISION primitive `0b44e56`
+  r2_trust::provision::parse_provision; composer CROSS-HOST-2TG.md §6 wire contract).
+
 - **#1 LEAD TRACK: first real-hardware TN test on the DFR1195 rig.** Critical-path doc DELIVERED +
   CORRECTED (`45a7194`, `docs/hardware-tn-test-critical-path.md`). **TWO boards now live on tuxedo-os:
   ttyACM0 (S3 rev v0.1, MAC …26:98) + ttyACM1 (S3 rev v0.2, MAC …90:10)** — enough for hive-to-hive
