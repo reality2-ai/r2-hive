@@ -136,10 +136,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..a9833da 100644
+index 8c49f1c..bce02a4 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2565 @@
+@@ -1,83 +1,2567 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -636,12 +636,9 @@ index 8c49f1c..a9833da 100644
 +    let peer_ep = bcast_ep; // fire/Event broadcast endpoint (my_ip is used by health below)
 +
 +    // my_hive + hk + my_tg_hash come from the provisioned persona (or demo fallback).
-+    // routetest: TrailReinforcer pins RouteEngine to the default <64,64,64> (trail.rs API papercut —
-+    // flagged to core to make it generic over the const params); live demo keeps constrained <16,16,32>.
-+    #[cfg(not(feature = "routetest"))]
++    // Constrained-MCU engine. TrailReinforcer::on_received is now generic over the const params
++    // (core 9497a60), so routetest uses <16,16,32> directly — no workaround, no RAM penalty.
 +    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
-+    #[cfg(feature = "routetest")]
-+    let mut engine: RouteEngine<64, 64, 64> = RouteEngine::new();
 +    // Intra-TG trust: GroupHmac over the (received) group hk. `bad_hmac` = wrong key
 +    // for the negative test (a frame correctly addressed but failing the deliver-gate).
 +    #[allow(unused_mut)]
@@ -912,8 +909,13 @@ index 8c49f1c..a9833da 100644
 +                // lowest-hive-seen node (a deterministic originator for the trust-demo; NOT a sync leader).
 +                #[cfg(not(feature = "ble"))]
 +                let orig = is_ap;
-+                #[cfg(feature = "ble")]
++                #[cfg(all(feature = "ble", not(feature = "routetest")))]
 +                let orig = my_hive == lowest_heard;
++                // routetest: NO demo trust-Event origin — it floods the mesh + churns path tables,
++                // contaminating the BL-200 directed_via convergence (first run: lowest-hive D emitted 49).
++                // routetest carries ONLY the RT-REQ/RT-REPLY traffic so the trail signal is clean.
++                #[cfg(all(feature = "ble", feature = "routetest"))]
++                let orig = false;
 +                if orig && ev_tick >= 60 {
 +                    ev_tick = 0;
 +                    let good = ev_seq % 2 == 0;
