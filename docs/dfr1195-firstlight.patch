@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..06eff3e 100644
+index 5a3c89f..89f75b1 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,13 @@ path = "src/main.rs"
@@ -57,7 +57,7 @@ index 5a3c89f..06eff3e 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +58,87 @@ embassy-futures = "0.1"
+@@ -40,6 +58,91 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -142,6 +142,10 @@ index 5a3c89f..06eff3e 100644
 +# mostly listen, switch to TX when DATA_TX pending). Implies ble (the DATA_TX/RX path) + lora. Gates the
 +# ESP-NOW carrier off. SF7 bench (the 62B HB fits; SF12's 51B MTU would need a smaller HB / range test).
 +loramesh = ["lora", "ble"]
++# §4.2 reachback airtime-comp for the LoRa PCO (HBSYNC-03), gated separately from loramesh so specs' 2x2
++# decomposition is runnable: loramesh alone = shaping-only (saturation-isolation arm); loramesh+lorareach
++# = shaping + §4.2 (full fix). Implies loramesh (the airtime-comp only applies to the LoRa carrier).
++lorareach = ["loramesh"]
  
  [profile.release]
  opt-level = "s"
@@ -160,7 +164,7 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..5ea2247 100644
+index 8c49f1c..57ea2c6 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
 @@ -1,83 +1,2963 @@
@@ -1208,7 +1212,7 @@ index 8c49f1c..5ea2247 100644
 +                            // of T -> couple toward the airtime-advanced phase (rate·ToA), per core's §4.2
 +                            // on_verified_pulse_delayed (ToA fallback, no wire change). HB frame = 62B fixed.
 +                            let e = {
-+                                #[cfg(feature = "loramesh")]
++                                #[cfg(feature = "lorareach")]
 +                                {
 +                                    let toa = r2_transport::lora_airtime::time_on_air_ms(
 +                                        7,
@@ -1226,7 +1230,7 @@ index 8c49f1c..5ea2247 100644
 +                                    }
 +                                    ee
 +                                }
-+                                #[cfg(not(feature = "loramesh"))]
++                                #[cfg(not(feature = "lorareach"))]
 +                                {
 +                                    if phase <= 0.5 {
 +                                        -phase
