@@ -136,10 +136,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..5b28068 100644
+index 8c49f1c..a9833da 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2422 @@
+@@ -1,83 +1,2565 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -636,7 +636,12 @@ index 8c49f1c..5b28068 100644
 +    let peer_ep = bcast_ep; // fire/Event broadcast endpoint (my_ip is used by health below)
 +
 +    // my_hive + hk + my_tg_hash come from the provisioned persona (or demo fallback).
++    // routetest: TrailReinforcer pins RouteEngine to the default <64,64,64> (trail.rs API papercut —
++    // flagged to core to make it generic over the const params); live demo keeps constrained <16,16,32>.
++    #[cfg(not(feature = "routetest"))]
 +    let mut engine: RouteEngine<16, 16, 32> = RouteEngine::new();
++    #[cfg(feature = "routetest")]
++    let mut engine: RouteEngine<64, 64, 64> = RouteEngine::new();
 +    // Intra-TG trust: GroupHmac over the (received) group hk. `bad_hmac` = wrong key
 +    // for the negative test (a frame correctly addressed but failing the deliver-gate).
 +    #[allow(unused_mut)]
@@ -644,6 +649,13 @@ index 8c49f1c..5b28068 100644
 +    let bad_hmac = GroupHmac::new([0xFF; 32]);
 +    let mut ev_tick: u32 = 0;
 +    let mut ev_seq: u32 = 1;
++    // BL-200 §4.3.4: shared reinforcement policy (r2_route::trail, drift-gate-faithful to sim). CAP =
++    // in-flight (origin,msgid) window. note_forwarded at send/relay; on_received does weak/strong + the
++    // black-hole guard internally. routetest only; live demo untouched.
++    #[cfg(feature = "routetest")]
++    let mut reinforcer = r2_route::trail::TrailReinforcer::<256>::new();
++    #[cfg(feature = "routetest")]
++    let mut rt_seq: u16 = 1; // routetest request msg_id counter (this origin); u16 to match reply_marker
 +    // Leaderless reachback-PCO (R2-HEARTBEAT v0.4 — PINNED CANON, replacing conductor-PLL after the
 +    // 3-node-flap refutation): flat identical nodes, NO conductor, NO election, NO single originator.
 +    // `lowest_heard` is kept ONLY as a deterministic demo-Event originator + dashboard hint — the SYNC
@@ -800,6 +812,43 @@ index 8c49f1c..5b28068 100644
 +                    #[cfg(feature = "rssicls")]
 +                    if fire_seq % 5 == 0 {
 +                        rssi_report();
++                    }
++                    // BL-200 origin (routetest): if SENDTO'd, A emits a directed REQUEST to D every ~6s.
++                    // payload = my_hive(4B)++b"req"; event_hash=ROUTETEST_HASH; reply-wanted. note_forwarded
++                    // marks us on-path so the returning reply strong-reinforces the trail (used-path-wins).
++                    #[cfg(feature = "routetest")]
++                    {
++                        let dest = ROUTETEST_DEST.load(Ordering::Relaxed);
++                        if dest != 0 && fire_seq % 3 == 0 {
++                            let mut rp = [0u8; 7];
++                            rp[0..4].copy_from_slice(&my_hive.to_be_bytes());
++                            rp[4..7].copy_from_slice(b"req");
++                            let hdr = ExtendedHeader {
++                                version: 0,
++                                msg_type: MsgType::Event,
++                                flags: Flags { mcu_origin: true, ..Default::default() },
++                                ttl: 5,
++                                k: 3,
++                                msg_id: rt_seq as u32,
++                                event_hash: ROUTETEST_HASH,
++                                payload_len: 7,
++                                target_group: my_tg_hash,
++                                target_hive: dest,
++                            };
++                            let mut msg = ExtendedMessage { header: hdr, route: None, payload: &rp, hmac_tag: None };
++                            let (flags, tag) = sign_extended(&msg, &group_hmac);
++                            msg.header.flags = flags;
++                            msg.hmac_tag = Some(tag);
++                            reinforcer.note_forwarded(my_hive, rt_seq); // origin is on its own path
++                            if let Ok(n) = encode_extended(&msg, &mut txbuf) {
++                                let mut f = [0u8; 256];
++                                let mm = n.min(256);
++                                f[..mm].copy_from_slice(&txbuf[..mm]);
++                                let _ = DATA_TX.try_send((f, mm));
++                                println!("r2-dfr1195: RT-REQ msg_id={rt_seq} -> {dest:08x}");
++                            }
++                            rt_seq = rt_seq.wrapping_add(1).max(1);
++                        }
 +                    }
 +
 +                    // #18 health telemetry: every 3rd beat (~6s) emit the health frame on serial — comfortably
@@ -1072,6 +1121,16 @@ index 8c49f1c..5b28068 100644
 +                            continue;
 +                        }
 +                        let now = embassy_time::Instant::now().as_secs() as u32;
++                        // BL-200 §4.3.4: feed the reinforcer for routetest Events (origin in payload[0..4],
++                        // marker in payload[4..]). on_received does weak(forward)/strong(reply-i-forwarded)
++                        // + the black-hole guard internally; we just supply (frame_origin, marker, sender).
++                        #[cfg(feature = "routetest")]
++                        if h.event_hash == ROUTETEST_HASH && m.payload.len() >= 4 {
++                            let frame_origin = u32::from_be_bytes([
++                                m.payload[0], m.payload[1], m.payload[2], m.payload[3],
++                            ]);
++                            reinforcer.on_received(&mut engine, frame_origin, &m.payload[4..], src_hive, now);
++                        }
 +                        let req = ForwardRequest {
 +                            now,
 +                            msg_id: h.msg_id as u16,
@@ -1137,6 +1196,15 @@ index 8c49f1c..5b28068 100644
 +                                    ForwardAction::Directed(_) | ForwardAction::Flood(_)
 +                                )
 +                            {
++                                // BL-200: relaying puts us on this msg's forward path → note it so the
++                                // returning reply strong-reinforces the trail through us (used-path-wins).
++                                #[cfg(feature = "routetest")]
++                                if h.event_hash == ROUTETEST_HASH && m.payload.len() >= 4 {
++                                    let o = u32::from_be_bytes([
++                                        m.payload[0], m.payload[1], m.payload[2], m.payload[3],
++                                    ]);
++                                    reinforcer.note_forwarded(o, h.msg_id as u16);
++                                }
 +                                let mut fwd = m; // ExtendedMessage is Copy
 +                                fwd.header.ttl -= 1;
 +                                if let Ok(n) = encode_extended(&fwd, &mut txbuf) {
@@ -1170,6 +1238,57 @@ index 8c49f1c..5b28068 100644
 +                                        "r2-dfr1195: DELIVERED msg_id={} '{}' (tg+hmac ok)",
 +                                        h.msg_id, body
 +                                    );
++                                    // BL-200: D replies to a delivered REQUEST → the reply retraces +
++                                    // STRONG-reinforces the trail hop-by-hop (normal routing back to origin,
++                                    // NOT route-stack reversal). payload = my_hive(4B)++reply_marker(orig,id).
++                                    #[cfg(feature = "routetest")]
++                                    if h.event_hash == ROUTETEST_HASH
++                                        && m.payload.len() >= 7
++                                        && &m.payload[4..7] == b"req"
++                                    {
++                                        let req_origin = u32::from_be_bytes([
++                                            m.payload[0], m.payload[1], m.payload[2], m.payload[3],
++                                        ]);
++                                        let marker =
++                                            r2_route::trail::reply_marker(req_origin, h.msg_id as u16);
++                                        let mb = marker.as_bytes();
++                                        let ml = mb.len().min(24);
++                                        let mut rp = [0u8; 28];
++                                        rp[0..4].copy_from_slice(&my_hive.to_be_bytes());
++                                        rp[4..4 + ml].copy_from_slice(&mb[..ml]);
++                                        let plen = 4 + ml;
++                                        let rhdr = ExtendedHeader {
++                                            version: 0,
++                                            msg_type: MsgType::Event,
++                                            flags: Flags { mcu_origin: true, ..Default::default() },
++                                            ttl: 5,
++                                            k: 3,
++                                            msg_id: h.msg_id,
++                                            event_hash: ROUTETEST_HASH,
++                                            payload_len: plen as u32,
++                                            target_group: my_tg_hash,
++                                            target_hive: req_origin,
++                                        };
++                                        let mut rmsg = ExtendedMessage {
++                                            header: rhdr,
++                                            route: None,
++                                            payload: &rp[..plen],
++                                            hmac_tag: None,
++                                        };
++                                        let (rf, rt) = sign_extended(&rmsg, &group_hmac);
++                                        rmsg.header.flags = rf;
++                                        rmsg.hmac_tag = Some(rt);
++                                        if let Ok(rn) = encode_extended(&rmsg, &mut txbuf) {
++                                            let mut f = [0u8; 256];
++                                            let mm = rn.min(256);
++                                            f[..mm].copy_from_slice(&txbuf[..mm]);
++                                            let _ = DATA_TX.try_send((f, mm));
++                                            println!(
++                                                "r2-dfr1195: RT-REPLY -> {req_origin:08x} req_msg_id={}",
++                                                h.msg_id
++                                            );
++                                        }
++                                    }
 +                                } else {
 +                                    BLOCKED.fetch_add(1, Ordering::Relaxed);
 +                                    println!(
@@ -1206,6 +1325,13 @@ index 8c49f1c..5b28068 100644
 +/// 0 off) addressed to a hive_id makes THAT board light its LED SOLID, overriding the lub-dub,
 +/// for ~5s (or until an off frame). Set as a 50ms-tick countdown (no clock needed).
 +const IDENTIFY_HASH: u32 = r2_fnv::fnv1a_32(b"r2.hb.identify");
++// BL-200 routetest: event_hash discriminator for distributed-trail request/reply Events (so the
++// §4.3.4 reinforcer acts ONLY on them, not health/identify/trust-demo Events).
++#[cfg(feature = "routetest")]
++const ROUTETEST_HASH: u32 = r2_fnv::fnv1a_32(b"r2.tn.routetest");
++// SENDTO target: if non-zero, THIS board is the origin (A) and sends directed requests to this dest (D).
++#[cfg(feature = "routetest")]
++static ROUTETEST_DEST: AtomicU32 = AtomicU32::new(0);
 +static IDENTIFY_TICKS: AtomicU32 = AtomicU32::new(0); // 50ms LED-loop ticks of SOLID remaining
 +
 +// ─────────────────────────── Real-TG persona (#20) ───────────────────────────
@@ -2291,7 +2417,24 @@ index 8c49f1c..5b28068 100644
 +                        set_mask(&macs);
 +                        println!("r2-dfr1195: MASK-SET allowed_neighbours={}", macs.len());
 +                    }
-+                    if !is_provision && !is_mask {
++                    // routetest: 'SENDTO <dest_hex>' makes THIS board the BL-200 origin (A) sending
++                    // directed requests to <dest> (D). 'SENDTO 0' clears it. Self-applied per-tty.
++                    #[cfg(feature = "routetest")]
++                    let is_sendto = line[..n].starts_with(b"SENDTO ");
++                    #[cfg(not(feature = "routetest"))]
++                    let is_sendto = false;
++                    #[cfg(feature = "routetest")]
++                    if is_sendto {
++                        if let Ok(s) = core::str::from_utf8(&line[..n]) {
++                            if let Some(tok) = s.split_ascii_whitespace().nth(1) {
++                                if let Ok(dest) = u32::from_str_radix(tok, 16) {
++                                    ROUTETEST_DEST.store(dest, Ordering::Relaxed);
++                                    println!("r2-dfr1195: SENDTO-SET dest={dest:08x} (this board = BL-200 origin)");
++                                }
++                            }
++                        }
++                    }
++                    if !is_provision && !is_mask && !is_sendto {
 +                    if let Some((target, on)) = parse_identify(&line[..n]) {
 +                        let payload = [u8::from(on)];
 +                        let hdr = ExtendedHeader {
