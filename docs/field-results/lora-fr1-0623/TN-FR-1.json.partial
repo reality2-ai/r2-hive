@@ -1,0 +1,26 @@
+{
+  "conjecture": "TN-FR-1",
+  "title": "BL-200 message-passing over LoRa — route an Event A->B->C, MASK-forced multi-hop",
+  "tier": "hardware",
+  "transport": "lora",
+  "topology": "L1-multihop (chain A-B-C; A<->C masked)",
+  "scope": "intra-TG",
+  "payload": "events",
+  "run_id": "lora-fr1-metal-0623",
+  "timestamp_utc": "PENDING",
+  "runner": "hive; 3 tuxedo DFR1195 (A 0dcadbf8, B 2cab5f69, C f91c8911), features nobt,loraroute,loratcxo, core's r2-sx1262 + r2-transport LoRaTransport data-plane, via ssh tuxedo serial",
+  "hardware": "DFR1195 (FireBeetle 2 ESP32-S3) + SX1262; SPI3 SCK7/MISO5/MOSI6, NSS10, RST41, BUSY40, RXEN42, DIO1=4; TCXO DIO3 1.8V",
+  "config": "wairoa_as923_nz bench: 916.8MHz/BW125/SF7(bench)/CR45/sync0x21/CRC/explicit/TCXO1.8V/tx_power-9dBm(bench). LoRa-carrier 4B immediate-sender prepend; hive-MASK A={B} B={A,C} C={B}",
+  "firmware_commit": "r2-hive 4042042 (loraroute)",
+  "expectations": [
+    { "type": "neighbour_discovery_over_lora", "observed": "PENDING — B ingests A+C from HBs (nbrs=2); A,C see only B (nbrs=1)", "pass": null },
+    { "type": "directed_via", "observed": "PENDING — B logs directed_via from=2cab5f69 next_hop=f91c8911 for A's REQUEST (routed, not flooded)", "pass": null },
+    { "type": "multihop_forced", "observed": "PENDING — C delivers ONLY the B-relayed copy; A's direct frame is MASK-dropped at C (no direct-from-A RX/DELIVER)", "pass": null },
+    { "type": "exactly_once_at_C", "observed": "PENDING — each distinct msg_id DELIVERED exactly once at C; repeats -> DEDUP (per-(origin=A,msg_id) dedup, the fr_origin fix)", "pass": null },
+    { "type": "led_flash_on_receipt", "observed": "PENDING — C's LED flashes ~400ms on each DELIVERED (Roy's eyes); distinct from heartbeat (suppressed under loraroute)", "pass": null },
+    { "type": "reply_retrace", "observed": "PENDING — C emits reply (reply_msg_id high-bit); A DELIVERS it via B", "pass": null }
+  ],
+  "verdict": "PENDING",
+  "raw_serial": "docs/field-results/lora-fr1-0623/",
+  "notes": "First message-passing metal result on the Wairoa radio (TN-FR-1). The PROVEN io_task r2-route + §4.3.4 TrailReinforcer run over the LoRa carrier via core's READY LoRaTransport::service() data-plane (continuous-RX + TX-pacing + §4.2/§4.3 airtime-gating). The 4B immediate-sender prepend is the LoRa analogue of ESP-NOW's L2 src MAC on a MAC-less broadcast medium (feeds the can_hear MASK + the §4.3.4 src_hive); the R2-WIRE origin (A) is carried inside the frame -> ForwardRequest.origin (the BL-200/M-ESPNOW-3 fix, was 0). Baseline (2-TG demo) restored after."
+}
