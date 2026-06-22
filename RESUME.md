@@ -10,6 +10,23 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
 
 **Current branch:** `platform-trait` (local + pushed). Built atop the v0.2 work (`0aa6ab7`).
 
+## OVERNIGHT AUTONOMOUS CAMPAIGN (2026-06-22, supervisor grant; Roy winding down)
+Per supervisor: continue the TN metal refutation campaign autonomously — SPEC-FIRST on any weakness
+(route to specs, queue for Roy, NO canon mandate overnight), RESTORE the 2-TG baseline after each run
+(protect the live demo), commit auditable field.* records, tick off survived refutations, keep this file
+current, don't wait per-conjecture.
+- **DONE: BL-200 RESOLVED + PASS/metal-green** (one-line reply-msgid u16-dedup collision; fix=shared
+  `r2_route::trail::reply_msg_id`, commits up to `9fe9068`; §4.3.4 vindicated, §4.6-MUST refuted; baseline
+  restored-clean 5/5 DFR multitg). Metal field.* count: BL-100 survived, BL-200 resolved-pass.
+- **IN FLIGHT: BL-103** (neighbour eviction+rediscovery) — firmware READY (`7f1969d`: fastevict route-clock
+  x120 + NBR-TBL telemetry; reuses blackout 30s mute). Awaiting composer XIAO window (requested). Decidable:
+  a peer's NBR-TBL shows the silent board decay->evict->rediscover.
+- **NEXT: span radios** — BLE mesh (blemesh) then WiFi/UDP: re-run heartbeat + routing (BL-200 fix applies)
+  conjectures over each transport (matrix TRANSPORT axis). + BL-100 demote-band sweep (task #13).
+- **M-ESPNOW-3 follow-up:** carry frame-origin in the relay frame -> ForwardRequest.origin -> r2_route
+  (origin,msg_id) dedup = the canonical fix that kills the origin-degraded class (beyond BL-200).
+
+
 ## Active (besides the branch) — priorities per Roy (2026-06-16)
 - **NEXT TRACK — TN REFUTATION MATRIX (hive = METAL runner).** Roy's big campaign: every
   routing+message-passing edge case across ALL transports, conjecture/refutation, coverage dashboard.
