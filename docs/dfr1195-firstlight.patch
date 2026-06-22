@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..174496a 100644
+index 5a3c89f..35e2c0f 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,7 +54,7 @@ index 5a3c89f..174496a 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,60 @@ embassy-futures = "0.1"
+@@ -40,6 +55,66 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -112,6 +112,12 @@ index 5a3c89f..174496a 100644
 +# mean/σ/n/class per neighbour = the hardware-tier measurement (does the σ<5dBm classifier hold on real RF,
 +# or does stationary multipath/AGC jitter misclassify INFRA as MOBILE — HIVE FINDING B's predicted refutation).
 +rssicls = ["ble"]
++# TN-L1-IT-BL-200/103 metal field.*: routing/reinforcement test build. Configurable topology MASK
++# (runtime allowed-MAC list via serial 'MASK' cmd → can_hear shapes the chain) + directed-DATA-with-reply
++# origin + the §4.3.4 r2_route::trail::TrailReinforcer (note_forwarded/on_received/reply_marker, black-hole
++# guard encapsulated) around the reused RouteEngine + decay_paths-from-tick + directed_via/flooded telemetry.
++# Field-decides used-path-wins (200) + eviction/rediscovery (103) on real ESP-NOW. Implies ble.
++routetest = ["ble"]
  
  [profile.release]
  opt-level = "s"
@@ -130,10 +136,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..f16cb11 100644
+index 8c49f1c..316c542 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2319 @@
+@@ -1,83 +1,2347 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -777,6 +783,10 @@ index 8c49f1c..f16cb11 100644
 +                    // the current conductor (CHANGE = reform/re-elect). composer reads these off the status line.
 +                    let now_s = embassy_time::Instant::now().as_secs() as u32;
 +                    engine.decay_neighbours(now_s); // route-engine pruning (routing)
++                    // §4.3.4 idle-fade: decay path confidence too (used-path-wins reverts to flood when
++                    // idle = BL-204 + the eviction horizon BL-103 leans on). PATH_DECAY_MU runs in-engine.
++                    #[cfg(feature = "routetest")]
++                    engine.decay_paths(now_s);
 +                    // Dashboard mesh size = peers heard within MESH_PEER_TTL_S (fast join++/leave--).
 +                    let live = seen
 +                        .iter()
@@ -924,6 +934,9 @@ index 8c49f1c..f16cb11 100644
 +                    scratch[..len].copy_from_slice(&got.0[..len]);
 +                    (len, MESH_LABEL)
 +                };
++                // §4.3.4 (routetest): immediate-sender hive threaded from espnow_task (0=unknown).
++                #[cfg(all(feature = "ble", feature = "routetest"))]
++                let src_hive = got.2;
 +                match decode_extended(&scratch[..n]) {
 +                Ok(m) => match m.header.msg_type {
 +                    MsgType::Heartbeat => {
@@ -1090,13 +1103,15 @@ index 8c49f1c..f16cb11 100644
 +                                    "r2-dfr1195: RX-EV msg_id={} DeliverOnly nbrs={nbrs}",
 +                                    h.msg_id
 +                                ),
-+                                ForwardAction::Directed(_) => println!(
-+                                    "r2-dfr1195: RX-EV msg_id={} Directed nbrs={nbrs}",
-+                                    h.msg_id
++                                // directed_via{from:me,next_hop:Y} = single directed relay (specs schema).
++                                ForwardAction::Directed(hop) => println!(
++                                    "r2-dfr1195: RX-EV msg_id={} directed_via from={my_hive:08x} next_hop={:08x} nbrs={nbrs}",
++                                    h.msg_id, hop.neighbour
 +                                ),
-+                                ForwardAction::Flood(_) => println!(
-+                                    "r2-dfr1195: RX-EV msg_id={} Flood nbrs={nbrs}",
-+                                    h.msg_id
++                                // flooded{from:me} fanout = eligible-neighbour count (specs schema).
++                                ForwardAction::Flood(hops) => println!(
++                                    "r2-dfr1195: RX-EV msg_id={} flooded from={my_hive:08x} fanout={} nbrs={nbrs}",
++                                    h.msg_id, hops.len()
 +                                ),
 +                            }
 +                        }
@@ -1512,10 +1527,7 @@ index 8c49f1c..f16cb11 100644
 +async fn net_task(mut runner: Runner<'static, wifi::Interface<'static>>) -> ! {
 +    runner.run().await
 +}
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +/// #24 BLE control plane: bt-hci ExternalController over the esp-radio BLE connector → trouble-host
 +/// → advertise an R2 beacon. MILESTONE 3 = advertise (observable by a scanner) while WiFi coex holds.
 +/// (Placeholder AD carries the hive_id; the real RBID/R2-BEACON AD codec from r2-core lands next,
@@ -1762,7 +1774,7 @@ index 8c49f1c..f16cb11 100644
 +                        let l = len.min(256);
 +                        let mut f = [0u8; 256];
 +                        f[..l].copy_from_slice(&buf[2..2 + l]);
-+                        let _ = DATA_RX.try_send((f, l)); // → io_task PLL / deliver-gate
++                        let _ = DATA_RX.try_send((f, l, 0)); // → io_task PLL / deliver-gate (CoC sender hive unknown)
 +                    }
 +                }
 +                Ok(_) => {}
@@ -1868,12 +1880,19 @@ index 8c49f1c..f16cb11 100644
 +/// Signalled by join_provider → the wifi task connects the joiner to the provider's SoftAP (M8c).
 +#[cfg(feature = "ble")]
 +static DATA_PLANE_JOIN: Signal<CriticalSectionRawMutex, ()> = Signal::new();
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +/// Heartbeat-over-ESP-NOW BRIDGE (mesh): io_task's PROVEN conductor-PLL drives these channels instead of
 +/// the UDP socket (cfg-gated). DATA_TX = beats io_task wants broadcast → espnow_task ESP-NOW-broadcasts.
 +/// DATA_RX = frames espnow_task received → io_task's recv-select reads them. Reuses the exact PLL, no AP.
 +#[cfg(feature = "ble")]
 +type MeshFrame = ([u8; 256], usize);
++// DATA_RX carries the immediate-sender hive (resolved from the L2 src MAC in espnow_task) so the
++// §4.3.4 TrailReinforcer (routetest) can weak/strong-reinforce toward it. 0 = unknown sender.
++#[cfg(feature = "ble")]
++type MeshRxFrame = ([u8; 256], usize, u32);
 +// Transport label for accurate serial evidence (Roy's eyes = ground truth — never log "esp-now" over BLE).
 +#[cfg(all(feature = "ble", not(feature = "blemesh")))]
 +const MESH_LABEL: &str = "esp-now";
@@ -1887,9 +1906,14 @@ index 8c49f1c..f16cb11 100644
 +static DATA_TX: embassy_sync::channel::Channel<CriticalSectionRawMutex, MeshFrame, 4> =
 +    embassy_sync::channel::Channel::new();
 +#[cfg(feature = "ble")]
-+static DATA_RX: embassy_sync::channel::Channel<CriticalSectionRawMutex, MeshFrame, 4> =
++static DATA_RX: embassy_sync::channel::Channel<CriticalSectionRawMutex, MeshRxFrame, 4> =
 +    embassy_sync::channel::Channel::new();
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +/// M-ESPNOW-2: hive_id↔WiFi-MAC map, LEARNED from the ESP-NOW recv src (core's design — no MAC in the
 +/// beacon). Populated from each received frame's originator hive + its L2 src MAC. r2-route unicast
 +/// (M-ESPNOW-3) looks up map[hive_id] → ESP-NOW send_to(mac). Broadcast (heartbeat) needs no map.
@@ -1898,12 +1922,7 @@ index 8c49f1c..f16cb11 100644
 +    CriticalSectionRawMutex,
 +    core::cell::RefCell<heapless::Vec<(u32, [u8; 6]), 16>>,
 +> = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(heapless::Vec::new()));
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +/// M-ESPNOW-3b BENCH multi-hop allow-list (core's technique): a per-board can-hear MAC set, applied at
 +/// the ESP-NOW recv BEFORE r2-route, so A→B→C relay is exercised on a bench (all 1-hop in-range) without
 +/// physical separation. Topology: A(0dcadbf8)={B}, B(2cab5f69)={A,C}, C(f91c8911)={B} → A↔C NOT direct →
@@ -1979,7 +1998,20 @@ index 8c49f1c..f16cb11 100644
 +        }
 +    })
 +}
- 
++
++/// Reverse lookup: the immediate-sender hive for an L2 src MAC (learned from heartbeats). 0 = unknown
++/// (peer not heartbeated yet). Used to thread src_hive into DATA_RX for the §4.3.4 TrailReinforcer.
++#[cfg(feature = "ble")]
++fn hive_for_mac(mac: &[u8; 6]) -> u32 {
++    HIVE_MAC.lock(|c| {
++        c.borrow()
++            .iter()
++            .find(|(_, m)| m == mac)
++            .map(|(h, _)| *h)
++            .unwrap_or(0)
++    })
++}
++
 +/// Push a resolved scan observation for the engine's poll_scan (called from on_adv_reports).
 +#[cfg(feature = "ble")]
 +#[allow(dead_code)]
@@ -2113,7 +2145,9 @@ index 8c49f1c..f16cb11 100644
 +            let n = d.len().min(256);
 +            let mut f = [0u8; 256];
 +            f[..n].copy_from_slice(&d[..n]);
-+            let _ = DATA_RX.try_send((f, n)); // → io_task PLL (the sync)
++            // src_hive = immediate-sender hive (reverse-lookup the L2 src MAC; 0 until it heartbeats).
++            let src_hive = hive_for_mac(&s);
++            let _ = DATA_RX.try_send((f, n, src_hive)); // → io_task PLL (the sync) + §4.3.4 reinforce
 +            // M-ESPNOW-2: learn hive_id↔MAC from the recv — the R2-WIRE Heartbeat payload carries the
 +            // originator hive (be32), the L2 src MAC is r.info.src_address. Map for r2-route unicast (M-ESPNOW-3).
 +            if let Ok(m) = r2_wire::decode_extended(&d[..n]) {
@@ -2264,7 +2298,7 @@ index 8c49f1c..f16cb11 100644
 +        ota_receiver(stack).await; // the deliverable: accept a streamed network OTA
 +    }
 +}
-+
+ 
 +/// OTA network receiver (#17). Streams an image over UDP into the INACTIVE OTA slot and,
 +/// on a SHA-256-verified COMMIT, activates it + reboots — the no-USB update path. The
 +/// flash writes run with WiFi up (de-risked: ~20ms/sector, heartbeat-safe), so no quiesce.
