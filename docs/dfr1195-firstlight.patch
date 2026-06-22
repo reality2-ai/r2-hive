@@ -136,10 +136,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..7e25543 100644
+index 8c49f1c..f85ee75 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2703 @@
+@@ -1,83 +1,2709 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -869,7 +869,9 @@ index 8c49f1c..7e25543 100644
 +                                let _ = DATA_TX.try_send((f, mm));
 +                                println!("r2-dfr1195: RT-REQ msg_id={rt_seq} -> {dest:08x}");
 +                            }
-+                            rt_seq = rt_seq.wrapping_add(1).max(1);
++                            // Cap to 15 bits so the reply id (req_id | 0x8000) NEVER collides with a
++                            // request id under the u16 dedup (core's caveat: req_id >= 0x8000 would alias).
++                            rt_seq = if rt_seq >= 0x7FFF { 1 } else { rt_seq + 1 };
 +                        }
 +                    }
 +
@@ -1327,9 +1329,13 @@ index 8c49f1c..7e25543 100644
 +                                            // floods" divergence. High bit separates reply-space from request-space
 +                                            // (request ids are small u16); the request msg_id stays in the
 +                                            // reply_marker payload for correlation. NOT a spec gap.
-+                                            // NB: dedup keys on `msg_id as u16` (low 16 bits), so the
-+                                            // distinguishing bit MUST be in the low 16 — 0x8000, not 0x8000_0000.
-+                                            msg_id: h.msg_id | 0x8000,
++                                            // SHARED helper (core e23e7d4, one-codebase like reply_marker):
++                                            // reply ids live in [0x8000,0xFFFF], requests in [0,0x7FFF] —
++                                            // DISJOINT by construction (masks to 15 bits first), so the reply
++                                            // never collides with the request under the u16-truncated dedup.
++                                            // Harness reply-emit uses the same helper. (Deeper canonical fix =
++                                            // carry frame-origin=D + (origin,msg_id) dedup = M-ESPNOW-3 TODO.)
++                                            msg_id: r2_route::trail::reply_msg_id(h.msg_id as u16) as u32,
 +                                            event_hash: ROUTETEST_HASH,
 +                                            payload_len: plen as u32,
 +                                            target_group: my_tg_hash,
