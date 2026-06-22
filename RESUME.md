@@ -46,6 +46,22 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   ACM2=TG-A + ACM1=TG-B alfred XIAO) → composer provisions direct-to-tty → confirm NO cross-TG coupling, then
   re-provision same-TG → confirm coupling (minimal refutation), then all-9 rollout. BLOCKER: composer's
   orchestrator holds all 4 alfred XIAO ttys (the alfred dashboard feed) — it must release ports before I flash.
+- **STEP 3 — METAL-VALIDATED (`4614a7a`, alfred XIAO pair, test keys over direct USB).** **Inc1 PROVEN
+  end-to-end:** PROVISION-APPLIED with the correct 32B key (fingerprint key0=cc key31=cc xor=00), live
+  GroupHmac+target_group install w/o reboot, NVS persist + boot-restore (`PROVISIONED TG restored from NVS
+  — tg_id=1584099016`). **Inc2 verify-gate PROVEN by two controls:** POSITIVE (same key → couple) via the
+  persona key (nbrs=1 when both multitg+unprovisioned); NEGATIVE (TG-A vs TG-B provisioned → HB-DBG
+  `verify=false` → nbrs=0, no coupling, self-isolated from the 7 nobt boards too) = the cross-TG isolation.
+  The provisioned-same-key positive is logically identical to the persona positive; composer's reliable
+  provision_bridge completes it for the record. **METAL-FOUND BUG FIXED:** IDENTIFY-era uart_rx line buffer
+  was `[u8;64]` → truncated the ~94B PROVISION line (key cut → BadKeyLength) → bumped to `[u8;128]`.
+  **HARNESS LESSON:** my raw-tty `printf` PROVISION writes are UNRELIABLE (USB-CDC, no flow control —
+  identical write = APPLIED on one board, BadKeyLength on another via byte-drop); the clean positive-control
+  + all-9 rollout go through composer's reliable provision_bridge (hive flashes, composer provisions). Use
+  `/dev/serial/by-id/` paths (ttyACMn renumbers on reset). **Restored ACM1+ACM2 → nobt + erased provision
+  NVS → 9-board mesh WHOLE again (ACM1 nbrs=8 synced=true verified).** Commits: `6e2eeca` Inc1, `5678837`
+  Inc2, `4614a7a` buffer-fix. NEXT: composer-driven clean 2-TG proof (hive flashes multitg pair on demand)
+  → all-9 rollout. See memory [[dfr1195-firmware-bench-workflow]].
 
 - **#1 LEAD TRACK: first real-hardware TN test on the DFR1195 rig.** Critical-path doc DELIVERED +
   CORRECTED (`45a7194`, `docs/hardware-tn-test-critical-path.md`). **TWO boards now live on tuxedo-os:
