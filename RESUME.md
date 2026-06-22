@@ -11,6 +11,15 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
 **Current branch:** `platform-trait` (local + pushed). Built atop the v0.2 work (`0aa6ab7`).
 
 ## Active (besides the branch) — priorities per Roy (2026-06-16)
+- **NEXT TRACK — TN REFUTATION MATRIX (hive = METAL runner).** Roy's big campaign: every
+  routing+message-passing edge case across ALL transports, conjecture/refutation, coverage dashboard.
+  Axes: topology(L0 full/L1 multihop/L2 SCF-beyond-radio/L3 partition+heal) × scope(intra/inter-TG) ×
+  trust-plane(above/below-TG) × payload(events/data) × transport(BLE/WiFi/ESP-NOW/LoRa/UDP) + edge cases.
+  Flow: specs authors matrix+schema (IN PROGRESS) → core sim-tier harness → **hive runs the METAL tier on
+  the 9 co-located boards spanning all radios** (`field.*` = metal only). **SPEC-FIRST INVIOLABLE:** weakness
+  found → note + route to specs BEFORE any code. CLEAR until the matrix lands; supervisor points me at the
+  first tranche. Prereq proven: 9-board co-located 2-TG ESP-NOW mesh LIVE. See memory
+  [[tn-refutation-matrix-campaign]].
 - **🎉 9-BOARD CO-LOCATED CROSS-HOST MESH LIVE (0622.1517, serial-verified).** Roy directive: bring the
   4 XIAO ESP32-S3 on **alfred** into the leaderless mesh with tuxedo's 5 DFR1195. DONE. Built the SAME
   `nobt` leaderless-0.4 firmware ON alfred (esp toolchain; `source ~/Development/homelab/export-esp.sh`
