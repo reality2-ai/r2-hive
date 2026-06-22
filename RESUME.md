@@ -60,8 +60,15 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   + all-9 rollout go through composer's reliable provision_bridge (hive flashes, composer provisions). Use
   `/dev/serial/by-id/` paths (ttyACMn renumbers on reset). **Restored ACM1+ACM2 → nobt + erased provision
   NVS → 9-board mesh WHOLE again (ACM1 nbrs=8 synced=true verified).** Commits: `6e2eeca` Inc1, `5678837`
-  Inc2, `4614a7a` buffer-fix. NEXT: composer-driven clean 2-TG proof (hive flashes multitg pair on demand)
-  → all-9 rollout. See memory [[dfr1195-firmware-bench-workflow]].
+  Inc2, `4614a7a` buffer-fix. See memory [[dfr1195-firmware-bench-workflow]].
+- **CLEAN 2-TG PROOF (composer-driven) + ALL-9 ROLLOUT DONE.** composer drove the clean cross-TG proof via
+  its reliable writer (prov2.py: OPOST-clean + my 128B buffer): PHASE A (X2=TG-A, X3=TG-B → both nbrs=0,
+  isolated) + PHASE B (re-provision X2=TG-B same as X3 → both nbrs=1, COUPLE) = isolate↔couple driven
+  purely by the GroupHmac key. Then on Roy's direct GO, the ALL-9 ROLLOUT: handshake = composer releases
+  ports → hive foreground-flashes → composer provisions. hive flashed ALL 9 to the uniform multitg build
+  `0622.1624mt9` (4 alfred XIAO local; 5 tuxedo DFR via `ssh tuxedo-os` with espflash binary + ELF + csv
+  pre-staged in /tmp — tuxedo has no toolchain). composer provisions per fleet.json (TG-A 5 / TG-B 4) +
+  renders. **HOST FACT:** this session runs ON alfred; tuxedo-os is remote (DFR-5 host, no espflash).
 
 - **#1 LEAD TRACK: first real-hardware TN test on the DFR1195 rig.** Critical-path doc DELIVERED +
   CORRECTED (`45a7194`, `docs/hardware-tn-test-critical-path.md`). **TWO boards now live on tuxedo-os:
