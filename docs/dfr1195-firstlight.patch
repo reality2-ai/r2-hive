@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..fb907f3 100644
+index 5a3c89f..ac2139d 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,7 +54,7 @@ index 5a3c89f..fb907f3 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,47 @@ embassy-futures = "0.1"
+@@ -40,6 +55,49 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -97,6 +97,8 @@ index 5a3c89f..fb907f3 100644
 +rateoff = ["ble"]
 +# HBSYNC-06 drift stand-in: +0.4% period on this board (injected rate offset; real xtal drift too small to see).
 +driftinject = ["ble"]
++# Pure ESP-NOW: skip the BLE control plane (+ the BLE-triggered WiFi join) → no radio coex contending with the mesh.
++nobt = ["ble"]
 +# HBSYNC-06 blackout: mute TX during [60s,90s) uptime = 30s connectivity blackout (rate must pre-match to hold).
 +blackout = ["ble"]
  
@@ -117,10 +119,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..0ea5009 100644
+index 8c49f1c..ffbeafc 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2033 @@
+@@ -1,83 +1,2044 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -455,19 +457,30 @@ index 8c49f1c..0ea5009 100644
 -    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
 -    // resolves hive ids per medium. The route logic is fully validated in the
 -    // r2-harness sim — this firmware only supplies the real radios.
-+        use esp_radio::ble::controller::BleConnector;
-+        match BleConnector::new(p.BT, Default::default()) {
-+            Ok(c) => {
-+                println!("r2-dfr1195: BLE controller init OK (coex with WiFi)");
-+                spawner.spawn(ble_task(c, my_hive, my_tg_hash, hk).unwrap());
-+                spawner.spawn(engine_task(my_hive).unwrap()); // M9: run the S0–S4 engine over the bridge
-+                // ESP-NOW data plane (Mode 2) — OFF in blemesh (the data plane is the BLE L2CAP CoC instead).
-+                #[cfg(not(feature = "blemesh"))]
-+                spawner.spawn(espnow_task(esp_now, my_hive).unwrap());
-+
++        // BLE control plane (advertise/scan/CoC/negotiation + S0–S4 engine). SKIPPED for `nobt`: the
++        // leaderless ESP-NOW heartbeat-sync needs NO BLE — and the BLE negotiation is what signals
++        // DATA_PLANE_JOIN (→ the wifi_task joins a SoftAP), so nobt ALSO keeps the wifi_task idle. Net:
++        // the radio stays purely on ESP-NOW ch1 — no BLE-coex + no WiFi channel-hop contending with the mesh.
++        #[cfg(not(feature = "nobt"))]
++        {
++            use esp_radio::ble::controller::BleConnector;
++            match BleConnector::new(p.BT, Default::default()) {
++                Ok(c) => {
++                    println!("r2-dfr1195: BLE controller init OK (coex with WiFi)");
++                    spawner.spawn(ble_task(c, my_hive, my_tg_hash, hk).unwrap());
++                    spawner.spawn(engine_task(my_hive).unwrap()); // M9: S0–S4 engine over the bridge
++                }
++                Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
 +            }
-+            Err(e) => println!("r2-dfr1195: BLE controller init ERR {e:?}"),
 +        }
++        #[cfg(feature = "nobt")]
++        {
++            let _ = (&hk, my_tg_hash); // (used only by the BLE control plane)
++            println!("r2-dfr1195: BLE+WiFi-join OFF (nobt) — pure ESP-NOW ch1, no coex contention");
++        }
++        // ESP-NOW data plane (Mode 2) — the leaderless mesh carrier; ON for ble incl nobt, OFF in blemesh.
++        #[cfg(not(feature = "blemesh"))]
++        spawner.spawn(espnow_task(esp_now, my_hive).unwrap());
 +    }
  
 +    // ── LCD (ST7735S 160x80) status surface — CARRIER-GATED (has_screen). PWR(GPIO48)
