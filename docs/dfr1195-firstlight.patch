@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..89f75b1 100644
+index 5a3c89f..1b73a09 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,13 @@ path = "src/main.rs"
@@ -57,7 +57,7 @@ index 5a3c89f..89f75b1 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +58,91 @@ embassy-futures = "0.1"
+@@ -40,6 +58,99 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -146,6 +146,14 @@ index 5a3c89f..89f75b1 100644
 +# decomposition is runnable: loramesh alone = shaping-only (saturation-isolation arm); loramesh+lorareach
 +# = shaping + §4.2 (full fix). Implies loramesh (the airtime-comp only applies to the LoRa carrier).
 +lorareach = ["loramesh"]
++# TN-FR-1 (BL-200-over-LoRa MESSAGE-PASSING, the Wairoa data-plane) — route an Event A->B->C over the LoRa
++# carrier using core's READY LoRaTransport::service() data-plane: continuous-RX + TX-pacing + §4.2/§4.3
++# airtime-gating (defer-not-drop) in one call (r2-transport/alloc gates LoRaTransport in). Sibling to
++# loramesh (heartbeat-sync, DEFERRED) but: carries EVENTS (not HB-only), sets ForwardRequest.origin = the
++# FRAME-CARRIED originator (the BL-200/M-ESPNOW-3 fix, was hardcoded 0), applies a hive-based can_hear MASK
++# (A={B} B={A,C} C={B}) forcing multi-hop, and flashes the LED on message RECEIPT (not the heartbeat).
++# Implies routetest (the BL-200 io_task path → ble) + lora. Gates the ESP-NOW carrier off.
++loraroute = ["lora", "routetest", "r2-transport/alloc"]
  
  [profile.release]
  opt-level = "s"
@@ -164,10 +172,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..57ea2c6 100644
+index 8c49f1c..a982878 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2963 @@
+@@ -1,83 +1,3144 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -287,6 +295,10 @@ index 8c49f1c..57ea2c6 100644
 +static SPREAD_MS: AtomicU32 = AtomicU32::new(0); // leaderless phase-spread (ms) = convergence tightness (dashboard)
 +/// io_task signals a heartbeat FIRE → main renders the organic lub-DUB LED envelope.
 +static FIRE_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
++/// TN-FR-1 (loraroute): io_task's deliver-gate signals a message RECEIPT (a delivered routed Event) →
++/// main flashes the LED. This is the "LED on message arrival, NOT heartbeat" proof at the C node.
++#[cfg(feature = "loraroute")]
++static RECEIPT_SIGNAL: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 +
 +// App descriptor — required by espflash 4.4.0 to flash an esp-hal 1.x image.
 +esp_bootloader_esp_idf::esp_app_desc!();
@@ -363,6 +375,15 @@ index 8c49f1c..57ea2c6 100644
 +        ROUTETEST_DEST.store(dest, Ordering::Relaxed);
 +        println!("r2-dfr1195: SENDTO restored from NVS — origin -> {dest:08x}");
 +    }
++    // TN-FR-1 (loraroute): self-contained bench default so the 3-board A->B->C run needs NO provisioning
++    // (raw-tty MASK/SENDTO writes are unreliable — see the bench-workflow memory). Board A (0dcadbf8)
++    // originates to C (0xf91c8911); the hive-based can_hear MASK in lora_route_task forces the A->B->C
++    // multi-hop. An NVS SENDTO still overrides this default.
++    #[cfg(feature = "loraroute")]
++    if ROUTETEST_DEST.load(Ordering::Relaxed) == 0 && my_hive == 0x0dca_dbf8 {
++        ROUTETEST_DEST.store(0xf91c_8911, Ordering::Relaxed);
++        println!("r2-dfr1195: loraroute default SENDTO A(0dcadbf8) -> C(f91c8911)");
++    }
 +
 +    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
 +    let timg0 = TimerGroup::new(p.TIMG0);
@@ -397,10 +418,7 @@ index 8c49f1c..57ea2c6 100644
 +            drive_mode: DriveMode::PushPull,
 +        })
 +        .unwrap();
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +    // 5. WiFi config for the role. M8c (--features ble): the engine-elected provider serves its OWN
 +    //    SoftAP "r2-tn-form" (the formed data plane); other boards are STAs that JOIN it on negotiation.
 +    //    Default build = the static r2-fieldlab mesh by MAC (UNCHANGED — protects the live mesh).
@@ -438,16 +456,19 @@ index 8c49f1c..57ea2c6 100644
 +        )
 +    };
  
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
++    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
++    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
++    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
++        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
+ 
 -#[esp_hal_embassy::main]
 -async fn main(_spawner: embassy_executor::Spawner) {
 -    // ── Chip + heap + embassy time ──────────────────────────────────────────
 -    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
 -    let _peripherals = esp_hal::init(esp_hal::Config::default());
-+    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
-+    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
-+    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
-+        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
-+
 +    // ESP-NOW true-mesh data plane (Mode 2): take the connectionless esp_now interface (distinct field;
 +    // coexists with the STA/AP netif + BLE). M-ESPNOW-1: validate broadcast/recv mechanics on metal.
 +    #[cfg(all(feature = "ble", not(feature = "blemesh")))]
@@ -497,7 +518,41 @@ index 8c49f1c..57ea2c6 100644
 +    // #24 BLE control plane (feature-gated). Controller init (coex with WiFi, metal-verified)
 +    // -> bt-hci ExternalController -> trouble-host advertise. The ble_task owns the connector.
 +    #[cfg(feature = "ble")]
-+    {
+     {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +        // BLE control plane (advertise/scan/CoC/negotiation + S0–S4 engine). SKIPPED for `nobt`: the
 +        // leaderless ESP-NOW heartbeat-sync needs NO BLE — and the BLE negotiation is what signals
 +        // DATA_PLANE_JOIN (→ the wifi_task joins a SoftAP), so nobt ALSO keeps the wifi_task idle. Net:
@@ -519,9 +574,9 @@ index 8c49f1c..57ea2c6 100644
 +            let _ = (&hk, my_tg_hash); // (used only by the BLE control plane)
 +            println!("r2-dfr1195: BLE+WiFi-join OFF (nobt) — pure ESP-NOW ch1, no coex contention");
 +        }
-+        // ESP-NOW data plane (Mode 2) — the leaderless mesh carrier; ON for ble incl nobt, OFF in blemesh
-+        // AND loramesh (those carry the data plane over BLE-CoC / LoRa instead).
-+        #[cfg(not(any(feature = "blemesh", feature = "loramesh")))]
++        // ESP-NOW data plane (Mode 2) — the leaderless mesh carrier; ON for ble incl nobt, OFF in blemesh,
++        // loramesh AND loraroute (those carry the data plane over BLE-CoC / LoRa instead).
++        #[cfg(not(any(feature = "blemesh", feature = "loramesh", feature = "loraroute")))]
 +        spawner.spawn(espnow_task(esp_now, my_hive).unwrap());
 +    }
 +
@@ -565,41 +620,7 @@ index 8c49f1c..57ea2c6 100644
 +    // RXEN42 + DIO1=4(IRQ, polled). TCXO 1.8V (loratcxo) is REQUIRED on the DFR1195. Runs alongside the
 +    // ESP-NOW/WiFi radio (different hardware/band — no coex). Build nobt,lora,loratcxo.
 +    #[cfg(feature = "lora")]
-     {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
--    }
--
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++    {
 +        let lora_spi = Spi::new(
 +            p.SPI3,
 +            SpiConfig::default().with_frequency(Rate::from_mhz(8)).with_mode(Mode::_0),
@@ -616,11 +637,14 @@ index 8c49f1c..57ea2c6 100644
 +        let radio = Sx1262::new(lora_dev, busy, reset, Delay::new());
 +        #[cfg(feature = "loratcxo")]
 +        let radio = radio.with_tcxo(TcxoVoltage::V1_8);
-+        // loramesh -> the half-duplex DATA_TX/RX bridge (io_task PCO/routing over LoRa); else (lora-only)
++        // loraroute -> BL-200 message-passing over LoRa via core's LoRaTransport data-plane (TN-FR-1);
++        // loramesh -> the naive half-duplex PCO bridge (heartbeat-sync, DEFERRED); else (lora-only)
 +        // -> the first-light beacon task.
-+        #[cfg(feature = "loramesh")]
++        #[cfg(feature = "loraroute")]
++        spawner.spawn(lora_route_task(radio, rxen, my_hive).unwrap());
++        #[cfg(all(feature = "loramesh", not(feature = "loraroute")))]
 +        spawner.spawn(lora_mesh_task(radio, rxen, my_hive).unwrap());
-+        #[cfg(not(feature = "loramesh"))]
++        #[cfg(not(any(feature = "loramesh", feature = "loraroute")))]
 +        spawner.spawn(lora_task(radio, rxen, my_hive).unwrap());
 +        println!("r2-dfr1195: LORA task spawned (SPI3 SCK7/MISO5/MOSI6 NSS10 RST41 BUSY40 RXEN42 DIO1=4)");
 +    }
@@ -628,11 +652,32 @@ index 8c49f1c..57ea2c6 100644
 +    let role = if is_ap { "AP" } else { "STA" };
 +    // LED heartbeat envelope state: ms into the current lub-DUB beat, or -1 idle.
 +    // Segments are kicked at 50 ms tick boundaries; LEDC hardware fades between them.
++    #[cfg(not(feature = "loraroute"))]
 +    let mut beat_t: i32 = -1;
 +    let mut lcd_tick: u32 = 0;
++    // TN-FR-1 (loraroute): ticks remaining of a bright RECEIPT flash. The heartbeat envelope is suppressed
++    // under loraroute so the ONLY LED activity at C is "a routed message arrived" — unambiguous for the eye.
++    #[cfg(feature = "loraroute")]
++    let mut recv_flash: i32 = 0;
 +    loop {
++        // ── TN-FR-1 (loraroute): LED = message RECEIPT, NOT heartbeat. Bright solid for ~400ms on each
++        //    delivered routed Event (RECEIPT_SIGNAL fired by the deliver-gate); idle/off otherwise. ──
++        #[cfg(feature = "loraroute")]
++        {
++            if RECEIPT_SIGNAL.try_take().is_some() {
++                recv_flash = 8; // 8 × 50ms ≈ 400ms
++            }
++            let on = if led_active_low { 0 } else { 100 }; // full-on (polarity-aware)
++            let off = if led_active_low { 100 } else { 0 };
++            let _ = hb_led.set_duty(if recv_flash > 0 { on } else { off });
++            if recv_flash > 0 {
++                recv_flash -= 1;
++            }
++        }
 +        // ── IDENTIFY override (Roy dashboard locate): SOLID LED for the countdown, then resume ──
++        #[cfg(not(feature = "loraroute"))]
 +        let id = IDENTIFY_TICKS.load(Ordering::Relaxed);
++        #[cfg(not(feature = "loraroute"))]
 +        if id > 0 {
 +            let solid = if led_active_low { 0 } else { 100 }; // full-on (polarity-aware)
 +            let _ = hb_led.set_duty(solid);
@@ -1349,14 +1394,25 @@ index 8c49f1c..57ea2c6 100644
 +                                }
 +                            }
 +                        }
++                        // TN-FR-1 / M-ESPNOW-3 (BL-200 lesson, core-confirmed): the dedup origin = the
++                        // FRAME-CARRIED ORIGINATOR, NOT 0 and NOT the immediate sender. routetest Event
++                        // frames carry it in payload[0..4] (set by the originator at emit; preserved through
++                        // every relay). Per-(origin, msg_id) dedup is what makes exactly_once + directed_via
++                        // hold MULTI-HOP over LoRa (A->B->C): without it, dedup-by-msg_id alone collides
++                        // across origins / aliases the reply against the request. Non-routetest frames keep
++                        // origin=0 (dedup-by-msg_id, the star/field.lab behaviour, unchanged).
++                        #[cfg(feature = "routetest")]
++                        let fr_origin: u32 = if h.event_hash == ROUTETEST_HASH && m.payload.len() >= 4 {
++                            u32::from_be_bytes([m.payload[0], m.payload[1], m.payload[2], m.payload[3]])
++                        } else {
++                            0
++                        };
++                        #[cfg(not(feature = "routetest"))]
++                        let fr_origin: u32 = 0;
 +                        let req = ForwardRequest {
 +                            now,
 +                            msg_id: h.msg_id as u16,
-+                            // R2-WIRE v0.4 dedup origin (originator hive). These fw frames are route:None
-+                            // (no carried originator) → 0 here = dedup-by-msg_id (the star/field.lab behavior,
-+                            // unchanged). MESH TODO (M-ESPNOW-3): carry the originator in the frame (route_stack[0])
-+                            // so multi-hop relay dedups per-origin, not just per-msg_id.
-+                            origin: 0,
++                            origin: fr_origin,
 +                            source_hop: (my_hive & 0xFFFF) as u16,
 +                            ttl: h.ttl,
 +                            k: h.k,
@@ -1455,6 +1511,10 @@ index 8c49f1c..57ea2c6 100644
 +                                let hmac_ok = verify_extended(&m, &group_hmac);
 +                                if tg_ok && hmac_ok {
 +                                    DELIVERED.fetch_add(1, Ordering::Relaxed);
++                                    // TN-FR-1: flash the LED on message RECEIPT (the proof at C). Distinct
++                                    // from the heartbeat — this fires only when a routed Event is delivered.
++                                    #[cfg(feature = "loraroute")]
++                                    RECEIPT_SIGNAL.signal(());
 +                                    let body = core::str::from_utf8(m.payload).unwrap_or("?");
 +                                    println!(
 +                                        "r2-dfr1195: DELIVERED msg_id={} '{}' (tg+hmac ok)",
@@ -2701,6 +2761,135 @@ index 8c49f1c..57ea2c6 100644
 +            }
 +        }
 +        embassy_time::Timer::after(embassy_time::Duration::from_millis(10)).await;
++    }
++}
++
++// ── TN-FR-1: BL-200 MESSAGE-PASSING over LoRa (loraroute) ──────────────────────────────────────────
++// Replaces the naive half-duplex lora_mesh_task with core's READY LoRaTransport data-plane:
++// service(now_ms) does continuous-RX + TX-pacing + §4.2/§4.3 airtime-gating (defer-not-drop) in ONE call.
++// Carries ALL frames (Events + HBs), unlike loramesh which TX'd HB-only. A 4-byte IMMEDIATE-SENDER hive
++// is PREPENDED on TX and read back on RX = the LoRa analogue of ESP-NOW's L2 src MAC on a MAC-less
++// broadcast medium: it (a) feeds the hive-based can_hear MASK that forces A->B->C multi-hop, and (b)
++// threads the true RELAYER (not the origin) as src_hive into DATA_RX for the §4.3.4 TrailReinforcer. The
++// R2-WIRE ORIGIN (A) is carried INSIDE the frame and decoded into ForwardRequest.origin by io_task —
++// distinct from the immediate sender, per core's BL-200 contract.
++
++// RXEN-aware LoRaRadio wrapper: core's LoRaTransport drives the radio through the LoRaRadio trait but is
++// chip-agnostic — it doesn't know the DFR1195's RF switch (GPIO42, HIGH-RX/LOW-TX). Wrap so transmit/
++// standby pull RXEN low and listen pulls it high, keeping the RF-switch concern in the thin per-platform
++// layer (the one-codebase seam). Delegates everything else to the inner Sx1262.
++#[cfg(feature = "loraroute")]
++struct RxenRadio {
++    inner: LoraRadioTy,
++    rxen: Output<'static>,
++}
++#[cfg(feature = "loraroute")]
++impl LoRaRadio for RxenRadio {
++    type Error = <LoraRadioTy as LoRaRadio>::Error;
++    fn configure(&mut self, cfg: &r2_transport::lora::LoRaConfig) -> Result<(), Self::Error> {
++        self.inner.configure(cfg)
++    }
++    fn transmit(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
++        self.rxen.set_low(); // RF switch -> TX
++        self.inner.transmit(payload)
++    }
++    fn listen(&mut self) -> Result<(), Self::Error> {
++        self.rxen.set_high(); // RF switch -> RX (continuous listen between sends)
++        self.inner.listen()
++    }
++    fn poll(&mut self) -> Result<Option<RadioEvent>, Self::Error> {
++        self.inner.poll()
++    }
++    fn read(&mut self, buf: &mut [u8]) -> Result<r2_transport::lora::RxInfo, Self::Error> {
++        self.inner.read(buf)
++    }
++    fn max_payload_len(&self) -> usize {
++        self.inner.max_payload_len()
++    }
++    fn standby(&mut self) -> Result<(), Self::Error> {
++        self.rxen.set_low(); // prep for the transmit() that LoRaTransport::service issues next
++        self.inner.standby()
++    }
++}
++
++/// Hive-based can_hear MASK for the LoRa broadcast medium (no L2 MAC to filter on, so the immediate
++/// sender is carried per-frame). Hardcoded 3-board chain so the bench run is self-contained (no fragile
++/// raw-tty provisioning): A(0dcadbf8)={B}, B(2cab5f69)={A,C}, C(f91c8911)={B} -> A<->C NOT direct -> A->C
++/// only via B's relay. Unknown sender (0 = no prepend / pre-mapping) and other hives: hear all.
++#[cfg(feature = "loraroute")]
++fn can_hear_hive(my_hive: u32, sender: u32) -> bool {
++    const A: u32 = 0x0dca_dbf8;
++    const B: u32 = 0x2cab_5f69;
++    const C: u32 = 0xf91c_8911;
++    if sender == 0 {
++        return true;
++    }
++    match my_hive {
++        A => sender == B,
++        B => sender == A || sender == C,
++        C => sender == B,
++        _ => true,
++    }
++}
++
++/// LoRa message-passing carrier bridge (loraroute) — drains DATA_TX (io_task's routed Events + HBs) onto
++/// the air via core's LoRaTransport, and feeds RX -> DATA_RX so the PROVEN io_task r2-route + TrailReinforcer
++/// run over LoRa. service(now_ms) is the data-plane: it self-paces TX within the airtime budget (defer-not-
++/// drop) and drains RX in the same call — call it every tick = continuous-RX. SF7 bench (916.8/BW125/-9dBm).
++#[cfg(feature = "loraroute")]
++#[embassy_executor::task]
++async fn lora_route_task(radio: LoraRadioTy, rxen: Output<'static>, my_hive: u32) {
++    use r2_transport::{LoRaTransport, Transport}; // Transport trait brings send()/current_mtu() into scope
++    let mut cfg = wairoa_as923_nz();
++    cfg.tx_power_dbm = -9; // bench close-range (30cm); the Wairoa deployment uses +20/+22 for 18km
++    cfg.spreading_factor = 7; // SF7 ~40ms ToA = clean bench (SF12 range test is a later rung)
++    let lora = match LoRaTransport::new(RxenRadio { inner: radio, rxen }, cfg, 8) {
++        Ok(l) => {
++            println!("r2-dfr1195: LORA-ROUTE up (SF7 BW125 916.8 sync0x21 -9dBm) — BL-200 message-passing over LoRa");
++            l
++        }
++        Err(e) => {
++            println!("r2-dfr1195: LORA-ROUTE configure ERR {e:?} (check TCXO/wiring)");
++            return;
++        }
++    };
++    let mut last_nbr_recalc = 0u32;
++    loop {
++        let now_ms = embassy_time::Instant::now().as_millis() as u32;
++        // TX: drain io_task's outbound frames -> PREPEND the 4-byte immediate-sender hive -> enqueue.
++        // service() paces them onto the air within the §4.2/§4.3 airtime budget (held, not dropped, if full).
++        while let Ok((frame, n)) = DATA_TX.try_receive() {
++            let mut carrier = [0u8; 260];
++            carrier[0..4].copy_from_slice(&my_hive.to_be_bytes());
++            let m = n.min(256);
++            carrier[4..4 + m].copy_from_slice(&frame[..m]);
++            let _ = lora.send(0, &carrier[..4 + m]); // back-pressure on a full queue, never a stall
++        }
++        // SERVICE: one data-plane step — TX-pacing + RX-drain. Returns the carrier frame on RxDone.
++        if let Some((carrier, _info)) = lora.service(now_ms) {
++            if carrier.len() >= 4 {
++                let sender = u32::from_be_bytes([carrier[0], carrier[1], carrier[2], carrier[3]]);
++                // Hive-MASK: drop frames from a non-allowed immediate sender (forces the A->B->C multi-hop
++                // on the broadcast-on-air medium where every node physically hears every node).
++                if can_hear_hive(my_hive, sender) {
++                    let inner = &carrier[4..];
++                    let l = inner.len().min(256);
++                    let mut f = [0u8; 256];
++                    f[..l].copy_from_slice(&inner[..l]);
++                    // src_hive = the IMMEDIATE SENDER (relayer), per the §4.3.4 reinforcer contract — NOT the
++                    // R2-WIRE origin (io_task decodes that from the frame for ForwardRequest.origin).
++                    let _ = DATA_RX.try_send((f, l, sender));
++                }
++            }
++        }
++        // §4.2 airtime duty tracks neighbour density (~every 60s). We don't hold the engine's nbr table here,
++        // so approximate from the dashboard NBRS (good enough for the 0-2/3-4/>=5 duty tiers).
++        let now_s = (now_ms / 1000) as u32;
++        if now_s.wrapping_sub(last_nbr_recalc) >= 60 {
++            last_nbr_recalc = now_s;
++            lora.set_neighbour_count(NBRS.load(Ordering::Relaxed) as usize);
++        }
++        embassy_time::Timer::after(embassy_time::Duration::from_millis(5)).await;
 +    }
 +}
 +

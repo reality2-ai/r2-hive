@@ -15,6 +15,33 @@ Per supervisor: continue the TN metal refutation campaign autonomously — SPEC-
 (route to specs, queue for Roy, NO canon mandate overnight), RESTORE the 2-TG baseline after each run
 (protect the live demo), commit auditable field.* records, tick off survived refutations, keep this file
 current, don't wait per-conjecture.
+- **TN-FR-1 (BL-200-over-LoRa MESSAGE-PASSING) = FIRMWARE BUILT + STAGED, BLOCKED ON BOARDS (2026-06-23).**
+  Roy's #1: route an Event A->B->C over LoRa on 3 DFR1195, MASK-forced multi-hop (A can't hear C), validate
+  directed_via B + exactly_once@C + LED-flash on RECEIPT (not heartbeat). The DEFERRED CSMA/heartbeat-mesh
+  redesign is NOT this. Built a new **`loraroute`** feature (= `lora` + `routetest` + `r2-transport/alloc`):
+  - Uses core's READY `LoRaTransport::service(now_ms)` data-plane (continuous-RX + TX-pacing + §4.2/§4.3
+    airtime-gating, defer-not-drop) instead of the naive half-duplex `lora_mesh_task`. New `lora_route_task`
+    drains DATA_TX -> LoRa, feeds RX -> DATA_RX; carries ALL frames (Events, not HB-only like loramesh).
+  - Thin **`RxenRadio`** newtype impls `LoRaRadio` to toggle the DFR1195 RF switch (GPIO42 HIGH-RX/LOW-TX)
+    around transmit/listen/standby — keeps the RXEN concern in the per-platform layer (LoRaTransport is
+    chip-agnostic). The one-codebase seam.
+  - **4-byte immediate-sender hive PREPEND** per LoRa frame = the LoRa analogue of ESP-NOW's L2 src MAC on
+    a MAC-less broadcast medium: feeds the hive-based `can_hear_hive` MASK (hardcoded A={B} B={A,C} C={B},
+    no fragile tty provisioning) forcing A->B->C, and threads the true RELAYER as src_hive into DATA_RX for
+    the §4.3.4 TrailReinforcer.
+  - **ForwardRequest.origin = frame-carried originator** (was hardcoded `0`) — the BL-200/M-ESPNOW-3 fix,
+    core-confirmed: per-(origin,msg_id) dedup is what makes exactly_once + directed_via hold multi-hop.
+  - **LED flashes on DELIVERED receipt** (RECEIPT_SIGNAL; heartbeat envelope suppressed under loraroute).
+  - Board A auto-originates REQUEST->C at boot (loraroute default SENDTO) = self-contained 3-board run.
+  BUILD GREEN: `cargo build --release --features nobt,loraroute,loratcxo` -> ELF staged (983KB) on alfred,
+  ready to flash. NOTE: the `dfr1195-fw-wt` worktree is a SEPARATE stale clone of r2-core — I synced its
+  `crates/r2-transport/src/{lora_transport,lora,lib}.rs` to canonical core (commit 027a912, airtime-gating)
+  to get `service(now_ms)`/`set_neighbour_count`/`lora_mtu`. Patch regenerated: `docs/dfr1195-firstlight.patch`.
+  BLOCKER (NOT idle): composer can't release the DFR ttys on tuxedo — the `reattach-dfr-45.sh` ssh is
+  approval-gated, needs the operator or Roy's morning. composer pings `dfr-fr1-off` when 0 holders. THEN:
+  flash 3 DFR (A=0dcadbf8, B=2cab5f69, C=f91c8911), watch C's LED flash on each routed message, capture
+  directed_via/exactly_once serial -> commit `field.*` TN-FR-1, restore baseline. Ladder after: TN-FR-2
+  (LoRa<->WiFi gateway, DG-2), TN-FR-4 (role-based sensor/router/receiver Wairoa sim).
 - **DONE: BL-200 RESOLVED + PASS/metal-green** (one-line reply-msgid u16-dedup collision; fix=shared
   `r2_route::trail::reply_msg_id`, commits up to `9fe9068`; §4.3.4 vindicated, §4.6-MUST refuted; baseline
   restored-clean 5/5 DFR multitg). Metal field.* count: BL-100 survived, BL-200 resolved-pass.
