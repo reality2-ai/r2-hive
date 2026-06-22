@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..afc2cf6 100644
+index 5a3c89f..174496a 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,10 @@ path = "src/main.rs"
@@ -54,7 +54,7 @@ index 5a3c89f..afc2cf6 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,54 @@ embassy-futures = "0.1"
+@@ -40,6 +55,60 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -106,6 +106,12 @@ index 5a3c89f..afc2cf6 100644
 +# (gates the existing Event deliver-gate; NO heartbeat wire change). Inc2 (HB-signed coupling gate for cross-TG
 +# sync isolation) is an all-9 coordinated wire change — added separately once agreed. Implies ble (ESP-NOW mesh).
 +multitg = ["ble"]
++# TN-L2-IT-BL-100 metal field.*: feed REAL ESP-NOW RSSI (r.info.rx_control.rssi) per neighbour, compute
++# rolling RSSI-σ, classify mobility (R2-ROUTE §2.4: σ<5dBm over the window = Infrastructure, else Mobile)
++# + feed obs.mobility (the engine then applies MOBILE_LAMBDA vs INFRA_LAMBDA decay). Telemetry logs
++# mean/σ/n/class per neighbour = the hardware-tier measurement (does the σ<5dBm classifier hold on real RF,
++# or does stationary multipath/AGC jitter misclassify INFRA as MOBILE — HIVE FINDING B's predicted refutation).
++rssicls = ["ble"]
  
  [profile.release]
  opt-level = "s"
@@ -124,10 +130,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..9511855 100644
+index 8c49f1c..f16cb11 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2183 @@
+@@ -1,83 +1,2319 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -308,10 +314,7 @@ index 8c49f1c..9511855 100644
 +    let timg0 = TimerGroup::new(p.TIMG0);
 +    let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
 +    esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +    println!("r2-dfr1195: PHASE 1a — esp-rtos/embassy + esp-radio (build {BUILD_ID})");
 +    println!(
 +        "r2-dfr1195: DEV {mac_low3:06x} hive={my_hive:08x} TG={tg_label} (persona={}) role={}",
@@ -319,12 +322,7 @@ index 8c49f1c..9511855 100644
 +        if is_ap { "SOFT-AP" } else { "STA" }
 +    );
 +    println!("r2-dfr1195: carrier has_screen={has_screen} led_active_low={led_active_low}");
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +    // 4. Status LED (GPIO21) via LEDC PWM — for the organic lub-DUB heartbeat envelope.
 +    //    io_task signals the FIRE (conductor-PLL = WHEN); main renders the SHAPE below.
 +    let mut ledc = Ledc::new(p.LEDC);
@@ -437,41 +435,7 @@ index 8c49f1c..9511855 100644
 +    // #24 BLE control plane (feature-gated). Controller init (coex with WiFi, metal-verified)
 +    // -> bt-hci ExternalController -> trouble-host advertise. The ble_task owns the connector.
 +    #[cfg(feature = "ble")]
-     {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
--    }
--
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++    {
 +        // BLE control plane (advertise/scan/CoC/negotiation + S0–S4 engine). SKIPPED for `nobt`: the
 +        // leaderless ESP-NOW heartbeat-sync needs NO BLE — and the BLE negotiation is what signals
 +        // DATA_PLANE_JOIN (→ the wifi_task joins a SoftAP), so nobt ALSO keeps the wifi_task idle. Net:
@@ -715,10 +679,8 @@ index 8c49f1c..9511855 100644
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
- 
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++
++    loop {
 +        // 2-TG (#20): install a runtime re-PROVISION (uart_rx_task validated + persisted it to NVS).
 +        // Swap the live GroupHmac + target_group so the deliver-gate (B1) + TG-scoped sends use the new
 +        // key WITHOUT a reboot. The engine retains no key (R2-RUNTIME §13.2) — we take it from the conduit.
@@ -824,6 +786,11 @@ index 8c49f1c..9511855 100644
 +                    CONDUCTOR.store(0, Ordering::Relaxed); // leaderless: no conductor (dashboard blank)
 +                    SPREAD_MS.store(last_err_ms, Ordering::Relaxed); // publish convergence tightness
 +                    println!("r2-dfr1195: FIRE seq={fire_seq} beat (leaderless)");
++                    // BL-100 field.* measurement: per-neighbour RSSI mean/σ/class every ~10s (sigma×100).
++                    #[cfg(feature = "rssicls")]
++                    if fire_seq % 5 == 0 {
++                        rssi_report();
++                    }
 +
 +                    // #18 health telemetry: every 3rd beat (~6s) emit the health frame on serial — comfortably
 +                    // under composer's 12s "node silent → grey" threshold so live nodes never falsely grey.
@@ -986,6 +953,11 @@ index 8c49f1c..9511855 100644
 +                            #[cfg(feature = "ble")]
 +                            {
 +                                let now_s = embassy_time::Instant::now().as_secs() as u32;
++                                // BL-100: mobility from the real RSSI-σ classifier (else default Mobile).
++                                #[cfg(feature = "rssicls")]
++                                let mob = rssi_mobility(sender_hive);
++                                #[cfg(not(feature = "rssicls"))]
++                                let mob = MobilityClass::Mobile; // wearables move → continual reform
 +                                let _ = engine.ingest_observation(Observation {
 +                                    hive_id: sender_hive,
 +                                    transport: Transport::EspNow,
@@ -995,7 +967,7 @@ index 8c49f1c..9511855 100644
 +                                    // FULL ESP32 node, NOT mcu_only — must be relay-viable (core: mcu_origin:true
 +                                    // → is_viable=false → build_flood_plan finds 0 neighbours → Drop(NoViableNeighbour)).
 +                                    mcu_origin: false,
-+                                    mobility: MobilityClass::Mobile, // wearables move → continual reform
++                                    mobility: mob,
 +                                });
 +                                // Dashboard liveness: mark this peer heard now (fast join/leave for the mesh size).
 +                                if let Some(e) = seen.iter_mut().find(|(h, _)| *h == sender_hive) {
@@ -1332,6 +1304,126 @@ index 8c49f1c..9511855 100644
 +    }
 +}
 +
++// ── TN-L2-IT-BL-100: per-neighbour RSSI-σ store + mobility classifier (R2-ROUTE §2.4) ───────────
++// HARDWARE-TIER: r2-route takes mobility as obs.mobility input (the classifier is in NO code — HIVE
++// FINDING B). We feed REAL ESP-NOW RSSI per neighbour, keep a rolling (n, sum, sum_sq) → σ, and
++// classify σ<RSSI_SIGMA_INFRA_DBM (over a settled window) = Infrastructure else Mobile. The metal
++// question: does σ<5dBm hold for STATIONARY nodes on real ESP-NOW, or does multipath/AGC/integer-dBm
++// jitter push stationary σ over the threshold → INFRA misclassified MOBILE → premature 5-min fade?
++#[cfg(feature = "rssicls")]
++const RSSI_SIGMA_INFRA_DBM: f32 = 5.0; // §2.4 naive threshold under metal test
++#[cfg(feature = "rssicls")]
++const RSSI_CLS_MIN_SAMPLES: u32 = 20; // settle the σ estimate before classifying (else default Mobile)
++
++#[cfg(feature = "rssicls")]
++#[derive(Clone, Copy, Default)]
++struct RssiStat {
++    hive: u32,
++    n: u32,
++    sum: f32,
++    sum_sq: f32,
++    last: i32,
++}
++#[cfg(feature = "rssicls")]
++impl RssiStat {
++    fn sigma(&self) -> f32 {
++        if self.n < 2 {
++            return 0.0;
++        }
++        let m = self.sum / self.n as f32;
++        let var = (self.sum_sq / self.n as f32) - m * m;
++        if var > 0.0 {
++            libm::sqrtf(var)
++        } else {
++            0.0
++        }
++    }
++    fn mean(&self) -> f32 {
++        if self.n == 0 {
++            0.0
++        } else {
++            self.sum / self.n as f32
++        }
++    }
++    /// §2.4 classification: settled + σ<threshold = Infrastructure, else Mobile (cold/jittery).
++    fn is_infra(&self) -> bool {
++        self.n >= RSSI_CLS_MIN_SAMPLES && self.sigma() < RSSI_SIGMA_INFRA_DBM
++    }
++}
++
++#[cfg(feature = "rssicls")]
++static RSSI_STATS: embassy_sync::blocking_mutex::Mutex<
++    CriticalSectionRawMutex,
++    core::cell::RefCell<[RssiStat; 16]>,
++> = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new([RssiStat {
++    hive: 0,
++    n: 0,
++    sum: 0.0,
++    sum_sq: 0.0,
++    last: 0,
++}; 16]));
++
++/// Record one RSSI sample for `hive` (called from espnow_task on each heard Heartbeat). Rolling
++/// (n,sum,sum_sq) per neighbour — O(1), no ring. New neighbour takes the first free slot.
++#[cfg(feature = "rssicls")]
++fn rssi_record(hive: u32, rssi: i32) {
++    RSSI_STATS.lock(|c| {
++        let mut a = c.borrow_mut();
++        // existing slot
++        for s in a.iter_mut() {
++            if s.n > 0 && s.hive == hive {
++                s.n += 1;
++                s.sum += rssi as f32;
++                s.sum_sq += (rssi as f32) * (rssi as f32);
++                s.last = rssi;
++                return;
++            }
++        }
++        // free slot
++        for s in a.iter_mut() {
++            if s.n == 0 {
++                *s = RssiStat { hive, n: 1, sum: rssi as f32, sum_sq: (rssi as f32) * (rssi as f32), last: rssi };
++                return;
++            }
++        }
++    });
++}
++
++/// Mobility class for `hive` from its RSSI-σ (engine input). Defaults Mobile until settled.
++#[cfg(feature = "rssicls")]
++fn rssi_mobility(hive: u32) -> MobilityClass {
++    RSSI_STATS.lock(|c| {
++        let a = c.borrow();
++        for s in a.iter() {
++            if s.n > 0 && s.hive == hive {
++                return if s.is_infra() {
++                    MobilityClass::Infrastructure
++                } else {
++                    MobilityClass::Mobile
++                };
++            }
++        }
++        MobilityClass::Mobile
++    })
++}
++
++/// Log per-neighbour RSSI mean/σ/n/class — the BL-100 field.* measurement (serial capture).
++#[cfg(feature = "rssicls")]
++fn rssi_report() {
++    RSSI_STATS.lock(|c| {
++        let a = c.borrow();
++        for s in a.iter() {
++            if s.n >= 2 {
++                let cls = if s.is_infra() { "infra" } else { "mobile" };
++                println!(
++                    "r2-dfr1195: RSSI-CLS hive={:08x} mean={} sigma={} n={} last={} class={cls}",
++                    s.hive, s.mean() as i32, (s.sigma() * 100.0) as i32, s.n, s.last
++                );
++            }
++        }
++    });
++}
++
 +/// Report the active OTA slot at boot. The otadata slot-switch was PROVEN on metal
 +/// (test b: wrote a valid image to ota_1 → activate_next_partition() → reboot → ESP-IDF
 +/// BL booted ota_1 @0x200000). Now report-only — the real network receiver (#17) does
@@ -1420,7 +1512,10 @@ index 8c49f1c..9511855 100644
 +async fn net_task(mut runner: Runner<'static, wifi::Interface<'static>>) -> ! {
 +    runner.run().await
 +}
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +/// #24 BLE control plane: bt-hci ExternalController over the esp-radio BLE connector → trouble-host
 +/// → advertise an R2 beacon. MILESTONE 3 = advertise (observable by a scanner) while WiFi coex holds.
 +/// (Placeholder AD carries the hive_id; the real RBID/R2-BEACON AD codec from r2-core lands next,
@@ -1803,7 +1898,12 @@ index 8c49f1c..9511855 100644
 +    CriticalSectionRawMutex,
 +    core::cell::RefCell<heapless::Vec<(u32, [u8; 6]), 16>>,
 +> = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(heapless::Vec::new()));
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +/// M-ESPNOW-3b BENCH multi-hop allow-list (core's technique): a per-board can-hear MAC set, applied at
 +/// the ESP-NOW recv BEFORE r2-route, so A→B→C relay is exercised on a bench (all 1-hop in-range) without
 +/// physical separation. Topology: A(0dcadbf8)={B}, B(2cab5f69)={A,C}, C(f91c8911)={B} → A↔C NOT direct →
@@ -1813,7 +1913,41 @@ index 8c49f1c..9511855 100644
 +    // GENERAL no-AP mesh (default): every node hears every in-range peer → self-growing (N-join) +
 +    // self-healing (reform). This is the real-world TN case for mobile wearables.
 +    #[cfg(not(feature = "meshmask"))]
-+    {
+     {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +        true
 +    }
 +    // BENCH multi-hop mask (meshmask): hide A↔C so A→B→C relay is forced on a bench (no physical range).
@@ -1845,7 +1979,7 @@ index 8c49f1c..9511855 100644
 +        }
 +    })
 +}
-+
+ 
 +/// Push a resolved scan observation for the engine's poll_scan (called from on_adv_reports).
 +#[cfg(feature = "ble")]
 +#[allow(dead_code)]
@@ -1968,6 +2102,9 @@ index 8c49f1c..9511855 100644
 +        loop {
 +            let r = receiver.receive_async().await;
 +            let s = r.info.src_address;
++            // BL-100: real per-recv RSSI (dBm) from the WiFi rx control info.
++            #[cfg(feature = "rssicls")]
++            let rssi = r.info.rx_control.rssi;
 +            // M-ESPNOW-3b bench allow-list: drop non-neighbour src BEFORE r2-route (shapes the topology).
 +            if !can_hear(my_hive, &s) {
 +                continue;
@@ -1983,6 +2120,9 @@ index 8c49f1c..9511855 100644
 +                if m.header.msg_type == MsgType::Heartbeat && m.payload.len() >= 4 {
 +                    let origin =
 +                        u32::from_be_bytes([m.payload[0], m.payload[1], m.payload[2], m.payload[3]]);
++                    // BL-100: record the RSSI sample for this neighbour (rolling σ).
++                    #[cfg(feature = "rssicls")]
++                    rssi_record(origin, rssi);
 +                    if map_peer(origin, s) {
 +                        println!(
 +                            "r2-dfr1195: ESP-NOW peer MAPPED hive={origin:08x} mac={:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
@@ -2154,7 +2294,9 @@ index 8c49f1c..9511855 100644
 +    let mut secfill = 0usize;
 +    let mut secbase = 0u32;
 +    let mut pkt = [0u8; 1500];
-+    loop {
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        let (n, from) = match socket.recv_from(&mut pkt).await {
 +            Ok(v) => v,
 +            Err(_) => continue,
