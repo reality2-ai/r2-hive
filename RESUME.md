@@ -69,6 +69,16 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   `0622.1624mt9` (4 alfred XIAO local; 5 tuxedo DFR via `ssh tuxedo-os` with espflash binary + ELF + csv
   pre-staged in /tmp — tuxedo has no toolchain). composer provisions per fleet.json (TG-A 5 / TG-B 4) +
   renders. **HOST FACT:** this session runs ON alfred; tuxedo-os is remote (DFR-5 host, no espflash).
+- **🎉 CROSS-HOST 2-TG HEARTBEAT LIVE (goal #14, metal) — directive→plan→canon→sim 10/10→metal→LIVE.**
+  composer provisioned all 9 + reattached; live /r2 verdict: TG-A(177560432)={X1,X2,D1,D2,D3} all nbrs=4
+  (fully coupled, cross-host alfred+tuxedo); TG-B(1584099016)={X3,X4,D4,D5} coupled (2 full + 2 marginal-RF).
+  CROSS-ISOLATION CLEAN: TG-A sees 0 TG-B, TG-B sees 0 TG-A — the GroupHmac partition holds on ONE shared
+  9-board ESP-NOW mesh, cross-arch (XIAO+DFR). Residual = bench RF (TG-B's 2 marginal members want the
+  powered hub for tight convergence; the partition is clean). **XIAO LED FIX (Roy ground truth):** the 4
+  XIAO LEDs are ACTIVE-LOW (roster said active-HIGH = WRONG) → wrote board-profile [0x00 0x01] @0x13000 on
+  all 4 (byte1=0x01=active-low firmware convention; verified X3 read-flash=00 01 + boot led_active_low=true
+  + TG key survived @0x14000). hive writes the polarity byte (composer's board.toml byte1 convention is
+  OPPOSITE). DFR-5 = active-high (untouched). See memory [[dfr1195-firmware-bench-workflow]].
 
 - **#1 LEAD TRACK: first real-hardware TN test on the DFR1195 rig.** Critical-path doc DELIVERED +
   CORRECTED (`45a7194`, `docs/hardware-tn-test-critical-path.md`). **TWO boards now live on tuxedo-os:
