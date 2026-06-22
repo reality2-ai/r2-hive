@@ -36,13 +36,28 @@ current, don't wait per-conjecture.
     thread the ingress transport through DATA_RX (add a tag to MeshRxFrame) so the bridge's neighbour table tags
     LoRa-neighbours vs WiFi-neighbours correctly = what makes plan_forward's auto-bridge work (directed). Flood
     bridging works WITHOUT it (broadcast both + dedup), so a flood-first proof is the lower-risk first run.
-  PENDING (asked composer, queued): the minimal FR-2 board map (LoRa-island DFR + bridge D3 + WiFi-island
-  receiver) AND whether the "WiFi island" = the ESP-NOW mesh carrier (reuse espnow_task) or actual WiFi/UDP —
-  that decides the bridge's 2nd carrier (don't build it blind = spec-first). composer PROVISIONS the per-island
-  GroupHmac + MASK + roles->boards; hive builds the bridge/leaf fw + flashes + runs via its ssh. PI5-as-RECEIVER
-  is a later option. PROOF target: an Event LoRa-island -> D3 bridge -> WiFi-island, delivered EXACTLY-ONCE across
-  the bridge (DG-2). Reliability (loose-jittered-HB + retransmit) = the TN-FR-4 capstone (two-arm: tight-HB low
-  delivery vs fix-arm recovered), per specs (TN-FR-1-REL). See [[lora-message-passing-metal]].
+  composer's FR-2 DEFS (RECEIVED, locked; full defs catalogue/topologies/wairoa-fr4/, this = fr4 minus the
+  WiFi-router): **D1=origin (480e900e), D2=LoRa-router (2cab5f69), D3=BRIDGE (f91c8911, SX1262 LoRa + onboard
+  WiFi), RECEIVER=PI5 (ssh pi5, Linux r2-hive over WiFi/Internet = the marae hub).** PATH: D1 ->(LoRa)-> D2
+  ->(LoRa)-> D3[bridge] ->(WiFi)-> PI5. MASK: D1->[D2]; D2->[D1,D3]; D3->[D2(LoRa),PI5(WiFi)]; PI5->[D3]. ONE
+  TG 'wairoa' spanning both islands (gateway test, not isolation — the bridge carries the GroupHmac across;
+  keys ~/.r2/group-keys.json#wairoa, composer provisions/hands over). composer PROVISIONS + builds the gateway
+  dashboard view; hive builds bridge/leaf fw + flashes + runs via ssh. **SCOPE NOTE: the WiFi side is a REAL
+  WiFi link to a LINUX r2-hive (PI5), NOT ESP-NOW — so D3's 2nd carrier = onboard WiFi/UDP to PI5, and PI5 runs
+  the r2-hive Linux/std build as a 'wairoa' routing RECEIVER (its RouteEngine delivers + the receive-flash
+  logs). Bigger integration than DFR-only FR-1.**
+  OPEN PREREQ (asked composer, queued): how D3 reaches PI5 over WiFi in r2-hive's model — UDP broadcast on a
+  shared LAN (D3 STA + PI5 on one router/AP)? D3 joins a PI5 AP? which port / the existing wifi.rs UDP path? +
+  confirm PI5 runs r2-hive Linux as the wairoa routing peer. Don't build D3's WiFi carrier blind = spec-first.
+  FIRMWARE TODO (board-map-independent, do in the FR-2 build): (a) transport-tagged DATA_RX ingest — construct
+  Observation with the REAL ingress transport (Transport::Lora vs Wifi) instead of hardcoded EspNow (main.rs
+  ~954); core confirmed engine auto-populates NeighbourEntry.transports + plan_forward picks egress (dual-homed
+  D3 = both bits on one entry, best_transport per-MTU). (b) msg.* telemetry over /r2 — PINNED schema (R2-CBOR,
+  event NAME discriminator, compact-int body): msg.tx{0:id,1:from,2:to} / msg.rx{0:id,1:at,2:from_hop} /
+  msg.relay{0:id,1:at,2:next_hop(0=flood)} / msg.delivered{0:id,1:at,2:dup}; id=loraroute msg_id stable across
+  the 4 (routed to specs to pin). (c) LED on_received receive-flash + relay-flash (composer 👍). PROOF target:
+  Event D1 -> D2 -> D3 -> PI5 delivered EXACTLY-ONCE across the bridge (DG-2 dedup-once, transport-agnostic).
+  Reliability (loose-jittered-HB + retransmit) = TN-FR-4 capstone two-arm (specs TN-FR-1-REL). See [[lora-message-passing-metal]].
 - **TN-FR-1 (BL-200-over-LoRa MESSAGE-PASSING) = PASS / metal-green (2026-06-23).** field.* =
   `docs/field-results/lora-fr1-0623/TN-FR-1.json` (+ raw serial). Routed Events A->B->C over LoRa on 3 DFR
   (A=480e900e, B=2cab5f69, C=f91c8911 — all TG-A), MASK-forced multi-hop: **C DELIVERED A's REQUESTs via B
