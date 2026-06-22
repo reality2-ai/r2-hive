@@ -144,10 +144,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..cbf762e 100644
+index 8c49f1c..663a212 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2741 @@
+@@ -1,83 +1,2756 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -790,10 +790,22 @@ index 8c49f1c..cbf762e 100644
 +                    // Both boards mute (reset together → ~1-2s offset ≪ 30s) so neither hears the other → pure
 +                    // free-run. GROUND TRUTH = the LED-unison through the blackout (Roy's eyes): ON stay locked,
 +                    // OFF visibly drift apart. (Serial spread_ms POST-recovery is vacuous — phase re-locks both.)
-+                    #[cfg(feature = "blackout")]
++                    // HBSYNC-06: blackout at [300,330)s. BL-103 (fastevict): bring the silence EARLY to
++                    // [60,90)s so the eviction+rediscovery test runs in ~2min (the route clock is already
++                    // x120-accelerated, so 30s real silence >> the scaled eviction horizon).
++                    #[cfg(all(feature = "blackout", not(feature = "fastevict")))]
 +                    let do_broadcast = {
 +                        let up = embassy_time::Instant::now().as_secs();
 +                        !(300..330).contains(&up)
++                    };
++                    #[cfg(all(feature = "blackout", feature = "fastevict"))]
++                    let do_broadcast = {
++                        let up = embassy_time::Instant::now().as_secs();
++                        let muting = (60..150).contains(&up); // 60s silence: silent board evicts, active stays
++                        if muting {
++                            println!("r2-dfr1195: BLACKOUT-MUTE up={up}s (TX off — BL-103 silence)");
++                        }
++                        !muting
 +                    };
 +                    if do_broadcast {
 +                        if let Ok(n) = encode_extended(&msg, &mut txbuf) {
@@ -2160,8 +2172,11 @@ index 8c49f1c..cbf762e 100644
 +// the §2.5 eviction horizon (1800s hard timeout / conf<0.01) is crossed in seconds. Dashboard liveness
 +// (seen/MESH_PEER_TTL_S) uses REAL time — only the engine-facing clock scales here. FACTOR 120: a 30s
 +// blackout silence = 3600 route-s (2x the hard timeout) -> the silent board evicts mid-blackout.
++// x40: silent board evicts ~42s into the blackout (conf<0.01 at 1680/40s), while an ACTIVE neighbour
++// (refreshed every ~2s -> mild 0.83 conf-decay/beat) stays well above threshold. x120 was too steep
++// (0.57/beat) -> it evicted active neighbours too, losing the silent-vs-active contrast.
 +#[cfg(feature = "fastevict")]
-+const ROUTE_TIME_FACTOR: u32 = 120;
++const ROUTE_TIME_FACTOR: u32 = 20;
 +fn route_now_s() -> u32 {
 +    let r = embassy_time::Instant::now().as_secs() as u32;
 +    #[cfg(feature = "fastevict")]

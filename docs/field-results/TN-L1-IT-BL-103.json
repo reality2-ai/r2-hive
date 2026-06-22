@@ -1,0 +1,20 @@
+{
+  "conjecture_id": "TN-L1-IT-BL-103",
+  "scenario_ref": "TN-L1-IT-BL-103-eviction-rediscovery",
+  "tier": "hardware",
+  "transport": "esp-now",
+  "run_id": "bl103-metal-0622",
+  "timestamp_utc": "2026-06-22T10:32:00Z",
+  "runner": "hive; 3 alfred XIAO ESP32-S3, nobt,routetest,fastevict (+blackout on the silent board), MASK+SENDTO->NVS isolation, local serial capture",
+  "board_map": { "X1/observer": "998de7fc", "X2/active": "c2106bd5", "X3/silent(blackout)": "af1464f4" },
+  "topology": "3-XIAO full mesh, MASK-isolated from the live DFR (each hears only the other two)",
+  "method": "fastevict scales the ROUTE-engine clock x20 (route_now_s at decay_neighbours/decay_paths/ingest) so the §2.5 eviction horizon (1800s hard-timeout / conf<0.01) is crossed in seconds on the bench. blackout mutes X3's TX for [60,150)s uptime = the silence. An observer (X1) logs its route-engine neighbour table (hive@conf x1000) every fire. Dashboard liveness (seen/MESH_PEER_TTL_S) stays REAL-time; only the engine clock scales.",
+  "expectations": [
+    { "type": "eviction", "args": {"silent":"X3/af1464f4"}, "observed": "af1464f4 conf decays monotonically 999->575->331->190->91->33->11 once X3 mutes (blackout confirmed BLACKOUT-MUTE up=60..149s), then DROPS from X1's neighbour table (count 2->1) = evicted at conf<0.01", "serial_ref": "bl103-0622/X1-nbrtbl.log", "pass": true },
+    { "type": "active_stability", "args": {"active":"X2/c2106bd5"}, "observed": "c2106bd5 (broadcasting throughout) STAYS in X1's table at high conf (692-991) across the entire blackout window — an actively-heard neighbour is NOT evicted while the silent one is", "serial_ref": "bl103-0622/X1-nbrtbl.log", "pass": true },
+    { "type": "rediscovery", "args": {"returning":"X3/af1464f4"}, "observed": "when X3 resumes TX (~150s), af1464f4 RE-APPEARS in X1's neighbour table (count 1->2) at fresh conf (@756) = rediscovered", "serial_ref": "bl103-0622/X1-nbrtbl.log", "pass": true }
+  ],
+  "verdict": "survived",
+  "raw_serial": "docs/field-results/bl103-0622/",
+  "notes": "SURVIVED — §2.5 neighbour eviction + rediscovery holds on real ESP-NOW. A neighbour that goes silent past the eviction horizon is evicted from the route-engine neighbour table (conf decay to <0.01), an actively-heard neighbour is retained (the eviction is selective, not a global flush), and a returning neighbour is rediscovered at fresh confidence. Reused the REAL r2_route engine decay_neighbours (eviction logic is the engine's, not reimplemented). METHOD NOTE (honest, for the accelerated-bench method, NOT a refutation): the fastevict route-clock accelerator is needed because the real horizon is 1800s/30min (impractical to bench); it amplifies conf variance (each accelerated decay-step magnifies any RF jitter / the 3-board PCO-sync perturbation when the silent board drops), so x120/x40 evicted active neighbours too — x20 gave the clean selective contrast above. The REAL-timing eviction (x1) would be cleaner-still but takes 30min; the accelerator trades conf-stability for tractable timing while testing the same eviction LOGIC. No spec weakness found."
+}

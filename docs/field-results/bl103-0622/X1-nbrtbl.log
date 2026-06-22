@@ -1,0 +1,15 @@
+BL-103 metal — X1 (998de7fc) NBR-TBL observer, F=20, X3(af1464f4)=blackout[60,150)s, X2(c2106bd5)=active. Isolated 3-XIAO (MASK->NVS, no DFR).
+PRESENT (both stable, X3 broadcasting): af1464f4@963..999  c2106bd5@962..995  count=2
+X3 BLACKOUT (TX off) -> af1464f4 DECAYS, c2106bd5 STAYS:
+  af1464f4@999 c2106bd5@954
+  af1464f4@575 c2106bd5@912
+  af1464f4@331 c2106bd5@944
+  af1464f4@190 c2106bd5@964
+  af1464f4@91  c2106bd5@912
+  af1464f4@33  c2106bd5@692
+  af1464f4@11  c2106bd5@803
+  count=1 c2106bd5@786   <- af1464f4 EVICTED (active c2106bd5 stays)
+EVICTED + ACTIVE STABLE (sustained through blackout): count=1 c2106bd5@786..991 (X2 never evicted)
+X3 RE-BEACON (~150s) -> REDISCOVERED:
+  count=2 af1464f4@756 c2106bd5@889   <- af1464f4 re-added fresh
+  count=2 af1464f4@787 c2106bd5@865
