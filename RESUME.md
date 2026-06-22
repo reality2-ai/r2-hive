@@ -47,6 +47,20 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   **2 metal field.* results: BL-100 survived, BL-200 partial-divergence.** NEXT: BL-103 (eviction+rediscovery,
   reuses directed_via telemetry + blackout arm); re-run BL-200 if specs/core refine §4.3.4. LESSON: the
   metal tier earns its keep — it found a real sim-vs-metal divergence the sim 8/8 could not.
+- **BL-200 RESOLVED (`bdc4d3b` fw + `bc6e029` field.*=resolved-pass).** The divergence was a ONE-LINE
+  FIRMWARE BUG, not a spec gap. Root cause (metal-pinpointed via instrumented RT-DBG of core's 3 bits
+  contains/sender/path-conf): the reply REUSED the request's msg_id + dedup keys on `(msg_id as u16)` ->
+  reply collided with the already-forwarded request -> DROP Duplicate at every relay -> reply died at the
+  hop ADJACENT to dest (still reinforced via on_received-BEFORE-dedup) -> never propagated upstream = the
+  exact "adjacent-converges, upstream-floods" signature. Ruled OUT: spec gap, CAP (256>>~28), broadcast-
+  overhearing (MASK isolates; core's sim silent/converged-everywhere). FIX = distinct reply msg_id
+  `h.msg_id | 0x8000` (LOW-16 since dedup truncates — a first 0x8000_0000 attempt still dropped, caught on
+  metal). VERIFIED isolated 5-DFR: R1->R2 directed_via, path-conf 0.66->0.96 (was flooding); R2->D 0.984;
+  D exactly_once. §4.3.4 ADEQUATE (specs+core agreed). ENABLERS: MASK-NVS @0x15000 + SENDTO-NVS @0x16000
+  (defeat the capture serial-open DTR-reset that wedged earlier runs) + a tight composer handshake (zero
+  race). LESSON: metal found+pinpointed+FIXED a bug the SIM STRUCTURALLY COULD NOT (no u16-dedup-truncation
+  nor on_received-before-dedup model). Instrument-first + spec-first prevented a canon change for a wiring
+  bug. **3 metal field.*: BL-100 survived, BL-200 resolved-pass.**
 - **🎉 9-BOARD CO-LOCATED CROSS-HOST MESH LIVE (0622.1517, serial-verified).** Roy directive: bring the
   4 XIAO ESP32-S3 on **alfred** into the leaderless mesh with tuxedo's 5 DFR1195. DONE. Built the SAME
   `nobt` leaderless-0.4 firmware ON alfred (esp toolchain; `source ~/Development/homelab/export-esp.sh`
