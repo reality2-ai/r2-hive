@@ -124,10 +124,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..39720ba 100644
+index 8c49f1c..9511855 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2181 @@
+@@ -1,83 +1,2183 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -2014,7 +2014,9 @@ index 8c49f1c..39720ba 100644
 +    let mut socket = UdpSocket::new(stack, &mut rx_meta, &mut rx_buf, &mut tx_meta, &mut tx_buf);
 +    let _ = socket.bind(R2_IDENTIFY_BRIDGE_PORT);
 +    let bcast = IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
-+    let mut line = [0u8; 64];
++    // 128 B: an IDENTIFY line is short, but a PROVISION line is ~94 B ("PROVISION " + 8-hex wire +
++    // decimal tg_id + 64-hex key) — a 64 B buffer truncated the key → BadKeyLength (metal-found).
++    let mut line = [0u8; 128];
 +    let mut n = 0usize;
 +    loop {
 +        if let Ok(c) = usb_rx.read_byte() {
