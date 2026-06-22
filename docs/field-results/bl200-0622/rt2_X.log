@@ -1,0 +1,301 @@
+r2-dfr1195: status beats=28 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=56 fw=r2-dfr1195: FIRE seq=29 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.052 spread=103ms (leaderless)
+r2-dfr1195: status beats=29 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=44 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=30 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108186709000a010b182f0c181e0d000e01
+r2-dfr1195: status beats=30 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=103 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=31 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.027 spread=54ms (leaderless)
+r2-dfr1195: FIRE seq=32 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.047 spread=94ms (leaderless)
+r2-dfr1195: RX-EV msg_id=32 directed_via from=0dcadbf8 next_hop=06ae082b nbrs=3
+r2-dfr1195: RELAY msg_id=32 ttl 5->4
+r2-dfr1195: RX-EV msg_id=32 tgt=06ae082b DROP Duplicate nbrs=3
+r2-dfr1195: DEDUP msg_id=32 dropped
+r2-dfr1195: status beats=32 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=54 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=33 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108185e09000a010b18340c18210d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.002 spread=4ms (leaderless)
+r2-dfr1195: FIRE seq=34 beat (leaderless)
+r2-dfr1195: status beats=34 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=4 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=35 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.047 spread=93ms (leaderless)
+r2-dfr1195: status beats=35 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=4 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=36 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108185d09000a010b18380c18240d000e01
+r2-dfr1195: status beats=36 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=93 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.001 spread=1ms (leaderless)
+r2-dfr1195: RX-EV msg_id=33 flooded from=0dcadbf8 fanout=1 nbrs=3
+r2-dfr1195: RELAY msg_id=33 ttl 5->4
+r2-dfr1195: RX-EV msg_id=33 tgt=06ae082b DROP Duplicate nbrs=3
+r2-dfr1195: DEDUP msg_id=33 dropped
+r2-dfr1195: status beats=36 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=93 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=37 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.023 spread=45ms (leaderless)
+r2-dfr1195: FIRE seq=38 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.022 spread=43ms (leaderless)
+r2-dfr1195: FIRE seq=39 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070208182b09000a010b183c0c18270d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.021 spread=42ms (leaderless)
+r2-dfr1195: RX-EV msg_id=34 flooded from=0dcadbf8 fanout=1 nbrs=3
+r2-dfr1195: RELAY msg_id=34 ttl 5->4
+r2-dfr1195: RX-EV msg_id=34 tgt=06ae082b DROP Duplicate nbrs=3
+r2-dfr1195: DEDUP msg_id=34 dropped
+r2-dfr1195: HB<-esp-now from=480e900e e=0.003 spread=6ms (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.052 spread=103ms (leaderless)
+r2-dfr1195: RX-EV msg_id=35 flooded from=0dcadbf8 fanout=1 nbrs=3
+r2-dfr1195: RELAY msg_id=35 ttl 5->4
+r2-dfr1195: RX-EV msg_id=35 tgt=06ae082b DROP Duplicate nbrs=3
+r2-dfr1195: DEDUP msg_id=35 dropped
+r2-dfr1195: status beats=39 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=43 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=40 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.054 spread=107ms (leaderless)
+r2-dfr1195: status beats=40 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=103 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=41 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.030 spread=59ms (leaderless)
+r2-dfr1195: RX-EV msg_id=36 flooded from=0dcadbf8 fanout=1 nbrs=3
+r2-dfr1195: RELAY msg_id=36 ttl 5->4
+r2-dfr1195: RX-EV msg_id=36 tgt=06ae082b DROP Duplicate nbrs=3
+r2-dfr1195: DEDUP msg_id=36 dropped
+r2-dfr1195: FIRE seq=42 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070208183b09000a010b18400c182a0d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.048 spread=95ms (leaderless)
+r2-dfr1195: status beats=42 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=59 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=43 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.002 spread=3ms (leaderless)
+r2-dfr1195: FIRE seq=44 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.024 spread=47ms (leaderless)
+r2-dfr1195: RX-EV msg_id=37 flooded from=0dcadbf8 fanout=1 nbrs=3
+r2-dfr1195: RELAY msg_id=37 ttl 5->4
+r2-dfr1195: RX-EV msg_id=37 tgt=06ae082b DROP Duplicate nbrs=3
+r2-dfr1195: DEDUP msg_id=37 dropped
+r2-dfr1195: HB<-esp-now from=480e900e e=0.003 spread=6ms (leaderless)
+r2-dfr1195: status beats=44 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=3 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.001 spread=2ms (leaderless)
+r2-dfr1195: status beats=44 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=3 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.002 spread=4ms (leaderless)
+r2-dfr1195: RX-EV msg_id=38 flooded from=0dcadbf8 fanout=1 nbrs=3
+r2-dfr1195: RELAY msg_id=38 ttl 5->4
+r2-dfr1195: RX-EV msg_id=38 tgt=06ae082b DROP Duplicate nbrs=3
+r2-dfr1195: DEDUP msg_id=38 dropped
+r2-dfr1195: status beats=44 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=3 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.002 spread=3ms (leaderless)
+r2-dfr1195: status beats=44 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=3 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.002 spread=3ms (leaderless)
+r2-dfr1195: status beats=44 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=3 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.002 spread=3ms (leaderless)
+r2-dfr1195: RX-EV msg_id=39 flooded from=0dcadbf8 fanout=1 nbrs=3
+r2-dfr1195: RELAY msg_id=39 ttl 5->4
+r2-dfr1195: RX-EV msg_id=39 tgt=06ae082b DROP Duplicate nbrs=3
+r2-dfr1195: DEDUP msg_id=39 dropped
+r2-dfr1195: status beats=44 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=3 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.002 spread=3ms (leaderless)
+r2-dfr1195: status beats=44 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=3 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=45 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e323030387274320568656463316265313306000702080309000a010b18510c182d0d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.048 spread=95ms (leaderless)
+r2-dfr1195: status beats=45 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=3 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=46 beat (leaderless)
+r2-dfr1195: status beats=46 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=95 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=47 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.048 spread=96ms (leaderless)
+r2-dfr1195: RX-EV msg_id=40 flooded from=0dcadbf8 fanout=1 nbrs=3
+r2-dfr1195: RELAY msg_id=40 ttl 5->4
+r2-dfr1195: RX-EV msg_id=40 tgt=06ae082b DROP Duplicate nbrs=3
+r2-dfr1195: DEDUP msg_id=40 dropped
+r2-dfr1195: status beats=47 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=95 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=48 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108186009000a010b18570c18300d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.026 spread=52ms (leaderless)
+r2-dfr1195: FIRE seq=49 beat (leaderless)
+r2-dfr1195: status beats=49 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=52 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=50 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.044 spread=87ms (leaderless)
+r2-dfr1195: status beats=50 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=52 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=51 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108185709000a010b185b0c18330d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.024 spread=48ms (leaderless)
+r2-dfr1195: RX-EV msg_id=41 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=41 ttl 5->4
+r2-dfr1195: RX-EV msg_id=41 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=41 dropped
+r2-dfr1195: HB<-esp-now from=480e900e e=0.003 spread=6ms (leaderless)
+r2-dfr1195: status beats=51 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=87 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=52 beat (leaderless)
+r2-dfr1195: status beats=52 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=6 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=53 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.069 spread=137ms (leaderless)
+r2-dfr1195: status beats=53 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=6 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=54 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108188909000a010b18620c18360d000e01
+r2-dfr1195: status beats=54 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=137 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.036 spread=72ms (leaderless)
+r2-dfr1195: RX-EV msg_id=42 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=42 ttl 5->4
+r2-dfr1195: RX-EV msg_id=42 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=42 dropped
+r2-dfr1195: status beats=54 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=137 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.004 spread=7ms (leaderless)
+r2-dfr1195: status beats=54 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=137 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.002 spread=4ms (leaderless)
+r2-dfr1195: status beats=54 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=137 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.003 spread=5ms (leaderless)
+r2-dfr1195: RX-EV msg_id=43 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=43 ttl 5->4
+r2-dfr1195: RX-EV msg_id=43 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=43 dropped
+r2-dfr1195: status beats=54 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=137 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.003 spread=5ms (leaderless)
+r2-dfr1195: status beats=54 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=137 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=55 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.047 spread=93ms (leaderless)
+r2-dfr1195: status beats=55 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=5 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.000 spread=0ms (leaderless)
+r2-dfr1195: RX-EV msg_id=44 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=44 ttl 5->4
+r2-dfr1195: RX-EV msg_id=44 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=44 dropped
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.050 spread=99ms (leaderless)
+r2-dfr1195: status beats=55 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=5 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=56 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.026 spread=51ms (leaderless)
+r2-dfr1195: FIRE seq=57 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070208183309000a010b18700c18390d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.072 spread=143ms (leaderless)
+r2-dfr1195: RX-EV msg_id=45 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=45 ttl 5->4
+r2-dfr1195: RX-EV msg_id=45 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=45 dropped
+r2-dfr1195: status beats=57 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=51 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=58 beat (leaderless)
+r2-dfr1195: status beats=58 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=143 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=59 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.083 spread=165ms (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.073 spread=145ms (leaderless)
+r2-dfr1195: status beats=59 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=143 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=60 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108189109000a010b18770c183c0d000e01
+r2-dfr1195: status beats=60 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=145 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=61 beat (leaderless)
+r2-dfr1195: status beats=61 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=145 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=62 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.078 spread=156ms (leaderless)
+r2-dfr1195: RX-EV msg_id=46 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=46 ttl 5->4
+r2-dfr1195: RX-EV msg_id=46 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=46 dropped
+r2-dfr1195: status beats=62 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=145 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=63 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108189c09000a010b187d0c183f0d000e01
+r2-dfr1195: status beats=63 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=156 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=64 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.036 spread=72ms (leaderless)
+r2-dfr1195: status beats=64 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=156 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=480e900e e=0.005 spread=9ms (leaderless)
+r2-dfr1195: status beats=64 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=156 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=65 beat (leaderless)
+r2-dfr1195: status beats=65 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=9 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=66 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e323030387274320568656463316265313306000702080909000a010b18850c18420d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.117 spread=234ms (leaderless)
+r2-dfr1195: RX-EV msg_id=47 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=47 ttl 5->4
+r2-dfr1195: RX-EV msg_id=47 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=47 dropped
+r2-dfr1195: status beats=66 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=9 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=67 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.066 spread=132ms (leaderless)
+r2-dfr1195: status beats=67 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=234 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=68 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.033 spread=66ms (leaderless)
+r2-dfr1195: FIRE seq=69 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070208184209000a010b188a0c18450d000e01
+r2-dfr1195: status beats=69 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=66 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=70 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.044 spread=87ms (leaderless)
+r2-dfr1195: RX-EV msg_id=48 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=48 ttl 5->4
+r2-dfr1195: RX-EV msg_id=48 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=48 dropped
+r2-dfr1195: status beats=70 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=66 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=71 beat (leaderless)
+r2-dfr1195: status beats=71 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=87 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=72 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108185709000a010b18900c18480d000e01
+r2-dfr1195: status beats=72 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=87 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=73 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.061 spread=122ms (leaderless)
+r2-dfr1195: status beats=73 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=87 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=74 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.030 spread=60ms (leaderless)
+r2-dfr1195: FIRE seq=75 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070208183c09000a010b18940c184b0d000e01
+r2-dfr1195: status beats=75 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=60 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=76 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.043 spread=85ms (leaderless)
+r2-dfr1195: RX-EV msg_id=49 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=49 ttl 5->4
+r2-dfr1195: RX-EV msg_id=49 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=49 dropped
+r2-dfr1195: status beats=76 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=60 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=77 beat (leaderless)
+r2-dfr1195: status beats=77 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=85 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=78 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108185509000a010b189a0c184e0d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.065 spread=130ms (leaderless)
+r2-dfr1195: status beats=78 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=85 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=79 beat (leaderless)
+r2-dfr1195: status beats=79 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=130 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=80 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.026 spread=52ms (leaderless)
+r2-dfr1195: RX-EV msg_id=50 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=50 ttl 5->4
+r2-dfr1195: RX-EV msg_id=50 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=50 dropped
+r2-dfr1195: FIRE seq=81 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070208183409000a010b189f0c18510d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.047 spread=94ms (leaderless)
+r2-dfr1195: status beats=81 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=52 fw=leaderless-0.4 role=STA
+r2-dfr1195: status beats=81 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=52 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=82 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.048 spread=95ms (leaderless)
+r2-dfr1195: status beats=82 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=94 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=83 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.048 spread=96ms (leaderless)
+r2-dfr1195: RX-EV msg_id=51 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=51 ttl 5->4
+r2-dfr1195: RX-EV msg_id=51 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=51 dropped
+r2-dfr1195: status beats=83 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=95 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=84 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108186009000a010b18a50c18540d000e01
+r2-dfr1195: status beats=84 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=96 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=85 beat (leaderless)
+r2-dfr1195: status beats=85 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=96 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=86 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.060 spread=120ms (leaderless)
+r2-dfr1195: status beats=86 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=96 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=87 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108187809000a010b18ab0c18570d000e01
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.029 spread=57ms (leaderless)
+r2-dfr1195: FIRE seq=88 beat (leaderless)
+r2-dfr1195: status beats=88 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=57 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=89 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.041 spread=82ms (leaderless)
+r2-dfr1195: RX-EV msg_id=52 flooded from=0dcadbf8 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=52 ttl 5->4
+r2-dfr1195: RX-EV msg_id=52 tgt=06ae082b DROP Duplicate nbrs=1
+r2-dfr1195: DEDUP msg_id=52 dropped
+r2-dfr1195: status beats=89 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=57 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=90 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e32303038727432056865646331626531330600070108185209000a010b18af0c185a0d000e01
+r2-dfr1195: status beats=90 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=82 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=91 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=480e900e e=-0.088 spread=175ms (leaderless)
+r2-dfr1195: status beats=91 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=82 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=92 beat (leaderless)
+r2-dfr1195: status beats=92 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=175 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=93 beat (leaderless)
+r2-dfr1195: HEALTH af001a0dcadbf8011a0a955b700204036d3139322e3136382e342e323238046c303632322e3230303872743205686564633162653133060007010818af09000a010b18b60c185d0d000e01
+r2-dfr1195: status beats=93 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=175 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=94 beat (leaderless)

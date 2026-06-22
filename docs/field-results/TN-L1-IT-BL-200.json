@@ -1,0 +1,21 @@
+{
+  "conjecture_id": "TN-L1-IT-BL-200",
+  "scenario_ref": "TN-L1-IT-BL-200-distributed-trail",
+  "tier": "hardware",
+  "transport": "esp-now",
+  "run_id": "bl200-metal-0622-cleanrun",
+  "timestamp_utc": "2026-06-22T08:18:46Z",
+  "runner": "hive; 5 tuxedo DFR, routetest build (demo-Event gated off), via ssh tuxedo serial capture",
+  "board_map": { "[0,0]/A": "480e900e", "[0,1]/R1": "2cab5f69", "[0,2]/R2": "f91c8911", "[0,3]/D": "06ae082b", "[0,4]/X": "0dcadbf8" },
+  "topology": "chain A-R1-R2-D + alternate A-X (X-D link absent), imposed via per-board MASK on full-mesh ESP-NOW",
+  "expectations": [
+    { "type": "directed_via", "args": {"from":"R2","next_hop":"D"}, "observed": "20 directed_via, 0 flooded — CONVERGED (flood->directed over time)", "serial_ref": "rt2_R2.log", "pass": true },
+    { "type": "directed_via", "args": {"from":"R1","next_hop":"R2"}, "observed": "0 directed_via, 21 flooded — did NOT converge (stays flooding)", "serial_ref": "rt2_R1.log", "pass": false },
+    { "type": "directed_via", "args": {"from":"A","next_hop":"R1"}, "observed": "0 directed_via, 21 flooded — did NOT converge (stays flooding)", "serial_ref": "rt2_A.log", "pass": false },
+    { "type": "exactly_once", "args": {"dest":"D"}, "observed": "20 msg_ids each DELIVERED exactly 1x (histogram 20x1); 0 duplicates", "serial_ref": "rt2_D.log", "pass": true },
+    { "type": "no_steal", "args": {"alt":"X"}, "observed": "X never selected as a directed next_hop by any node (alt path with X-D absent does not steal the trail)", "serial_ref": "rt2_*.log", "pass": true }
+  ],
+  "verdict": "falsified",
+  "raw_serial": "docs/field-results/bl200-0622/",
+  "notes": "PARTIAL / SIM-vs-METAL DIVERGENCE (the headline field.* finding). On real ESP-NOW the §4.3.4 reply-confirmed distributed trail converges to directed_via ONLY on the hop ADJACENT to the destination (R2->D, 20/20 clean) — the upstream hops (A->R1, R1->R2) stay FLOODING even after 20 reply round-trips with clean isolated traffic (demo Events gated off) and exactly-once delivery. The conjecture (sim 8/8) asserts 'after reply round-trips EVERY on-path node forwards directed toward D via its own next-hop' = end-to-end. Metal refutes the end-to-end claim while CONFIRMING: adjacent-hop convergence, exactly_once, and the black-hole/alt-path no-steal property. STRUCTURAL HYPOTHESIS: R2<->D is an unambiguous reverse link (D's only neighbour is R2) so the reply strong-reinforces R2->D directly; upstream the reply FLOODS back (A/R1 forward paths aren't converged), so the strong-reinforcement toward D arrives via varying senders / competes with flood-churn / decays before crossing the directed threshold. SPEC-FIRST: routed to specs (conjecture owner) + core (r2_route::trail policy owner) BEFORE any firmware change — is this (a) a real §4.3.4 sim-vs-metal divergence needing a spec refinement (e.g. reply must pin the reverse next-hop, or a stronger upstream reinforce), (b) a refutation of the end-to-end claim, or (c) a subtle issue in hive's reply-propagation/src_hive/forwarded-set wiring that core should review. Reused the REAL RouteEngine + r2_route::trail (drift-gate-faithful to sim) so the divergence is in the policy-on-real-RF or hive's call-sites, not a reimpl. Raw serial attached for re-decision."
+}
