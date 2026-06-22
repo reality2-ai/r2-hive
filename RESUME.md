@@ -25,9 +25,27 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   carriers + polarity DEFAULTS active-HIGH (read_board_profile) = exactly what the XIAO external LEDs need;
   a per-target LED change would have DIVERGED the build and split the mesh. **8MB vs 4MB:** XIAO flash=8MB,
   DFR=4MB; used the 4MB table for production-parity (meshing unaffected by unused upper flash) — revisit an
-  8MB layout (`docs/dfr1195-partitions-8mb.csv`) at the OTA phase. **NEXT = STEP 3:** the 2-TG per-TG keying
-  firmware port (core `080b724` run_leaderless_multi_tg + PROVISION primitive `0b44e56`
-  r2_trust::provision::parse_provision; composer CROSS-HOST-2TG.md §6 wire contract).
+  8MB layout (`docs/dfr1195-partitions-8mb.csv`) at the OTA phase.
+- **STEP 3 — 2-TG per-TG keying firmware: IMPLEMENTED + COMPILES (committed; metal proof pending composer).**
+  Behind a new `multitg` feature (live `nobt` demo byte-for-byte unaffected; BOTH `nobt` and `nobt,multitg`
+  build green on alfred/xtensa). **Inc1 (`6e2eeca`) runtime PROVISION receive:** uart_rx_task reads the board's
+  OWN USB-serial RX (composer SECURITY correction — the secret GroupHmac key must NOT go on the air like the
+  IDENTIFY mesh-frame; point-to-point USB only) → `r2_trust::provision::parse_provision(line, my_wire=my_hive)`
+  (core `0b44e56`, USED not re-implemented) → `write_provisioned_tg` persists {magic,tg_id,32B key} raw @0x14000
+  (own 4KB sector; read-back verified) → `PENDING_PROVISION` hands the key to io_task → swaps live GroupHmac +
+  target_group (no reboot); boot restores from NVS (overrides persona/demo). `tg_id`==`my_tg_hash` (fnv1a_32(UUID)
+  decimal = frame target_group). ACK on serial: `PROVISION-APPLIED wire=<8hex> tg_id=<dec>` / `PROVISION-ERR`.
+  **Inc2 (`5678837`) HB-signed + verify-gated coupling:** the heartbeat pulse is now `sign_extended(group_hmac)`'d
+  and the io_task couple-gate flips from plaintext `target_group==my_tg_hash` to `verify_extended(&m,&group_hmac)`
+  (specs §6.3 — coupling REQUIRES a GroupHmac-verified pulse). A TG-A node fails-verify a TG-B pulse → no couple
+  → 2 independent sync clusters on shared RF = the logical-partition proof. **HB wire change → all-9 coordinated**
+  (a multitg node won't couple to an unsigned nobt pulse → a 2-board multitg pair SELF-ISOLATES from the nobt
+  mesh = a clean self-contained test). **Board→TG split (composer-confirmed):** TG-A=177560432 {D1 480e900e, D2
+  2cab5f69, D3 f91c8911, X1 998de7fc/ACM4, X2 c2106bd5/ACM2}; TG-B=1584099016 {D4 06ae082b, D5 0dcadbf8, X3
+  af1464f4/ACM1, X4 2c81b4a3/ACM3}. **NEXT (coordinated w/ composer):** flash a 2-board multitg pair (proposed
+  ACM2=TG-A + ACM1=TG-B alfred XIAO) → composer provisions direct-to-tty → confirm NO cross-TG coupling, then
+  re-provision same-TG → confirm coupling (minimal refutation), then all-9 rollout. BLOCKER: composer's
+  orchestrator holds all 4 alfred XIAO ttys (the alfred dashboard feed) — it must release ports before I flash.
 
 - **#1 LEAD TRACK: first real-hardware TN test on the DFR1195 rig.** Critical-path doc DELIVERED +
   CORRECTED (`45a7194`, `docs/hardware-tn-test-critical-path.md`). **TWO boards now live on tuxedo-os:
