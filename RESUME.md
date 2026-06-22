@@ -34,10 +34,20 @@ current, don't wait per-conjecture.
 - **⚠️ X4 (2c81b4a3) NEEDS A POWER-CYCLE (Roy, morning):** its USB-JTAG de-enumerated during the WiFi run
   (port vanished from /dev/serial/by-id); X1/X2/X3 restored fine to multitg (one-off X4 USB casualty, not a
   defect). X4 is OFFLINE / stuck on the WiFi build until physically re-plugged. The 5 DFR + 3 XIAO are clean.
-- **NEXT (gated/queued):** WiFi MASKED routing (BL-200/103 over WiFi via the can_hear MASK ported to the
-  UDP/IP path — supervisor-directed; needs the IP-MASK port, now justified post-HB-sync) + BL-100 demote
-  sweep (#13) + SX1262 LoRa bring-up (core's r2-sx1262 ready; 3 confirms TCXO/RF-switch/DIO1).
-  SIM-ONLY (per specs, NOT metal): BL-204 idle-fade, L2-XT-BL-200, silence-is-signal (need ~40000s idle).
+- **🔴 NEW TOP PRIORITY (Roy/supervisor): LoRa MESH bring-up** on the DFR1195s (they carry SX1262 = the
+  Wairoa rung #21/#22). GROUNDWORK DONE (`ec5eefd`): core's r2-sx1262 (Sx1262 impl LoRaRadio) integrated
+  into the worktree (workspace member, builds) + firmware dep + `lora`/`loratcxo` features; no regression.
+  WIRING PLAN: direct in main.rs (single-main; lora.rs/peers stub uncompiled) — SPI3 SCK7/MISO5/MOSI6 +
+  NSS10-CS (ExclusiveDevice) + BUSY40/RST41 + Delay; configure(wairoa_as923_nz 916.8/SF12/BW125/CR45/
+  sync0x21); LoRaRadio API configure/transmit/listen/poll(RadioEvent)/read(RxInfo). NEXT BUILD = the
+  first-light lora_task (concrete-typed embassy task: TX beacon + poll RX + log RSSI/SNR), then metal-
+  validate core's 3 confirms (TCXO-vs-XTAL=loratcxo [#1 blocker], DIO2-RF-switch, DIO1). Needs a DFR
+  window (requested) + the TCXO answer (asked composer). Build `nobt,lora` (LoRa runs alongside ESP-NOW).
+- THEN (per supervisor): cross-transport LoRa<->WiFi gateway (DG-2, #16); BLE-mesh 'perhaps' (WAIROA-7);
+  LR2021 (composer leads). SECONDARY: WiFi MASKED routing (IP-MASK port; specs queued BL-203/200-over-wifi/
+  BL-000/AB-000/BL-001) + BL-100 demote sweep (#13). M-ESPNOW-3 (carry frame-origin->ForwardRequest.origin,
+  core contract confirmed engine.rs:56-64; + H1 authenticate route_stack[0]) = canonical BL-200-class kill.
+  SIM-ONLY (specs): BL-204 idle-fade, L2-XT-BL-200, silence-is-signal (~40000s idle).
 - **M-ESPNOW-3 follow-up:** carry frame-origin in the relay frame -> ForwardRequest.origin -> r2_route
   (origin,msg_id) dedup = the canonical fix that kills the origin-degraded class (beyond BL-200).
 
