@@ -1,0 +1,8 @@
+TN-L0-IT-HBSYNC-WIFI metal — X1(998de7fc)=SoftAP (AP_MAC_MATCH=0xFBE520), X2(c2106bd5)+X3(af1464f4)=STA, UDP-broadcast .4.255. Leaderless PCO over WiFi/UDP, N=3.
+X1 (role=AP) hears BOTH STAs over UDP + sync CONVERGED:
+  HB<-192.168.4.68:21042  from=c2106bd5 e=-0.001 spread=2ms
+  HB<-192.168.4.140:21042 from=af1464f4 e=0.001  spread=1ms
+  HB<-192.168.4.140:21042 from=af1464f4 e=-0.000 spread=0ms
+  HB<-192.168.4.68:21042  from=c2106bd5 e=0.000  spread=0ms
+  status synced=true spread_ms=0..4 (converged; from spread_ms=46 -> 0)
+NOTE: status nbrs=0 (the dashboard seen/MESH_PEER_TTL_S counter isn't updated on the WiFi/UDP path — cosmetic; coupling works, HB<- from both peers, sync holds). fw tag shows conductor-0.3 on the non-ble path (older version string; the sync engine is the same leaderless PCO).

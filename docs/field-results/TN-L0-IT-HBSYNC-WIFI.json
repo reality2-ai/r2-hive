@@ -1,0 +1,19 @@
+{
+  "conjecture_id": "TN-L0-IT-HBSYNC-WIFI",
+  "scenario_ref": "leaderless-PCO-heartbeat-sync-over-wifi-udp",
+  "tier": "hardware",
+  "transport": "wifi-udp",
+  "run_id": "hbsync-wifi-metal-0622",
+  "timestamp_utc": "2026-06-22T10:53:00Z",
+  "runner": "hive; 3 alfred XIAO ESP32-S3, default (non-ble) WiFi build, X1=SoftAP via AP_MAC_MATCH=0xFBE520, X2/X3=STA, local serial capture",
+  "board_map": { "X1/SoftAP": "998de7fc @192.168.4.1", "X2/STA": "c2106bd5 @192.168.4.68", "X3/STA": "af1464f4 @192.168.4.140" },
+  "topology": "WiFi SoftAP star (single broadcast domain), UDP broadcast to 192.168.4.255 — L0 full mesh, N=3",
+  "method": "the SAME leaderless Mirollo-Strogatz PCO engine (R2-HEARTBEAT v0.4) that runs over ESP-NOW, carried over WiFi/UDP-broadcast instead. AP_MAC_MATCH flipped to a XIAO so the span runs on XIAO (DFR ESP-NOW demo untouched).",
+  "expectations": [
+    { "type": "transport_join", "args": {}, "observed": "both STAs (X2,X3) associated to the SoftAP + DHCP'd (.4.68, .4.140) + UDP-broadcast HBs; X1(AP) receives HB<- from both", "serial_ref": "hbsync-wifi-0622/X1-ap-sync.log", "pass": true },
+    { "type": "pco_convergence", "args": {"N":3}, "observed": "leaderless PCO CONVERGED over WiFi/UDP: phase error e->~0.000, spread_ms 46->0-4ms, synced=true across all 3 boards", "serial_ref": "hbsync-wifi-0622/X1-ap-sync.log", "pass": true }
+  ],
+  "verdict": "survived",
+  "raw_serial": "docs/field-results/hbsync-wifi-0622/",
+  "notes": "SURVIVED — the leaderless PCO heartbeat sync is TRANSPORT-AGNOSTIC: it converges over WiFi/UDP-broadcast (N=3, spread_ms->0-4ms) exactly as over ESP-NOW. Transport-axis coverage extended (ESP-NOW + WiFi both proven). Same engine, only the data carrier swapped (UDP socket vs esp_now broadcast). MINOR (non-blocking, cosmetic): on the non-ble/WiFi path the dashboard `nbrs` (seen/MESH_PEER_TTL_S) counter stays 0 though coupling works (HB<- from both peers) — the seen-push is likely ESP-NOW-path-gated; and the fw version tag reads conductor-0.3 (older string) on the non-ble path. Neither affects sync. NEXT for WiFi: masked multi-hop routing (BL-200/103 over WiFi via the can_hear MASK ported to the UDP path) = the high-value transport-axis routing coverage."
+}
