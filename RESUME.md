@@ -33,6 +33,20 @@ do NOT fork per-target firmwares. Chain: specs → core → hive. composer orche
   the 3 reinforcer call-sites + decay_paths-from-tick + directed_via/exactly_once telemetry → run on 5
   ESP-NOW boards. Then BL-103 (eviction+rediscovery, reuses directed_via telemetry + blackout arm).
   KEY: metal REUSES r2-route::RouteEngine + r2_route::trail = field.* validates the REAL engine+policy.
+- **BL-200 (first ROUTING field.*) DONE — PARTIAL / sim-vs-metal DIVERGENCE (`8480089`).** 5 DFR ESP-NOW,
+  routetest build (full BL-200 firmware: topology MASK + §4.3.4 TrailReinforcer + A->D origin + reply
+  emitter; commits 71f4f82/34efe11/141e6ad/d98fc64). PROVEN on metal: directed_via converges adjacent-to-dest
+  (R2->D 20/20, flood->directed over time) + exactly_once@D (20x1) + alt-X no-steal. REFUTED: end-to-end —
+  upstream A->R1, R1->R2 STAY FLOODING after 20 clean reply round-trips. The §4.3.4 reply-confirmed trail
+  forms at the hop adjacent to dest (unambiguous reverse link D->R2) but NOT upstream where the reply floods
+  back over un-converged paths (strong-reinforce sees varying senders -> path-to-D never concentrates).
+  Routed SPEC-FIRST to specs + core (spec refinement: pin reverse next-hop? / refutation / hive wiring).
+  Record: `docs/field-results/TN-L1-IT-BL-200.json` + raw serial. PROCESS: first run contaminated (demo
+  lowest-hive emitted 49 Events) -> gated demo off under routetest + dropped <64,64,64> workaround (core
+  9497a60 made trail generic) -> clean re-run. Baseline RESTORED (5 DFR -> multitg, rejoined TGs).
+  **2 metal field.* results: BL-100 survived, BL-200 partial-divergence.** NEXT: BL-103 (eviction+rediscovery,
+  reuses directed_via telemetry + blackout arm); re-run BL-200 if specs/core refine §4.3.4. LESSON: the
+  metal tier earns its keep — it found a real sim-vs-metal divergence the sim 8/8 could not.
 - **🎉 9-BOARD CO-LOCATED CROSS-HOST MESH LIVE (0622.1517, serial-verified).** Roy directive: bring the
   4 XIAO ESP32-S3 on **alfred** into the leaderless mesh with tuxedo's 5 DFR1195. DONE. Built the SAME
   `nobt` leaderless-0.4 firmware ON alfred (esp toolchain; `source ~/Development/homelab/export-esp.sh`
