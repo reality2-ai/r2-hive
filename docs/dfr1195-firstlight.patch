@@ -154,10 +154,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..a576701 100644
+index 8c49f1c..a6246cd 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2857 @@
+@@ -1,83 +1,2870 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -2535,8 +2535,21 @@ index 8c49f1c..a576701 100644
 +#[cfg(feature = "lora")]
 +#[embassy_executor::task]
 +async fn lora_task(mut radio: LoraRadioTy, mut rxen: Output<'static>, my_hive: u32) {
-+    match radio.configure(&wairoa_as923_nz()) {
-+        Ok(()) => println!("r2-dfr1195: LORA configure OK (916.8MHz SF12 BW125 sync0x21 TCXO1.8)"),
++    // BENCH first-light: boards are ~30cm apart -> +20dBm SF12 SATURATES the RX (close-range overload ->
++    // every packet detected but CRC-fails). Drop to the SX1262 high-PA minimum (-9 dBm) for the bench.
++    // (The Wairoa deployment uses the full +20/+22 for 18km hops; this override is bench-only.)
++    let mut cfg = wairoa_as923_nz();
++    cfg.tx_power_dbm = -9;
++    // BENCH first-light: SF12 = ~2s time-on-air for an 8B packet, but the listen/TX windows are ~3s, so the
++    // RX often catches PARTIAL packets (window opens mid-frame) -> CRC fails every time. SF7 = ~40ms ToA ->
++    // the 3s listen easily catches a COMPLETE frame -> clean CRC. (Wairoa deployment keeps SF12 for 18km
++    // range; SF is config-driven. This bench override proves the link cleanly; SF12 range is a later test.)
++    cfg.spreading_factor = 7;
++    match radio.configure(&cfg) {
++        Ok(()) => println!(
++            "r2-dfr1195: LORA configure OK (916.8MHz SF12 BW125 sync0x21 TCXO1.8 txpwr={}dBm)",
++            cfg.tx_power_dbm
++        ),
 +        Err(e) => println!("r2-dfr1195: LORA configure ERR {e:?} (check TCXO/wiring)"),
 +    }
 +    rxen.set_high();
