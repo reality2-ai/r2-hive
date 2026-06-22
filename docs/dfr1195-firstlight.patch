@@ -160,10 +160,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..5720f6b 100644
+index 8c49f1c..5ea2247 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2935 @@
+@@ -1,83 +1,2963 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -1200,13 +1200,41 @@ index 8c49f1c..5720f6b 100644
 +                                    let _ = seen.push((sender_hive, now_s));
 +                                }
 +                            }
-+                            // ── Leaderless reachback-PCO coupling (R2-HEARTBEAT v0.4 §4.1) ──
-+                            // Couple toward THIS neighbour's fire on EVERY heard beat — flat, no conductor,
-+                            // no election to thrash (that flatness is exactly why the canon survives the
-+                            // 3-node flap = HBSYNC-01). The sender emitted on its own fire (phase 0);
-+                            // single-transport ESP-NOW transit << T so delay-comp ≈ 0 here (the §4.2
-+                            // reachback term is added with the frame tx_time for the LoRa/HBSYNC-03 gate).
-+                            let e = if phase <= 0.5 { -phase } else { 1.0 - phase }; // wrap(0 − phase) ∈ [−0.5,0.5)
++                            // ── Leaderless reachback-PCO coupling (R2-HEARTBEAT v0.4 §4.1 + §4.2) ──
++                            // Couple toward THIS neighbour's fire on EVERY heard beat — flat, no conductor.
++                            // §4.2 reachback (HBSYNC-03): the sender emitted on its own fire (phase 0) but the
++                            // frame took ToA to arrive, so its phase has ADVANCED by rate·ToA. ESP-NOW/WiFi:
++                            // ToA << T -> couple toward 0. LoRa (loramesh): ToA (130ms@SF7) is a big fraction
++                            // of T -> couple toward the airtime-advanced phase (rate·ToA), per core's §4.2
++                            // on_verified_pulse_delayed (ToA fallback, no wire change). HB frame = 62B fixed.
++                            let e = {
++                                #[cfg(feature = "loramesh")]
++                                {
++                                    let toa = r2_transport::lora_airtime::time_on_air_ms(
++                                        7,
++                                        125_000,
++                                        r2_transport::lora::CodingRate::Cr45,
++                                        62,
++                                    ) as f32;
++                                    let adv = rate * toa; // §4.2 airtime advance (cycles)
++                                    let mut ee = adv - phase;
++                                    while ee >= 0.5 {
++                                        ee -= 1.0;
++                                    }
++                                    while ee < -0.5 {
++                                        ee += 1.0;
++                                    }
++                                    ee
++                                }
++                                #[cfg(not(feature = "loramesh"))]
++                                {
++                                    if phase <= 0.5 {
++                                        -phase
++                                    } else {
++                                        1.0 - phase
++                                    }
++                                }
++                            };
 +                            let w: f32 = 1.0; // uniform ESP-NOW link weight (per-neighbour w = HBSYNC-09)
 +                            phase += K_PHI * w * phase_response(e); // concave bidirectional kick (§4.1)
 +                            if phase < 0.0 {
