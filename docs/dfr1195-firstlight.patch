@@ -172,10 +172,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..a982878 100644
+index 8c49f1c..b3efc0f 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3144 @@
+@@ -1,83 +1,3169 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -379,10 +379,11 @@ index 8c49f1c..a982878 100644
 +    // (raw-tty MASK/SENDTO writes are unreliable — see the bench-workflow memory). Board A (0dcadbf8)
 +    // originates to C (0xf91c8911); the hive-based can_hear MASK in lora_route_task forces the A->B->C
 +    // multi-hop. An NVS SENDTO still overrides this default.
++    // FORCE A->C (override any stale NVS SENDTO from a prior BL-200 run — runs AFTER the NVS restore).
 +    #[cfg(feature = "loraroute")]
-+    if ROUTETEST_DEST.load(Ordering::Relaxed) == 0 && my_hive == 0x0dca_dbf8 {
++    if my_hive == 0x480e_900e {
 +        ROUTETEST_DEST.store(0xf91c_8911, Ordering::Relaxed);
-+        println!("r2-dfr1195: loraroute default SENDTO A(0dcadbf8) -> C(f91c8911)");
++        println!("r2-dfr1195: loraroute FORCED SENDTO A(480e900e) -> C(f91c8911)");
 +    }
 +
 +    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
@@ -2818,7 +2819,8 @@ index 8c49f1c..a982878 100644
 +/// only via B's relay. Unknown sender (0 = no prepend / pre-mapping) and other hives: hear all.
 +#[cfg(feature = "loraroute")]
 +fn can_hear_hive(my_hive: u32, sender: u32) -> bool {
-+    const A: u32 = 0x0dca_dbf8;
++    // Released bench set (D1/D2/D3, all TG-A): A=originator, B=relay, C=receiver. A<->C masked.
++    const A: u32 = 0x480e_900e;
 +    const B: u32 = 0x2cab_5f69;
 +    const C: u32 = 0xf91c_8911;
 +    if sender == 0 {
@@ -2854,21 +2856,44 @@ index 8c49f1c..a982878 100644
 +        }
 +    };
 +    let mut last_nbr_recalc = 0u32;
++    // LOOSE-JITTER carrier state (Roy's refinement: the HB is loose BACKGROUND liveness, not tight PCO —
++    // sidestep synchronized-fire). Even if the PCO syncs the 3 boards' FIRES, each board scatters its own
++    // on-air TX start with an ALOHA-style random backoff so their ~40ms SF7 frames rarely overlap on the
++    // half-duplex channel (the metal symptom: B's frames reached A/C ~1/100s under lockstep TX). NOT CSMA
++    // (the deferred redesign) — just per-board TX decorrelation. Seeded per-board by my_hive.
++    let mut lcg: u32 = my_hive ^ 0x9E37_79B9;
++    let mut tx_backoff: i32 = 0;
 +    loop {
 +        let now_ms = embassy_time::Instant::now().as_millis() as u32;
-+        // TX: drain io_task's outbound frames -> PREPEND the 4-byte immediate-sender hive -> enqueue.
-+        // service() paces them onto the air within the §4.2/§4.3 airtime budget (held, not dropped, if full).
-+        while let Ok((frame, n)) = DATA_TX.try_receive() {
-+            let mut carrier = [0u8; 260];
-+            carrier[0..4].copy_from_slice(&my_hive.to_be_bytes());
-+            let m = n.min(256);
-+            carrier[4..4 + m].copy_from_slice(&frame[..m]);
-+            let _ = lora.send(0, &carrier[..4 + m]); // back-pressure on a full queue, never a stall
++        // TX: drain io_task's outbound frames behind a per-board random backoff -> PREPEND the 4-byte
++        // immediate-sender hive -> enqueue. service() then paces onto the air within the airtime budget.
++        if tx_backoff > 0 {
++            tx_backoff -= 1;
++        } else {
++            let mut sent_any = false;
++            while let Ok((frame, n)) = DATA_TX.try_receive() {
++                let mut carrier = [0u8; 260];
++                carrier[0..4].copy_from_slice(&my_hive.to_be_bytes());
++                let m = n.min(256);
++                carrier[4..4 + m].copy_from_slice(&frame[..m]);
++                let _ = lora.send(0, &carrier[..4 + m]); // back-pressure on a full queue, never a stall
++                sent_any = true;
++            }
++            if sent_any {
++                lcg = lcg.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
++                tx_backoff = ((lcg >> 22) % 60) as i32; // 0..60 ticks @5ms = 0..300ms random backoff
++            }
 +        }
 +        // SERVICE: one data-plane step — TX-pacing + RX-drain. Returns the carrier frame on RxDone.
-+        if let Some((carrier, _info)) = lora.service(now_ms) {
++        if let Some((carrier, info)) = lora.service(now_ms) {
 +            if carrier.len() >= 4 {
 +                let sender = u32::from_be_bytes([carrier[0], carrier[1], carrier[2], carrier[3]]);
++                // RX diagnostic (the metal proof + link health): every good frame, its immediate sender,
++                // RSSI, and whether the hive-MASK admits it.
++                println!(
++                    "r2-dfr1195: LORA-RX sender={sender:08x} len={} rssi={}dBm masked={}",
++                    carrier.len(), info.rssi_dbm, !can_hear_hive(my_hive, sender)
++                );
 +                // Hive-MASK: drop frames from a non-allowed immediate sender (forces the A->B->C multi-hop
 +                // on the broadcast-on-air medium where every node physically hears every node).
 +                if can_hear_hive(my_hive, sender) {

@@ -15,7 +15,21 @@ Per supervisor: continue the TN metal refutation campaign autonomously — SPEC-
 (route to specs, queue for Roy, NO canon mandate overnight), RESTORE the 2-TG baseline after each run
 (protect the live demo), commit auditable field.* records, tick off survived refutations, keep this file
 current, don't wait per-conjecture.
-- **TN-FR-1 (BL-200-over-LoRa MESSAGE-PASSING) = FIRMWARE BUILT + STAGED, BLOCKED ON BOARDS (2026-06-23).**
+- **TN-FR-1 (BL-200-over-LoRa MESSAGE-PASSING) = PASS / metal-green (2026-06-23).** field.* =
+  `docs/field-results/lora-fr1-0623/TN-FR-1.json` (+ raw serial). Routed Events A->B->C over LoRa on 3 DFR
+  (A=480e900e, B=2cab5f69, C=f91c8911 — all TG-A), MASK-forced multi-hop: **C DELIVERED A's REQUESTs via B
+  (dlv=2), directed_via B (next_hop=C for A->C, next_hop=A for the replies), exactly_once (B DROP-Duplicate
+  x4), reply retraced C->B->A and DELIVERED at A, LED fires on receipt.** Baseline (2-TG demo) restored
+  (reattach-5, health 200). KEY METAL LESSONS: (1) the released D1/D2/D3 originator is **480e900e** (MAC
+  50:26:98), NOT 0dcadbf8 (that board, MAC 50:23:E4, stays in the demo) — re-keyed the MASK + auto-origin.
+  (2) build needs **multitg** so all 3 use the NVS-provisioned TG-A key (else C can't HMAC-verify A's Event).
+  (3) **synchronized-fire collisions** on the half-duplex air dropped most frames (B's TX reached A/C ~1/100s
+  under lockstep); an **ALOHA TX-jitter (0-300ms) in lora_route_task** decorrelated TX starts enough to prove
+  the path. RELIABILITY FINDING: per-msg delivery ~2/19 at SF7 w/ always-on tight PCO -> the reliability
+  fix = Roy's refinement (HB as LOOSE jittered BACKGROUND path-maintenance, lower rate) + retransmit; feeds
+  TN-FR-4. CORRECTNESS proven; the data-plane (core's LoRaTransport::service + frame-carried origin) holds.
+  Firmware below ⬇ (loraroute) was the staged build; this run added the jitter + 480e900e re-key + multitg.
+- **TN-FR-1 firmware (loraroute) — built atop the staged work below (2026-06-23).**
   Roy's #1: route an Event A->B->C over LoRa on 3 DFR1195, MASK-forced multi-hop (A can't hear C), validate
   directed_via B + exactly_once@C + LED-flash on RECEIPT (not heartbeat). The DEFERRED CSMA/heartbeat-mesh
   redesign is NOT this. Built a new **`loraroute`** feature (= `lora` + `routetest` + `r2-transport/alloc`):
