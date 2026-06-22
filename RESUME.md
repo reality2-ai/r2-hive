@@ -18,9 +18,13 @@ current, don't wait per-conjecture.
 - **DONE: BL-200 RESOLVED + PASS/metal-green** (one-line reply-msgid u16-dedup collision; fix=shared
   `r2_route::trail::reply_msg_id`, commits up to `9fe9068`; §4.3.4 vindicated, §4.6-MUST refuted; baseline
   restored-clean 5/5 DFR multitg). Metal field.* count: BL-100 survived, BL-200 resolved-pass.
-- **IN FLIGHT: BL-103** (neighbour eviction+rediscovery) — firmware READY (`7f1969d`: fastevict route-clock
-  x120 + NBR-TBL telemetry; reuses blackout 30s mute). Awaiting composer XIAO window (requested). Decidable:
-  a peer's NBR-TBL shows the silent board decay->evict->rediscover.
+- **DONE: BL-103 SURVIVED** (`3a32856`). §2.5 neighbour eviction+rediscovery holds on real ESP-NOW: silent
+  board EVICTED from the route-engine nbr table (conf->0.01), ACTIVE neighbour RETAINED (selective, not a
+  flush), returning board REDISCOVERED fresh. Method: fastevict route-clock x20 (1800s horizon->seconds) +
+  blackout[60,150)s + NBR-TBL telemetry, 3 isolated XIAO (MASK->NVS). TUNING: x120/x40 amplified conf-
+  variance (evicted active too); x20 = clean contrast. Reused real engine decay_neighbours. No spec weakness.
+  field.* = TN-L1-IT-BL-103.json. Baseline restored. **3 metal field.*: BL-100 survived, BL-200 resolved-pass,
+  BL-103 survived.**
 - **NEXT: span radios** — BLE mesh (blemesh) then WiFi/UDP: re-run heartbeat + routing (BL-200 fix applies)
   conjectures over each transport (matrix TRANSPORT axis). + BL-100 demote-band sweep (task #13).
 - **M-ESPNOW-3 follow-up:** carry frame-origin in the relay frame -> ForwardRequest.origin -> r2_route
