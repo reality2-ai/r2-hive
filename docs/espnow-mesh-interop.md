@@ -75,6 +75,49 @@ payload      (payload_len bytes)
 - hive_id: for consistent identity/dedup use the KS1 canon `derive_hive_id` (HKDF→v4-UUID-string→FNV);
   for basic coupling any unique u32 works.
 
+## 6b. Sender identity: MAC ⇄ hive_id resolution
+- **hive_id is carried EXPLICITLY in the Heartbeat payload** (`payload[0..4]`, BE u32) — it is NOT
+  derived from the MAC. So `from_hive_id` = the received frame's `payload[0..4]`, full stop.
+- The ESP-NOW recv gives the L2 src MAC (`r.info.src_address`). You LEARN the `(hive_id ↔ MAC)`
+  mapping by observing Heartbeats: on each recv, `map_peer(payload_hive_id, recv_MAC)`. That table is
+  ONLY for UNICAST (r2-route `DirectedHop.transport=EspNow` → look up the target hive's MAC). Broadcast
+  HB/coupling needs no lookup — identity is in the frame.
+- hive_id derivation (for your own payload): KS1 canon `derive_hive_id` (HKDF→v4-UUID-string→FNV) for
+  byte-exact identity with the fleet; any unique u32 works for basic coupling.
+
+## 6c. The PCO/sync engine — ONE-CODEBASE (decision: option A)
+The §4 pulse-coupled-oscillator dynamics (the convergence crux) should be a **portable no_std engine
+that BOTH hive firmware and other platforms reuse** — like `NegotiationEngine` for the control plane.
+Core extracts it from the r2-harness sim (`leaderless.rs`) into a heap-free `f32` struct (no Vec/closures).
+Convergence-by-construction; each platform = thin layer (EspNowTransport + run-loop driving the engine).
+**Engine contract (mirrors NegotiationEngine):**
+- `tick(now_ms) -> Option<Fire>`: advance `phase += rate * dt`; if `phase >= 1.0` → fire, `phase -= 1.0`
+  (preserve overshoot), return Fire (caller broadcasts a signed Heartbeat).
+- `on_verified_pulse(now_ms)`: called ONLY for a GroupHmac-VERIFIED heard pulse — applies the phase kick
+  + rate consensus.
+- accessors: `phase()`, `rate()`, `spread_ms()`.
+
+**Exact §4 params + math (hive firmware canon, R2-HEARTBEAT v0.4):**
+- `HB_PERIOD_MS = 2000.0`, `CANON_PERIOD_MS = 2000.0` (rate-clamp center), `HB_TICK_MS = 50`.
+- `rate` init = `1.0/HB_PERIOD_MS` (cycles/ms); advance per tick: `phase += rate * HB_TICK_MS`.
+- Fire: `phase >= 1.0` → fire, `phase -= 1.0`.
+- §4.1 phase coupling, `K_PHI = 0.25`, uniform link weight `w = 1.0` (ESP-NOW single-hop):
+  - error `e = if phase <= 0.5 { -phase } else { 1.0 - phase }`  (= wrap(0 − phase) ∈ [−0.5, 0.5))
+  - kick: `phase += K_PHI * w * phase_response(e)`; then wrap phase into [0,1).
+  - `phase_response(e)` = concave Mirollo–Strogatz:
+    ```
+    m = min(2*|e|, 1)
+    resp = ln(1 + 19.085537 * m) / 3      // 19.085537 = e^3 − 1 (b=3); ln via libm::logf
+    return 0.5 * resp * sign(e)
+    ```
+- §4.3 rate consensus, `RATE_BETA = 0.01` (0.0 = refuted control): on a verified pulse, let `interval`
+  = ms since last heard pulse from anyone; if `0.5*period < interval < 3.0*period`:
+  `r_src = 1/interval; rate += RATE_BETA * (w/sum_w) * (r_src - rate)`; then CLAMP rate to
+  `[nom*0.99, nom*1.01]` where `nom = 1/CANON_PERIOD_MS`.
+- §4.2 reachback delay-comp: airtime ≈ 0 for single-hop ESP-NOW (transit ≪ period) → delay-comp ≈ 0
+  here; the reachback term (frame tx_time) matters for LoRa/multi-hop, not ESP-NOW.
+- `spread_ms` metric = `|e| * HB_PERIOD_MS` (the leaderless convergence-tightness telemetry).
+
 ## 6. Provisioning (how a board gets its TG key)
 Out of band, point-to-point over the board's OWN USB serial (the secret key never goes on the air):
 `PROVISION <wire_hex> <tg_id_dec> <grouphmac_key_64hex>` → parse with
