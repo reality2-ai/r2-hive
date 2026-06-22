@@ -136,10 +136,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..bce02a4 100644
+index 8c49f1c..ee8f540 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2567 @@
+@@ -1,83 +1,2587 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -653,6 +653,11 @@ index 8c49f1c..bce02a4 100644
 +    let mut reinforcer = r2_route::trail::TrailReinforcer::<256>::new();
 +    #[cfg(feature = "routetest")]
 +    let mut rt_seq: u16 = 1; // routetest request msg_id counter (this origin); u16 to match reply_marker
++    // BL-200 INSTRUMENTATION (pivotal test, specs): mirror the forwarded-set so I can log whether the
++    // (origin,msgid) is still in-window at reply time (TrailReinforcer::contains is private). CAP 256 ring
++    // >> ~28 reqs so eviction shouldn't fire — the log proves it. Decides spec-gap vs CAP/threshold/wiring.
++    #[cfg(feature = "routetest")]
++    let mut rt_dbg_fwd: heapless::Vec<(u32, u16), 64> = heapless::Vec::new();
 +    // Leaderless reachback-PCO (R2-HEARTBEAT v0.4 — PINNED CANON, replacing conductor-PLL after the
 +    // 3-node-flap refutation): flat identical nodes, NO conductor, NO election, NO single originator.
 +    // `lowest_heard` is kept ONLY as a deterministic demo-Event originator + dashboard hint — the SYNC
@@ -837,6 +842,9 @@ index 8c49f1c..bce02a4 100644
 +                            msg.header.flags = flags;
 +                            msg.hmac_tag = Some(tag);
 +                            reinforcer.note_forwarded(my_hive, rt_seq); // origin is on its own path
++                            if !rt_dbg_fwd.iter().any(|&(o, m)| o == my_hive && m == rt_seq) {
++                                let _ = rt_dbg_fwd.push((my_hive, rt_seq));
++                            }
 +                            if let Ok(n) = encode_extended(&msg, &mut txbuf) {
 +                                let mut f = [0u8; 256];
 +                                let mm = n.min(256);
@@ -1131,6 +1139,15 @@ index 8c49f1c..bce02a4 100644
 +                            let frame_origin = u32::from_be_bytes([
 +                                m.payload[0], m.payload[1], m.payload[2], m.payload[3],
 +                            ]);
++                            // INSTRUMENTATION (specs pivotal test): for REPLIES, log marker(origin,msgid) +
++                            // sender + in-window so we see if R1 SHOULD reinforce (D, sender) — pinpoints
++                            // CAP-eviction vs threshold vs wiring vs structural spec-gap.
++                            if let Some((mo, mm)) = r2_route::trail::parse_reply_marker(&m.payload[4..]) {
++                                let in_win = rt_dbg_fwd.iter().any(|&(o, mid)| o == mo && mid == mm);
++                                println!(
++                                    "r2-dfr1195: RT-DBG REPLY replier={frame_origin:08x} sender={src_hive:08x} marker_origin={mo:08x} marker_msgid={mm} in_window={in_win}"
++                                );
++                            }
 +                            reinforcer.on_received(&mut engine, frame_origin, &m.payload[4..], src_hive, now);
 +                        }
 +                        let req = ForwardRequest {
@@ -1206,6 +1223,9 @@ index 8c49f1c..bce02a4 100644
 +                                        m.payload[0], m.payload[1], m.payload[2], m.payload[3],
 +                                    ]);
 +                                    reinforcer.note_forwarded(o, h.msg_id as u16);
++                                    if !rt_dbg_fwd.iter().any(|&(oo, mm)| oo == o && mm == h.msg_id as u16) {
++                                        let _ = rt_dbg_fwd.push((o, h.msg_id as u16));
++                                    }
 +                                }
 +                                let mut fwd = m; // ExtendedMessage is Copy
 +                                fwd.header.ttl -= 1;
