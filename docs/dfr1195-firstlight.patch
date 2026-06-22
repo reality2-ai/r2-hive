@@ -124,10 +124,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..4e76752 100644
+index 8c49f1c..39720ba 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2163 @@
+@@ -1,83 +1,2181 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -761,8 +761,19 @@ index 8c49f1c..4e76752 100644
 +                        target_group: my_tg_hash, // TG-scoped: only co-members couple
 +                        target_hive: 0,           // broadcast within TG
 +                    };
-+                    let msg =
++                    #[allow(unused_mut)]
++                    let mut msg =
 +                        ExtendedMessage { header, route: None, payload: &hb_payload, hmac_tag: None };
++                    // 2-TG (#20, specs §6.3): SIGN the heartbeat pulse with the TG GroupHmac so the
++                    // receiver can gate coupling on a GroupHmac-VERIFIED pulse (cross-TG isolation).
++                    // Plaintext target_group is spoofable + non-isolating — the HMAC is the partition.
++                    // Changes the HB wire format → an all-9 COORDINATED update (every node on multitg).
++                    #[cfg(feature = "multitg")]
++                    {
++                        let (flags, tag) = sign_extended(&msg, &group_hmac);
++                        msg.header.flags = flags;
++                        msg.hmac_tag = Some(tag);
++                    }
 +                    // Leaderless (§2/§7): EVERY node emits its own fire — flat, one-hop, no relay; the
 +                    // heartbeat is both the sync pulse AND the neighbour-discovery presence.
 +                    #[cfg(not(feature = "blackout"))]
@@ -949,8 +960,15 @@ index 8c49f1c..4e76752 100644
 +                match decode_extended(&scratch[..n]) {
 +                Ok(m) => match m.header.msg_type {
 +                    MsgType::Heartbeat => {
-+                        // CONDUCTOR-PLL (R2-HEARTBEAT v0.1). TG-scoped: only co-members couple.
-+                        if m.header.target_group == my_tg_hash {
++                        // TG-scoped coupling gate. DEFAULT (single-TG demo): plaintext target_group match.
++                        // multitg (#20, specs §6.3): couple ONLY on a GroupHmac-VERIFIED pulse — a TG-A node
++                        // verifies an incoming pulse with TG-A's key; a TG-B pulse (signed with TG-B's key)
++                        // FAILS verify → no coupling → cross-TG sync isolation on the shared RF (the proof).
++                        #[cfg(not(feature = "multitg"))]
++                        let couple_ok = m.header.target_group == my_tg_hash;
++                        #[cfg(feature = "multitg")]
++                        let couple_ok = verify_extended(&m, &group_hmac);
++                        if couple_ok {
 +                            let sender_hive = if m.payload.len() >= 4 {
 +                                u32::from_be_bytes([
 +                                    m.payload[0],
