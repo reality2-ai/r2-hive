@@ -136,10 +136,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..316c542 100644
+index 8c49f1c..78c0e4d 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2347 @@
+@@ -1,83 +1,2354 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -1325,8 +1325,15 @@ index 8c49f1c..316c542 100644
 +// classify σ<RSSI_SIGMA_INFRA_DBM (over a settled window) = Infrastructure else Mobile. The metal
 +// question: does σ<5dBm hold for STATIONARY nodes on real ESP-NOW, or does multipath/AGC/integer-dBm
 +// jitter push stationary σ over the threshold → INFRA misclassified MOBILE → premature 5-min fade?
++// §2.4.1 CANON (hardened, post-FINDING-B): infrastructure if σ ≤ 8 dBm (was a naive 5 dBm). The
++// hysteresis DEMOTE-band (infra→mobile only above 1.5× = 12 dBm sustained ≥2min) + flap-prevention is
++// NOT yet exercised on metal (static bench never crosses 8 dBm — needs a mobility rig / RSSI-injection
++// sweep; queued as a BL-100 follow-up). Static result is decided by the promote threshold alone.
 +#[cfg(feature = "rssicls")]
-+const RSSI_SIGMA_INFRA_DBM: f32 = 5.0; // §2.4 naive threshold under metal test
++const RSSI_SIGMA_INFRA_DBM: f32 = 8.0; // §2.4.1 hardened infrastructure threshold (dBm)
++#[cfg(feature = "rssicls")]
++#[allow(dead_code)]
++const RSSI_SIGMA_DEMOTE_DBM: f32 = 12.0; // §2.4.1 hysteresis demote band (1.5× — exercised w/ mobility rig)
 +#[cfg(feature = "rssicls")]
 +const RSSI_CLS_MIN_SAMPLES: u32 = 20; // settle the σ estimate before classifying (else default Mobile)
 +

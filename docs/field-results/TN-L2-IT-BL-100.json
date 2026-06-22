@@ -4,7 +4,7 @@
   "tier": "hardware",
   "transport": "esp-now",
   "run_id": "bl100-metal-0622.1857",
-  "timestamp_utc": "2026-06-22T07:03:11Z",
+  "timestamp_utc": "2026-06-22T07:18:05Z",
   "runner": "hive (alfred); 3 XIAO ESP32-S3 capturing, hearing all 9-board mesh heartbeats",
   "board_map": {
     "capturing": { "998de7fc": "XIAO X1 (TG-A)", "c2106bd5": "XIAO X2 (TG-A)", "af1464f4": "XIAO X3 (TG-B)" },
@@ -13,13 +13,13 @@
   "expectations": [
     {
       "type": "rssi_sigma_classifier",
-      "args": { "spec": "R2-ROUTE §2.4", "threshold_dbm": 5.0, "rule": "stationary node RSSI-σ < 5 dBm over settled window → Infrastructure" },
-      "observed": "49/49 settled (n>=20) neighbour-link readings had σ < 5 dBm; σ min=0.19, max=3.94, mean=0.94 dBm; 0 readings ≥5 dBm (0.0%). All settled stationary links classified Infrastructure.",
+      "args": { "spec": "R2-ROUTE §2.4.1 (hardened)", "infra_threshold_dbm": 8.0, "demote_band_dbm": 12.0, "rule": "stationary node RSSI-σ ≤ 8 dBm → Infrastructure (hardened from the naive 5 dBm; hysteresis demote at 12 dBm sustained ≥2min)" },
+      "observed": "49/49 settled (n>=20) neighbour-link readings σ ≤ 3.94 dBm — σ min=0.19, max=3.94, mean=0.94 dBm; 0 readings ≥8 dBm (0.0%). All settled stationary links classify Infrastructure with ~4 dBm headroom under the §2.4.1 threshold.",
       "serial_ref": "docs/field-results/bl100-0622/bl100_{998de7fc,c2106bd5,af1464f4}.log (RSSI-CLS lines, ~11min capture, sigma logged ×100)",
       "pass": true
     }
   ],
   "verdict": "survived",
   "raw_serial": "docs/field-results/bl100-0622/",
-  "notes": "FINDING B's predicted refutation (stationary multipath/AGC/integer-dBm jitter → σ>5dBm → INFRA misclassified MOBILE) did NOT reproduce on this static co-located bench: worst stationary link (cross-room DFR 2cab5f69) σ=3.94 dBm = ~1 dBm headroom. MARGIN OBSERVATION (not a refutation, route to specs as robustness input): the thin ~1 dBm headroom supports the already-flagged §2.4 fix (σ threshold + hysteresis + stationary-noise margin + per-transport mapping) — a noisier RF environment (more nodes/interference/longer links) could plausibly exceed 5 dBm. SETTLE NOTE: low-sample neighbours (n<20) default Mobile (firmware settle-floor) = expected conservative behavior; classification needs sufficient traffic to settle (relevant to §2.4's >10min window). RSSI-UNIT CAVEAT: esp-radio rx_control.rssi reads positive (~191-246); σ is offset-invariant so the dBm verdict holds, but the absolute representation should be confirmed if absolute-RSSI thresholds (not just σ) are ever used."
+  "notes": "THRESHOLD CORRECTION (specs): canon is §2.4.1's HARDENED σ≤8 dBm, not the naive 5 dBm — §2.4.1 already incorporates FINDING B (hysteresis + per-transport + stationary-noise margin). So the worst stationary link (cross-room DFR 2cab5f69, σ=3.94 dBm) clears the REAL threshold with ~4 dBm headroom = COMFORTABLE (the result is stronger than the initial 5dBm-relative report). The §2.4.1 classifier HOLDS on real ESP-NOW for stationary nodes. UNVALIDATED-ON-METAL (queued follow-up, needs a MOBILE node or RSSI-injection sweep across the 8/12 dBm band — the static co-located bench never crosses 8 dBm): the HYSTERESIS DEMOTE-band (infra→mobile only above 12 dBm sustained ≥2min) + boundary flap-prevention. The classifier-holds (promote) result stands; the demote-band is exercised when a mobility rig is available. SETTLE NOTE: low-sample neighbours (n<20) default Mobile (firmware settle-floor) = expected conservative behavior. RSSI-UNIT: esp-radio rx_control.rssi reads positive (~191-246); σ is offset-invariant so the dBm verdict holds. firmware threshold updated 5.0→8.0 to match §2.4.1."
 }
