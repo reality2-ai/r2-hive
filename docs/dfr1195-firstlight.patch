@@ -136,10 +136,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..ee8f540 100644
+index 8c49f1c..b521a83 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2587 @@
+@@ -1,83 +1,2658 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -315,6 +315,13 @@ index 8c49f1c..ee8f540 100644
 +    }
 +    let is_ap = mac_low3 == AP_MAC_MATCH; // soft-AP role stays MAC-based
 +    let (has_screen, led_active_low) = read_board_profile(); // DFR1195 vs XIAO-S3 (LED polarity)
++    // BL-200 routetest: restore the persisted topology MASK BEFORE the radio starts, so can_hear is armed
++    // from boot (survives the capture's serial-open DTR-reset that clears the RAM-only list).
++    #[cfg(feature = "routetest")]
++    if let Some(macs) = read_mask_nvs() {
++        set_mask(&macs);
++        println!("r2-dfr1195: MASK restored from NVS — {} allowed neighbours", macs.len());
++    }
 +
 +    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
 +    let timg0 = TimerGroup::new(p.TIMG0);
@@ -328,7 +335,10 @@ index 8c49f1c..ee8f540 100644
 +        if is_ap { "SOFT-AP" } else { "STA" }
 +    );
 +    println!("r2-dfr1195: carrier has_screen={has_screen} led_active_low={led_active_low}");
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +    // 4. Status LED (GPIO21) via LEDC PWM — for the organic lub-DUB heartbeat envelope.
 +    //    io_task signals the FIRE (conductor-PLL = WHEN); main renders the SHAPE below.
 +    let mut ledc = Ledc::new(p.LEDC);
@@ -349,7 +359,12 @@ index 8c49f1c..ee8f540 100644
 +            drive_mode: DriveMode::PushPull,
 +        })
 +        .unwrap();
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +    // 5. WiFi config for the role. M8c (--features ble): the engine-elected provider serves its OWN
 +    //    SoftAP "r2-tn-form" (the formed data plane); other boards are STAs that JOIN it on negotiation.
 +    //    Default build = the static r2-fieldlab mesh by MAC (UNCHANGED — protects the live mesh).
@@ -441,7 +456,41 @@ index 8c49f1c..ee8f540 100644
 +    // #24 BLE control plane (feature-gated). Controller init (coex with WiFi, metal-verified)
 +    // -> bt-hci ExternalController -> trouble-host advertise. The ble_task owns the connector.
 +    #[cfg(feature = "ble")]
-+    {
+     {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +        // BLE control plane (advertise/scan/CoC/negotiation + S0–S4 engine). SKIPPED for `nobt`: the
 +        // leaderless ESP-NOW heartbeat-sync needs NO BLE — and the BLE negotiation is what signals
 +        // DATA_PLANE_JOIN (→ the wifi_task joins a SoftAP), so nobt ALSO keeps the wifi_task idle. Net:
@@ -658,6 +707,10 @@ index 8c49f1c..ee8f540 100644
 +    // >> ~28 reqs so eviction shouldn't fire — the log proves it. Decides spec-gap vs CAP/threshold/wiring.
 +    #[cfg(feature = "routetest")]
 +    let mut rt_dbg_fwd: heapless::Vec<(u32, u16), 64> = heapless::Vec::new();
++    // raw note_forwarded CALL count (the ring is CAP=256, no-dedup) — if this exceeds 256 the ring
++    // wrapped and (A,msgid) could be evicted = core's CAP hypothesis (my deduped mirror would hide it).
++    #[cfg(feature = "routetest")]
++    let mut rt_fwd_calls: u32 = 0;
 +    // Leaderless reachback-PCO (R2-HEARTBEAT v0.4 — PINNED CANON, replacing conductor-PLL after the
 +    // 3-node-flap refutation): flat identical nodes, NO conductor, NO election, NO single originator.
 +    // `lowest_heard` is kept ONLY as a deterministic demo-Event originator + dashboard hint — the SYNC
@@ -699,8 +752,10 @@ index 8c49f1c..ee8f540 100644
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
-+
-+    loop {
+ 
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        // 2-TG (#20): install a runtime re-PROVISION (uart_rx_task validated + persisted it to NVS).
 +        // Swap the live GroupHmac + target_group so the deliver-gate (B1) + TG-scoped sends use the new
 +        // key WITHOUT a reboot. The engine retains no key (R2-RUNTIME §13.2) — we take it from the conduit.
@@ -842,6 +897,7 @@ index 8c49f1c..ee8f540 100644
 +                            msg.header.flags = flags;
 +                            msg.hmac_tag = Some(tag);
 +                            reinforcer.note_forwarded(my_hive, rt_seq); // origin is on its own path
++                            rt_fwd_calls += 1;
 +                            if !rt_dbg_fwd.iter().any(|&(o, m)| o == my_hive && m == rt_seq) {
 +                                let _ = rt_dbg_fwd.push((my_hive, rt_seq));
 +                            }
@@ -1145,10 +1201,25 @@ index 8c49f1c..ee8f540 100644
 +                            if let Some((mo, mm)) = r2_route::trail::parse_reply_marker(&m.payload[4..]) {
 +                                let in_win = rt_dbg_fwd.iter().any(|&(o, mid)| o == mo && mid == mm);
 +                                println!(
-+                                    "r2-dfr1195: RT-DBG REPLY replier={frame_origin:08x} sender={src_hive:08x} marker_origin={mo:08x} marker_msgid={mm} in_window={in_win}"
++                                    "r2-dfr1195: RT-DBG REPLY replier={frame_origin:08x} sender={src_hive:08x} marker_origin={mo:08x} marker_msgid={mm} in_window={in_win} fwd_calls={rt_fwd_calls} uniq={}",
++                                    rt_dbg_fwd.len()
 +                                );
 +                            }
 +                            reinforcer.on_received(&mut engine, frame_origin, &m.payload[4..], src_hive, now);
++                            // After reinforce: probe the resulting best path to the replier (dest). conf==0
++                            // => reinforcement not firing; conf>0 but still flooding => plan_forward/threshold
++                            // /viable issue (forwarding_threshold defaults 0.0, so any conf>0 SHOULD direct).
++                            if r2_route::trail::parse_reply_marker(&m.payload[4..]).is_some() {
++                                match engine.paths().best_for(frame_origin) {
++                                    Some(p) => println!(
++                                        "r2-dfr1195: RT-DBG PATH to_dest={frame_origin:08x} best_next_hop={:08x} conf={}",
++                                        p.next_hop, (p.confidence * 1000.0) as i32
++                                    ),
++                                    None => println!(
++                                        "r2-dfr1195: RT-DBG PATH to_dest={frame_origin:08x} NONE (conf=0, no path entry)"
++                                    ),
++                                }
++                            }
 +                        }
 +                        let req = ForwardRequest {
 +                            now,
@@ -1223,6 +1294,7 @@ index 8c49f1c..ee8f540 100644
 +                                        m.payload[0], m.payload[1], m.payload[2], m.payload[3],
 +                                    ]);
 +                                    reinforcer.note_forwarded(o, h.msg_id as u16);
++                                    rt_fwd_calls += 1;
 +                                    if !rt_dbg_fwd.iter().any(|&(oo, mm)| oo == o && mm == h.msg_id as u16) {
 +                                        let _ = rt_dbg_fwd.push((o, h.msg_id as u16));
 +                                    }
@@ -1958,10 +2030,7 @@ index 8c49f1c..ee8f540 100644
 +/// L2CAP CoC PSM for the R2 control plane (R2-WIRE event transport, R2-BLE §6). OTA = 0x00D3.
 +#[cfg(feature = "ble")]
 +const R2_PSM: u16 = 0x00D2;
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +/// M7 CoC-connectivity test: the provider board (lowest of the 2 test boards). The M9 engine does
 +/// real §4A.3 election (lowest eligible hive_id) — this const is just the 2-board CoC bring-up.
 +#[cfg(feature = "ble")]
@@ -2001,12 +2070,7 @@ index 8c49f1c..ee8f540 100644
 +        }
 +    }
 +}
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +/// Walk BLE AD structures, return the manufacturer-specific (0xFF) element's data.
 +#[cfg(feature = "ble")]
 +fn ble_find_mfg_ad(data: &[u8]) -> Option<&[u8]> {
@@ -2102,6 +2166,49 @@ index 8c49f1c..ee8f540 100644
 +            let _ = v.push(*m);
 +        }
 +    });
++    write_mask_nvs(macs); // persist so it survives the capture's serial-open DTR-reset (NVS @0x15000)
++}
++
++// MASK persisted to NVS @0x15000 (own 4KB sector, after provision@0x14000, below ota_0@0x20000) so the
++// topology survives a board reset (the capture's serial-open toggles DTR -> reset -> RAM MASK would clear).
++// Layout: [magic u32 BE]["R2MK"][count u8][count×6 MAC bytes].
++#[cfg(feature = "routetest")]
++const MASK_NVS_OFFSET: u32 = 0x15000;
++#[cfg(feature = "routetest")]
++const MASK_NVS_MAGIC: u32 = 0x5232_4d4b; // "R2MK"
++
++#[cfg(feature = "routetest")]
++fn write_mask_nvs(macs: &[[u8; 6]]) {
++    use embedded_storage::Storage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 64];
++    b[0..4].copy_from_slice(&MASK_NVS_MAGIC.to_be_bytes());
++    let n = macs.len().min(8);
++    b[4] = n as u8;
++    for (i, m) in macs.iter().take(8).enumerate() {
++        b[5 + i * 6..5 + i * 6 + 6].copy_from_slice(m);
++    }
++    let _ = flash.write(MASK_NVS_OFFSET, &b);
++}
++
++/// Restore the persisted MASK at boot (None if unset/erased). Re-arms can_hear before the radio starts.
++#[cfg(feature = "routetest")]
++fn read_mask_nvs() -> Option<heapless::Vec<[u8; 6], 8>> {
++    use embedded_storage::ReadStorage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 64];
++    flash.read(MASK_NVS_OFFSET, &mut b).ok()?;
++    if u32::from_be_bytes([b[0], b[1], b[2], b[3]]) != MASK_NVS_MAGIC {
++        return None;
++    }
++    let n = (b[4] as usize).min(8);
++    let mut v: heapless::Vec<[u8; 6], 8> = heapless::Vec::new();
++    for i in 0..n {
++        let mut m = [0u8; 6];
++        m.copy_from_slice(&b[5 + i * 6..5 + i * 6 + 6]);
++        let _ = v.push(m);
++    }
++    Some(v)
 +}
 +
 +/// True if `src` is in the allow-list (or the list is empty = hear all). The topology gate.
@@ -2122,41 +2229,7 @@ index 8c49f1c..ee8f540 100644
 +    // GENERAL no-AP mesh (default): every node hears every in-range peer → self-growing (N-join) +
 +    // self-healing (reform). This is the real-world TN case for mobile wearables.
 +    #[cfg(all(not(feature = "meshmask"), not(feature = "routetest")))]
-     {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
--    }
--
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++    {
 +        true
 +    }
 +    // BENCH multi-hop mask (meshmask): hide A↔C so A→B→C relay is forced on a bench (no physical range).
@@ -2298,7 +2371,7 @@ index 8c49f1c..ee8f540 100644
 +        Timer::after(Duration::from_millis(200)).await;
 +    }
 +}
- 
++
 +/// ESP-NOW true-mesh data plane (Mode 2) — M-ESPNOW-1: validate broadcast/recv on metal. Every device
 +/// peers connectionlessly (no AP); the src MAC on each frame learns the hive_id↔MAC map (core's design).
 +/// Broadcasts an R2M probe + logs observed peers. Next: feed r2-route + heartbeat-over-broadcast + unicast.
@@ -2382,9 +2455,7 @@ index 8c49f1c..ee8f540 100644
 +    // decimal tg_id + 64-hex key) — a 64 B buffer truncated the key → BadKeyLength (metal-found).
 +    let mut line = [0u8; 128];
 +    let mut n = 0usize;
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        if let Ok(c) = usb_rx.read_byte() {
 +            if c == b'\n' || c == b'\r' {
 +                if n > 0 {
