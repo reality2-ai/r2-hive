@@ -1,11 +1,14 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..e970c49 100644
+index 5a3c89f..c3babd3 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
-@@ -14,6 +14,10 @@ path = "src/main.rs"
+@@ -14,6 +14,13 @@ path = "src/main.rs"
  r2-wire = { path = "../../crates/r2-wire", default-features = false }
  r2-transport = { path = "../../crates/r2-transport", default-features = false }
  r2-route = { path = "../../crates/r2-route", default-features = false }
++# Concrete SX1262 LoRa driver (core's r2-sx1262, impl LoRaRadio) — wired under the `lora` feature
++# onto the DFR1195's SX1262 (SPI3 SCK7/MISO5/MOSI6, NSS10, RST41, BUSY40, DIO1=4). Optional.
++r2-sx1262 = { path = "../../crates/r2-sx1262", optional = true }
 +r2-cbor = { path = "../../crates/r2-cbor", default-features = false }
 +# Intra-TG trust: GroupHmac deliver-gate (HMAC-SHA256). r2-fnv for the TG-hash.
 +r2-trust = { path = "../../crates/r2-trust", default-features = false }
@@ -13,7 +16,7 @@ index 5a3c89f..e970c49 100644
  # r2-discovery non-alloc core types (HiveId/TransportId) — no async API at this tier.
  r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  
-@@ -21,18 +25,29 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+@@ -21,18 +28,29 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  # VERSION PINS — hive: confirm against the installed toolchain before flashing.
  # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
  # skeleton is written against.
@@ -54,7 +57,7 @@ index 5a3c89f..e970c49 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +55,74 @@ embassy-futures = "0.1"
+@@ -40,6 +58,81 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -126,6 +129,13 @@ index 5a3c89f..e970c49 100644
 +# Adds neighbour-table telemetry (hive@conf per tick). Dashboard liveness (seen/MESH_PEER_TTL_S) stays
 +# REAL-time (only the engine-facing clock scales). Implies ble.
 +fastevict = ["ble"]
++# LoRa first-light + mesh (#21/#22, Wairoa rung): wire core's r2-sx1262 (Sx1262<SPI,BUSY,RESET,DELAY>
++# impl LoRaRadio) onto the DFR1195's SX1262 over SPI3, configure() with wairoa_as923_nz (916.8/SF12/BW125/
++# CR45/sync0x21/CRC/explicit), and TX/RX a frame = first LoRa light. NOT ble (LoRa is its own radio, no
++# ESP-NOW/WiFi). loratcxo = the module's ref is a DIO3-TCXO (core: required or the PLL never locks — try
++# WITHOUT first; add if no RF). Standalone (no ble/nobt): pure-LoRa bring-up build.
++lora = ["dep:r2-sx1262"]
++loratcxo = ["lora"]
  
  [profile.release]
  opt-level = "s"
