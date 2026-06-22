@@ -160,10 +160,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..6a50c5b 100644
+index 8c49f1c..5720f6b 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2926 @@
+@@ -1,83 +1,2935 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -2635,17 +2635,26 @@ index 8c49f1c..6a50c5b 100644
 +    loop {
 +        // TX: drain one pending io_task beat -> LoRa (half-duplex: pause RX, transmit, poll TxDone, resume).
 +        if let Ok((frame, n)) = DATA_TX.try_receive() {
-+            rxen.set_low();
-+            if radio.transmit(&frame[..n]).is_ok() {
-+                for _ in 0..40 {
-+                    if let Ok(Some(RadioEvent::TxDone)) = radio.poll() {
-+                        break;
++            // ToA-aware TRAFFIC-SHAPING (the HBSYNC-03 carrier fix, orthogonal to core's §4.2 airtime-comp):
++            // the slow half-duplex LoRa link can't carry everything the io_task emits -> HBs get starved
++            // (nbrs->0). For the sync mesh, PRIORITIZE heartbeats: TX only HBs (R2-WIRE msg_type=5), DROP
++            // non-HB frames (Events/health) so the PCO beats own the channel. (Routing-over-LoRa later adds
++            // a proper ToA budget for Events; here the conjecture under test is HBSYNC, so HB-only is correct.)
++            let msg_type = if n >= 1 { (frame[0] >> 3) & 0x07 } else { 0xFF };
++            // HB (msg_type=5) -> TX; non-HB -> drained-and-dropped (falls through to RX, link kept for beats).
++            if msg_type == 5 {
++                rxen.set_low();
++                if radio.transmit(&frame[..n]).is_ok() {
++                    for _ in 0..40 {
++                        if let Ok(Some(RadioEvent::TxDone)) = radio.poll() {
++                            break;
++                        }
++                        embassy_time::Timer::after(embassy_time::Duration::from_millis(5)).await;
 +                    }
-+                    embassy_time::Timer::after(embassy_time::Duration::from_millis(5)).await;
 +                }
++                rxen.set_high();
++                let _ = radio.listen();
 +            }
-+            rxen.set_high();
-+            let _ = radio.listen();
 +        }
 +        // RX: a heard frame -> DATA_RX (io_task PCO couples + routes). src_hive = HB payload hive @ offset 22.
 +        if let Ok(Some(RadioEvent::RxDone)) = radio.poll() {
