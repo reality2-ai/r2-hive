@@ -154,10 +154,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..663a212 100644
+index 8c49f1c..a576701 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,2756 @@
+@@ -1,83 +1,2857 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -245,6 +245,14 @@ index 8c49f1c..663a212 100644
 +use esp_hal::time::Rate;
 +use esp_hal::delay::Delay;
 +use esp_hal::gpio::DriveMode;
++// LoRa (#21/#22): the SX1262 driver + its BUSY input + the LoRaRadio trait. cfg-gated so non-lora builds
++// are unchanged. Input/InputConfig for BUSY40; r2_sx1262 = core's concrete driver; the trait for its methods.
++#[cfg(feature = "lora")]
++use esp_hal::gpio::{Input, InputConfig};
++#[cfg(feature = "lora")]
++use r2_sx1262::{wairoa_as923_nz, Sx1262, TcxoVoltage};
++#[cfg(feature = "lora")]
++use r2_transport::lora::{LoRaRadio, RadioEvent};
 +use esp_hal::usb_serial_jtag::{UsbSerialJtag, UsbSerialJtagRx};
 +use esp_hal::ledc::channel::ChannelIFace;
 +use esp_hal::ledc::timer::TimerIFace;
@@ -379,7 +387,10 @@ index 8c49f1c..663a212 100644
 +            drive_mode: DriveMode::PushPull,
 +        })
 +        .unwrap();
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +    // 5. WiFi config for the role. M8c (--features ble): the engine-elected provider serves its OWN
 +    //    SoftAP "r2-tn-form" (the formed data plane); other boards are STAs that JOIN it on negotiation.
 +    //    Default build = the static r2-fieldlab mesh by MAC (UNCHANGED — protects the live mesh).
@@ -416,7 +427,12 @@ index 8c49f1c..663a212 100644
 +                .with_password(dp_pass.into()),
 +        )
 +    };
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
 +    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
 +    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
@@ -471,7 +487,41 @@ index 8c49f1c..663a212 100644
 +    // #24 BLE control plane (feature-gated). Controller init (coex with WiFi, metal-verified)
 +    // -> bt-hci ExternalController -> trouble-host advertise. The ble_task owns the connector.
 +    #[cfg(feature = "ble")]
-+    {
+     {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +        // BLE control plane (advertise/scan/CoC/negotiation + S0–S4 engine). SKIPPED for `nobt`: the
 +        // leaderless ESP-NOW heartbeat-sync needs NO BLE — and the BLE negotiation is what signals
 +        // DATA_PLANE_JOIN (→ the wifi_task joins a SoftAP), so nobt ALSO keeps the wifi_task idle. Net:
@@ -532,6 +582,31 @@ index 8c49f1c..663a212 100644
 +        let _ = d.clear(Rgb565::BLACK);
 +        display = Some(d);
 +        _lcd_hold = Some((lcd_pwr, lcd_bl));
++    }
++
++    // LoRa (#21/#22) first-light: wire the SX1262 on SPI3 (SCK7/MISO5/MOSI6) + NSS10-CS + BUSY40/RST41 +
++    // RXEN42 + DIO1=4(IRQ, polled). TCXO 1.8V (loratcxo) is REQUIRED on the DFR1195. Runs alongside the
++    // ESP-NOW/WiFi radio (different hardware/band — no coex). Build nobt,lora,loratcxo.
++    #[cfg(feature = "lora")]
++    {
++        let lora_spi = Spi::new(
++            p.SPI3,
++            SpiConfig::default().with_frequency(Rate::from_mhz(8)).with_mode(Mode::_0),
++        )
++        .unwrap()
++        .with_sck(p.GPIO7)
++        .with_miso(p.GPIO5)
++        .with_mosi(p.GPIO6);
++        let lora_cs = Output::new(p.GPIO10, Level::High, OutputConfig::default());
++        let lora_dev = ExclusiveDevice::new(lora_spi, lora_cs, Delay::new()).unwrap();
++        let busy = Input::new(p.GPIO40, InputConfig::default());
++        let reset = Output::new(p.GPIO41, Level::High, OutputConfig::default());
++        let rxen = Output::new(p.GPIO42, Level::Low, OutputConfig::default());
++        let radio = Sx1262::new(lora_dev, busy, reset, Delay::new());
++        #[cfg(feature = "loratcxo")]
++        let radio = radio.with_tcxo(TcxoVoltage::V1_8);
++        spawner.spawn(lora_task(radio, rxen, my_hive).unwrap());
++        println!("r2-dfr1195: LORA task spawned (SPI3 SCK7/MISO5/MOSI6 NSS10 RST41 BUSY40 RXEN42 DIO1=4)");
 +    }
 +
 +    let role = if is_ap { "AP" } else { "STA" };
@@ -733,8 +808,10 @@ index 8c49f1c..663a212 100644
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
-+
-+    loop {
+ 
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        // 2-TG (#20): install a runtime re-PROVISION (uart_rx_task validated + persisted it to NVS).
 +        // Swap the live GroupHmac + target_group so the deliver-gate (B1) + TG-scoped sends use the new
 +        // key WITHOUT a reboot. The engine retains no key (R2-RUNTIME §13.2) — we take it from the conduit.
@@ -2063,10 +2140,7 @@ index 8c49f1c..663a212 100644
 +#[cfg(feature = "ble")]
 +#[allow(dead_code)]
 +const KNOWN_HIVE_IDS: &[u32] = &[0x480e_900e, 0x2cab_5f69, 0x06ae_082b, 0x0dca_dbf8];
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +/// Scan event handler: decode each observed R2-BEACON + resolve its RBID → hive_id.
 +#[cfg(feature = "ble")]
 +struct R2ScanHandler<'a> {
@@ -2095,12 +2169,7 @@ index 8c49f1c..663a212 100644
 +        }
 +    }
 +}
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +/// Walk BLE AD structures, return the manufacturer-specific (0xFF) element's data.
 +#[cfg(feature = "ble")]
 +fn ble_find_mfg_ad(data: &[u8]) -> Option<&[u8]> {
@@ -2194,41 +2263,7 @@ index 8c49f1c..663a212 100644
 +        r.wrapping_mul(ROUTE_TIME_FACTOR)
 +    }
 +    #[cfg(not(feature = "fastevict"))]
-     {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
--    }
--
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++    {
 +        r
 +    }
 +}
@@ -2253,7 +2288,7 @@ index 8c49f1c..663a212 100644
 +    });
 +    write_mask_nvs(macs); // persist so it survives the capture's serial-open DTR-reset (NVS @0x15000)
 +}
- 
++
 +// MASK persisted to NVS @0x15000 (own 4KB sector, after provision@0x14000, below ota_0@0x20000) so the
 +// topology survives a board reset (the capture's serial-open toggles DTR -> reset -> RAM MASK would clear).
 +// Layout: [magic u32 BE]["R2MK"][count u8][count×6 MAC bytes].
@@ -2482,6 +2517,74 @@ index 8c49f1c..663a212 100644
 +            prev = Some(st);
 +        }
 +        Timer::after(Duration::from_millis(200)).await;
++    }
++}
++
++// LoRa (#21/#22) first-light task — concrete-typed for the embassy executor. Configures the SX1262
++// (TCXO 1.8V is REQUIRED on the DFR1195 or the PLL never locks), then loops: poll RX ~3s + TX a beacon
++// (my_hive + seq). RXEN (GPIO42) toggled around TX/RX as a stopgap until core adds the RXEN driver param.
++// First light = two DFRs mutually receiving each other's beacons (LORA-RX from=<peer>).
++#[cfg(feature = "lora")]
++type LoraRadioTy = Sx1262<
++    ExclusiveDevice<Spi<'static, esp_hal::Blocking>, Output<'static>, Delay>,
++    Input<'static>,
++    Output<'static>,
++    Delay,
++>;
++
++#[cfg(feature = "lora")]
++#[embassy_executor::task]
++async fn lora_task(mut radio: LoraRadioTy, mut rxen: Output<'static>, my_hive: u32) {
++    match radio.configure(&wairoa_as923_nz()) {
++        Ok(()) => println!("r2-dfr1195: LORA configure OK (916.8MHz SF12 BW125 sync0x21 TCXO1.8)"),
++        Err(e) => println!("r2-dfr1195: LORA configure ERR {e:?} (check TCXO/wiring)"),
++    }
++    rxen.set_high();
++    let _ = radio.listen();
++    let mut seq: u32 = 0;
++    loop {
++        // listen ~3s
++        for _ in 0..30 {
++            match radio.poll() {
++                Ok(Some(RadioEvent::RxDone)) => {
++                    let mut buf = [0u8; 64];
++                    if let Ok(info) = radio.read(&mut buf) {
++                        let from = if info.len >= 4 {
++                            u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]])
++                        } else {
++                            0
++                        };
++                        println!(
++                            "r2-dfr1195: LORA-RX from={from:08x} len={} rssi={}dBm snr={}dB",
++                            info.len, info.rssi_dbm, info.snr_db
++                        );
++                    }
++                }
++                Ok(Some(RadioEvent::CrcError)) => println!("r2-dfr1195: LORA-RX crc-err"),
++                _ => {}
++            }
++            embassy_time::Timer::after(embassy_time::Duration::from_millis(100)).await;
++        }
++        // TX a beacon
++        let mut pl = [0u8; 8];
++        pl[0..4].copy_from_slice(&my_hive.to_be_bytes());
++        pl[4..8].copy_from_slice(&seq.to_be_bytes());
++        rxen.set_low();
++        match radio.transmit(&pl) {
++            Ok(()) => {
++                for _ in 0..25 {
++                    if let Ok(Some(RadioEvent::TxDone)) = radio.poll() {
++                        break;
++                    }
++                    embassy_time::Timer::after(embassy_time::Duration::from_millis(20)).await;
++                }
++                println!("r2-dfr1195: LORA-TX beacon seq={seq} ({}B)", pl.len());
++            }
++            Err(e) => println!("r2-dfr1195: LORA-TX ERR {e:?}"),
++        }
++        rxen.set_high();
++        let _ = radio.listen();
++        seq = seq.wrapping_add(1);
 +    }
 +}
 +
@@ -2755,9 +2858,7 @@ index 8c49f1c..663a212 100644
 +    let mut secfill = 0usize;
 +    let mut secbase = 0u32;
 +    let mut pkt = [0u8; 1500];
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        let (n, from) = match socket.recv_from(&mut pkt).await {
 +            Ok(v) => v,
 +            Err(_) => continue,
