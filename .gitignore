@@ -10,3 +10,6 @@
 # Ad-hoc test fixtures the daemon writes at runtime when XDG paths
 # resolve under the workspace root in dev shells
 /r2-data/
+
+# Compiled deploy binaries — use GitHub releases / git-lfs, not git history (supervisor/Roy)
+prebuilt/
