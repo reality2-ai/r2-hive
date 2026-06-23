@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..1602d6c 100644
+index 5a3c89f..66ff23c 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,13 @@ path = "src/main.rs"
@@ -57,7 +57,7 @@ index 5a3c89f..1602d6c 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +58,121 @@ embassy-futures = "0.1"
+@@ -40,6 +58,125 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -167,7 +167,11 @@ index 5a3c89f..1602d6c 100644
 +# the §4.1 PCO coupling nudge OFF (free-run, no synchronized fire) + jitters the HB period per-board so the
 +# fires DECORRELATE on the half-duplex air -> collisions drop -> delivery recovers. (Data-retransmit is the
 +# 2nd half of the fix arm, added on top.) Compose with loraroute/bridge for the FR-4 role-sim run.
-+loosehb = []
++# R2-HEARTBEAT v0.5 §1A: the leaderless-PCO PHASE-LOCK (the §2-§8 nudge + rate-consensus + period-clamp) is now
++# OPTIONAL — off by default. DEFAULT (no `pco`) = the low-rate loose-jittered liveness keepalive (§1A normative).
++# `pco` opt-in = phase-lock (the "fireflies" showpiece) for low-loss / §8-precondition media. Retires `loosehb`
++# (its loose behaviour IS the default now) + `rateoff` (default rate-consensus is already off).
++pco = []
 +# TN-FR-4 role-sim (the Wairoa duty-cycle dataflow capstone). Role by hive_id: D1(480e900e)=SENSOR
 +# (duty-cycled wake->read->send 'wairoa.reading'->sleep), D4(06ae082b)=RECEIVER (record + LED-flash-on-record
 +# + E4 silence-inference), else=ROUTER (always-on relay). Adds F2 STORE-CARRY-FORWARD (specs' SCF-1: ROUTER
@@ -194,10 +198,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..e7dd52a 100644
+index 8c49f1c..d6a0597 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3404 @@
+@@ -1,83 +1,3406 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -882,11 +886,11 @@ index 8c49f1c..e7dd52a 100644
 +    const CANON_PERIOD_MS: f32 = 2000.0; // canonical nominal = rate-clamp center (consensus pulls a biased board back)
 +    const HB_TICK_MS: u64 = 50;
 +    const K_PHI: f32 = 0.25; // §4.1 phase coupling gain (concave M&S, critically damped)
-+    // §4.3 rate-consensus gain β. Feature `rateoff` = the HBSYNC-06 OFF control arm (refuted: with β=0 a node
-+    // free-runs on its raw crystal and drifts apart through a connectivity blackout).
-+    #[cfg(not(feature = "rateoff"))]
++    // §4.3 rate-consensus gain β — PCO-convergence machinery (R2-HEARTBEAT §2-§8), ONLY under the optional
++    // `pco` phase-lock. v0.5 §1A default = free-run (β=0): the loose-jittered keepalive needs no rate-consensus.
++    #[cfg(feature = "pco")]
 +    const RATE_BETA: f32 = 0.01;
-+    #[cfg(feature = "rateoff")]
++    #[cfg(not(feature = "pco"))]
 +    const RATE_BETA: f32 = 0.0;
 +    let mut phase: f32 = if is_ap { 0.0 } else { 0.55 }; // out of phase → watch them converge
 +    // §4.3 rate in cycles/MS (continuous, so the LOCAL-ms interval math is clean). Converges toward the
@@ -897,9 +901,9 @@ index 8c49f1c..e7dd52a 100644
 +    // → HBSYNC-06 false-negative). A fast sender's beats arrive in fewer of MY ms → r_src>rate → I speed up.
 +    let mut last_rx: heapless::Vec<(u32, u64), 16> = heapless::Vec::new();
 +    let mut fire_seq: u32 = 1;
-+    // TN-FR-4 loosehb fix arm: per-board LCG to jitter the HB period (decorrelate fires = loose background
-+    // liveness, not tight PCO). Seeded by my_hive so the boards scatter differently.
-+    #[cfg(feature = "loosehb")]
++    // §1A loose-jittered keepalive (DEFAULT): per-board LCG jitters the HB period so fires DECORRELATE on the
++    // half-duplex air (loose background liveness, not tight PCO). Seeded by my_hive so boards scatter differently.
++    #[cfg(not(feature = "pco"))]
 +    let mut hb_lcg: u32 = my_hive ^ 0x1234_5678;
 +    let mut last_err_ms: u32 = 0; // latest coupling phase error in ms = the leaderless spread_ms metric
 +
@@ -959,9 +963,10 @@ index 8c49f1c..e7dd52a 100644
 +                phase += rate * HB_TICK_MS as f32; // advance at the consensus rate (cycles/ms × tick-ms)
 +                if phase >= 1.0 {
 +                    phase -= 1.0; // preserve overshoot — leaderless PCO fire (R2-HEARTBEAT v0.4)
-+                    // TN-FR-4 loosehb: jitter the NEXT period (subtract 0..0.30 cycle = ~2000..2600ms at
-+                    // HB_PERIOD 2s) so this board's fires DECORRELATE from peers' on the half-duplex air.
-+                    #[cfg(feature = "loosehb")]
++                    // §1A loose-jittered keepalive (DEFAULT): jitter the NEXT period (subtract 0..0.30 cycle)
++                    // so this board's fires DECORRELATE from peers' on the half-duplex air. (Under `pco`, no
++                    // jitter — phase-lock wants the beats to converge, not scatter.)
++                    #[cfg(not(feature = "pco"))]
 +                    {
 +                        hb_lcg = hb_lcg.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
 +                        phase -= ((hb_lcg >> 16) & 0xFF) as f32 / 255.0 * 0.30;
@@ -1412,13 +1417,14 @@ index 8c49f1c..e7dd52a 100644
 +                                }
 +                            };
 +                            let w: f32 = 1.0; // uniform ESP-NOW link weight (per-neighbour w = HBSYNC-09)
-+                            // TN-FR-4 loosehb: FREE-RUN (no PCO phase-coupling nudge) so fires don't
-+                            // synchronize = loose background path-maintenance. Default = the §4.1 kick.
-+                            #[cfg(not(feature = "loosehb"))]
++                            // R2-HEARTBEAT v0.5 §1A: PHASE-LOCK is OPTIONAL — the concave §4.1 coupling nudge
++                            // runs ONLY under the `pco` feature. DEFAULT = FREE-RUN (no coupling) = the loose
++                            // background liveness keepalive (fires don't synchronize).
++                            #[cfg(feature = "pco")]
 +                            {
 +                                phase += K_PHI * w * phase_response(e); // concave bidirectional kick (§4.1)
 +                            }
-+                            #[cfg(feature = "loosehb")]
++                            #[cfg(not(feature = "pco"))]
 +                            let _ = &e; // free-run: e unused for phase coupling (w still used by rate consensus)
 +                            if phase < 0.0 {
 +                                phase += 1.0;
