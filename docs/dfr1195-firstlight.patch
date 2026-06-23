@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..66ff23c 100644
+index 5a3c89f..47e98b7 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,13 @@ path = "src/main.rs"
@@ -57,7 +57,7 @@ index 5a3c89f..66ff23c 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +58,125 @@ embassy-futures = "0.1"
+@@ -40,6 +58,117 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -136,16 +136,8 @@ index 5a3c89f..66ff23c 100644
 +# WITHOUT first; add if no RF). Standalone (no ble/nobt): pure-LoRa bring-up build.
 +lora = ["dep:r2-sx1262"]
 +loratcxo = ["lora"]
-+# LoRa MESH (the Wairoa rung beyond first-light): bridge the io_task data plane (leaderless PCO heartbeat
-+# + r2-route) onto the LoRa carrier — like espnow/blemesh, the lora_mesh_task drains DATA_TX -> LoRa TX and
-+# feeds LoRa RX -> DATA_RX, so the PROVEN io_task PCO/routing runs over LoRa. HALF-DUPLEX (single loop:
-+# mostly listen, switch to TX when DATA_TX pending). Implies ble (the DATA_TX/RX path) + lora. Gates the
-+# ESP-NOW carrier off. SF7 bench (the 62B HB fits; SF12's 51B MTU would need a smaller HB / range test).
-+loramesh = ["lora", "ble"]
-+# §4.2 reachback airtime-comp for the LoRa PCO (HBSYNC-03), gated separately from loramesh so specs' 2x2
-+# decomposition is runnable: loramesh alone = shaping-only (saturation-isolation arm); loramesh+lorareach
-+# = shaping + §4.2 (full fix). Implies loramesh (the airtime-comp only applies to the LoRa carrier).
-+lorareach = ["loramesh"]
++# (loramesh + lorareach RETIRED — Occam HB-simplification: the half-duplex PCO-sync LoRa carrier + its §4.2
++# reachback airtime-comp. loraroute's LoRaTransport data-plane (continuous-RX + TX-pacing) superseded them.)
 +# TN-FR-1 (BL-200-over-LoRa MESSAGE-PASSING, the Wairoa data-plane) — route an Event A->B->C over the LoRa
 +# carrier using core's READY LoRaTransport::service() data-plane: continuous-RX + TX-pacing + §4.2/§4.3
 +# airtime-gating (defer-not-drop) in one call (r2-transport/alloc gates LoRaTransport in). Sibling to
@@ -198,10 +190,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..00a9fcc 100644
+index 8c49f1c..785827a 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3383 @@
+@@ -1,83 +1,3359 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -567,10 +559,10 @@ index 8c49f1c..00a9fcc 100644
 +            let _ = (&hk, my_tg_hash); // (used only by the BLE control plane)
 +            println!("r2-dfr1195: BLE+WiFi-join OFF (nobt) — pure ESP-NOW ch1, no coex contention");
 +        }
-+        // ESP-NOW data plane (Mode 2) — the leaderless mesh carrier; ON for ble incl nobt, OFF in blemesh,
-+        // loramesh AND loraroute — EXCEPT the TN-FR-2 `bridge` runs it ALONGSIDE the LoRa carrier (dual-radio
-+        // gateway), so loraroute+bridge re-enables it (the bridge's ESP-NOW-island leg).
-+        #[cfg(all(not(feature = "blemesh"), not(feature = "loramesh"), any(not(feature = "loraroute"), feature = "bridge")))]
++        // ESP-NOW data plane (Mode 2) — the leaderless mesh carrier; ON for ble incl nobt, OFF in blemesh and
++        // loraroute — EXCEPT the TN-FR-2 `bridge` runs it ALONGSIDE the LoRa carrier (dual-radio gateway), so
++        // loraroute+bridge re-enables it (the bridge's ESP-NOW-island leg).
++        #[cfg(all(not(feature = "blemesh"), any(not(feature = "loraroute"), feature = "bridge")))]
 +        spawner.spawn(espnow_task(esp_now, my_hive).unwrap());
 +    }
 +
@@ -636,7 +628,7 @@ index 8c49f1c..00a9fcc 100644
 +        // (loramesh half-duplex PCO-sync bridge RETIRED — Occam HB-simplification; loraroute superseded it.)
 +        #[cfg(feature = "loraroute")]
 +        spawner.spawn(lora_route_task(radio, rxen, my_hive).unwrap());
-+        #[cfg(not(any(feature = "loramesh", feature = "loraroute")))]
++        #[cfg(not(feature = "loraroute"))]
 +        spawner.spawn(lora_task(radio, rxen, my_hive).unwrap());
 +        println!("r2-dfr1195: LORA task spawned (SPI3 SCK7/MISO5/MOSI6 NSS10 RST41 BUSY40 RXEN42 DIO1=4)");
 +    }
@@ -1374,37 +1366,13 @@ index 8c49f1c..00a9fcc 100644
 +                            }
 +                            // ── Leaderless reachback-PCO coupling (R2-HEARTBEAT v0.4 §4.1 + §4.2) ──
 +                            // Couple toward THIS neighbour's fire on EVERY heard beat — flat, no conductor.
-+                            // §4.2 reachback (HBSYNC-03): the sender emitted on its own fire (phase 0) but the
-+                            // frame took ToA to arrive, so its phase has ADVANCED by rate·ToA. ESP-NOW/WiFi:
-+                            // ToA << T -> couple toward 0. LoRa (loramesh): ToA (130ms@SF7) is a big fraction
-+                            // of T -> couple toward the airtime-advanced phase (rate·ToA), per core's §4.2
-+                            // on_verified_pulse_delayed (ToA fallback, no wire change). HB frame = 62B fixed.
++                            // Couple toward the neighbour's fire (phase 0): the simple wrapped phase error.
++                            // (§4.2 reachback airtime-comp RETIRED with loramesh — Occam HB-simplification.)
 +                            let e = {
-+                                #[cfg(feature = "lorareach")]
-+                                {
-+                                    let toa = r2_transport::lora_airtime::time_on_air_ms(
-+                                        7,
-+                                        125_000,
-+                                        r2_transport::lora::CodingRate::Cr45,
-+                                        62,
-+                                    ) as f32;
-+                                    let adv = rate * toa; // §4.2 airtime advance (cycles)
-+                                    let mut ee = adv - phase;
-+                                    while ee >= 0.5 {
-+                                        ee -= 1.0;
-+                                    }
-+                                    while ee < -0.5 {
-+                                        ee += 1.0;
-+                                    }
-+                                    ee
-+                                }
-+                                #[cfg(not(feature = "lorareach"))]
-+                                {
-+                                    if phase <= 0.5 {
-+                                        -phase
-+                                    } else {
-+                                        1.0 - phase
-+                                    }
++                                if phase <= 0.5 {
++                                    -phase
++                                } else {
++                                    1.0 - phase
 +                                }
 +                            };
 +                            let w: f32 = 1.0; // uniform ESP-NOW link weight (per-neighbour w = HBSYNC-09)
@@ -3159,7 +3127,7 @@ index 8c49f1c..00a9fcc 100644
 +/// ESP-NOW true-mesh data plane (Mode 2) — M-ESPNOW-1: validate broadcast/recv on metal. Every device
 +/// peers connectionlessly (no AP); the src MAC on each frame learns the hive_id↔MAC map (core's design).
 +/// Broadcasts an R2M probe + logs observed peers. Next: feed r2-route + heartbeat-over-broadcast + unicast.
-+#[cfg(all(feature = "ble", not(any(feature = "blemesh", feature = "loramesh"))))]
++#[cfg(all(feature = "ble", not(feature = "blemesh")))]
 +#[embassy_executor::task]
 +async fn espnow_task(esp_now: esp_radio::esp_now::EspNow<'static>, my_hive: u32) {
 +    use embassy_futures::join::join;
