@@ -198,10 +198,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..d6a0597 100644
+index 8c49f1c..aad1d5b 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3406 @@
+@@ -1,83 +1,3417 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -906,6 +906,14 @@ index 8c49f1c..d6a0597 100644
 +    #[cfg(not(feature = "pco"))]
 +    let mut hb_lcg: u32 = my_hive ^ 0x1234_5678;
 +    let mut last_err_ms: u32 = 0; // latest coupling phase error in ms = the leaderless spread_ms metric
++    // SCF §3B.1: this node's SELF-ASSERTED power_state (r2-route PowerState as u8: 1=AlwaysOn, 2=Intermittent;
++    // 0=Unknown), advertised on the HB so a receiver's SCF layer makes the flood-vs-buffer decision (self-asserted
++    // = no auth needed, §3B.1: no attack benefit). DFR boards are mains/always-on = AlwaysOn; the fr4 SENSOR role
++    // (D1) models a duty-cycled sensor = Intermittent. (Receiver-side STORE = core's set_power_state, flagged.)
++    #[cfg(feature = "fr4")]
++    let my_power_state: u8 = if my_hive == 0x480e_900e { 2 } else { 1 };
++    #[cfg(not(feature = "fr4"))]
++    let my_power_state: u8 = 1;
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
@@ -973,10 +981,13 @@ index 8c49f1c..d6a0597 100644
 +                    }
 +                    FIRE_SIGNAL.signal(()); // main renders the organic lub-DUB envelope
 +                    // No conductor, no re-election (leaderless §2): every node fires + emits flat.
-+                    // Heartbeat payload: originator hive_id (4B) + firmware version (4B, #18).
-+                    let mut hb_payload = [0u8; 8];
++                    // Heartbeat payload: originator hive_id (4B) + firmware version (4B, #18) + SCF §3B.1
++                    // power_state (1B, byte 8: 1=AlwaysOn/2=Intermittent/0=Unknown). Backward-compatible — existing
++                    // receivers read bytes 0..4 (sender) and ignore byte 8. (Format proposed; flagged specs to ratify.)
++                    let mut hb_payload = [0u8; 9];
 +                    hb_payload[0..4].copy_from_slice(&my_hive.to_be_bytes());
 +                    hb_payload[4..8].copy_from_slice(&VERSION_FNV.to_be_bytes());
++                    hb_payload[8] = my_power_state;
 +                    let header = ExtendedHeader {
 +                        version: 0,
 +                        msg_type: MsgType::Heartbeat,
@@ -985,7 +996,7 @@ index 8c49f1c..d6a0597 100644
 +                        k: 1,
 +                        msg_id: fire_seq,
 +                        event_hash: 0,
-+                        payload_len: 8,
++                        payload_len: 9, // 4B origin + 4B fw-ver + 1B power_state (§3B.1)
 +                        target_group: my_tg_hash, // TG-scoped: only co-members couple
 +                        target_hive: 0,           // broadcast within TG
 +                    };
