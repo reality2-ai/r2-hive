@@ -14,6 +14,7 @@ use r2_discovery::bindings::ble::BleTransport;
 #[cfg(feature = "lora")]
 use r2_discovery::bindings::lora::LoraTransport;
 use r2_route::engine::RouteEngine;
+use r2_trust::wire_hmac::GroupHmac;
 
 use crate::compat::buffer::RingBuffer;
 use crate::mgmt::subscriptions::SubscriptionRegistry;
@@ -103,6 +104,14 @@ pub struct HiveState {
     pub lora_transport: RwLock<Option<Arc<LoraTransport>>>,
     /// R2-ROUTE engine — Layer 2-4 routing decisions.
     pub route_engine: Mutex<RouteEngine<64, 64, 64>>,
+    /// §7.5.4 deliver-gate: GroupHmac per trust group, keyed by the WIRE
+    /// `target_group` (u32). The inbound deliver-gate verifies a frame against
+    /// `group_hmacs[target_group]` before local dispatch (R2-TRUST §7.5.4).
+    /// EMPTY = migration mode (gate inactive — deliver unverified + warn), so
+    /// existing no-key daemons don't break. Populated at startup from a sealed
+    /// keystore (production, R2-KEYSTORE §4) or — for the FR-2b bench only — the
+    /// C3-flagged plaintext `R2_GROUP_KEYS_BENCH` json (dev-only, never prod).
+    pub group_hmacs: HashMap<u32, GroupHmac>,
     /// Currently-attached trust group, if any (R2-HIVE §1.4 / §7).
     /// `None` means the daemon is detached — fresh device, no TG joined.
     active_tg: RwLock<Option<ActiveTg>>,
@@ -182,6 +191,7 @@ impl HiveState {
             #[cfg(feature = "lora")]
             lora_transport: RwLock::new(None),
             route_engine: Mutex::new(RouteEngine::new()),
+            group_hmacs: load_bench_group_hmacs(),
             active_tg: RwLock::new(None),
             subscribers: Mutex::new(Vec::new()),
             next_subscriber_id: AtomicU64::new(1),
@@ -700,6 +710,94 @@ fn hex_decode(s: &str) -> Option<Vec<u8>> {
 
 fn hex_encode(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+/// §7.5.4 deliver-gate group-key load. PRODUCTION custody = a sealed keystore
+/// (R2-KEYSTORE §4; the HK arrives at provision/join, sealed at rest) — that's a
+/// FOLLOW-UP. For the FR-2b BENCH ONLY: an explicit `R2_GROUP_KEYS_BENCH` env var
+/// pointing at composer's plaintext json `{ "keys": { "<tg_u32>": "<64-hex HK>" } }`
+/// (keyed by the WIRE target_group). This is the C3 at-rest exposure, so it is
+/// gated behind an env var — production NEVER auto-loads plaintext. Unset/empty
+/// => empty map => gate INACTIVE (migration mode: deliver + warn).
+fn load_bench_group_hmacs() -> HashMap<u32, GroupHmac> {
+    let mut map = HashMap::new();
+    let path = match std::env::var("R2_GROUP_KEYS_BENCH") {
+        Ok(p) if !p.is_empty() => p,
+        _ => return map, // no bench keys configured -> gate inactive (migration)
+    };
+    let data = match std::fs::read_to_string(&path) {
+        Ok(d) => d,
+        Err(e) => {
+            log::warn!("§7.5.4: R2_GROUP_KEYS_BENCH={path} unreadable ({e}) — deliver-gate INACTIVE");
+            return map;
+        }
+    };
+    let map = parse_bench_group_hmacs(&data);
+    log::warn!(
+        "§7.5.4: loaded {} group key(s) from BENCH PLAINTEXT {path} — C3 at-rest exposure, DEV-ONLY \
+         (production MUST use a sealed keystore, R2-KEYSTORE §4)",
+        map.len()
+    );
+    map
+}
+
+/// Parse composer's bench group-keys json `{ "keys": { "<tg_u32>": "<64-hex HK>" } }`
+/// into GroupHmacs keyed by the WIRE target_group (u32). Pure (no env/file) so the
+/// parsing is unit-testable; `load_bench_group_hmacs` handles the env + file read.
+fn parse_bench_group_hmacs(data: &str) -> HashMap<u32, GroupHmac> {
+    let mut map = HashMap::new();
+    let json: serde_json::Value = match serde_json::from_str(data) {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!("§7.5.4: bench group-keys json parse error ({e}) — deliver-gate INACTIVE");
+            return map;
+        }
+    };
+    if let Some(keys) = json.get("keys").and_then(|k| k.as_object()) {
+        for (tg_str, hk_val) in keys {
+            let tg: u32 = match tg_str.parse() {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+            let hk_hex = match hk_val.as_str() {
+                Some(s) => s,
+                None => continue,
+            };
+            match hex_decode(hk_hex) {
+                Some(b) if b.len() == 32 => {
+                    let mut hk = [0u8; 32];
+                    hk.copy_from_slice(&b);
+                    map.insert(tg, GroupHmac::new(hk));
+                }
+                _ => log::warn!("§7.5.4: tg {tg} HK is not 32 bytes — skipped"),
+            }
+        }
+    }
+    map
+}
+
+#[cfg(test)]
+mod group_key_tests {
+    use super::*;
+
+    #[test]
+    fn parses_bench_json_keyed_by_target_group() {
+        let hk_hex = "27755ad8866f5633b5001002cf0ae581f8395d5c415ef59a70b5d7179bc1b23d";
+        let json = format!(r#"{{"keys":{{"177560432":"{hk_hex}","99":"deadbeef"}}}}"#);
+        let map = parse_bench_group_hmacs(&json);
+        // valid 32-byte HK -> loaded; the short "deadbeef" -> skipped.
+        assert_eq!(map.len(), 1);
+        let gh = map.get(&177560432).expect("tg 177560432 present");
+        assert_eq!(&gh.key()[..], &hex_decode(hk_hex).unwrap()[..]);
+        assert!(!map.contains_key(&99));
+    }
+
+    #[test]
+    fn empty_or_invalid_json_yields_empty_map_migration() {
+        assert!(parse_bench_group_hmacs("not json").is_empty());
+        assert!(parse_bench_group_hmacs(r#"{"keys":{}}"#).is_empty());
+        assert!(parse_bench_group_hmacs(r#"{}"#).is_empty());
+    }
 }
 
 /// Build an `r2.api.event.delivery` notification frame for one subscription

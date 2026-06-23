@@ -73,7 +73,9 @@ use r2_route::engine::{DirectedHop, ForwardAction, ForwardRequest, Target};
 use r2_route::neighbour::{MobilityClass, Observation};
 use r2_route::transport::{QualitySample, Transport};
 use r2_wire::extended::{decode_extended, prepare_relay_extended};
+use r2_wire::hmac::{classify_extended_full, FrameClass};
 use r2_wire::types::WireError;
+use r2_trust::wire_hmac::GroupHmac;
 
 use crate::hive::HiveState;
 
@@ -177,7 +179,50 @@ pub async fn route_frame(
     // recoverable from the v0.1 wire frame (only the 4-byte target_group
     // is on the wire); from_tg subscription filters therefore won't match
     // until the L5 trust path provides full TG context here.
-    state.deliver_inbound(trimmed, originator, None).await;
+    //
+    // R2-TRUST §7.5.4 DELIVER-GATE — verify GroupHmac before LOCAL dispatch.
+    // The gate is tier/transport-agnostic (this is the LAN/Internet tier; the MCU
+    // tier verifies in firmware). It guards DELIVERY only — the relay/forward path
+    // below is untouched (trust-agnostic carry, §7.5.4). Classify against the
+    // frame's target-group key:
+    //   SameGroup / CrossGroup -> verified -> deliver.
+    //   None -> a tag is present + we hold the key but nothing verifies = forgery
+    //           aimed at us -> DROP (do not deliver).
+    //   Relay -> we hold no key for this TG -> transit -> don't deliver (the relay
+    //            path forwards it opaquely).
+    //   Unauthenticated -> no tag while we hold keys -> drop.
+    // EMPTY group_hmacs = migration mode (no keys configured) -> deliver + LOUD
+    // warn, so existing no-key daemons don't break (production MUST configure HK).
+    let gate_deliver = if state.group_hmacs.is_empty() {
+        log::warn!(
+            "§7.5.4 deliver-gate INACTIVE (no group keys configured) — delivering UNVERIFIED \
+             msg_id={} tg={:08x} (dev/migration; production MUST configure a sealed HK)",
+            header.msg_id, header.target_group
+        );
+        true
+    } else {
+        let class = classify_extended_full(
+            &msg,
+            state.group_hmacs.get(&header.target_group),
+            &[] as &[GroupHmac], // cross-TG peering = live entanglement table (follow-up)
+        );
+        match class {
+            None => log::warn!(
+                "§7.5.4 DROP: forgery — tag present, no key verifies for tg={:08x} (msg_id={})",
+                header.target_group, header.msg_id
+            ),
+            Some(FrameClass::Unauthenticated) => log::warn!(
+                "§7.5.4 drop: untagged frame for tg={:08x} while holding keys (msg_id={})",
+                header.target_group, header.msg_id
+            ),
+            Some(FrameClass::Relay) => {} // transit (no key for this TG) — relay forwards, don't deliver
+            _ => {}
+        }
+        gate_should_deliver(false, class)
+    };
+    if gate_deliver {
+        state.deliver_inbound(trimmed, originator, None).await;
+    }
 
     // Build forwarding request
     let destination = if header.target_group != 0 {
@@ -384,4 +429,45 @@ fn pseudo_random() -> f32 {
         .unwrap()
         .subsec_nanos();
     (t % 1000) as f32 / 1000.0
+}
+
+/// §7.5.4 deliver decision (pure, testable): deliver iff the frame VERIFIED
+/// (SameGroup / CrossGroup). When no group keys are configured (migration mode)
+/// deliver everything — the caller logs the UNVERIFIED warning — so existing
+/// no-key daemons keep working. A forgery (`None`), transit (`Relay`, no key for
+/// that TG), or untagged (`Unauthenticated`) frame is NOT delivered.
+fn gate_should_deliver(keys_empty: bool, class: Option<FrameClass>) -> bool {
+    if keys_empty {
+        return true; // migration mode — no keys configured
+    }
+    matches!(
+        class,
+        Some(FrameClass::SameGroup) | Some(FrameClass::CrossGroup(_))
+    )
+}
+
+#[cfg(test)]
+mod gate_tests {
+    use super::*;
+
+    #[test]
+    fn migration_mode_delivers_everything() {
+        // No keys configured -> deliver regardless of class (back-compat).
+        assert!(gate_should_deliver(true, None));
+        assert!(gate_should_deliver(true, Some(FrameClass::SameGroup)));
+        assert!(gate_should_deliver(true, Some(FrameClass::Unauthenticated)));
+    }
+
+    #[test]
+    fn enforcing_delivers_only_verified() {
+        assert!(gate_should_deliver(false, Some(FrameClass::SameGroup)));
+        assert!(gate_should_deliver(false, Some(FrameClass::CrossGroup(0))));
+    }
+
+    #[test]
+    fn enforcing_drops_forgery_transit_and_untagged() {
+        assert!(!gate_should_deliver(false, None)); // forgery aimed at us -> DROP
+        assert!(!gate_should_deliver(false, Some(FrameClass::Relay))); // transit (no key) -> don't deliver
+        assert!(!gate_should_deliver(false, Some(FrameClass::Unauthenticated))); // untagged -> drop
+    }
 }

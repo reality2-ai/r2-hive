@@ -21,6 +21,8 @@ r2-wire = { path = "../../../r2-core/crates/r2-wire", default-features = false, 
 r2-cbor = { path = "../../../r2-core/crates/r2-cbor" }
 r2-fnv  = { path = "../../../r2-core/crates/r2-fnv" }
 r2-route = { path = "../../../r2-core/crates/r2-route" }
+# §7.5.4 deliver-gate: GroupHmac (HK-keyed HMAC-SHA256) for inbound verify (R2-TRUST §7.5.4).
+r2-trust = { path = "../../../r2-core/crates/r2-trust" }
 r2-transport = { path = "../../../r2-core/crates/r2-transport" }
 r2-discovery = { path = "../../../r2-core/crates/r2-discovery", features = ["websocket", "mdns", "udp-lan"] }
 r2-engine = { path = "../../../r2-core/crates/r2-engine" }
