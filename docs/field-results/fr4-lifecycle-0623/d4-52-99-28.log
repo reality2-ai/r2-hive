@@ -1,0 +1,172 @@
+[2026-06-23T01:41:21Z INFO ] Serial port: '/dev/ttyACM3'
+[2026-06-23T01:41:21Z INFO ] Connecting...
+[2026-06-23T01:41:21Z INFO ] Using flash stub
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0x15 (USB_UART_CHIP_RESET),boot:0x8 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x40378f09
+SPIWP:0xee
+mode:DIO, clock div:2
+load:0x3fce2820,len:0x158c
+load:0x403c8700,len:0xd24
+load:0x403cb700,len:0x2f34
+entry 0x403c8924
+I (27) boot: ESP-IDF v5.5.1-838-gd66ebb86d2e 2nd stage bootloader
+I (27) boot: compile time Nov 26 2025 12:27:56
+I (27) boot: Multicore bootloader
+I (29) boot: chip revision: v0.1
+I (31) boot: efuse block revision: v1.2
+I (35) boot.esp32s3: Boot SPI Speed : 40MHz
+I (39) boot.esp32s3: SPI Mode       : DIO
+I (43) boot.esp32s3: SPI Flash Size : 4MB
+I (46) boot: Enabling RNG early entropy source...
+I (51) boot: Partition Table:
+I (53) boot: ## Label            Usage          Type ST Offset   Length
+I (60) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (66) boot:  1 otadata          OTA data         01 00 0000f000 00002000
+I (73) boot:  2 phy_init         RF data          01 01 00011000 00001000
+I (79) boot:  3 ota_0            OTA app          00 10 00020000 001e0000
+I (86) boot:  4 ota_1            OTA app          00 11 00200000 001e0000
+I (92) boot: End of partition table
+I (96) esp_image: segment 0: paddr=00020020 vaddr=3c000020 size=14bach ( 84908) map
+I (124) esp_image: segment 1: paddr=00034bd4 vaddr=3fc926d8 size=04334h ( 17204) load
+I (129) esp_image: segment 2: paddr=00038f10 vaddr=40378000 size=07108h ( 28936) load
+I (138) esp_image: segment 3: paddr=00040020 vaddr=42020020 size=6889ch (428188) map
+I (243) esp_image: segment 4: paddr=000a88c4 vaddr=4037f108 size=035d0h ( 13776) load
+I (252) boot: Loaded app from partition at offset 0x20000
+I (253) boot: Disabling RNG early entropy source...
+r2-dfr1195: OTA slot=ota_0 (otadata slot-switch verified — test b PASS)
+r2-dfr1195: PROVISIONED TG restored from NVS — tg_id=3932969629 (overrides persona/demo)
+r2-dfr1195: MASK restored from NVS — 1 allowed neighbours
+r2-dfr1195: PHASE 1a — esp-rtos/embassy + esp-radio (build 0623.1328)
+r2-dfr1195: DEV 529928 hive=06ae082b TG=4b3df45d-5fbb-44b8-9613-7a6423927761 (persona=true) role=STA
+r2-dfr1195: carrier has_screen=true led_active_low=false
+r2-dfr1195: net — STA 192.168.4.40 (peer 192.168.4.1)
+r2-dfr1195: BLE+WiFi-join OFF (nobt) — pure ESP-NOW ch1, no coex contention
+r2-dfr1195: ESP-NOW mesh up (hive 06ae082b) ch1 — heartbeat over ESP-NOW broadcast
+r2-dfr1195: ESP-NOW peer MAPPED hive=f91c8911 mac=f4:12:fa:b6:0a:a0
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.000 spread=0ms (leaderless)
+r2-dfr1195: status beats=0 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.000 spread=0ms (leaderless)
+r2-dfr1195: status beats=0 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.000 spread=0ms (leaderless)
+r2-dfr1195: status beats=0 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.000 spread=0ms (leaderless)
+r2-dfr1195: status beats=0 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.000 spread=0ms (leaderless)
+r2-dfr1195: status beats=0 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=2 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=f91c8911 e=-0.050 spread=99ms (leaderless)
+r2-dfr1195: msg.rx a4001873011a06ae082b021af91c8911031a480e900e
+r2-dfr1195: RX-EV msg_id=115 flooded from=06ae082b fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=115 ttl 3->2
+r2-dfr1195: msg.relay a4001873011a06ae082b0200031a480e900e
+r2-dfr1195: DELIVERED msg_id=115 '?' (tg+hmac ok)
+r2-dfr1195: msg.delivered a4001873011a06ae082b0200031a480e900e
+r2-dfr1195: RT-REPLY -> 480e900e req_msg_id=115
+r2-dfr1195: RT-DBG REPLY replier=06ae082b sender=f91c8911 marker_origin=480e900e marker_msgid=115 in_window=true fwd_calls=1 uniq=1
+r2-dfr1195: RT-DBG PATH to_dest=06ae082b best_next_hop=f91c8911 conf=200
+r2-dfr1195: msg.rx a400198073011a06ae082b021af91c8911031a06ae082b
+r2-dfr1195: RX-EV msg_id=32883 directed_via from=06ae082b next_hop=f91c8911 nbrs=1
+r2-dfr1195: RELAY msg_id=32883 ttl 4->3
+r2-dfr1195: msg.relay a400198073011a06ae082b021af91c8911031a06ae082b
+r2-dfr1195: msg.hold a400198073011a06ae082b0200031a06ae082b
+r2-dfr1195: SCF-HOLD msg_id=32883 dest=480e900e buffered=1 (unroutable)
+r2-dfr1195: status beats=2 dlv=1 blk=0 synced=false nbrs=1 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=3 beat (leaderless)
+r2-dfr1195: HEALTH af001a06ae082b011aea6c5a9d0204036c3139322e3136382e342e34300469303632332e31333238056831636335333335340600070108186309000a010b0d0c030d000e01
+r2-dfr1195: status beats=3 dlv=1 blk=0 synced=false nbrs=1 cond=000000 spread_ms=99 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.022 spread=44ms (leaderless)
+r2-dfr1195: msg.rx a4001874011a06ae082b021af91c8911031a480e900e
+r2-dfr1195: RX-EV msg_id=116 directed_via from=06ae082b next_hop=f91c8911 nbrs=1
+r2-dfr1195: RELAY msg_id=116 ttl 3->2
+r2-dfr1195: msg.relay a4001874011a06ae082b021af91c8911031a480e900e
+r2-dfr1195: DELIVERED msg_id=116 '?' (tg+hmac ok)
+r2-dfr1195: msg.delivered a4001874011a06ae082b0200031a480e900e
+r2-dfr1195: RT-REPLY -> 480e900e req_msg_id=116
+r2-dfr1195: RT-DBG REPLY replier=06ae082b sender=f91c8911 marker_origin=480e900e marker_msgid=116 in_window=true fwd_calls=3 uniq=3
+r2-dfr1195: RT-DBG PATH to_dest=06ae082b best_next_hop=f91c8911 conf=359
+r2-dfr1195: msg.rx a400198074011a06ae082b021af91c8911031a06ae082b
+r2-dfr1195: RX-EV msg_id=32884 directed_via from=06ae082b next_hop=f91c8911 nbrs=1
+r2-dfr1195: RELAY msg_id=32884 ttl 4->3
+r2-dfr1195: msg.relay a400198074011a06ae082b021af91c8911031a06ae082b
+r2-dfr1195: msg.hold a400198074011a06ae082b0200031a06ae082b
+r2-dfr1195: SCF-HOLD msg_id=32884 dest=480e900e buffered=2 (unroutable)
+r2-dfr1195: status beats=3 dlv=2 blk=0 synced=true nbrs=1 cond=000000 spread_ms=99 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=4 beat (leaderless)
+r2-dfr1195: status beats=4 dlv=2 blk=0 synced=true nbrs=1 cond=000000 spread_ms=44 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.024 spread=48ms (leaderless)
+r2-dfr1195: status beats=4 dlv=2 blk=0 synced=true nbrs=1 cond=000000 spread_ms=44 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=5 beat (leaderless)
+r2-dfr1195: status beats=5 dlv=2 blk=0 synced=true nbrs=1 cond=000000 spread_ms=48 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.025 spread=50ms (leaderless)
+r2-dfr1195: status beats=5 dlv=2 blk=0 synced=true nbrs=1 cond=000000 spread_ms=48 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=6 beat (leaderless)
+r2-dfr1195: HEALTH af001a06ae082b011aea6c5a9d0204036c3139322e3136382e342e34300469303632332e31333238056831636335333335340600070208183209000a010b181a0c060d000e01
+r2-dfr1195: status beats=6 dlv=2 blk=0 synced=true nbrs=1 cond=000000 spread_ms=50 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.026 spread=51ms (leaderless)
+r2-dfr1195: msg.rx a4001876011a06ae082b021af91c8911031a480e900e
+r2-dfr1195: RX-EV msg_id=118 directed_via from=06ae082b next_hop=f91c8911 nbrs=1
+r2-dfr1195: RELAY msg_id=118 ttl 3->2
+r2-dfr1195: msg.relay a4001876011a06ae082b021af91c8911031a480e900e
+r2-dfr1195: DELIVERED msg_id=118 '?' (tg+hmac ok)
+r2-dfr1195: msg.delivered a4001876011a06ae082b0200031a480e900e
+r2-dfr1195: RT-REPLY -> 480e900e req_msg_id=118
+r2-dfr1195: RT-DBG REPLY replier=06ae082b sender=f91c8911 marker_origin=480e900e marker_msgid=118 in_window=true fwd_calls=5 uniq=5
+r2-dfr1195: RT-DBG PATH to_dest=06ae082b best_next_hop=f91c8911 conf=485
+r2-dfr1195: msg.rx a400198076011a06ae082b021af91c8911031a06ae082b
+r2-dfr1195: RX-EV msg_id=32886 directed_via from=06ae082b next_hop=f91c8911 nbrs=1
+r2-dfr1195: RELAY msg_id=32886 ttl 4->3
+r2-dfr1195: msg.relay a400198076011a06ae082b021af91c8911031a06ae082b
+r2-dfr1195: msg.hold a400198076011a06ae082b0200031a06ae082b
+r2-dfr1195: SCF-HOLD msg_id=32886 dest=480e900e buffered=3 (unroutable)
+r2-dfr1195: status beats=6 dlv=3 blk=0 synced=true nbrs=1 cond=000000 spread_ms=50 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=7 beat (leaderless)
+r2-dfr1195: HB<-esp-now from=f91c8911 e=-0.026 spread=52ms (leaderless)
+r2-dfr1195: FIRE seq=8 beat (leaderless)
+r2-dfr1195: status beats=8 dlv=3 blk=0 synced=true nbrs=1 cond=000000 spread_ms=52 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.005 spread=10ms (leaderless)
+r2-dfr1195: status beats=8 dlv=3 blk=0 synced=true nbrs=1 cond=000000 spread_ms=52 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.000 spread=0ms (leaderless)
+r2-dfr1195: msg.rx a4001877011a06ae082b021af91c8911031a480e900e
+r2-dfr1195: RX-EV msg_id=119 directed_via from=06ae082b next_hop=f91c8911 nbrs=1
+r2-dfr1195: RELAY msg_id=119 ttl 3->2
+r2-dfr1195: msg.relay a4001877011a06ae082b021af91c8911031a480e900e
+r2-dfr1195: DELIVERED msg_id=119 '?' (tg+hmac ok)
+r2-dfr1195: msg.delivered a4001877011a06ae082b0200031a480e900e
+r2-dfr1195: RT-REPLY -> 480e900e req_msg_id=119
+r2-dfr1195: RT-DBG REPLY replier=06ae082b sender=f91c8911 marker_origin=480e900e marker_msgid=119 in_window=true fwd_calls=7 uniq=7
+r2-dfr1195: RT-DBG PATH to_dest=06ae082b best_next_hop=f91c8911 conf=587
+r2-dfr1195: msg.rx a400198077011a06ae082b021af91c8911031a06ae082b
+r2-dfr1195: RX-EV msg_id=32887 directed_via from=06ae082b next_hop=f91c8911 nbrs=1
+r2-dfr1195: RELAY msg_id=32887 ttl 4->3
+r2-dfr1195: msg.relay a400198077011a06ae082b021af91c8911031a06ae082b
+r2-dfr1195: msg.hold a400198077011a06ae082b0200031a06ae082b
+r2-dfr1195: SCF-HOLD msg_id=32887 dest=480e900e buffered=4 (unroutable)
+r2-dfr1195: status beats=8 dlv=4 blk=0 synced=true nbrs=1 cond=000000 spread_ms=52 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=9 beat (leaderless)
+r2-dfr1195: HEALTH af001a06ae082b011aea6c5a9d0204036c3139322e3136382e342e34300469303632332e313332380568316363353333353406000702080009000a010b18240c090d000e01
+r2-dfr1195: status beats=9 dlv=4 blk=0 synced=true nbrs=1 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=10 beat (leaderless)
+r2-dfr1195: status beats=10 dlv=4 blk=0 synced=true nbrs=1 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.008 spread=16ms (leaderless)
+r2-dfr1195: msg.rx a4001878011a06ae082b021af91c8911031a480e900e
+r2-dfr1195: RX-EV msg_id=120 directed_via from=06ae082b next_hop=f91c8911 nbrs=1
+r2-dfr1195: RELAY msg_id=120 ttl 3->2
+r2-dfr1195: msg.relay a4001878011a06ae082b021af91c8911031a480e900e
+r2-dfr1195: DELIVERED msg_id=120 '?' (tg+hmac ok)
+r2-dfr1195: msg.delivered a4001878011a06ae082b0200031a480e900e
+r2-dfr1195: RT-REPLY -> 480e900e req_msg_id=120
+r2-dfr1195: RT-DBG REPLY replier=06ae082b sender=f91c8911 marker_origin=480e900e marker_msgid=120 in_window=true fwd_calls=9 uniq=9
+r2-dfr1195: RT-DBG PATH to_dest=06ae082b best_next_hop=f91c8911 conf=669
+r2-dfr1195: msg.rx a400198078011a06ae082b021af91c8911031a06ae082b
+r2-dfr1195: RX-EV msg_id=32888 directed_via from=06ae082b next_hop=f91c8911 nbrs=1
+r2-dfr1195: RELAY msg_id=32888 ttl 4->3
+r2-dfr1195: msg.relay a400198078011a06ae082b021af91c8911031a06ae082b
+r2-dfr1195: msg.hold a400198078011a06ae082b0200031a06ae082b
+r2-dfr1195: SCF-HOLD msg_id=32888 dest=480e900e buffered=5 (unroutable)
+r2-dfr1195: status beats=10 dlv=5 blk=0 synced=true nbrs=1 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=11 beat (leaderless)
+r2-dfr1195: status beats=11 dlv=5 blk=0 synced=true nbrs=1 cond=000000 spread_ms=16 fw=leaderless-0.4 role=STA
+r2-dfr1195: HB<-esp-now from=f91c8911 e=0.027 spread=54ms (leaderless)
+r2-dfr1195: status beats=11 dlv=5 blk=0 synced=true nbrs=1 cond=000000 spread_ms=16 fw=leaderless-0.4 role=STA

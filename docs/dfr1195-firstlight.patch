@@ -194,10 +194,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..c5f4bdb 100644
+index 8c49f1c..e7dd52a 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3379 @@
+@@ -1,83 +1,3404 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -404,12 +404,16 @@ index 8c49f1c..c5f4bdb 100644
 +    // FORCE the originator's dest (override any stale NVS SENDTO). TN-FR-1 = D1(480e900e) -> C(f91c8911);
 +    // TN-FR-2 = D1(480e900e) -> D4(06ae082b), the ESP-NOW-island RECEIVER reached across the D3 bridge
 +    // (D1 ->LoRa-> D2 ->LoRa-> D3[bridge] ->ESP-NOW-> D4).
-+    // ALL-LoRa chain (TN-FR-1 / FR-4 two-arm): D1 originates to D3 (f91c8911), the LoRa-leaf receiver.
-+    // (BRIDGE/FR-2b uses 0x06ae_082b = D4 the ESP-NOW receiver — re-set when rebuilding bridge ELFs.)
++    // Originator (D1=480e900e) dest, scenario-aware: FR-4 role-sim -> RECEIVER D4 (06ae082b, across the
++    // bridge); the all-LoRa two-arm -> D3 (f91c8911, LoRa-leaf receiver). (BRIDGE/FR-2b also uses D4.)
 +    #[cfg(all(feature = "loraroute", not(feature = "bridge")))]
 +    if my_hive == 0x480e_900e {
-+        ROUTETEST_DEST.store(0xf91c_8911, Ordering::Relaxed);
-+        println!("r2-dfr1195: loraroute FORCED SENDTO D1(480e900e) -> D3(f91c8911) [all-LoRa chain]");
++        #[cfg(feature = "fr4")]
++        let (dest, lbl): (u32, &str) = (0x06ae_082b, "D4(06ae082b) [FR-4 role-sim]");
++        #[cfg(not(feature = "fr4"))]
++        let (dest, lbl): (u32, &str) = (0xf91c_8911, "D3(f91c8911) [all-LoRa chain]");
++        ROUTETEST_DEST.store(dest, Ordering::Relaxed);
++        println!("r2-dfr1195: loraroute FORCED SENDTO D1(480e900e) -> {lbl}");
 +    }
 +
 +    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
@@ -910,6 +914,11 @@ index 8c49f1c..c5f4bdb 100644
 +    let mut scf_buf: heapless::Vec<([u8; 256], usize, u16, u32, u32), 8> = heapless::Vec::new();
 +    #[cfg(feature = "fr4")]
 +    const SCF_TTL_S: u32 = 120; // hold up to ~120 route-s for the dest to reappear, else drop+release
++    // REACHABILITY threshold: a GENUINELY-reachable dest = a viable neighbour OR a path with conf > this.
++    // 0.0 was too permissive — a decayed/stale near-zero entry passed -> SCF churned (forward-to-nowhere +
++    // remove) before the dest actually returned -> buffer emptied. A real neighbour seeds ~0.7; decayed <0.3.
++    #[cfg(feature = "fr4")]
++    const REACH_CONF: f32 = 0.3;
 +    // TN-FR-4 E4 silence-is-signal: the RECEIVER tracks per-SENSOR last-heard + infers ABSENCE (emits
 +    // msg.silence) when an EXPECTED sensor goes silent past the window — the complement of delivery, no
 +    // spurious delivery. Entry: (origin, last_heard_route_s, absent_flag). Seeded with the expected SENSOR.
@@ -1055,8 +1064,12 @@ index 8c49f1c..c5f4bdb 100644
 +                        let mut i = 0;
 +                        while i < scf_buf.len() {
 +                            let (frame, fl, mid, dest, expiry) = scf_buf[i];
-+                            let reachable = engine.paths().best_for(dest).is_some()
-+                                || engine.neighbours().has_viable(dest, 0.0);
++                            let reachable = engine.neighbours().has_viable(dest, REACH_CONF)
++                                || engine
++                                    .paths()
++                                    .best_for(dest)
++                                    .map(|p| p.confidence > REACH_CONF)
++                                    .unwrap_or(false);
 +                            if reachable {
 +                                if let Ok(mut fwd) = decode_extended(&frame[..fl]) {
 +                                    let org = if fwd.payload.len() >= 4 {
@@ -1087,11 +1100,13 @@ index 8c49f1c..c5f4bdb 100644
 +                        // TN-FR-4 E4 silence-is-signal: an EXPECTED sensor silent > SILENCE_S past last-heard
 +                        // -> infer ABSENCE (emit msg.silence once; cleared when it next delivers). RECEIVER only
 +                        // (sensor_seen is seeded only on D4); the complement of delivery, no spurious delivery.
-+                        for e in sensor_seen.iter_mut() {
-+                            if !e.2 && now_rs.saturating_sub(e.1) > SILENCE_S {
-+                                e.2 = true;
-+                                emit_msg("msg.silence", 0, my_hive, 0, Some(e.0));
-+                                println!("r2-dfr1195: SILENCE inferred sensor={:08x} (absent >{SILENCE_S}s)", e.0);
++                        if my_hive == 0x06ae_082b {
++                            for e in sensor_seen.iter_mut() {
++                                if !e.2 && now_rs.saturating_sub(e.1) > SILENCE_S {
++                                    e.2 = true;
++                                    emit_msg("msg.silence", 0, my_hive, 0, Some(e.0));
++                                    println!("r2-dfr1195: SILENCE inferred sensor={:08x} (absent >{SILENCE_S}s)", e.0);
++                                }
 +                            }
 +                        }
 +                    }
@@ -1643,14 +1658,23 @@ index 8c49f1c..c5f4bdb 100644
 +                                    }
 +                                }
 +                            }
-+                            // TN-FR-4 F2 SCF: an UNROUTABLE relay frame (no viable next-hop to the dest) is
-+                            // BUFFERED instead of dropped — held until the dest path reappears (forward-on-
-+                            // reappearance runs in the fire path). dedup-guarded; TTL-bounded; oldest-evict.
++                            // TN-FR-4 F2 SCF: a relay frame whose DEST is UNREACHABLE (no path AND no viable
++                            // neighbour == the dest) is BUFFERED — even if the engine FLOODED to OTHER neighbours
++                            // (the flood is best-effort-now, won't reach an absent dest; the buffer is for when
++                            // the dest reappears). NOT Drop(NoViableNeighbour) [= zero-neighbours]; here the
++                            // ROUTER has neighbours but none reaches the SPECIFIC dest. dedup-guarded; TTL-bound.
 +                            #[cfg(feature = "fr4")]
 +                            if !for_me
 +                                && h.ttl > 1
++                                && h.target_hive != 0
 +                                && h.event_hash == ROUTETEST_HASH
-+                                && matches!(advice.action, ForwardAction::Drop(DropReason::NoViableNeighbour))
++                                && !engine.neighbours().has_viable(h.target_hive, REACH_CONF)
++                                && engine
++                                    .paths()
++                                    .best_for(h.target_hive)
++                                    .map(|p| p.confidence > REACH_CONF)
++                                    .unwrap_or(false)
++                                    == false
 +                            {
 +                                let mid = h.msg_id as u16;
 +                                if !scf_buf.iter().any(|e| e.2 == mid && e.3 == h.target_hive) {
@@ -1690,9 +1714,10 @@ index 8c49f1c..c5f4bdb 100644
 +                                        emit_msg("msg.delivered", h.msg_id as u32, my_hive, 0, Some(fr_origin));
 +                                    }
 +                                    // TN-FR-4 E4: a delivered reading -> the SENSOR (origin) is ALIVE; refresh
-+                                    // its last-heard + clear any inferred-absence (msg.tx will clear at the dash).
++                                    // its last-heard + clear absence. RECEIVER-only (else D1/D2/D3 spuriously
++                                    // populate sensor_seen + infer silence — the metal bug composer caught).
 +                                    #[cfg(feature = "fr4")]
-+                                    {
++                                    if my_hive == 0x06ae_082b {
 +                                        let now_rs = route_now_s();
 +                                        if let Some(e) = sensor_seen.iter_mut().find(|e| e.0 == fr_origin) {
 +                                            e.1 = now_rs;
