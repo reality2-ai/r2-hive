@@ -198,10 +198,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..aad1d5b 100644
+index 8c49f1c..26ff66d 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3417 @@
+@@ -1,83 +1,3443 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -885,6 +885,13 @@ index 8c49f1c..aad1d5b 100644
 +    const HB_PERIOD_MS: f32 = 2008.0;
 +    const CANON_PERIOD_MS: f32 = 2000.0; // canonical nominal = rate-clamp center (consensus pulls a biased board back)
 +    const HB_TICK_MS: u64 = 50;
++    // R2-HEARTBEAT v0.5 §1A.1 keepalive RATE = the TUNABLE config knob (always-on tier = low rate, ~tens of s).
++    // RATE-DECOUPLE: the ~2s phase oscillator still drives fire_seq (the data-plane originate cadence + the LED
++    // beat), but the keepalive HB-EMIT is throttled to this independent low rate (supervisor-confirmed: §1A "tens
++    // of s" => 30s; un-conflates liveness from the demo/proof signal). DG-1 silence-detect ~= 3×period (~90s fade).
++    // Tune down for bench visibility if needed. (Under `pco`, the phase-lock needs every-beat pulses → no throttle.)
++    #[cfg(all(not(feature = "blackout"), not(feature = "pco")))]
++    const KEEPALIVE_PERIOD_MS: u64 = 30_000;
 +    const K_PHI: f32 = 0.25; // §4.1 phase coupling gain (concave M&S, critically damped)
 +    // §4.3 rate-consensus gain β — PCO-convergence machinery (R2-HEARTBEAT §2-§8), ONLY under the optional
 +    // `pco` phase-lock. v0.5 §1A default = free-run (β=0): the loose-jittered keepalive needs no rate-consensus.
@@ -901,6 +908,10 @@ index 8c49f1c..aad1d5b 100644
 +    // → HBSYNC-06 false-negative). A fast sender's beats arrive in fewer of MY ms → r_src>rate → I speed up.
 +    let mut last_rx: heapless::Vec<(u32, u64), 16> = heapless::Vec::new();
 +    let mut fire_seq: u32 = 1;
++    // RATE-DECOUPLE: last keepalive HB-emit instant (ms). 0 = never → emit at boot (presence announce) then
++    // throttle to KEEPALIVE_PERIOD_MS. Decoupled from fire_seq so the demo/originate cadence is untouched.
++    #[cfg(all(not(feature = "blackout"), not(feature = "pco")))]
++    let mut last_keepalive_ms: u64 = 0;
 +    // §1A loose-jittered keepalive (DEFAULT): per-board LCG jitters the HB period so fires DECORRELATE on the
 +    // half-duplex air (loose background liveness, not tight PCO). Seeded by my_hive so boards scatter differently.
 +    #[cfg(not(feature = "pco"))]
@@ -1015,8 +1026,23 @@ index 8c49f1c..aad1d5b 100644
 +                    }
 +                    // Leaderless (§2/§7): EVERY node emits its own fire — flat, one-hop, no relay; the
 +                    // heartbeat is both the sync pulse AND the neighbour-discovery presence.
-+                    #[cfg(not(feature = "blackout"))]
++                    // RATE-DECOUPLE (§1A.1): under `pco` the phase-lock needs every-beat pulses to converge;
++                    // by DEFAULT (free-run keepalive) emit only every KEEPALIVE_PERIOD_MS — the ~2s oscillator
++                    // already drove fire_seq (originate + LED) above, so the demo cadence is untouched.
++                    #[cfg(all(not(feature = "blackout"), feature = "pco"))]
 +                    let do_broadcast = true;
++                    #[cfg(all(not(feature = "blackout"), not(feature = "pco")))]
++                    let do_broadcast = {
++                        let now_ms = embassy_time::Instant::now().as_millis();
++                        if last_keepalive_ms == 0
++                            || now_ms.wrapping_sub(last_keepalive_ms) >= KEEPALIVE_PERIOD_MS
++                        {
++                            last_keepalive_ms = now_ms;
++                            true
++                        } else {
++                            false
++                        }
++                    };
 +                    // HBSYNC-06: 300s warmup THEN mute TX during [300s, 330s) = a 30s MUTUAL connectivity
 +                    // blackout (core: at canon β=0.01 the rate-difference decays (1−2β)^n = 0.98^n two-sided →
 +                    // ~150 beats/300s ⇒ ~4.8% residual ⇒ ON blackout-drift ≈6ms vs OFF ≈120ms = 20× clean).
