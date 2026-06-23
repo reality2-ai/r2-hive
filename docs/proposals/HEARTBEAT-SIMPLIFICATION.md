@@ -18,9 +18,11 @@ It survives refutation (below): nothing it protects/enables is still needed on t
 
 ## The proposal
 
-### P1 — demote the PCO from the canon-default heartbeat
-- The canon-default heartbeat becomes a **plain loose-jittered period** (per-board period jitter, no phase-coupling). This is already implemented as the `loosehb` behavior — it becomes **the default**, and the `loosehb` flag retires.
-- **Remove** the PCO machinery from the default path: `phase_response` (M&S concave kick), the `K_PHI` phase-coupling nudge, the `RATE_BETA` rate-consensus.
+### P1 — demote the cross-node PHASE-LOCK from the canon-default heartbeat
+**Precise cut (engine-verified):** KEEP normative the heartbeat FRAME (MsgType::Heartbeat keep-alive), its LIVENESS role (feeds the neighbour table / coupling graph that r2-route reads, the all_well LED, power_state), AND the **per-node heartbeat beat** (the loose-jittered LED lub-DUB — the calm-tech visual is preserved per node). DEMOTE only the **cross-node phase-LOCK** (everyone-beats-together): the 3 distributed correction terms — concave-PCO `phase_response`, reachback delay-compensation, distributed-rate consensus (`RATE_BETA`) + the `K_PHI` coupling nudge — plus the R2-HEARTBEAT §8 directed-spanning-tree convergence PRECONDITION and the HBSYNC-01..10 falsifier campaign.
+- The canon-default heartbeat becomes a **plain loose-jittered period** (per-board jitter, no phase-coupling) — already implemented as `loosehb`; it becomes **the default**, `loosehb` retires.
+- **ENGINE FACTS (verified, the rationale's load-bearing claim):** NOTHING functional depends on phase-sync — the phase gates only the per-node LED beat + the HB-emit timing (+ test originate). There are NO phase-gated TX/listen windows, NO TDMA slotting, NO coordinated sleep/wake/power-duty-cycling (the §4.2 airtime-duty is neighbour-*density*-based, not phase-based; power_state is an advertised flag). The neighbour-table/coupling-graph is fed by HB RECEIPT, independent of the phase/rate terms (additive state on top) — so routing/liveness stay fully intact. So phase-sync is the synchronized-fireflies VISUAL plus the contention TN-FR-1-REL refuted — no power-coordination today.
+- **Remove** the PCO machinery from the default path (firmware inline = deletable; r2-heartbeat crate PCO = optional-flag or delete per Q1; r2-harness firefly.rs/leaderless.rs/firefly_sweep = retire-with-campaign).
 - **Decide-ready Q1 for Roy:** keep the PCO as an **optional, off-by-default** mechanism (documented "for a medium where genuine synchronized-fire occurs AND phase-lock establishes"), or **remove it entirely**? (No medium in the campaign needs it; "optional-but-off" preserves the ready-fix at the cost of carrying dead-ish code — fading-foundations leans toward full removal, git keeps it recoverable.)
 
 ### P2 — retire the leaderless-HB-mesh stack
