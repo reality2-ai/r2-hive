@@ -68,6 +68,29 @@ The nRF54 is greenfield → implement R2-HEARTBEAT v0.5's kept-liveness directly
   `wairoa.reading` (origin in route_stack[0]) → piggyback the keepalive (no separate timer). This is the
   custom-sensor near-reference path (3-stage sleep/wake fits the low-power M33).
 
+## (4) Multi-PHY backbone-gateway (the tiered-radio role) — the proven FR-2 bridge generalized
+
+specs' datasheet finding: **tiered radio** — LR2021 FLRC backbone (faster) + SX1262 LoRa leaves. So the
+nRF54/LR2021 is a **backbone/gateway node (multi-PHY: FLRC backbone-facing + LoRa leaf-facing)**; the DFR/SX1262
+is a leaf. This is **exactly the TN-FR-2 cross-transport gateway pattern** I proved on metal (LoRa↔ESP-NOW),
+generalized to **FLRC↔LoRa**:
+- **The engine AUTO-BRIDGES** — no bridge routing code. D3's transport-aware neighbour table (one PHY per
+  neighbour) → `plan_forward` picks the egress PHY per hop → `directed_via` over the right PHY. The gateway just
+  needs both PHYs wired into the same engine/neighbour table. (TN-FR-2 verdict: PASS, dedup-once-across-transports,
+  the engine picked the egress with zero bridge logic.)
+- **Per-PHY TX channels + `mesh_broadcast`** — the proven shape: `DATA_TX_FLRC` (backbone) + `DATA_TX_LORA`
+  (leaves), and the gateway's `mesh_broadcast` pushes the frame onto BOTH carriers (the DFR bridge pushed
+  DATA_TX_LORA + DATA_TX[ESP-NOW]). One carrier-agnostic `DATA_RX` ingests from both. Dedup on (origin,msg_id) is
+  transport-agnostic → no loops across the two PHYs (proven in FR-2: D3 dropped its own re-broadcast echoes).
+- **The LR2021 is one chip, two PHYs** — FLRC + LoRa are config/mode switches on the same `LoRaRadio` (check
+  r2-lr2021's mode API). So a backbone-gateway runs the LR2021 in FLRC for the backbone leg and LoRa for the
+  leaf leg (time-shared, or per the EVK's capability) — vs the DFR bridge's two *separate* radios (SX1262 +
+  ESP-NOW). The io_task structure is the same; the "two carriers" are two PHY-modes of one radio.
+
+So the nRF54 backbone-gateway firmware = the FR-2 bridge pattern (carrier-agnostic data-plane + per-PHY TX +
+auto-bridging engine), with FLRC+LoRa as the PHYs. Faster backbone (FLRC) + long-range leaves (LoRa) = the
+tuxedo↔pi5 faster-LoRa target, with DFR leaves hanging off the LoRa side.
+
 ## Division of labour
 - **composer (new-arch lead):** the embassy-nrf platform layer — HAL init, SPIM/TWIM/SAADC/GPIO bindings, the
   embassy executor, the radio construction + RF-switch, wiring r2-lr2021 into the loop.
