@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..07faa5a 100644
+index 5a3c89f..1602d6c 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,13 @@ path = "src/main.rs"
@@ -57,7 +57,7 @@ index 5a3c89f..07faa5a 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +58,113 @@ embassy-futures = "0.1"
+@@ -40,6 +58,121 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -168,6 +168,14 @@ index 5a3c89f..07faa5a 100644
 +# fires DECORRELATE on the half-duplex air -> collisions drop -> delivery recovers. (Data-retransmit is the
 +# 2nd half of the fix arm, added on top.) Compose with loraroute/bridge for the FR-4 role-sim run.
 +loosehb = []
++# TN-FR-4 role-sim (the Wairoa duty-cycle dataflow capstone). Role by hive_id: D1(480e900e)=SENSOR
++# (duty-cycled wake->read->send 'wairoa.reading'->sleep), D4(06ae082b)=RECEIVER (record + LED-flash-on-record
++# + E4 silence-inference), else=ROUTER (always-on relay). Adds F2 STORE-CARRY-FORWARD (specs' SCF-1: ROUTER
++# buffers an unroutable reading [plan_forward Drop(NoViableNeighbour)] + forwards on dest-path reappearance,
++# TTL-bounded, exactly-once preserved via the (msg_id,origin) dedup) so a duty-cycle/outage connectivity gap
++# is bridged. Telemetry: msg.hold (buffered) / msg.scffwd (forwarded-on-return) / msg.silence (absence).
++# Composes with the carrier features (D1/D2 loraroute, D3 bridge, D4 routetest) + multitg.
++fr4 = []
  
  [profile.release]
  opt-level = "s"
@@ -186,10 +194,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..725a34a 100644
+index 8c49f1c..9adb1b6 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3271 @@
+@@ -1,83 +1,3345 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -851,6 +859,15 @@ index 8c49f1c..725a34a 100644
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
++    // TN-FR-4 F2 store-carry-forward (specs SCF-1): the ROUTER buffers an UNROUTABLE reading (plan_forward
++    // Drop(NoViableNeighbour)) instead of dropping, and FORWARDS it when a path/neighbour to the dest
++    // REAPPEARS — TTL-bounded (else drop+release), oldest-first evict. Entry = (frame, len, expiry_route_s).
++    // Exactly-once across the delay is preserved by the (msg_id,origin) dedup at the dest (fr_origin).
++    // Entry: (frame, len, msg_id, dest, expiry_route_s).
++    #[cfg(feature = "fr4")]
++    let mut scf_buf: heapless::Vec<([u8; 256], usize, u16, u32, u32), 8> = heapless::Vec::new();
++    #[cfg(feature = "fr4")]
++    const SCF_TTL_S: u32 = 120; // hold up to ~120 route-s for the dest to reappear, else drop+release
 +
 +    loop {
 +        // 2-TG (#20): install a runtime re-PROVISION (uart_rx_task validated + persisted it to NVS).
@@ -972,6 +989,46 @@ index 8c49f1c..725a34a 100644
 +                    // idle = BL-204 + the eviction horizon BL-103 leans on). PATH_DECAY_MU runs in-engine.
 +                    #[cfg(feature = "routetest")]
 +                    engine.decay_paths(route_now_s());
++                    // TN-FR-4 F2 SCF forward-on-reappearance + TTL-release (specs SCF-1). A held reading whose
++                    // dest path/neighbour REAPPEARED is relayed now (ttl-1); one past its TTL is dropped+released.
++                    // Reachability-checked DIRECTLY (NOT via plan_forward, which would self-dedup the held frame);
++                    // the dest's (msg_id,origin) dedup keeps exactly-once across the delay.
++                    #[cfg(feature = "fr4")]
++                    {
++                        let now_rs = route_now_s();
++                        let mut i = 0;
++                        while i < scf_buf.len() {
++                            let (frame, fl, mid, dest, expiry) = scf_buf[i];
++                            let reachable = engine.paths().best_for(dest).is_some()
++                                || engine.neighbours().has_viable(dest, 0.0);
++                            if reachable {
++                                if let Ok(mut fwd) = decode_extended(&frame[..fl]) {
++                                    let org = if fwd.payload.len() >= 4 {
++                                        u32::from_be_bytes([fwd.payload[0], fwd.payload[1], fwd.payload[2], fwd.payload[3]])
++                                    } else {
++                                        0
++                                    };
++                                    if fwd.header.ttl > 1 {
++                                        fwd.header.ttl -= 1;
++                                        if let Ok(en) = encode_extended(&fwd, &mut txbuf) {
++                                            let mut f = [0u8; 256];
++                                            let mm = en.min(256);
++                                            f[..mm].copy_from_slice(&txbuf[..mm]);
++                                            mesh_broadcast(f, mm);
++                                            emit_msg("msg.scffwd", mid as u32, my_hive, dest, Some(org));
++                                            println!("r2-dfr1195: SCF-FWD msg_id={mid} dest={dest:08x} (reappeared)");
++                                        }
++                                    }
++                                }
++                                let _ = scf_buf.swap_remove(i);
++                            } else if now_rs > expiry {
++                                println!("r2-dfr1195: SCF-DROP msg_id={mid} dest={dest:08x} (TTL expired)");
++                                let _ = scf_buf.swap_remove(i);
++                            } else {
++                                i += 1;
++                            }
++                        }
++                    }
 +                    // BL-103 eviction telemetry: dump the ROUTE-engine neighbour table (hive@conf) every fire
 +                    // so a peer's view shows the silent (blackout) board DECAY -> EVICT (drop) -> REDISCOVER
 +                    // (re-appear at fresh conf) across the blackout window. route_count = engine nbr table size
@@ -1518,6 +1575,31 @@ index 8c49f1c..725a34a 100644
 +                                        };
 +                                        emit_msg("msg.relay", h.msg_id as u32, my_hive, next_hop, Some(fr_origin));
 +                                    }
++                                }
++                            }
++                            // TN-FR-4 F2 SCF: an UNROUTABLE relay frame (no viable next-hop to the dest) is
++                            // BUFFERED instead of dropped — held until the dest path reappears (forward-on-
++                            // reappearance runs in the fire path). dedup-guarded; TTL-bounded; oldest-evict.
++                            #[cfg(feature = "fr4")]
++                            if !for_me
++                                && h.ttl > 1
++                                && h.event_hash == ROUTETEST_HASH
++                                && matches!(advice.action, ForwardAction::Drop(DropReason::NoViableNeighbour))
++                            {
++                                let mid = h.msg_id as u16;
++                                if !scf_buf.iter().any(|e| e.2 == mid && e.3 == h.target_hive) {
++                                    let mut f = [0u8; 256];
++                                    let fl = n.min(256);
++                                    f[..fl].copy_from_slice(&scratch[..fl]);
++                                    if scf_buf.is_full() {
++                                        scf_buf.remove(0); // oldest-first evict (bounded buffer)
++                                    }
++                                    let _ = scf_buf.push((f, fl, mid, h.target_hive, route_now_s() + SCF_TTL_S));
++                                    emit_msg("msg.hold", h.msg_id as u32, my_hive, 0, Some(fr_origin));
++                                    println!(
++                                        "r2-dfr1195: SCF-HOLD msg_id={} dest={:08x} buffered={} (unroutable)",
++                                        h.msg_id, h.target_hive, scf_buf.len()
++                                    );
 +                                }
 +                            }
 +                            if for_me {
