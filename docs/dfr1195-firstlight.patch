@@ -194,10 +194,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..9adb1b6 100644
+index 8c49f1c..c5f4bdb 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3345 @@
+@@ -1,83 +1,3379 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -482,12 +482,20 @@ index 8c49f1c..9adb1b6 100644
 +                .with_password(dp_pass.into()),
 +        )
 +    };
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
 +    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
 +    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
 +        wifi::new(p.WIFI, controller_cfg).expect("wifi::new");
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +    // ESP-NOW true-mesh data plane (Mode 2): take the connectionless esp_now interface (distinct field;
 +    // coexists with the STA/AP netif + BLE). M-ESPNOW-1: validate broadcast/recv mechanics on metal.
 +    #[cfg(all(feature = "ble", not(feature = "blemesh")))]
@@ -606,7 +614,41 @@ index 8c49f1c..9adb1b6 100644
 +    // RXEN42 + DIO1=4(IRQ, polled). TCXO 1.8V (loratcxo) is REQUIRED on the DFR1195. Runs alongside the
 +    // ESP-NOW/WiFi radio (different hardware/band — no coex). Build nobt,lora,loratcxo.
 +    #[cfg(feature = "lora")]
-+    {
+     {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +        let lora_spi = Spi::new(
 +            p.SPI3,
 +            SpiConfig::default().with_frequency(Rate::from_mhz(8)).with_mode(Mode::_0),
@@ -868,8 +910,22 @@ index 8c49f1c..9adb1b6 100644
 +    let mut scf_buf: heapless::Vec<([u8; 256], usize, u16, u32, u32), 8> = heapless::Vec::new();
 +    #[cfg(feature = "fr4")]
 +    const SCF_TTL_S: u32 = 120; // hold up to ~120 route-s for the dest to reappear, else drop+release
-+
-+    loop {
++    // TN-FR-4 E4 silence-is-signal: the RECEIVER tracks per-SENSOR last-heard + infers ABSENCE (emits
++    // msg.silence) when an EXPECTED sensor goes silent past the window — the complement of delivery, no
++    // spurious delivery. Entry: (origin, last_heard_route_s, absent_flag). Seeded with the expected SENSOR.
++    #[cfg(feature = "fr4")]
++    let mut sensor_seen: heapless::Vec<(u32, u32, bool), 8> = heapless::Vec::new();
++    #[cfg(feature = "fr4")]
++    const SILENCE_S: u32 = 30; // a sensor silent > ~30 route-s past last-heard = inferred absent
++    // RECEIVER (D4 06ae082b) EXPECTS the SENSOR D1 (480e900e) — so a never-waking sensor is inferred absent.
++    #[cfg(feature = "fr4")]
++    if my_hive == 0x06ae_082b {
++        let _ = sensor_seen.push((0x480e_900e, route_now_s(), false));
++    }
+ 
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        // 2-TG (#20): install a runtime re-PROVISION (uart_rx_task validated + persisted it to NVS).
 +        // Swap the live GroupHmac + target_group so the deliver-gate (B1) + TG-scoped sends use the new
 +        // key WITHOUT a reboot. The engine retains no key (R2-RUNTIME §13.2) — we take it from the conduit.
@@ -1026,6 +1082,16 @@ index 8c49f1c..9adb1b6 100644
 +                                let _ = scf_buf.swap_remove(i);
 +                            } else {
 +                                i += 1;
++                            }
++                        }
++                        // TN-FR-4 E4 silence-is-signal: an EXPECTED sensor silent > SILENCE_S past last-heard
++                        // -> infer ABSENCE (emit msg.silence once; cleared when it next delivers). RECEIVER only
++                        // (sensor_seen is seeded only on D4); the complement of delivery, no spurious delivery.
++                        for e in sensor_seen.iter_mut() {
++                            if !e.2 && now_rs.saturating_sub(e.1) > SILENCE_S {
++                                e.2 = true;
++                                emit_msg("msg.silence", 0, my_hive, 0, Some(e.0));
++                                println!("r2-dfr1195: SILENCE inferred sensor={:08x} (absent >{SILENCE_S}s)", e.0);
 +                            }
 +                        }
 +                    }
@@ -1622,6 +1688,18 @@ index 8c49f1c..9adb1b6 100644
 +                                    #[cfg(feature = "routetest")]
 +                                    if h.event_hash == ROUTETEST_HASH {
 +                                        emit_msg("msg.delivered", h.msg_id as u32, my_hive, 0, Some(fr_origin));
++                                    }
++                                    // TN-FR-4 E4: a delivered reading -> the SENSOR (origin) is ALIVE; refresh
++                                    // its last-heard + clear any inferred-absence (msg.tx will clear at the dash).
++                                    #[cfg(feature = "fr4")]
++                                    {
++                                        let now_rs = route_now_s();
++                                        if let Some(e) = sensor_seen.iter_mut().find(|e| e.0 == fr_origin) {
++                                            e.1 = now_rs;
++                                            e.2 = false;
++                                        } else {
++                                            let _ = sensor_seen.push((fr_origin, now_rs, false));
++                                        }
 +                                    }
 +                                    // BL-200: D replies to a delivered REQUEST → the reply retraces +
 +                                    // STRONG-reinforces the trail hop-by-hop (normal routing back to origin,
@@ -2499,10 +2577,7 @@ index 8c49f1c..9adb1b6 100644
 +    CriticalSectionRawMutex,
 +    core::cell::RefCell<heapless::Vec<(u32, [u8; 6]), 16>>,
 +> = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(heapless::Vec::new()));
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +/// M-ESPNOW-3b BENCH multi-hop allow-list (core's technique): a per-board can-hear MAC set, applied at
 +/// the ESP-NOW recv BEFORE r2-route, so A→B→C relay is exercised on a bench (all 1-hop in-range) without
 +/// physical separation. Topology: A(0dcadbf8)={B}, B(2cab5f69)={A,C}, C(f91c8911)={B} → A↔C NOT direct →
@@ -2620,12 +2695,7 @@ index 8c49f1c..9adb1b6 100644
 +    }
 +    Some(v)
 +}
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +/// True if `src` is in the allow-list (or the list is empty = hear all). The topology gate.
 +#[cfg(feature = "routetest")]
 +fn mask_allows(src: &[u8; 6]) -> bool {
@@ -2644,41 +2714,7 @@ index 8c49f1c..9adb1b6 100644
 +    // GENERAL no-AP mesh (default): every node hears every in-range peer → self-growing (N-join) +
 +    // self-healing (reform). This is the real-world TN case for mobile wearables.
 +    #[cfg(all(not(feature = "meshmask"), not(feature = "routetest")))]
-     {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
--    }
--
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++    {
 +        true
 +    }
 +    // BENCH multi-hop mask (meshmask): hide A↔C so A→B→C relay is forced on a bench (no physical range).
@@ -2901,7 +2937,7 @@ index 8c49f1c..9adb1b6 100644
 +        seq = seq.wrapping_add(1);
 +    }
 +}
- 
++
 +/// LoRa MESH carrier bridge (loramesh) — the half-duplex analogue of espnow_task/serve_data_coc: drains
 +/// DATA_TX (the io_task's PCO beats + routed Events) -> LoRa transmit, and feeds LoRa RX -> DATA_RX so the
 +/// PROVEN io_task leaderless-PCO + r2-route run over LoRa. Single loop (LoRa is half-duplex): mostly RX,
@@ -2921,9 +2957,7 @@ index 8c49f1c..9adb1b6 100644
 +    }
 +    rxen.set_high();
 +    let _ = radio.listen();
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        // TX: drain one pending io_task beat -> LoRa (half-duplex: pause RX, transmit, poll TxDone, resume).
 +        if let Ok((frame, n)) = DATA_TX.try_receive() {
 +            // ToA-aware TRAFFIC-SHAPING (the HBSYNC-03 carrier fix, orthogonal to core's §4.2 airtime-comp):
