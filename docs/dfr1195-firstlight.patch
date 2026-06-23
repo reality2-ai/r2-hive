@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..47e98b7 100644
+index 5a3c89f..1cbb3a1 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,13 @@ path = "src/main.rs"
@@ -57,7 +57,7 @@ index 5a3c89f..47e98b7 100644
  
  # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
  # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +58,117 @@ embassy-futures = "0.1"
+@@ -40,6 +58,120 @@ embassy-futures = "0.1"
  # here to avoid pinning an SX1262-specific surface prematurely.
  embedded-hal = "1.0"
  heapless = "0.8"
@@ -172,6 +172,9 @@ index 5a3c89f..47e98b7 100644
 +# is bridged. Telemetry: msg.hold (buffered) / msg.scffwd (forwarded-on-return) / msg.silence (absence).
 +# Composes with the carrier features (D1/D2 loraroute, D3 bridge, D4 routetest) + multitg.
 +fr4 = []
++# Bench-visibility ONLY (OFF by default): drops the §1A.1 keepalive period 30s -> 8s so the silence-fade is
++# watchable in a short flash-session. NEVER ship-enabled — the default (no feature) keeps the spec-correct 30s.
++benchkeepalive = []
  
  [profile.release]
  opt-level = "s"
@@ -190,10 +193,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..785827a 100644
+index 8c49f1c..ec11105 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3359 @@
+@@ -1,83 +1,3362 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -837,9 +840,12 @@ index 8c49f1c..785827a 100644
 +    // RATE-DECOUPLE: the ~2s phase oscillator still drives fire_seq (the data-plane originate cadence + the LED
 +    // beat), but the keepalive HB-EMIT is throttled to this independent low rate (supervisor-confirmed: §1A "tens
 +    // of s" => 30s; un-conflates liveness from the demo/proof signal). DG-1 silence-detect ~= 3×period (~90s fade).
-+    // Tune down for bench visibility if needed. (Under `pco`, the phase-lock needs every-beat pulses → no throttle.)
-+    #[cfg(all(not(feature = "blackout"), not(feature = "pco")))]
-+    const KEEPALIVE_PERIOD_MS: u64 = 30_000;
++    // (Under `pco`, the phase-lock needs every-beat pulses → no throttle.) `benchkeepalive` = OFF-BY-DEFAULT
++    // bench-visibility build (8s) so the silence-fade is watchable in a short flash-session; default ships 30s.
++    #[cfg(all(not(feature = "blackout"), not(feature = "pco"), feature = "benchkeepalive"))]
++    const KEEPALIVE_PERIOD_MS: u64 = 8_000; // BENCH-ONLY (off by default) — watchable fade
++    #[cfg(all(not(feature = "blackout"), not(feature = "pco"), not(feature = "benchkeepalive")))]
++    const KEEPALIVE_PERIOD_MS: u64 = 30_000; // SHIP (§1A "tens of s")
 +    const K_PHI: f32 = 0.25; // §4.1 phase coupling gain (concave M&S, critically damped)
 +    // §4.3 rate-consensus gain β — PCO-convergence machinery (R2-HEARTBEAT §2-§8), ONLY under the optional
 +    // `pco` phase-lock. v0.5 §1A default = free-run (β=0): the loose-jittered keepalive needs no rate-consensus.
