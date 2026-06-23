@@ -1,6 +1,6 @@
 # RESUME — r2-hive (hive-worker)
 
-Updated 2026-06-18 (owned by hive). Master save (read-only ref):
+Updated 2026-06-24 (owned by hive). Master save (read-only ref):
 `r2-fleet/fleet-context/FLEET-CONTEXT-SAVE.md` (moved from claude-fleet, now tooling-code-only).
 
 **Role:** the hive runtime. North-star: **ONE hive codebase usable everywhere**, built on
@@ -8,7 +8,74 @@ Updated 2026-06-18 (owned by hive). Master save (read-only ref):
 "Bring hive up to a general tool" = converge r2-hive (today Linux/std) onto that one codebase —
 do NOT fork per-target firmwares. Chain: specs → core → hive. composer orchestrates hives, isn't one.
 
-**Current branch:** `platform-trait` (local + pushed). Built atop the v0.2 work (`0aa6ab7`).
+**Current branch:** `platform-trait` (local + pushed, HEAD `ce80733`). Built atop the v0.2 work (`0aa6ab7`).
+
+## PCO FIRMWARE MIGRATION SESSION (2026-06-24) — bundle built-green, AT THE FLASH-WINDOW
+Spec-first migration of the DFR1195 firmware to **R2-HEARTBEAT v0.5** + an **Occam mesh-retire**, plus the nRF54
+data-plane seam. Firmware lives in the **dfr1195-fw-wt WORKTREE** (`r2-core/platforms/dfr1195`); r2-hive holds only
+the PATCH (`docs/dfr1195-firstlight.patch`) — the commits below are r2-hive patch-snapshot commits.
+
+**THE BUNDLE (built-green PRE-FLASH, all pushed):**
+- `0ad8566` §1A phase-lock -> OPTIONAL: leaderless-PCO (coupling-nudge + rate-consensus + period-jitter-off) goes
+  behind an OPTIONAL `pco` feature; DEFAULT = free-run + loose period-jitter + β=0 = the §1A loose-jittered
+  keepalive (the FR-1-REL POS-arm, already metal-tested -> a default-flip of TESTED code). Retired loosehb+rateoff.
+- `d7507cd` §3B.1 power_state advertise (emit): HB byte 8 = self-asserted availability class, tier-aware (AlwaysOn
+  DFR / Intermittent fr4-SENSOR-D1). **FORMAT SUPERSEDED:** specs caught byte-8 FORKS R2-WIRE §12.6 (HB payload is
+  a CBOR MAP). Unified pass = re-emit as CBOR key `dc` (RENAMED duty_class — avoids the R2-BEACON §7.2.1 battery
+  power_state collision), DROP the redundant 4B origin + fw_ver. The CBOR re-emit + byte-8 REVERT is HELD until
+  specs lands §12.6 (see NEXT #2).
+- `20703ab` §1A.1 RATE-DECOUPLE (the delicate one): the ~2s phase oscillator still drives fire_seq (the originate
+  cadence + LED beat) UNCHANGED, but the keepalive HB-EMIT is throttled to KEEPALIVE_PERIOD_MS=30_000 (the §1A.1
+  tunable knob; supervisor-confirmed 30s = "tens of s", DG-1 silence ~90s) — un-conflates liveness from the
+  demo/proof signal. pco = every-beat (phase-lock); blackout test arm = every-beat (throttle cfg-gated out).
+- `3095804` + `cef7516` Occam MESH-RETIRE (NOT a deletion — HELD+flagged as a compound-gate refactor): step 1 =
+  excise the lora_mesh_task fn+spawn (the safe sliver, mutually-exclusive with loraroute); step 2 = ATOMIC
+  compound-gate refactor dropping the loramesh/lorareach features — loramesh lived in the FR-2-bridge/ESP-NOW SPAWN
+  SELECTORS (main.rs:346/:412/:2893), and since loramesh was NEVER set in any flashed config, not(loramesh)≡true
+  everywhere -> each gate-simplification is a VERIFIED NO-OP. lorareach (§4.2 PCO reachback) retired -> simple
+  phase-error.
+- `ce80733` benchkeepalive feature (OFF by default): KEEPALIVE_PERIOD_MS 8s under the feature else 30s ship —
+  ship-safe + reproducible + format-agnostic (dominates the uncommitted-binary option) for bench watchability.
+- `7b3cfe3` chore: gitignore `prebuilt/` (14MB binaries out of git history).
+
+**NO-OP INVARIANT (the load-bearing safety claim):** every FLASHED config spawns IDENTICAL tasks after the
+gate-refactor — verified per-config (nobt/routetest->espnow; loraroute->LoRa leaf no espnow; loraroute+bridge->
+espnow re-enabled; blemesh->neither). The bench is the EMPIRICAL test of this conjecture; if the demo regresses it
+REFUTES "the migration preserves the demo" -> spec-first fix, no papering.
+
+**BUILD MATRIX = 7 configs GREEN (errors=0):** fr4 / loraroute+bridge / loraroute / nobt+routetest / nobt /
+blemesh / fr4+pco.
+
+**BENCH/SHIP BINARIES STAGED** (supervisor: "you build both"): 6 release ELFs + app-.bin (OTA) + a merged sample at
+`prebuilt/bench-bundle-0624/` (GITIGNORED, local-only — the committed artifact is the SOURCE/benchkeepalive feature,
+NEVER the binaries) = {leaf (D1/D2 loraroute) / bridge (D3 loraroute+bridge = FR-2) / recv (D4 routetest)} x
+{ship 30s / bench 8s}.
+
+**FLASH-WINDOW: OPEN (Roy GO, boards free).** composer flashes/OTAs + monitors the ttys; I (firmware owner)
+INTERPRET the 3 verdicts: (a) FR-2 bridge survives, (b) LED-sync + FR-4 NO-REGRESS [the critical one], (c) keepalive
+fires + silence-detectable (8s bench). AWAITING composer's serial output to interpret per-item; then SHIP (30s)
+binaries onto demo-correct boards.
+
+**SESSION-RESTART RECOVERY:** a post-/compact degradation was cleared by a mid-session restart; the clean 7-config
+matrix build (errors=0) + the bundle proved the recovery (supervisor: "welcome back").
+
+**REMAINING / NEXT (priority order):**
+1. BENCH-VERIFY (in progress with composer) — interpret (a)/(b)/(c), confirm the ship binaries go on demo boards.
+2. duty_class CBOR re-emit — parse §12.6 `dc` on receive + call core's `set_neighbour_duty_class` + REVERT byte-8
+   (`d7507cd`); GATED on specs landing the unified §12.6/§1A/§3B.1 pass.
+3. r2-dataplane module (POST-bench) — NEW crate `r2-core/crates/r2-dataplane` (no_std; deps r2-route+r2-wire+
+   r2-trust; core's location call). hive-OWNED: types `DataPlane`/`RxDisposition`/`PhyMask` + `handle_rx_frame` +
+   `poll_keepalive`, factoring the bench-VALIDATED dfr RX logic; UNBLOCKS core's nrf54 gateway `handle_rx` body.
+   PhyMask = u8 platform-agnostic egress bitmask (the plan_forward-egress->bit map is the PLATFORM adapter);
+   deliver_out = RAW channel push (NOT through r2-dispatch — std/above-boundary). core registers + wires.
+4. LED-flash-out (gate the FIRE-driven LED behind pco; coordinate with composer's bench LED-sync check) +
+   sensor-piggyback (§1A.1, the SENSOR tier piggybacks liveness on sense-wake).
+
+**KEY DECISIONS this session:** spec-first throughout (read §1A/§3B.1 before coding); HELD-and-flagged TWICE
+(mesh-retire = compound-gate refactor not a deletion; power_state byte-8 forks §12.6) rather than blind-executing;
+committed-feature > uncommitted-binary for bench (dominates both options); push-per-green-step (standing order).
+Deep context in the memory files: occam-hb-simplification, r2-hive-multi-target-goal, lora-message-passing-metal,
+linux-hive-deliver-gate-gap.
 
 ## OVERNIGHT AUTONOMOUS CAMPAIGN (2026-06-22, supervisor grant; Roy winding down)
 Per supervisor: continue the TN metal refutation campaign autonomously — SPEC-FIRST on any weakness
