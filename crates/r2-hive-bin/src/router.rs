@@ -133,11 +133,31 @@ pub async fn route_frame(
     let header = msg.header;
 
     // R2-WIRE §8.2: dedup key is (msg_id, originator). Originator is the FIRST
-    // entry of the route stack if present; otherwise the transport-reported
-    // source. The dedup cache uses the upper 16 bits as a compact source_hop.
+    // entry of the route stack when present (the frame-carried origin, strongest key).
+    //
+    // SYNC-1 / R2-ROUTE §3.3 — security invariant (core's ruling): dedup MUST key on
+    // FRAME-INTRINSIC fields, NEVER the vantage-dependent transport source. The old
+    // `_ => source_hive` fallback let an attacker inject no-route-stack frames from
+    // differing vantages -> a DISTINCT dedup key each -> each re-forwarded -> RELAY
+    // AMPLIFICATION (the relay path is gateless by design, so the §7.5.4 deliver-gate
+    // can't catch it). FIX (B, core-directed interim): for route=None key on a frame
+    // fingerprint (event_hash + target_hive) — the SAME anonymous frame from any
+    // vantage gets the SAME key (kills amplification); distinct anonymous frames stay
+    // distinct. NEVER source_hive; NEVER 0 (0 would falsely dedup ALL anonymous
+    // broadcasts to (msg_id,0)). CAVEAT (inherent to origin-less frames): two
+    // different originators reusing msg_id+event_hash+target collide — that's why the
+    // §3.3 A-vs-B canon ruling (specs: mandate route_stack[0]+drop vs permit route=None)
+    // may tighten this to a drop later; (B) is the safe, reversible interim either way.
     let originator = match &msg.route {
         Some(r) if r.len > 0 => r.entries[0],
-        _ => source_hive,
+        _ => {
+            let fp = header.event_hash ^ header.target_hive.rotate_left(16);
+            if fp == 0 {
+                0xFFFF_FFFF
+            } else {
+                fp
+            }
+        }
     };
 
     // Immediate source — the peer we just heard from. The transport layer

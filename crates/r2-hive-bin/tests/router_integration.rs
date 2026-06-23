@@ -120,3 +120,30 @@ async fn duplicate_frame_is_dropped_by_dedup() {
         "duplicate frame must be dropped by the dedup cache"
     );
 }
+
+#[tokio::test]
+async fn no_route_stack_dedups_by_frame_not_vantage() {
+    // SYNC-1 (R2-ROUTE §3.3, core's frame-intrinsic invariant): a route=None frame
+    // seen from DIFFERENT vantages (different transport source_hive) but with the
+    // SAME msg_id+event_hash+target MUST get the SAME dedup key -> the second copy
+    // is dropped. The OLD `_ => source_hive` keying gave each vantage a distinct key
+    // -> the second was re-forwarded -> RELAY AMPLIFICATION. This locks the fix in.
+    let st = state();
+    // Seed a viable neighbour so the first sighting floods (not no-neighbour-dropped).
+    for msg_id in 200..205 {
+        let f = ext_frame(0x0000_0000, 5, 3, msg_id);
+        let _ = route_frame(&st, NEIGHBOUR, Transport::Internet, &f).await;
+    }
+    let frame = ext_frame(0x0000_0000, 5, 3, 888); // route=None broadcast
+    let first = route_frame(&st, 0x0000_00AA, Transport::Internet, &frame).await; // vantage A
+    assert!(
+        matches!(first, RouteOutcome::Flooded(_)),
+        "first sighting of a route=None broadcast should flood"
+    );
+    // SAME frame, DIFFERENT vantage (source 0xBB, not 0xAA) -> must still dedup.
+    let second = route_frame(&st, 0x0000_00BB, Transport::Internet, &frame).await;
+    assert!(
+        matches!(second, RouteOutcome::Dropped),
+        "same route=None frame from a DIFFERENT vantage must dedup (frame-intrinsic key, not source_hive)"
+    );
+}
