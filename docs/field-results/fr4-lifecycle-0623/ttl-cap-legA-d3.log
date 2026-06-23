@@ -1,0 +1,192 @@
+[2026-06-23T02:09:14Z INFO ] Serial port: '/dev/ttyACM4'
+[2026-06-23T02:09:14Z INFO ] Connecting...
+[2026-06-23T02:09:14Z INFO ] Using flash stub
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0x15 (USB_UART_CHIP_RESET),boot:0x8 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x40378eb1
+SPIWP:0xee
+mode:DIO, clock div:2
+load:0x3fce2820,len:0x158c
+load:0x403c8700,len:0xd24
+load:0x403cb700,len:0x2f34
+entry 0x403c8924
+I (27) boot: ESP-IDF v5.5.1-838-gd66ebb86d2e 2nd stage bootloader
+I (27) boot: compile time Nov 26 2025 12:27:56
+I (27) boot: Multicore bootloader
+I (29) boot: chip revision: v0.2
+I (31) boot: efuse block revision: v1.3
+I (35) boot.esp32s3: Boot SPI Speed : 40MHz
+I (39) boot.esp32s3: SPI Mode       : DIO
+I (43) boot.esp32s3: SPI Flash Size : 4MB
+I (46) boot: Enabling RNG early entropy source...
+I (51) boot: Partition Table:
+I (53) boot: ## Label            Usage          Type ST Offset   Length
+I (60) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (66) boot:  1 otadata          OTA data         01 00 0000f000 00002000
+I (73) boot:  2 phy_init         RF data          01 01 00011000 00001000
+I (79) boot:  3 ota_0            OTA app          00 10 00020000 001e0000
+I (86) boot:  4 ota_1            OTA app          00 11 00200000 001e0000
+I (92) boot: End of partition table
+I (96) esp_image: segment 0: paddr=00020020 vaddr=3c000020 size=14f9ch ( 85916) map
+I (124) esp_image: segment 1: paddr=00034fc4 vaddr=3fc926d8 size=043bch ( 17340) load
+I (129) esp_image: segment 2: paddr=00039388 vaddr=40378000 size=06c90h ( 27792) load
+I (138) esp_image: segment 3: paddr=00040020 vaddr=42020020 size=6a7d8h (436184) map
+I (245) esp_image: segment 4: paddr=000aa800 vaddr=4037ec90 size=03a48h ( 14920) load
+I (255) boot: Loaded app from partition at offset 0x20000
+I (255) boot: Disabling RNG early entropy source...
+r2-dfr1195: OTA slot=ota_0 (otadata slot-switch verified — test b PASS)
+r2-dfr1195: PROVISIONED TG restored from NVS — tg_id=3932969629 (overrides persona/demo)
+r2-dfr1195: MASK restored from NVS — 1 allowed neighbours
+r2-dfr1195: PHASE 1a — esp-rtos/embassy + esp-radio (build 0623.1400)
+r2-dfr1195: DEV b60aa0 hive=f91c8911 TG=4b3df45d-5fbb-44b8-9613-7a6423927761 (persona=true) role=STA
+r2-dfr1195: carrier has_screen=true led_active_low=false
+r2-dfr1195: net — STA 192.168.4.160 (peer 192.168.4.1)
+r2-dfr1195: BLE+WiFi-join OFF (nobt) — pure ESP-NOW ch1, no coex contention
+r2-dfr1195: LORA task spawned (SPI3 SCK7/MISO5/MOSI6 NSS10 RST41 BUSY40 RXEN42 DIO1=4)
+r2-dfr1195: LORA-ROUTE up (SF7 BW125 916.8 sync0x21 -9dBm) — BL-200 message-passing over LoRa
+r2-dfr1195: ESP-NOW mesh up (hive f91c8911) ch1 — heartbeat over ESP-NOW broadcast
+r2-dfr1195: LORA-RX sender=480e900e len=66 rssi=-32dBm masked=true
+r2-dfr1195: LORA-RX sender=2cab5f69 len=66 rssi=-51dBm masked=false
+r2-dfr1195: HB<-esp-now from=2cab5f69 e=0.350 spread=700ms (leaderless)
+r2-dfr1195: FIRE seq=2 beat (leaderless)
+r2-dfr1195: status beats=2 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=700 fw=leaderless-0.4 role=STA
+r2-dfr1195: LORA-RX sender=480e900e len=66 rssi=-33dBm masked=true
+r2-dfr1195: LORA-RX sender=480e900e len=65 rssi=-33dBm masked=true
+r2-dfr1195: FIRE seq=3 beat (leaderless)
+r2-dfr1195: HEALTH af001af91c8911011aea6c5a9d0204036d3139322e3136382e342e3136300469303632332e313430300568356437653961326606000701081902bc09000a010b030c030d000e01
+r2-dfr1195: status beats=3 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=700 fw=leaderless-0.4 role=STA
+r2-dfr1195: LORA-RX sender=480e900e len=66 rssi=-33dBm masked=true
+r2-dfr1195: LORA-RX sender=2cab5f69 len=66 rssi=-50dBm masked=false
+r2-dfr1195: HB<-esp-now from=2cab5f69 e=0.114 spread=227ms (leaderless)
+r2-dfr1195: FIRE seq=4 beat (leaderless)
+r2-dfr1195: status beats=4 dlv=0 blk=0 synced=false nbrs=1 cond=000000 spread_ms=227 fw=leaderless-0.4 role=STA
+r2-dfr1195: LORA-RX sender=480e900e len=66 rssi=-33dBm masked=true
+r2-dfr1195: LORA-RX sender=2cab5f69 len=66 rssi=-50dBm masked=false
+r2-dfr1195: HB<-esp-now from=2cab5f69 e=0.020 spread=39ms (leaderless)
+r2-dfr1195: status beats=4 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=227 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=5 beat (leaderless)
+r2-dfr1195: LORA-RX sender=2cab5f69 len=65 rssi=-50dBm masked=false
+r2-dfr1195: msg.rx a40019017e011af91c8911021a2cab5f69031a480e900e
+r2-dfr1195: RX-EV msg_id=382 flooded from=f91c8911 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=382 ttl 4->3
+r2-dfr1195: msg.relay a40019017e011af91c89110200031a480e900e
+r2-dfr1195: msg.hold a40019017e011af91c89110200031a480e900e
+r2-dfr1195: SCF-HOLD msg_id=382 dest=06ae082b buffered=1 (unroutable)
+r2-dfr1195: status beats=5 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=6 beat (leaderless)
+r2-dfr1195: HEALTH af001af91c8911011aea6c5a9d0204036d3139322e3136382e342e3136300469303632332e31343030056835643765396132660600070208182709000a010b0b0c060d000e01
+r2-dfr1195: status beats=6 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=7 beat (leaderless)
+r2-dfr1195: status beats=7 dlv=0 blk=0 synced=true nbrs=1 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=8 beat (leaderless)
+r2-dfr1195: LORA-RX sender=2cab5f69 len=65 rssi=-50dBm masked=false
+r2-dfr1195: msg.rx a40019017f011af91c8911021a2cab5f69031a480e900e
+r2-dfr1195: RX-EV msg_id=383 flooded from=f91c8911 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=383 ttl 4->3
+r2-dfr1195: msg.relay a40019017f011af91c89110200031a480e900e
+r2-dfr1195: msg.hold a40019017f011af91c89110200031a480e900e
+r2-dfr1195: SCF-HOLD msg_id=383 dest=06ae082b buffered=2 (unroutable)
+r2-dfr1195: status beats=8 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=9 beat (leaderless)
+r2-dfr1195: HEALTH af001af91c8911011aea6c5a9d0204036d3139322e3136382e342e3136300469303632332e31343030056835643765396132660600070208182709000a010b110c090d000e00
+r2-dfr1195: status beats=9 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=10 beat (leaderless)
+r2-dfr1195: status beats=10 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=11 beat (leaderless)
+r2-dfr1195: LORA-RX sender=2cab5f69 len=65 rssi=-50dBm masked=false
+r2-dfr1195: msg.rx a400190180011af91c8911021a2cab5f69031a480e900e
+r2-dfr1195: RX-EV msg_id=384 flooded from=f91c8911 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=384 ttl 4->3
+r2-dfr1195: msg.relay a400190180011af91c89110200031a480e900e
+r2-dfr1195: msg.hold a400190180011af91c89110200031a480e900e
+r2-dfr1195: SCF-HOLD msg_id=384 dest=06ae082b buffered=3 (unroutable)
+r2-dfr1195: status beats=11 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=12 beat (leaderless)
+r2-dfr1195: HEALTH af001af91c8911011aea6c5a9d0204036d3139322e3136382e342e3136300469303632332e31343030056835643765396132660600070208182709000a010b170c0c0d000e00
+r2-dfr1195: status beats=12 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=13 beat (leaderless)
+r2-dfr1195: status beats=13 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=14 beat (leaderless)
+r2-dfr1195: LORA-RX sender=480e900e len=65 rssi=-33dBm masked=true
+r2-dfr1195: LORA-RX sender=2cab5f69 len=65 rssi=-50dBm masked=false
+r2-dfr1195: msg.rx a400190181011af91c8911021a2cab5f69031a480e900e
+r2-dfr1195: RX-EV msg_id=385 flooded from=f91c8911 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=385 ttl 4->3
+r2-dfr1195: msg.relay a400190181011af91c89110200031a480e900e
+r2-dfr1195: msg.hold a400190181011af91c89110200031a480e900e
+r2-dfr1195: SCF-HOLD msg_id=385 dest=06ae082b buffered=4 (unroutable)
+r2-dfr1195: status beats=14 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=15 beat (leaderless)
+r2-dfr1195: HEALTH af001af91c8911011aea6c5a9d0204036d3139322e3136382e342e3136300469303632332e31343030056835643765396132660600070208182709000a010b181d0c0f0d000e00
+r2-dfr1195: status beats=15 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=16 beat (leaderless)
+r2-dfr1195: status beats=16 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=17 beat (leaderless)
+r2-dfr1195: LORA-RX sender=480e900e len=65 rssi=-33dBm masked=true
+r2-dfr1195: LORA-RX sender=2cab5f69 len=65 rssi=-50dBm masked=false
+r2-dfr1195: msg.rx a400190182011af91c8911021a2cab5f69031a480e900e
+r2-dfr1195: RX-EV msg_id=386 flooded from=f91c8911 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=386 ttl 4->3
+r2-dfr1195: msg.relay a400190182011af91c89110200031a480e900e
+r2-dfr1195: msg.hold a400190182011af91c89110200031a480e900e
+r2-dfr1195: SCF-HOLD msg_id=386 dest=06ae082b buffered=5 (unroutable)
+r2-dfr1195: status beats=17 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=18 beat (leaderless)
+r2-dfr1195: HEALTH af001af91c8911011aea6c5a9d0204036d3139322e3136382e342e3136300469303632332e31343030056835643765396132660600070208182709000a010b18230c120d000e00
+r2-dfr1195: status beats=18 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=19 beat (leaderless)
+r2-dfr1195: LORA-RX sender=480e900e len=66 rssi=-33dBm masked=true
+r2-dfr1195: status beats=19 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=20 beat (leaderless)
+r2-dfr1195: LORA-RX sender=480e900e len=66 rssi=-33dBm masked=true
+r2-dfr1195: LORA-RX sender=480e900e len=65 rssi=-33dBm masked=true
+r2-dfr1195: LORA-RX sender=2cab5f69 len=65 rssi=-50dBm masked=false
+r2-dfr1195: msg.rx a400190183011af91c8911021a2cab5f69031a480e900e
+r2-dfr1195: RX-EV msg_id=387 flooded from=f91c8911 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=387 ttl 4->3
+r2-dfr1195: msg.relay a400190183011af91c89110200031a480e900e
+r2-dfr1195: msg.hold a400190183011af91c89110200031a480e900e
+r2-dfr1195: SCF-HOLD msg_id=387 dest=06ae082b buffered=6 (unroutable)
+r2-dfr1195: status beats=20 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: SCF-DROP msg_id=382 dest=06ae082b (TTL expired)
+r2-dfr1195: FIRE seq=21 beat (leaderless)
+r2-dfr1195: HEALTH af001af91c8911011aea6c5a9d0204036d3139322e3136382e342e3136300469303632332e31343030056835643765396132660600070208182709000a010b18290c150d000e00
+r2-dfr1195: LORA-RX sender=480e900e len=66 rssi=-33dBm masked=true
+r2-dfr1195: status beats=21 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=22 beat (leaderless)
+r2-dfr1195: LORA-RX sender=480e900e len=66 rssi=-33dBm masked=true
+r2-dfr1195: status beats=22 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: SCF-DROP msg_id=383 dest=06ae082b (TTL expired)
+r2-dfr1195: FIRE seq=23 beat (leaderless)
+r2-dfr1195: LORA-RX sender=480e900e len=65 rssi=-33dBm masked=true
+r2-dfr1195: LORA-RX sender=2cab5f69 len=65 rssi=-50dBm masked=false
+r2-dfr1195: msg.rx a400190184011af91c8911021a2cab5f69031a480e900e
+r2-dfr1195: RX-EV msg_id=388 flooded from=f91c8911 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=388 ttl 4->3
+r2-dfr1195: msg.relay a400190184011af91c89110200031a480e900e
+r2-dfr1195: msg.hold a400190184011af91c89110200031a480e900e
+r2-dfr1195: SCF-HOLD msg_id=388 dest=06ae082b buffered=5 (unroutable)
+r2-dfr1195: status beats=23 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=24 beat (leaderless)
+r2-dfr1195: HEALTH af001af91c8911011aea6c5a9d0204036d3139322e3136382e342e3136300469303632332e31343030056835643765396132660600070208182709000a010b18300c18180d000e00
+r2-dfr1195: status beats=24 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=25 beat (leaderless)
+r2-dfr1195: LORA-RX sender=480e900e len=66 rssi=-33dBm masked=true
+r2-dfr1195: status beats=25 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: FIRE seq=26 beat (leaderless)
+r2-dfr1195: LORA-RX sender=480e900e len=65 rssi=-33dBm masked=true
+r2-dfr1195: LORA-RX sender=2cab5f69 len=65 rssi=-50dBm masked=false
+r2-dfr1195: msg.rx a400190185011af91c8911021a2cab5f69031a480e900e
+r2-dfr1195: RX-EV msg_id=389 flooded from=f91c8911 fanout=1 nbrs=1
+r2-dfr1195: RELAY msg_id=389 ttl 4->3
+r2-dfr1195: msg.relay a400190185011af91c89110200031a480e900e
+r2-dfr1195: msg.hold a400190185011af91c89110200031a480e900e
+r2-dfr1195: SCF-HOLD msg_id=389 dest=06ae082b buffered=6 (unroutable)
+r2-dfr1195: status beats=26 dlv=0 blk=0 synced=true nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA
+r2-dfr1195: SCF-DROP msg_id=384 dest=06ae082b (TTL expired)
+r2-dfr1195: FIRE seq=27 beat (leaderless)
+r2-dfr1195: HEALTH af001af91c8911011aea6c5a9d0204036d3139322e3136382e342e3136300469303632332e31343030056835643765396132660600070208182709000a010b18360c181b0d000e00
+r2-dfr1195: LORA-RX sender=2cab5f69 len=66 rssi=-50dBm masked=false
+r2-dfr1195: HB<-esp-now from=2cab5f69 e=-0.151 spread=302ms (leaderless)
+r2-dfr1195: status beats=27 dlv=0 blk=0 synced=false nbrs=0 cond=000000 spread_ms=39 fw=leaderless-0.4 role=STA

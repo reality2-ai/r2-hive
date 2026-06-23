@@ -1,0 +1,23 @@
+{
+  "conjecture": "TN-L2-XT-BL-001",
+  "title": "SCF OOM-guard / buffer-bound negative control — hold>TTL -> drop+release (the falsifier that proves the SCF buffer is BOUNDED, not unbounded)",
+  "tier": "hardware",
+  "transport": "lora+espnow (cross-transport, role-sim)",
+  "topology": "D1 SENSOR -> D2 ROUTER -> D3 ROUTER+BRIDGE (the SCF buffer under test) -> D4 RECEIVER (erased/absent for leg a, restored for leg b)",
+  "scope": "intra-TG (wairoa 3932969629)",
+  "payload": "events (wairoa.reading)",
+  "run_id": "fr4-ttl-negctl-metal-0623",
+  "timestamp_utc": "2026-06-23T02:10:00Z",
+  "runner": "hive; D3=f91c8911(b6:0a:a0) the buffering ROUTER (fr4-rb-scf30 SCF_TTL=30s test build), D4=06ae082b(52:99:28) the dest (app-erased=absent for leg a, fr4-receiver-restored for leg b); D1/D2 live senders; my raw-serial espflash-monitor capture",
+  "config": "fr4-rb-scf30 = bridge+fr4 with SCF_TTL=30 route-s (FAST test build; canonical deploy = 120s, which specs ruled deployment-tuning not canon — canon = 'bounded by TTL + bounded size'). D4-silence mechanism = espflash erase-region 0x20000/0x4000 (app header invalidated -> bootloader won't boot -> silent; NVS@0x9000 wairoa PRESERVED -> reflash restores provisioned). D3 restored to canonical 120s after.",
+  "firmware_commit": "r2-hive (fr4 feature, SCF_TTL temp=30 for the test ELF; canonical source 120s, reverted)",
+  "expectations": [
+    { "type": "leg_a_ttl_drop_bound", "predicted": "a held frame whose dest NEVER returns within TTL is DROPPED+released (the buffer is bounded, doesn't grow unboundedly = OOM-guard)", "observed": "D3 SCF-HOLD msg_id=382 dest=06ae082b (buffered grew 1->6 as the erased/absent D4 stayed silent) -> SCF-DROP msg_id=382 dest=06ae082b (TTL expired) at ~30s; likewise 383,384 dropped@TTL while new holds (388,389) entered. Same msg_id held->dropped+released = the bound fires.", "pass": true },
+    { "type": "leg_b_conditional_positive_control", "predicted": "the drop is CONDITIONAL (the TTL doing its job), NOT unconditional: with the dest PRESENT, a held/sent reading DELIVERS, not drops", "observed": "D4 restored (app reflashed, NVS wairoa intact) -> DELIVERED msg_id=396,399,402,403 (tg+hmac ok) at D4. Same setup: D4-ABSENT -> SCF-DROP (leg a) vs D4-PRESENT -> DELIVERED (leg b). The drop is conditional on dest-absence, not an unconditional drop. The HOLD->FWD->DELIVERED single-id forward-on-return link = the already-proven F2 lifecycle (msg_id=115, TN-FR-4).", "pass": true },
+    { "type": "leg_c_bounded_evict_oldest_first", "predicted": "with >8 held, the OLDEST is evicted (bounded heapless::Vec<8>, oldest-first)", "observed": "NOT TRIGGERED on metal this run — at 30s TTL + ~6s send-rate the buffer peaked ~6 (<8), so the 8-cap evict never engaged (as predicted). The bound EXISTS in code (heapless::Vec<8> with scf_buf.remove(0) oldest-first evict on is_full). Explicit metal demo = a burst-rate follow-up if specs wants it.", "pass": null }
+  ],
+  "verdict": "PASS (legs a+b: bound fires + conditional; leg c bounded-evict in-code, not triggered this run)",
+  "raw_serial": "docs/field-results/fr4-lifecycle-0623/ttl-cap-legA-d3.log, ttl-cap-legB-d3.log, ttl-cap-legB-d4.log",
+  "finding": "TN-L2-XT-BL-001 OOM-guard negative control PROVEN on metal (both legs). The SCF buffer is BOUNDED: a held frame whose dest never returns within TTL is DROPPED+released (leg a, SCF-DROP@TTL, single-id 382), so the buffer cannot grow unboundedly. The drop is CONDITIONAL on dest-absence (leg b positive control: dest-present -> DELIVERED, not dropped) — the TTL is doing its job, not an unconditional drop. Together with TN-FR-4 F2 (the SURVIVAL falsifier: buffered-for-unreachable -> delivered-on-contact, msg_id=115) this completes the SCF-1 falsifier set: SCF delivers what it can (F2 survival) AND bounds what it holds (this OOM-guard). The buffer-bound is the refutative completion specs flagged. D4-silence via app-header erase (NVS-preserving) was a clean reproducible absence mechanism (no power-cycle / hub needed).",
+  "notes": "Drove on specs' falsifier-first refinement (both legs: bound fires + positive control). Leg c (>8 oldest-evict) is in-code (heapless::Vec<8> + scf_buf.remove(0)) but needs a burst-rate run to trigger on metal (30s/6s peaked ~6) — follow-up if specs wants it explicit. 30s/8 = deployment-tuning (canon = bounded-by-TTL + bounded-size). Demo restored (D3 canonical 120s + composer reattach-5). Completes the TN-L2 SCF metal validation set. See [[lora-message-passing-metal]]."
+}
