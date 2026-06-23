@@ -1,0 +1,26 @@
+{
+  "conjecture": "TN-FR-1-REL",
+  "title": "Reliability two-arm — tight-PCO-synchronized-HB contention vs loose-jittered-HB fix (TN-FR-1 reliability sub-conjecture)",
+  "tier": "hardware",
+  "transport": "lora",
+  "topology": "L1-multihop all-LoRa chain (D1 origin -> D2 router -> D3 receiver; D1<->D3 masked)",
+  "scope": "intra-TG (wairoa 3932969629)",
+  "payload": "events",
+  "run_id": "fr4-2arm-metal-0623",
+  "timestamp_utc": "2026-06-23T00:05:00Z",
+  "runner": "hive; 3 tuxedo DFR1195 — D1=480e900e origin, D2=2cab5f69 router, D3=f91c8911 receiver; all-LoRa (no ESP-NOW leg, isolates the LoRa-collision regime); wairoa prov2 by composer; my ssh capture",
+  "config": "loraroute SF7 916.8 -9dBm + 4B prepend + hive-MASK (D1->[D2] D2->[D1,D3] D3->[D2]) + ALOHA TX-jitter. NEG = tight PCO (loraroute). POS = loose-jittered-HB (loraroute,loosehb: PCO nudge OFF + per-board HB-period jitter).",
+  "firmware_commit": "r2-hive 2c64af5 (loosehb) + the dest=D3 all-LoRa build",
+  "arms": [
+    { "arm": "NEG (tight PCO)", "delivered": 18, "sent": 19, "ratio": "18/19 (95%)", "synced": "FALSE on all 3 boards (no phase-lock)" },
+    { "arm": "POS (loose-jittered-HB)", "delivered": 14, "sent": 18, "ratio": "14/18 (78%)", "synced": "mostly FALSE (occasional flicker)" }
+  ],
+  "expectations": [
+    { "type": "neg_reproduces_contention", "predicted": "tight-PCO synchronized-HB-fire -> ~2/19 low delivery", "observed": "NEG delivered 18/19 (95%) with synced=FALSE on all 3 -> the boards NEVER PCO-phase-synced over LoRa -> NO synchronized-fire -> NO contention. The ~2/19 (FR-1) did NOT reproduce.", "pass": false },
+    { "type": "pos_recovers", "predicted": "loose-jittered-HB recovers delivery vs the NEG contention", "observed": "POS delivered 14/18 (78%) — NOT an improvement over NEG (within RF run-to-run variance). No contention to recover from; the loosehb fix does not change delivery on LoRa.", "pass": false }
+  ],
+  "verdict": "PREMISE-REFUTED",
+  "raw_serial": "docs/field-results/fr4-2arm-0623/{neg,pos}-{50-26-98,B7-90-10,B6-0A-A0}.log",
+  "finding": "REFUTATION-GRADE: the TN-FR-1-REL contention premise (tight-PCO synchronized-HB-fire -> low delivery) does NOT reproduce on metal LoRa. The leaderless PCO does NOT achieve phase-sync over the lossy half-duplex LoRa link (synced=FALSE in BOTH arms) -> there is NO synchronized-fire -> no synchronized-fire collision -> delivery is HIGH (78-95%) regardless of HB-mode. The boards free-run + flood and deliver fine. FR-1's earlier ~2/19 was condition-dependent/transient (the SAME tight-PCO config now = 18/19), NOT robust synchronized-fire contention. This VINDICATES Roy's 'artificial synchronized-fire problem' call (the deprioritized leaderless-HB-LoRa-mesh problem): the contention the loose-jittered-HB fix was designed to address does not occur on metal LoRa, so the fix targets a non-problem there. The clean ALL-LoRa isolation (no ESP-NOW leg) was load-bearing: a bridge arm's reliable ESP-NOW leg would have masked the false premise as 'the fix works'. The falsifier fired = the test did its job.",
+  "notes": "Routed to specs spec-first. The loosehb firmware (PCO-decouple + period-jitter) is a correct implementation of Roy's refinement; it's simply not NEEDED on LoRa (no synchronized-fire). If a future deployment finds genuine synchronized-fire on a DIFFERENT medium/condition, loosehb is the ready fix. Baseline restored after."
+}

@@ -186,10 +186,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..07d8b63 100644
+index 8c49f1c..725a34a 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3269 @@
+@@ -1,83 +1,3271 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -396,10 +396,12 @@ index 8c49f1c..07d8b63 100644
 +    // FORCE the originator's dest (override any stale NVS SENDTO). TN-FR-1 = D1(480e900e) -> C(f91c8911);
 +    // TN-FR-2 = D1(480e900e) -> D4(06ae082b), the ESP-NOW-island RECEIVER reached across the D3 bridge
 +    // (D1 ->LoRa-> D2 ->LoRa-> D3[bridge] ->ESP-NOW-> D4).
++    // ALL-LoRa chain (TN-FR-1 / FR-4 two-arm): D1 originates to D3 (f91c8911), the LoRa-leaf receiver.
++    // (BRIDGE/FR-2b uses 0x06ae_082b = D4 the ESP-NOW receiver — re-set when rebuilding bridge ELFs.)
 +    #[cfg(all(feature = "loraroute", not(feature = "bridge")))]
 +    if my_hive == 0x480e_900e {
-+        ROUTETEST_DEST.store(0x06ae_082b, Ordering::Relaxed);
-+        println!("r2-dfr1195: loraroute FORCED SENDTO D1(480e900e) -> D4(06ae082b) [TN-FR-2 across the bridge]");
++        ROUTETEST_DEST.store(0xf91c_8911, Ordering::Relaxed);
++        println!("r2-dfr1195: loraroute FORCED SENDTO D1(480e900e) -> D3(f91c8911) [all-LoRa chain]");
 +    }
 +
 +    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
