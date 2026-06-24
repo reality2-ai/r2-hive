@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 5a3c89f..8263e12 100644
+index 894910e..abab74f 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,13 @@ path = "src/main.rs"
@@ -16,7 +16,7 @@ index 5a3c89f..8263e12 100644
  # r2-discovery non-alloc core types (HiveId/TransportId) — no async API at this tier.
  r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  
-@@ -21,18 +28,29 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+@@ -21,26 +28,153 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  # VERSION PINS — hive: confirm against the installed toolchain before flashing.
  # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
  # skeleton is written against.
@@ -55,10 +55,13 @@ index 5a3c89f..8263e12 100644
  embassy-futures = "0.1"
 +static_cell = "2"
  
- # SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
- # composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
-@@ -40,6 +58,125 @@ embassy-futures = "0.1"
- # here to avoid pinning an SX1262-specific surface prematurely.
+-# SX1262 LoRa: driven via embedded-hal SPI. The binding is GENERIC over
+-# composer's chip-agnostic radio trait (SX1262 + LR2021) — see src/lora.rs.
+-# r2-sx1262 is the concrete Sx1262<SPI,BUSY,RESET,DELAY> driver (impl LoRaRadio,
+-# #22) — hive supplies the esp-hal SpiDevice + GPIO + Delay at construction.
+-r2-sx1262 = { path = "../../crates/r2-sx1262" }
++# (r2-sx1262 — the concrete Sx1262 LoRaRadio driver — is declared above as an OPTIONAL dep
++# gated by the `lora` feature; the 3-way merge's duplicate non-optional entry removed here.)
  embedded-hal = "1.0"
  heapless = "0.8"
 +# no_std float math (logf) for the leaderless concave Mirollo–Strogatz phase response (R2-HEARTBEAT v0.4 §4.1).
@@ -3667,49 +3670,5 @@ index 8c49f1c..37ed2b0 100644
 +                }
 +            }
 +        }
-     }
- }
-diff --git a/platforms/dfr1195/src/wifi.rs b/platforms/dfr1195/src/wifi.rs
-index 6de59a8..b613369 100644
---- a/platforms/dfr1195/src/wifi.rs
-+++ b/platforms/dfr1195/src/wifi.rs
-@@ -21,8 +21,12 @@
- 
- use core::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
- 
-+// embassy-net 0.9 (esp-radio/esp-rtos stack). Stack is a Copy handle; an embassy
-+// task needs the `'static` flavour. UdpSocket::new + PacketMetadata + bind(port)
-+// are unchanged 0.6->0.9; the send_to endpoint construction is the one diff
-+// (see udp_writer_task). HIVE: re-confirm against the worktree's pinned versions.
- use embassy_net::udp::UdpSocket;
--use embassy_net::Stack;
-+use embassy_net::{IpAddress, IpEndpoint, Stack};
- use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
- use embassy_sync::channel::{Channel, Sender};
- 
-@@ -134,8 +138,22 @@ pub async fn udp_writer_task(
- 
-     loop {
-         let dg = channel.receive().await;
--        // send_to is fire-and-forget at our layer; drop on transient error
--        // (the mesh re-spreads — R2-ROUTE handles loss).
--        let _ = socket.send_to(&dg.frame, dg.dest).await;
-+        // Fire-and-forget; drop on transient error (the mesh re-spreads —
-+        // R2-ROUTE handles loss). embassy-net's `send_to` wants an `IpEndpoint`,
-+        // not `core::net::SocketAddr`. Construct it explicitly from the IPv4
-+        // address + port (the mesh is IPv4-only; `proto-ipv6` is off so the
-+        // `From<SocketAddr>` blanket is unavailable). Built explicitly so it is
-+        // robust across the embassy-net/smoltcp 0.6 -> 0.9 conversion change.
-+        // HIVE (embassy-net 0.9): confirm `IpAddress::Ipv4` takes a
-+        // `core::net::Ipv4Addr` (smoltcp >=0.12 core::net) — if your pinned
-+        // smoltcp still wraps `Ipv4Address(octets)`, swap to
-+        // `Ipv4Address::from_bytes(&v4.ip().octets())`.
-+        let _ = match dg.dest {
-+            SocketAddr::V4(v4) => {
-+                let ep = IpEndpoint::new(IpAddress::Ipv4(*v4.ip()), v4.port());
-+                socket.send_to(&dg.frame, ep).await
-+            }
-+            SocketAddr::V6(_) => Ok(()), // IPv4-only mesh
-+        };
      }
  }
