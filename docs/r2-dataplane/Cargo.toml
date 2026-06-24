@@ -1,0 +1,22 @@
+# PROPOSED crate manifest for r2-core/crates/r2-dataplane (hive-drafted; core registers + finalizes).
+# The shared no_std RX data-plane + keepalive core (handle_rx_frame / poll_keepalive).
+[package]
+name = "r2-dataplane"
+version = "0.1.0"
+edition = "2021"
+license = "PolyForm-Noncommercial-1.0.0"
+description = "Shared no_std RX data-plane + keepalive core (decode->dedup->plan_forward->deliver-gate). hive-owned body, core-registered."
+
+[dependencies]
+# Trust-free route engine (plan_forward, neighbour table, dedup) — the plane this composes ABOVE.
+r2-route = { path = "../r2-route", default-features = false }
+# Wire decode + the §7.5.4 classify_extended_full deliver-gate (generic over the HMAC provider).
+r2-wire  = { path = "../r2-wire",  default-features = false }
+# GroupHmac (the deliver-gate key + the §7.5 peering keys).
+r2-trust = { path = "../r2-trust", default-features = false }
+# (heapless for the peering-key Vec + any bounded state — add when the body lands.)
+
+[features]
+default = []
+# alloc tier IF a platform needs it (mirror r2-route/r2-wire tiers); the no_std core needs none.
+alloc = ["r2-route/alloc", "r2-wire/alloc"]
