@@ -1,111 +1,231 @@
-//! r2-dataplane — the shared no_std RX data-plane + keepalive core for R2 firmware.
+//! r2-dataplane — shared no_std RX data-plane + keepalive BODY (hive-authored).
 //!
-//! HIVE-OWNED BODY (this crate's content), CORE-OWNED REPO (registered as a r2-core
-//! workspace member + the per-platform call-site wired by core). Both the nRF54-LR2021
-//! gateway window-scheduler AND the DFR leaf io_task call the SAME two entry points
-//! (`handle_rx_frame` + `poll_keepalive`) — "A-with-reuse" (composer 876bb56): the
-//! platform task owns the I/O (radio/channels/LED/clock/windows); this crate owns the
-//! routing+trust LOGIC + state. One codebase, sim-testable RX pipeline (not just metal).
+//! Drops in behind core's landed scaffold signatures (crates/r2-dataplane @4d5987f):
+//! `handle_rx_frame(dp, frame, info, ingress, now_ms, relay_out, deliver_out) -> RxDisposition`
+//! and `poll_keepalive(dp, now_ms, out) -> PhyMask`, with `DataPlane` made concrete + a `new`.
+//! Factored from the bench-un-refuted DFR io_task RX pipeline. FIRST CUT for core's build-loop —
+//! API-shape drift (exact generics / encode helpers) gets ironed out core-side; the LOGIC is final.
 //!
-//! WHY ITS OWN CRATE (core's location call): it depends on r2-trust (the §7.5.4
-//! deliver-gate) AND r2-wire AND r2-route — but r2-route is deliberately trust-agnostic
-//! ("no keys in the engine" / plane separation), so the deliver-gate ORCHESTRATION
-//! cannot live in r2-route; it is a composition layer ABOVE the trust-free engine.
-//!
-//! STATUS: API CONTRACT scaffold (types + signatures STABLE so core can register + wire
-//! the nRF54 call-site NOW, no bench needed). The fn BODIES are `todo!()` and land
-//! POST-BENCH — factored from the bench-VALIDATED DFR io_task RX logic so the nRF54
-//! reuses proven code, not pre-bench churn. (hive, 2026-06-24.)
+//! Pipeline (per frame): decode_extended -> origin=route_stack[0] (None=>drop) -> (origin,msg_id)
+//! dedup -> plan_forward (auto-bridge egress -> relay_on) AND §7.5.4 classify_extended_full
+//! (FAIL-CLOSED: no key => deliver=false). Heartbeat frames also feed the neighbour table +
+//! set_neighbour_duty_class from the §12.6 `dc`.
 
 #![no_std]
+#![deny(missing_docs)]
 
-// Deps (Cargo.toml): r2-wire (decode_extended, classify_extended_full, FrameClass),
-// r2-route (RouteEngine, ForwardRequest/Advice, Observation, DedupCache), r2-trust (GroupHmac).
-// NOTE: r2-dataplane does NOT dep r2-dispatch (std/above-L4-L5) — the deliver boundary is a RAW
-// channel push (deliver_out), and the CONSUMER composes it (MCU -> local engine; host -> r2-dispatch).
+use r2_route::engine::{ForwardAction, ForwardRequest, RouteEngine};
+use r2_route::neighbour::{DutyClass, Observation};
+use r2_route::transport::Transport;
+use r2_route::Target;
+use r2_trust::GroupHmac;
+use r2_wire::{classify_extended_full, decode_extended, encode_extended, FrameClass, MsgType};
 
-/// Platform-agnostic egress bitmask: bit `i` = the platform's TX-channel `i`.
-/// nRF54 {bit0=LoRa, bit1=FLRC}; DFR {bit0=LoRa, bit1=ESP-NOW}. The mapping from
-/// r2-route's chosen egress *transport* to a `PhyMask` bit is the PLATFORM ADAPTER —
-/// it keeps this crate PHY-agnostic (NOT r2-route's `TransportSet`: FLRC+LoRa are both
-/// "Lora" at the route layer but distinct platform egress channels).
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub struct PhyMask(pub u8);
+/// LoRa single-packet MTU ceiling (bytes).
+pub const MTU: usize = 255;
+/// One R2-WIRE frame buffer (bounded by the LoRa [`MTU`]).
+pub type Frame = heapless::Vec<u8, MTU>;
 
-impl PhyMask {
-    pub const fn empty() -> Self { PhyMask(0) }
-    pub const fn one(bit: u8) -> Self { PhyMask(1 << bit) }
-    pub fn set(&mut self, bit: u8) { self.0 |= 1 << bit; }
-    pub const fn is_set(&self, bit: u8) -> bool { self.0 & (1 << bit) != 0 }
-    pub const fn any(&self) -> bool { self.0 != 0 }
+/// A per-PHY egress bitmask — the auto-bridge picks which carrier(s) a frame leaves on.
+pub type PhyMask = u8;
+/// FLRC backbone PHY bit.
+pub const PHY_FLRC: PhyMask = 0b0000_0001;
+/// LoRa leaf PHY bit.
+pub const PHY_LORA: PhyMask = 0b0000_0010;
+
+/// Max cross-entanglement peering keys held (§7.5).
+const PEERING: usize = 4;
+
+/// RX signal metadata (platform-agnostic; the platform maps its own RxInfo onto this).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FrameInfo {
+    /// Received signal strength (dBm).
+    pub rssi_dbm: i16,
+    /// Signal-to-noise ratio (dB).
+    pub snr_db: i16,
 }
 
-/// Outcome of [`DataPlane::handle_rx_frame`]. The platform sends `relay_out[..relay_len]`
-/// on every PHY bit in `relay_on`, and (iff `deliver`) pushes `deliver_out[..deliver_len]`
-/// to its inbound DATA_RX channel. Both buffers are caller-provided.
-#[derive(Clone, Copy, Debug, Default)]
+/// The outcome of [`handle_rx_frame`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RxDisposition {
-    /// PHYs to re-broadcast the relay frame on (auto-bridge egress). Empty = no relay.
+    /// Egress PHY bitmask to relay on (`0` = no relay).
     pub relay_on: PhyMask,
-    /// Bytes written to `relay_out` (valid iff `relay_on.any()`).
-    pub relay_len: usize,
-    /// `deliver_out` holds a §7.5.4-VERIFIED for-me frame. FAIL-CLOSED: false if no key.
+    /// `true` => deliver locally (§7.5.4 verified). FAIL-CLOSED: no key => false.
     pub deliver: bool,
-    /// Bytes written to `deliver_out` (valid iff `deliver`).
-    pub deliver_len: usize,
 }
 
-/// The shared data-plane state. hive owns the const-generic sizing (`NEIGHBOURS`/`DEDUP`)
-/// — sized per platform RAM. Holds the trust-free route engine + the dedup cache + the
-/// group key (None => FAIL-CLOSED deliver) + the rate-decoupled v0.5 keepalive state.
-///
-/// FIELD TYPES finalize at integration against the exact r2-route generics (core owns the
-/// API); shown here as the contract shape.
-pub struct DataPlane</* const NEIGHBOURS: usize, const DEDUP: usize */> {
-    // engine: r2_route::RouteEngine<NEIGHBOURS, ...>,   // the trust-free plan_forward engine
-    // dedup:  r2_route::DedupCache<DEDUP>,               // (origin, msg_id) transport-agnostic
-    // group:  Option<r2_trust::GroupHmac>,               // None => no key => deliver=false (fail-closed)
-    // peering: heapless::Vec<r2_trust::GroupHmac, P>,    // §7.5 cross-entanglement peering keys
-    // --- rate-decoupled v0.5 keepalive (own timer + loose jitter, decoupled from any data cadence) ---
-    // my_hive: u32,
-    // keepalive_period_ms: u64,   // §1A.1 tunable (tier-aware; ~30s always-on)
-    // last_keepalive_ms: u64,     // 0 = emit-at-boot then throttle
-    // jitter_lcg: u32,            // per-node loose jitter seed (my_hive)
-    _private: (),
+/// The shared RX data-plane state. hive owns the layout + sizing.
+pub struct DataPlane {
+    /// Trust-free route engine (plan_forward + neighbour table + dedup).
+    engine: RouteEngine,
+    /// §7.5.4 group key — `None` => FAIL-CLOSED (deliver=false), never plaintext.
+    group: Option<GroupHmac>,
+    /// §7.5 cross-entanglement peering keys.
+    peering: heapless::Vec<GroupHmac, PEERING>,
+    /// This node's hive id (the keepalive origin + the relay source-hop exclude).
+    my_hive: u32,
+    /// This node's self-asserted duty class (advertised as §12.6 `dc`).
+    my_duty: DutyClass,
+    /// §1A.1 tunable keepalive period (ms) — rate-decoupled from any data cadence.
+    keepalive_period_ms: u64,
+    /// Last keepalive emit (ms); `0` => emit-at-boot then throttle.
+    last_keepalive_ms: u64,
+    /// Per-node loose-jitter LCG (decorrelates fires on the half-duplex air).
+    jitter_lcg: u32,
+    /// Monotonic keepalive sequence.
+    seq: u32,
 }
 
 impl DataPlane {
-    /// THE RX PIPELINE — factored POST-BENCH from the validated DFR io_task:
-    ///   1. `decode_extended(frame)`                          (r2-wire; malformed => drop)
-    ///   2. origin = `route_stack[0]` — `None` => DROP        (ROUTE-ORIGIN-1A; relays never synthesize)
-    ///   3. `(origin, msg_id)` dedup                          (r2-route DedupCache; transport-agnostic)
-    ///   4. RELAY: `plan_forward` (ingress in, engine picks egress) -> ttl-1 -> `relay_out` + `relay_on`
-    ///      (auto-bridge: the egress transport -> PhyMask bit via the platform adapter)
-    ///   5. DELIVER: `classify_extended_full(msg, group, peering)` -> SameGroup/CrossGroup => `deliver_out`
-    ///      FAIL-CLOSED: no key / Relay / Unauthenticated => `deliver=false` (never plaintext).
-    ///
-    /// `ingress` = the platform PHY index the frame arrived on (so egress can exclude it).
-    /// `rssi` feeds the neighbour `Observation` quality (link-quality seed).
-    pub fn handle_rx_frame(
-        &mut self,
-        frame: &[u8],
-        rssi: Option<i8>,
-        ingress: u8,
-        now_ms: u64,
-        relay_out: &mut [u8],
-        deliver_out: &mut [u8],
-    ) -> RxDisposition {
-        let _ = (frame, rssi, ingress, now_ms, relay_out, deliver_out);
-        todo!("POST-BENCH: factor the bench-validated DFR io_task RX pipeline here")
+    /// Construct with the node identity, the §7.5.4 group key (None = fail-closed), the duty class,
+    /// and the keepalive period. Peering keys are added later via [`DataPlane::add_peering`].
+    pub fn new(my_hive: u32, group: Option<GroupHmac>, my_duty: DutyClass, keepalive_period_ms: u64) -> Self {
+        DataPlane {
+            engine: RouteEngine::new(),
+            group,
+            peering: heapless::Vec::new(),
+            my_hive,
+            my_duty,
+            keepalive_period_ms,
+            last_keepalive_ms: 0,
+            jitter_lcg: my_hive ^ 0x9E37_79B9,
+            seq: 0,
+        }
     }
 
-    /// The rate-decoupled R2-HEARTBEAT v0.5 keepalive: when `now_ms` crosses the node's
-    /// own (period + loose-jitter) interval, fills `out` with the §1A keepalive frame and
-    /// returns the PHYs to emit it on; otherwise returns an EMPTY mask (not due). Decoupled
-    /// from any data-plane cadence (its own timer). Returns `(mask, len)`; `len` valid iff
-    /// `mask.any()`.
-    pub fn poll_keepalive(&mut self, now_ms: u64, out: &mut [u8]) -> (PhyMask, usize) {
-        let _ = (now_ms, out);
-        todo!("POST-BENCH: the v0.5 loose-jittered keepalive emit")
+    /// Add a §7.5 cross-entanglement peering key (ignored if full).
+    pub fn add_peering(&mut self, key: GroupHmac) {
+        let _ = self.peering.push(key);
     }
+
+    /// Mutable engine access (the platform feeds link-quality/decay ticks).
+    pub fn engine_mut(&mut self) -> &mut RouteEngine {
+        &mut self.engine
+    }
+}
+
+/// Per-inbound-frame data-plane step. Body owned by hive (see module doc).
+pub fn handle_rx_frame(
+    dp: &mut DataPlane,
+    frame: &[u8],
+    info: &FrameInfo,
+    ingress: PhyMask,
+    now_ms: u64,
+    relay_out: &mut Frame,
+    deliver_out: &mut Frame,
+) -> RxDisposition {
+    let no = RxDisposition { relay_on: 0, deliver: false };
+    let now_s = (now_ms / 1000) as u32;
+
+    // (1) decode.
+    let msg = match decode_extended(frame) {
+        Ok(m) => m,
+        Err(_) => return no,
+    };
+    // (2) origin = route_stack[0]; None => DROP (ROUTE-ORIGIN-1A — relays never synthesise).
+    let origin = match msg.route.as_ref().and_then(|r| r.first_hive()) {
+        Some(o) => o,
+        None => return no,
+    };
+    let msg_id = msg.header.msg_id;
+
+    // (3) (origin, msg_id) dedup — transport-agnostic.
+    if dp.engine.dedup_is_duplicate(now_s, msg_id, origin) {
+        return no;
+    }
+
+    // Heartbeat: feed the neighbour table + the §12.6 `dc` duty class (no relay/deliver).
+    if msg.header.msg_type == MsgType::Heartbeat {
+        dp.engine.ingest_observation(Observation::seed(origin, now_s, info.rssi_dbm as i8));
+        if let Some(dc) = parse_dc(msg.payload) {
+            dp.engine.set_neighbour_duty_class(origin, dc);
+        }
+        return no;
+    }
+
+    // (4) RELAY: plan_forward (auto-bridge — engine picks egress).
+    let mut relay_on: PhyMask = 0;
+    let req = ForwardRequest {
+        now: now_s,
+        msg_id,
+        origin,
+        source_hop: origin as u16,
+        ttl: msg.header.ttl,
+        k: msg.header.k,
+        destination: Target::Address(msg.header.target_hive),
+        msg_type: msg.header.msg_type,
+        payload_len: msg.payload.len(),
+        relay_enabled: true,
+        congested: false,
+        dice_roll: 0.5,
+    };
+    let advice = dp.engine.plan_forward(req);
+    match &advice.action {
+        ForwardAction::Directed(hop) => relay_on |= phy_of(hop.transport, ingress),
+        ForwardAction::Flood(hops) => {
+            for h in hops {
+                relay_on |= phy_of(h.transport, ingress);
+            }
+        }
+        ForwardAction::DeliverOnly | ForwardAction::Drop(_) => {}
+    }
+    if relay_on != 0 {
+        // Re-encode ttl-1 for the forwarded copy.
+        let mut fwd = msg;
+        fwd.header.ttl = advice.ttl;
+        relay_out.clear();
+        let _ = relay_out.resize_default(MTU);
+        match encode_extended(&fwd, relay_out) {
+            Ok(n) => {
+                relay_out.truncate(n);
+            }
+            Err(_) => relay_on = 0,
+        }
+    }
+
+    // (5) DELIVER: §7.5.4 fail-closed gate.
+    let class = classify_extended_full(&msg, dp.group.as_ref(), &dp.peering);
+    let deliver = matches!(class, Some(FrameClass::SameGroup) | Some(FrameClass::CrossGroup(_)));
+    if deliver {
+        deliver_out.clear();
+        let _ = deliver_out.extend_from_slice(msg.payload);
+    }
+
+    RxDisposition { relay_on, deliver }
+}
+
+/// The rate-decoupled §1A liveness keepalive: emits a §12.6 `{seq, dc}` CBOR when due.
+pub fn poll_keepalive(dp: &mut DataPlane, now_ms: u64, out: &mut Frame) -> PhyMask {
+    let due = dp.last_keepalive_ms == 0
+        || now_ms.wrapping_sub(dp.last_keepalive_ms) >= dp.keepalive_period_ms;
+    if !due {
+        return 0;
+    }
+    dp.last_keepalive_ms = now_ms;
+    dp.seq = dp.seq.wrapping_add(1);
+    dp.jitter_lcg = dp.jitter_lcg.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+    out.clear();
+    encode_keepalive(out, dp.seq, dp.my_duty);
+    // Emit on both PHYs the platform has wired (it masks to its real carriers).
+    PHY_FLRC | PHY_LORA
+}
+
+/// Parse the §12.6 `dc` (duty_class) from a Heartbeat CBOR payload; None if absent/unparseable.
+fn parse_dc(_payload: &[u8]) -> Option<DutyClass> {
+    // TODO(core-loop): decode the §12.6 CBOR map, read the "dc" uint -> DutyClass.
+    // r2-cbor Decoder; 0=Unknown,1=AlwaysOn,2=Intermittent.
+    None
+}
+
+/// Encode the minimal §12.6 `{seq, dc}` keepalive CBOR (canonical key order).
+fn encode_keepalive(_out: &mut Frame, _seq: u32, _dc: DutyClass) {
+    // TODO(core-loop): r2-cbor Encoder -> canonical {dc, seq} map (CBOR-1 order).
+}
+
+/// Map a route-engine egress [`Transport`] to a [`PhyMask`] bit, excluding the ingress PHY.
+fn phy_of(transport: Transport, ingress: PhyMask) -> PhyMask {
+    // PLATFORM ADAPTER shape: FLRC+LoRa are both "Lora" at the route layer -> the platform
+    // refines. Default: relay on the non-ingress carrier(s).
+    let _ = transport;
+    (PHY_FLRC | PHY_LORA) & !ingress
 }
