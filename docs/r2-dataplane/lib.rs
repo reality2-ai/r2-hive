@@ -20,8 +20,8 @@ use r2_route::transport::Transport;
 use r2_route::Target;
 use r2_trust::GroupHmac;
 use r2_wire::{
-    classify_extended_full, decode_extended, encode_extended, ExtendedHeader, ExtendedMessage, Flags,
-    FrameClass, MsgType,
+    classify_extended_full, decode_extended, encode_extended, sign_extended, ExtendedHeader,
+    ExtendedMessage, ExtendedRouteStack, Flags, FrameClass, MsgType,
 };
 
 /// LoRa single-packet MTU ceiling (bytes).
@@ -67,6 +67,8 @@ pub struct DataPlane {
     peering: heapless::Vec<GroupHmac, PEERING>,
     /// This node's hive id (the keepalive origin + the relay source-hop exclude).
     my_hive: u32,
+    /// This node's trust-group hash — the keepalive frame's `target_group` (cross-TG isolation).
+    tg_hash: u32,
     /// This node's self-asserted duty class (advertised as §12.6 `dc`).
     my_duty: DutyClass,
     /// §1A.1 tunable keepalive period (ms) — rate-decoupled from any data cadence.
@@ -82,12 +84,19 @@ pub struct DataPlane {
 impl DataPlane {
     /// Construct with the node identity, the §7.5.4 group key (None = fail-closed), the duty class,
     /// and the keepalive period. Peering keys are added later via [`DataPlane::add_peering`].
-    pub fn new(my_hive: u32, group: Option<GroupHmac>, my_duty: DutyClass, keepalive_period_ms: u64) -> Self {
+    pub fn new(
+        my_hive: u32,
+        tg_hash: u32,
+        group: Option<GroupHmac>,
+        my_duty: DutyClass,
+        keepalive_period_ms: u64,
+    ) -> Self {
         DataPlane {
             engine: RouteEngine::new(),
             group,
             peering: heapless::Vec::new(),
             my_hive,
+            tg_hash,
             my_duty,
             keepalive_period_ms,
             last_keepalive_ms: 0,
@@ -218,18 +227,31 @@ pub fn poll_keepalive(dp: &mut DataPlane, now_ms: u64, out: &mut Frame) -> PhyMa
     dp.seq = dp.seq.wrapping_add(1);
     dp.jitter_lcg = dp.jitter_lcg.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
     out.clear();
-    encode_keepalive(out, dp.my_hive, dp.seq, dp.my_duty);
+    encode_keepalive(out, dp.my_hive, dp.tg_hash, dp.group.as_ref(), dp.seq, dp.my_duty);
     // Emit on both PHYs the platform has wired (it masks to its real carriers).
     PHY_FLRC | PHY_LORA
 }
 
 /// Build the §1A liveness Heartbeat frame: a Heartbeat ExtendedMessage whose route_stack[0] is this
-/// node (the origin, ROUTE-ORIGIN-1A) carrying the §12.6 `{0:seq, 1:dc}` Compact-CBOR payload. One-hop
-/// (ttl=1, k=1). Unsigned in this cut — §1A keepalive signing is a security follow-up (the RX HB-arm
-/// ingests liveness unconditionally; a signed-keepalive gate is the hardening step).
-fn encode_keepalive(out: &mut Frame, my_hive: u32, seq: u32, dc: DutyClass) {
+/// node (the origin, ROUTE-ORIGIN-1A) carrying the §12.6 `{0:seq, 1:dc}` Compact-CBOR payload (core's
+/// `encode_dc_seq_cbor`). One-hop (ttl=1, k=1). H9: the keepalive is GroupHmac-AUTHENTICATED — signed
+/// with the node's group key; a node with no key emits unsigned (fail-soft for liveness).
+fn encode_keepalive(
+    out: &mut Frame,
+    my_hive: u32,
+    tg_hash: u32,
+    group: Option<&GroupHmac>,
+    seq: u32,
+    dc: DutyClass,
+) {
     let mut payload = [0u8; 16];
-    let plen = encode_seq_dc(&mut payload, seq, dc);
+    let plen = match encode_dc_seq_cbor(&mut payload, seq, dc) {
+        Some(n) => n,
+        None => {
+            out.clear();
+            return;
+        }
+    };
     let header = ExtendedHeader {
         version: 0,
         msg_type: MsgType::Heartbeat,
@@ -239,33 +261,29 @@ fn encode_keepalive(out: &mut Frame, my_hive: u32, seq: u32, dc: DutyClass) {
         msg_id: seq as u16,
         event_hash: 0,
         payload_len: plen as u32,
-        target_group: 0,
+        target_group: tg_hash,
         target_hive: 0,
     };
-    // route_stack[0] = my_hive (origin). NOTE(core-loop): confirm the ExtendedRouteStack CONSTRUCTOR
-    // (you added the reader route.origin(); I need the writer — a single-entry origin stack).
-    let route = ExtendedRouteStack::with_origin(my_hive);
-    let msg = ExtendedMessage { header, route: Some(route), payload: &payload[..plen], hmac_tag: None };
+    // route_stack[0] = my_hive (origin). NOTE(core): confirm the ExtendedRouteStack origin-WRITER ctor
+    // — I used with_origin(my_hive); you added the reader route.origin(), I need the single-entry writer.
+    let mut msg = ExtendedMessage {
+        header,
+        route: Some(ExtendedRouteStack::with_origin(my_hive)),
+        payload: &payload[..plen],
+        hmac_tag: None,
+    };
+    // H9: authenticate the §1A keepalive with the group key (GroupHmac).
+    if let Some(g) = group {
+        let (flags, tag) = sign_extended(&msg, g);
+        msg.header.flags = flags;
+        msg.hmac_tag = Some(tag);
+    }
     out.clear();
     let _ = out.resize_default(MTU);
     match encode_extended(&msg, out) {
         Ok(n) => out.truncate(n),
         Err(_) => out.clear(),
     }
-}
-
-/// §12.6 keepalive payload `{0: seq, 1: dc}` — Compact UINT keys, ascending canonical (R2-WIRE v0.14
-/// §12.6 / R2-CBOR CBOR-1). Returns the byte length written. [core-loop offered to fill this via
-/// r2-cbor `canonical_map(&mut [(0, Uint(seq)), (1, Uint(dc as u64))])`.]
-fn encode_seq_dc(buf: &mut [u8], seq: u32, dc: DutyClass) -> usize {
-    let _ = (&mut *buf, seq, dc);
-    0 // TODO(core): r2-cbor canonical_map, uint keys 0=seq 1=dc.
-}
-
-/// Parse the §12.6 `dc` (key 1) from a Heartbeat Compact-CBOR payload; None if absent ⇒ Unknown.
-fn parse_dc(payload: &[u8]) -> Option<DutyClass> {
-    let _ = payload;
-    None // TODO(core): r2-cbor Decoder read uint key 1 -> DutyClass {0=Unknown,1=AlwaysOn,2=Intermittent}.
 }
 
 /// Map a route-engine egress [`Transport`] to a [`PhyMask`] bit, excluding the ingress PHY.
