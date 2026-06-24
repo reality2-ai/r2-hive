@@ -50,3 +50,14 @@ real `update_authority_certs`, it can only do **basic TG_SK-direct verify** (emp
 3. `r2-update` available in the `dfr1195-fw-wt` worktree (core's worktree merge).
 Then hive wires `verify_header`→`PayloadVerifier`→`finish`-before-activate into `ota_receiver`
 (the design is done — see [r2-hive memory: r2-hive-multi-target-goal]).
+
+## 6. CONFIRMED wiring (core A7/F8 alignment, 2026-06-25)
+core confirmed the contract so the firmware (F8) + linux/esp32 (core A7/A8) receivers share ONE r2-update verify
+path, two call-sites, same order (verify-before-ANY-flash/disk byte):
+- **Opcode:** `CMD_START_SIGNED = 0x03` is canon (`r2-update` §3.1.2.3, `pub const ... = 0x03`). Wire `ota_task` to it.
+- **Refuse unsigned in release:** feature-gate the legacy unsigned `CMD_START = 0x01` behind `dev-unsigned-ota`
+  (OFF by default → `RESP_ERR`), so a release firmware refuses unsigned OTA.
+- **Dep:** `r2-update = { path = "../../crates/r2-update", default-features = false }` (no_std) — the crate is in the
+  consolidated worktree + builds green; the DFR firmware has 0 refs today, so this ADDS it.
+- **Sequencing:** firmware dc re-emit FIRST, then the OTA wire. Ping core at wire-start → core confirms the exact
+  `DeviceContext` field plumbing. core's A7/A8 sequence after its Wave-1 (A1/F2/F3 dedup-poisoning).
