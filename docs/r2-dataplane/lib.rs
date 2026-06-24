@@ -14,10 +14,11 @@
 #![no_std]
 #![deny(missing_docs)]
 
-use r2_route::engine::{DropReason, ForwardAction, ForwardRequest, RouteEngine};
-use r2_route::neighbour::{DutyClass, MobilityClass, Observation, QualitySample};
+use r2_route::engine::{ForwardAction, ForwardRequest, RouteEngine};
+use r2_route::neighbour::{DutyClass, MobilityClass, Observation};
 use r2_route::transport::Transport;
-use r2_route::Target;
+// DropReason + QualitySample are re-exported at the r2_route CRATE ROOT (not the submodules).
+use r2_route::{DropReason, QualitySample, Target};
 use r2_trust::GroupHmac;
 use r2_wire::{
     classify_extended_full, decode_extended, encode_extended, sign_extended, ExtendedHeader,
@@ -69,6 +70,8 @@ pub struct DataPlane {
     my_hive: u32,
     /// This node's trust-group hash — the keepalive frame's `target_group` (cross-TG isolation).
     tg_hash: u32,
+    /// Receiver-side session-constant boot epoch (H9 Close-B keepalive freshness; no-eFuse tier).
+    boot_epoch: u32,
     /// This node's self-asserted duty class (advertised as §12.6 `dc`).
     my_duty: DutyClass,
     /// §1A.1 tunable keepalive period (ms) — rate-decoupled from any data cadence.
@@ -87,6 +90,7 @@ impl DataPlane {
     pub fn new(
         my_hive: u32,
         tg_hash: u32,
+        boot_epoch: u32,
         group: Option<GroupHmac>,
         my_duty: DutyClass,
         keepalive_period_ms: u64,
@@ -97,6 +101,7 @@ impl DataPlane {
             peering: heapless::Vec::new(),
             my_hive,
             tg_hash,
+            boot_epoch,
             my_duty,
             keepalive_period_ms,
             last_keepalive_ms: 0,
@@ -140,21 +145,31 @@ pub fn handle_rx_frame(
         None => return no,
     };
 
-    // (3) HEARTBEAT: feed the neighbour table + the §12.6 `dc` duty class. Branches BEFORE
-    // plan_forward, so it skips the (origin,msg_id) dedup — fine: neighbour updates are idempotent
-    // and H9 accept_keepalive owns keepalive replay-freshness.
+    // (3) HEARTBEAT: H9-SECURE liveness. VERIFY FIRST (§7.5.4 classify) — DROP a forged/unverifiable
+    // HB so an attacker without the group key cannot spoof a neighbour's liveness/duty_class (which
+    // would defeat DG-1 + skew the SCF flood-vs-buffer). On verify, route DG-1 through accept_keepalive
+    // (seq-fresh, H9 Close-A/B: it does the routing upsert + liveness_seen on a FRESH seq — REPLACES a
+    // raw ingest_observation, which would have recorded an unauthenticated/replayed HB).
     if msg.header.msg_type == MsgType::Heartbeat {
-        dp.engine.ingest_observation(Observation {
-            hive_id: origin,
-            transport: Transport::Lora,
-            timestamp: now_s,
-            quality: QualitySample::Direct(1.0),
-            rssi: Some(info.rssi_dbm as i8),
-            mcu_origin: false,
-            mobility: MobilityClass::Mobile,
-        });
-        if let Some(dc) = parse_dc(msg.payload) {
-            dp.engine.set_neighbour_duty_class(origin, dc);
+        let class = classify_extended_full(&msg, dp.group.as_ref(), dp.peering.as_slice());
+        if !matches!(class, Some(FrameClass::SameGroup) | Some(FrameClass::CrossGroup(_))) {
+            return no; // forged / unverifiable HB — drop, never ingest (H9).
+        }
+        if let Some(seq) = parse_seq(msg.payload) {
+            let obs = Observation {
+                hive_id: origin,
+                transport: Transport::Lora,
+                timestamp: now_s,
+                quality: QualitySample::Direct(1.0),
+                rssi: Some(info.rssi_dbm as i8),
+                mcu_origin: false,
+                mobility: MobilityClass::Mobile,
+            };
+            if dp.engine.accept_keepalive(obs, dp.boot_epoch, seq, false) {
+                if let Some(dc) = parse_dc(msg.payload) {
+                    dp.engine.set_neighbour_duty_class(origin, dc);
+                }
+            }
         }
         return no;
     }
@@ -258,7 +273,7 @@ fn encode_keepalive(
         flags: Flags::default(),
         ttl: 1,
         k: 1,
-        msg_id: seq as u16,
+        msg_id: seq,
         event_hash: 0,
         payload_len: plen as u32,
         target_group: tg_hash,
