@@ -3,10 +3,10 @@
 Updated 2026-06-24 (owned by hive). Master save (read-only ref):
 `r2-fleet/fleet-context/FLEET-CONTEXT-SAVE.md` (moved from claude-fleet, now tooling-code-only).
 
-**Role:** the hive runtime. North-star: **ONE hive codebase usable everywhere**, built on
-**core's no_std crates** + thin per-platform layers (Linux/cloud, ESP32-S3/DFR1195, Uno-Q, wasm).
-"Bring hive up to a general tool" = converge r2-hive (today Linux/std) onto that one codebase —
-do NOT fork per-target firmwares. Chain: specs → core → hive. composer orchestrates hives, isn't one.
+**Role + normative policy** (do-NOT-fork-per-target, authority chain specs→core→hive, before-editing,
+stop conditions, no-go): **→ [AGENTS.md](AGENTS.md)**. Live spec-vs-impl forks: **→ [FORKS.md](FORKS.md)**.
+This file is **STATE-ONLY** — running state, in-flight work, the session arc. (Policy moved to AGENTS.md per
+the F8 process-hygiene split, 2026-06-25.)
 
 **Current branch:** `platform-trait` (local + pushed, HEAD `ce80733`). Built atop the v0.2 work (`0aa6ab7`).
 
