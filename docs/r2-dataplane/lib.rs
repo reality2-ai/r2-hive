@@ -19,7 +19,10 @@ use r2_route::neighbour::{DutyClass, MobilityClass, Observation, QualitySample};
 use r2_route::transport::Transport;
 use r2_route::Target;
 use r2_trust::GroupHmac;
-use r2_wire::{classify_extended_full, decode_extended, encode_extended, FrameClass, MsgType};
+use r2_wire::{
+    classify_extended_full, decode_extended, encode_extended, ExtendedHeader, ExtendedMessage, Flags,
+    FrameClass, MsgType,
+};
 
 /// LoRa single-packet MTU ceiling (bytes).
 pub const MTU: usize = 255;
@@ -215,21 +218,54 @@ pub fn poll_keepalive(dp: &mut DataPlane, now_ms: u64, out: &mut Frame) -> PhyMa
     dp.seq = dp.seq.wrapping_add(1);
     dp.jitter_lcg = dp.jitter_lcg.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
     out.clear();
-    encode_keepalive(out, dp.seq, dp.my_duty);
+    encode_keepalive(out, dp.my_hive, dp.seq, dp.my_duty);
     // Emit on both PHYs the platform has wired (it masks to its real carriers).
     PHY_FLRC | PHY_LORA
 }
 
-/// Parse the §12.6 `dc` (duty_class) from a Heartbeat CBOR payload; None if absent/unparseable.
-fn parse_dc(_payload: &[u8]) -> Option<DutyClass> {
-    // TODO(core-loop): decode the §12.6 CBOR map, read the "dc" uint -> DutyClass.
-    // r2-cbor Decoder; 0=Unknown,1=AlwaysOn,2=Intermittent.
-    None
+/// Build the §1A liveness Heartbeat frame: a Heartbeat ExtendedMessage whose route_stack[0] is this
+/// node (the origin, ROUTE-ORIGIN-1A) carrying the §12.6 `{0:seq, 1:dc}` Compact-CBOR payload. One-hop
+/// (ttl=1, k=1). Unsigned in this cut — §1A keepalive signing is a security follow-up (the RX HB-arm
+/// ingests liveness unconditionally; a signed-keepalive gate is the hardening step).
+fn encode_keepalive(out: &mut Frame, my_hive: u32, seq: u32, dc: DutyClass) {
+    let mut payload = [0u8; 16];
+    let plen = encode_seq_dc(&mut payload, seq, dc);
+    let header = ExtendedHeader {
+        version: 0,
+        msg_type: MsgType::Heartbeat,
+        flags: Flags::default(),
+        ttl: 1,
+        k: 1,
+        msg_id: seq as u16,
+        event_hash: 0,
+        payload_len: plen as u32,
+        target_group: 0,
+        target_hive: 0,
+    };
+    // route_stack[0] = my_hive (origin). NOTE(core-loop): confirm the ExtendedRouteStack CONSTRUCTOR
+    // (you added the reader route.origin(); I need the writer — a single-entry origin stack).
+    let route = ExtendedRouteStack::with_origin(my_hive);
+    let msg = ExtendedMessage { header, route: Some(route), payload: &payload[..plen], hmac_tag: None };
+    out.clear();
+    let _ = out.resize_default(MTU);
+    match encode_extended(&msg, out) {
+        Ok(n) => out.truncate(n),
+        Err(_) => out.clear(),
+    }
 }
 
-/// Encode the minimal §12.6 `{seq, dc}` keepalive CBOR (canonical key order).
-fn encode_keepalive(_out: &mut Frame, _seq: u32, _dc: DutyClass) {
-    // TODO(core-loop): r2-cbor Encoder -> canonical {dc, seq} map (CBOR-1 order).
+/// §12.6 keepalive payload `{0: seq, 1: dc}` — Compact UINT keys, ascending canonical (R2-WIRE v0.14
+/// §12.6 / R2-CBOR CBOR-1). Returns the byte length written. [core-loop offered to fill this via
+/// r2-cbor `canonical_map(&mut [(0, Uint(seq)), (1, Uint(dc as u64))])`.]
+fn encode_seq_dc(buf: &mut [u8], seq: u32, dc: DutyClass) -> usize {
+    let _ = (&mut *buf, seq, dc);
+    0 // TODO(core): r2-cbor canonical_map, uint keys 0=seq 1=dc.
+}
+
+/// Parse the §12.6 `dc` (key 1) from a Heartbeat Compact-CBOR payload; None if absent ⇒ Unknown.
+fn parse_dc(payload: &[u8]) -> Option<DutyClass> {
+    let _ = payload;
+    None // TODO(core): r2-cbor Decoder read uint key 1 -> DutyClass {0=Unknown,1=AlwaysOn,2=Intermittent}.
 }
 
 /// Map a route-engine egress [`Transport`] to a [`PhyMask`] bit, excluding the ingress PHY.
