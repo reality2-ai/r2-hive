@@ -161,10 +161,13 @@ pub fn route_inbound_sync(
     };
     let header = msg.header;
 
-    // Dedup originator + immediate source (R2-WIRE §8.2/§8.3).
+    // Dedup originator = route_stack[0] (R2-WIRE §8.2/§8.3). ROUTE-ORIGIN-1 (RATIFIED — R2-WIRE
+    // §9.5/§9.6, R2-ROUTE v0.14 §3.3): a route-less frame has no authentic origin and MUST be DROPPED
+    // here (pre-dedup, pre-neighbour-observe) — a relay MUST NOT synthesise route_stack[0]. The old
+    // `_ => source_hive` fallback was the SYNC-1 vuln (vantage-dependent origin -> dedup poisoning).
     let originator = match &msg.route {
         Some(r) if r.len > 0 => r.entries[0],
-        _ => source_hive,
+        _ => return SyncRouteOutcome::Dropped,
     };
     let immediate_source = if source_hive != 0 {
         source_hive
@@ -194,11 +197,16 @@ pub fn route_inbound_sync(
 
     let advice = engine.plan_forward(ForwardRequest {
         now,
-        msg_id: header.msg_id as u16,
+        msg_id: header.msg_id, // full 32-bit dedup id (F3)
         // R2-WIRE v0.4 dedup origin (originator hive) — sync_host has the real originator, so per-origin
         // multi-hop dedup works across paths (unlike the MCU firmware's route:None=0 placeholder).
         origin: originator,
-        source_hop: (originator >> 16) as u16,
+        source_hop: immediate_source, // the IMMEDIATE sender, to exclude the inbound peer (F2)
+        // A1 (verify-then-record): FLAG FOR CORE — route_inbound_sync has NO group keys (it omits the
+        // deliver-gate/classify), so it CANNOT derive `authenticated`. Defaulted to the fail-safe `false`
+        // (engine.rs:458) = sync-tier never RECORDS dedup. OPEN: does the sync MCU-hive verify upstream
+        // (caller passes the flag), take keys + classify, or use a content loop-bound? core's A1 call.
+        authenticated: false,
         ttl: header.ttl,
         k: header.k,
         destination,

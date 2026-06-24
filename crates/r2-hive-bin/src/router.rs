@@ -132,32 +132,20 @@ pub async fn route_frame(
     };
     let header = msg.header;
 
-    // R2-WIRE §8.2: dedup key is (msg_id, originator). Originator is the FIRST
-    // entry of the route stack when present (the frame-carried origin, strongest key).
+    // R2-WIRE §8.2: dedup key is (msg_id, originator) — originator is route_stack[0] (the
+    // frame-carried origin).
     //
-    // SYNC-1 / R2-ROUTE §3.3 — security invariant (core's ruling): dedup MUST key on
-    // FRAME-INTRINSIC fields, NEVER the vantage-dependent transport source. The old
-    // `_ => source_hive` fallback let an attacker inject no-route-stack frames from
-    // differing vantages -> a DISTINCT dedup key each -> each re-forwarded -> RELAY
-    // AMPLIFICATION (the relay path is gateless by design, so the §7.5.4 deliver-gate
-    // can't catch it). FIX (B, core-directed interim): for route=None key on a frame
-    // fingerprint (event_hash + target_hive) — the SAME anonymous frame from any
-    // vantage gets the SAME key (kills amplification); distinct anonymous frames stay
-    // distinct. NEVER source_hive; NEVER 0 (0 would falsely dedup ALL anonymous
-    // broadcasts to (msg_id,0)). CAVEAT (inherent to origin-less frames): two
-    // different originators reusing msg_id+event_hash+target collide — that's why the
-    // §3.3 A-vs-B canon ruling (specs: mandate route_stack[0]+drop vs permit route=None)
-    // may tighten this to a drop later; (B) is the safe, reversible interim either way.
+    // ROUTE-ORIGIN-1 (RATIFIED — R2-WIRE §9.5/§9.6, R2-ROUTE v0.14 §3.3): a route-less (R=0 /
+    // route=None) frame has NO authentic originator, and a relay MUST NOT synthesise route_stack[0].
+    // EARLY-DROP it here — BEFORE the (msg_id,origin) dedup (a fabricated origin would POISON the
+    // dedup cache so each vantage re-forwards = relay amplification the gateless relay can't catch)
+    // and BEFORE the neighbour-observe below (a route-less frame must not seed the engine). This
+    // SUPERSEDES the transitional (B) frame-fingerprint dedup (event_hash ^ target_hive), now DEAD:
+    // the mandate-route_stack[0]+drop ruling (A) subsumes it, and r2-wire (6e0aea4) backs it — decode
+    // gives route=None + verify_extended returns false on a route-less frame.
     let originator = match &msg.route {
         Some(r) if r.len > 0 => r.entries[0],
-        _ => {
-            let fp = header.event_hash ^ header.target_hive.rotate_left(16);
-            if fp == 0 {
-                0xFFFF_FFFF
-            } else {
-                fp
-            }
-        }
+        _ => return RouteOutcome::Dropped,
     };
 
     // Immediate source — the peer we just heard from. The transport layer
@@ -213,6 +201,23 @@ pub async fn route_frame(
     //   Unauthenticated -> no tag while we hold keys -> drop.
     // EMPTY group_hmacs = migration mode (no keys configured) -> deliver + LOUD
     // warn, so existing no-key daemons don't break (production MUST configure HK).
+    // §7.5.4 deliver-gate + A1 authenticated flag: classify the frame ONCE (against the frame's
+    // target-group key), then derive both the delivery decision and the dedup-record gate below.
+    let class = if state.group_hmacs.is_empty() {
+        None // no group keys configured (dev/migration) — nothing can be authenticated
+    } else {
+        classify_extended_full(
+            &msg,
+            state.group_hmacs.get(&header.target_group),
+            &[] as &[GroupHmac], // cross-TG peering = live entanglement table (follow-up)
+        )
+    };
+    // A1 (verify-then-record): the (origin,msg_id) dedup is RECORDED only for a GroupHmac-VERIFIED
+    // frame — a keyless forged frame must not poison the cache (else each vantage re-forwards).
+    let authenticated = matches!(
+        class,
+        Some(FrameClass::SameGroup) | Some(FrameClass::CrossGroup(_))
+    );
     let gate_deliver = if state.group_hmacs.is_empty() {
         log::warn!(
             "§7.5.4 deliver-gate INACTIVE (no group keys configured) — delivering UNVERIFIED \
@@ -221,11 +226,6 @@ pub async fn route_frame(
         );
         true
     } else {
-        let class = classify_extended_full(
-            &msg,
-            state.group_hmacs.get(&header.target_group),
-            &[] as &[GroupHmac], // cross-TG peering = live entanglement table (follow-up)
-        );
         match class {
             None => log::warn!(
                 "§7.5.4 DROP: forgery — tag present, no key verifies for tg={:08x} (msg_id={})",
@@ -253,9 +253,10 @@ pub async fn route_frame(
 
     let req = ForwardRequest {
         now: now_secs,
-        msg_id: header.msg_id as u16,
+        msg_id: header.msg_id, // full 32-bit dedup id (F3: u16 made (origin,msg_id) collisions cheap)
         origin: originator,
-        source_hop: (originator >> 16) as u16,
+        source_hop: immediate_source, // the IMMEDIATE sender, to exclude the inbound peer (F2)
+        authenticated,                // A1: dedup recorded only for a verified frame
         ttl: header.ttl,
         k: header.k,
         destination,

@@ -720,7 +720,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 /// gated behind an env var — production NEVER auto-loads plaintext. Unset/empty
 /// => empty map => gate INACTIVE (migration mode: deliver + warn).
 fn load_bench_group_hmacs() -> HashMap<u32, GroupHmac> {
-    let mut map = HashMap::new();
+    let map = HashMap::new();
     let path = match std::env::var("R2_GROUP_KEYS_BENCH") {
         Ok(p) if !p.is_empty() => p,
         _ => return map, // no bench keys configured -> gate inactive (migration)
