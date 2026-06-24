@@ -14,8 +14,8 @@
 #![no_std]
 #![deny(missing_docs)]
 
-use r2_route::engine::{ForwardAction, ForwardRequest, RouteEngine};
-use r2_route::neighbour::{DutyClass, Observation};
+use r2_route::engine::{DropReason, ForwardAction, ForwardRequest, RouteEngine};
+use r2_route::neighbour::{DutyClass, MobilityClass, Observation, QualitySample};
 use r2_route::transport::Transport;
 use r2_route::Target;
 use r2_trust::GroupHmac;
@@ -123,28 +123,34 @@ pub fn handle_rx_frame(
         Err(_) => return no,
     };
     // (2) origin = route_stack[0]; None => DROP (ROUTE-ORIGIN-1A — relays never synthesise).
-    let origin = match msg.route.as_ref().and_then(|r| r.first_hive()) {
+    let origin = match msg.route.as_ref().and_then(|r| r.origin()) {
         Some(o) => o,
         None => return no,
     };
-    let msg_id = msg.header.msg_id;
 
-    // (3) (origin, msg_id) dedup — transport-agnostic.
-    if dp.engine.dedup_is_duplicate(now_s, msg_id, origin) {
-        return no;
-    }
-
-    // Heartbeat: feed the neighbour table + the §12.6 `dc` duty class (no relay/deliver).
+    // (3) HEARTBEAT: feed the neighbour table + the §12.6 `dc` duty class. Branches BEFORE
+    // plan_forward, so it skips the (origin,msg_id) dedup — fine: neighbour updates are idempotent
+    // and H9 accept_keepalive owns keepalive replay-freshness.
     if msg.header.msg_type == MsgType::Heartbeat {
-        dp.engine.ingest_observation(Observation::seed(origin, now_s, info.rssi_dbm as i8));
+        dp.engine.ingest_observation(Observation {
+            hive_id: origin,
+            transport: Transport::Lora,
+            timestamp: now_s,
+            quality: QualitySample::Direct(1.0),
+            rssi: Some(info.rssi_dbm as i8),
+            mcu_origin: false,
+            mobility: MobilityClass::Mobile,
+        });
         if let Some(dc) = parse_dc(msg.payload) {
             dp.engine.set_neighbour_duty_class(origin, dc);
         }
         return no;
     }
 
-    // (4) RELAY: plan_forward (auto-bridge — engine picks egress).
-    let mut relay_on: PhyMask = 0;
+    // (4) plan_forward — it DEDUPS INTERNALLY on the single engine cache (it MARKS the cache), so
+    // there is NO separate pre-dedup (a pre-mark would double-mark -> drop everything). Gate on its
+    // Drop(Duplicate) — that covers BOTH the relay AND the deliver via the one cache.
+    let msg_id = msg.header.msg_id as u16; // extended msg_id is u32; dedup/ForwardRequest key on u16.
     let req = ForwardRequest {
         now: now_s,
         msg_id,
@@ -160,6 +166,10 @@ pub fn handle_rx_frame(
         dice_roll: 0.5,
     };
     let advice = dp.engine.plan_forward(req);
+    if matches!(advice.action, ForwardAction::Drop(DropReason::Duplicate)) {
+        return no;
+    }
+    let mut relay_on: PhyMask = 0;
     match &advice.action {
         ForwardAction::Directed(hop) => relay_on |= phy_of(hop.transport, ingress),
         ForwardAction::Flood(hops) => {
@@ -169,26 +179,26 @@ pub fn handle_rx_frame(
         }
         ForwardAction::DeliverOnly | ForwardAction::Drop(_) => {}
     }
+
+    // (5) DELIVER: §7.5.4 fail-closed gate (independent of relay). Runs BEFORE the relay re-encode
+    // so `msg` is still borrowable (the re-encode below consumes it).
+    let class = classify_extended_full(&msg, dp.group.as_ref(), dp.peering.as_slice());
+    let deliver = matches!(class, Some(FrameClass::SameGroup) | Some(FrameClass::CrossGroup(_)));
+    if deliver {
+        deliver_out.clear();
+        let _ = deliver_out.extend_from_slice(msg.payload);
+    }
+
+    // (6) RELAY re-encode (ttl-1) — LAST, since it moves `msg`.
     if relay_on != 0 {
-        // Re-encode ttl-1 for the forwarded copy.
         let mut fwd = msg;
         fwd.header.ttl = advice.ttl;
         relay_out.clear();
         let _ = relay_out.resize_default(MTU);
         match encode_extended(&fwd, relay_out) {
-            Ok(n) => {
-                relay_out.truncate(n);
-            }
+            Ok(n) => relay_out.truncate(n),
             Err(_) => relay_on = 0,
         }
-    }
-
-    // (5) DELIVER: §7.5.4 fail-closed gate.
-    let class = classify_extended_full(&msg, dp.group.as_ref(), &dp.peering);
-    let deliver = matches!(class, Some(FrameClass::SameGroup) | Some(FrameClass::CrossGroup(_)));
-    if deliver {
-        deliver_out.clear();
-        let _ = deliver_out.extend_from_slice(msg.payload);
     }
 
     RxDisposition { relay_on, deliver }
