@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.lock b/platforms/dfr1195/Cargo.lock
-index fadd6a4..663d22d 100644
+index fadd6a4..f2750ac 100644
 --- a/platforms/dfr1195/Cargo.lock
 +++ b/platforms/dfr1195/Cargo.lock
 @@ -2,6 +2,31 @@
@@ -1174,14 +1174,14 @@ index fadd6a4..663d22d 100644
 -version = "0.12.0"
 +name = "esp-wifi-sys-esp32s3"
 +version = "0.2.0"
- source = "registry+https://github.com/rust-lang/crates.io-index"
--checksum = "321b112db6629693fae49644b1ba28e8b917b58829533e9cdd0400183af1877d"
++source = "registry+https://github.com/rust-lang/crates.io-index"
 +checksum = "5d8321f44b57d8112cbd8607cc83b85783b9195289acb45532728e3e229e7786"
 +
 +[[package]]
 +name = "esp32"
 +version = "0.40.2"
-+source = "registry+https://github.com/rust-lang/crates.io-index"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "321b112db6629693fae49644b1ba28e8b917b58829533e9cdd0400183af1877d"
 +checksum = "5726e07689249d1a2cb7c492077bc424837fb68a64f7eb5d46569325352e9428"
  dependencies = [
 - "bt-hci",
@@ -1708,7 +1708,7 @@ index fadd6a4..663d22d 100644
  ]
  
  [[package]]
-@@ -1087,59 +1803,103 @@ dependencies = [
+@@ -1087,59 +1803,115 @@ dependencies = [
  ]
  
  [[package]]
@@ -1718,6 +1718,17 @@ index fadd6a4..663d22d 100644
 -checksum = "bd7a31eed1591dcbc95d92ad7161908e72f4677f8fabf2a32ca49b4237cbf211"
 +name = "r2-cbor"
 +version = "0.1.0"
++
++[[package]]
++name = "r2-dataplane"
++version = "0.1.0"
++dependencies = [
++ "heapless 0.8.0",
++ "r2-cbor",
++ "r2-route",
++ "r2-trust",
++ "r2-wire",
++]
  
  [[package]]
  name = "r2-dfr1195"
@@ -1749,6 +1760,7 @@ index fadd6a4..663d22d 100644
 + "libm",
 + "mipidsi",
 + "r2-cbor",
++ "r2-dataplane",
   "r2-discovery",
 + "r2-fnv",
   "r2-route",
@@ -1830,7 +1842,7 @@ index fadd6a4..663d22d 100644
  ]
  
  [[package]]
-@@ -1158,11 +1918,40 @@ version = "0.6.4"
+@@ -1158,11 +1930,40 @@ version = "0.6.4"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
  
@@ -1873,7 +1885,7 @@ index fadd6a4..663d22d 100644
  dependencies = [
   "critical-section",
   "embedded-hal 1.0.0",
-@@ -1173,13 +1962,13 @@ dependencies = [
+@@ -1173,13 +1974,13 @@ dependencies = [
  
  [[package]]
  name = "riscv-macros"
@@ -1890,7 +1902,7 @@ index fadd6a4..663d22d 100644
  ]
  
  [[package]]
-@@ -1188,15 +1977,55 @@ version = "0.2.0"
+@@ -1188,15 +1989,55 @@ version = "0.2.0"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "8188909339ccc0c68cfb5a04648313f09621e8b87dc03095454f1a11f6c5d436"
  
@@ -1949,7 +1961,7 @@ index fadd6a4..663d22d 100644
  ]
  
  [[package]]
-@@ -1205,6 +2034,18 @@ version = "1.0.22"
+@@ -1205,6 +2046,18 @@ version = "1.0.22"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
  
@@ -1968,7 +1980,7 @@ index fadd6a4..663d22d 100644
  [[package]]
  name = "scopeguard"
  version = "1.2.0"
-@@ -1217,6 +2058,12 @@ version = "0.1.25"
+@@ -1217,6 +2070,12 @@ version = "0.1.25"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "f8e4abf97879f4e80db69a9fba7bd64998e9bdad25f58ef045a778e191172fd4"
  
@@ -1981,7 +1993,7 @@ index fadd6a4..663d22d 100644
  [[package]]
  name = "serde"
  version = "1.0.228"
-@@ -1244,31 +2091,88 @@ checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
+@@ -1244,31 +2103,88 @@ checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
  dependencies = [
   "proc-macro2",
   "quote",
@@ -2077,7 +2089,7 @@ index fadd6a4..663d22d 100644
  [[package]]
  name = "stable_deref_trait"
  version = "1.2.1"
-@@ -1292,24 +2196,53 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+@@ -1292,24 +2208,53 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
  
  [[package]]
  name = "strum"
@@ -2137,7 +2149,7 @@ index fadd6a4..663d22d 100644
  ]
  
  [[package]]
-@@ -1333,47 +2266,41 @@ dependencies = [
+@@ -1333,47 +2278,41 @@ dependencies = [
  ]
  
  [[package]]
@@ -2203,7 +2215,7 @@ index fadd6a4..663d22d 100644
  ]
  
  [[package]]
-@@ -1383,9 +2310,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1383,9 +2322,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "d2153edc6955a6c354fad8f5efd38b6a8769bdccf9fe50f8e1329f81b0baa5d7"
  dependencies = [
   "indexmap",
@@ -2215,7 +2227,7 @@ index fadd6a4..663d22d 100644
  ]
  
  [[package]]
-@@ -1394,14 +2321,93 @@ version = "1.1.2+spec-1.1.0"
+@@ -1394,14 +2333,93 @@ version = "1.1.2+spec-1.1.0"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "a2abe9b86193656635d2411dc43050282ca48aa31c2451210f4202550afb7526"
  dependencies = [
@@ -2313,7 +2325,7 @@ index fadd6a4..663d22d 100644
  
  [[package]]
  name = "ufmt-write"
-@@ -1415,22 +2421,62 @@ version = "1.0.24"
+@@ -1415,22 +2433,62 @@ version = "1.0.24"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
  
@@ -2377,7 +2389,7 @@ index fadd6a4..663d22d 100644
  [[package]]
  name = "void"
  version = "1.0.2"
-@@ -1452,6 +2498,15 @@ version = "0.2.1"
+@@ -1452,6 +2510,15 @@ version = "0.2.1"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
  
@@ -2393,7 +2405,7 @@ index fadd6a4..663d22d 100644
  [[package]]
  name = "windows-sys"
  version = "0.61.2"
-@@ -1463,58 +2518,90 @@ dependencies = [
+@@ -1463,58 +2530,90 @@ dependencies = [
  
  [[package]]
  name = "winnow"
@@ -2507,13 +2519,16 @@ index fadd6a4..663d22d 100644
 + "syn 2.0.118",
  ]
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 894910e..abab74f 100644
+index 894910e..f307030 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
-@@ -14,6 +14,13 @@ path = "src/main.rs"
+@@ -14,6 +14,16 @@ path = "src/main.rs"
  r2-wire = { path = "../../crates/r2-wire", default-features = false }
  r2-transport = { path = "../../crates/r2-transport", default-features = false }
  r2-route = { path = "../../crates/r2-route", default-features = false }
++# Shared no_std data-plane: the §12.6 {0:seq,1:dc} keepalive codec (encode_dc_seq_cbor/parse_dc/parse_seq,
++# single-sourced) + frame_fingerprint for the A1 relay loop-bound. RX (handle_rx_frame) is DCE'd (unused here).
++r2-dataplane = { path = "../../crates/r2-dataplane", default-features = false }
 +# Concrete SX1262 LoRa driver (core's r2-sx1262, impl LoRaRadio) — wired under the `lora` feature
 +# onto the DFR1195's SX1262 (SPI3 SCK7/MISO5/MOSI6, NSS10, RST41, BUSY40, DIO1=4). Optional.
 +r2-sx1262 = { path = "../../crates/r2-sx1262", optional = true }
@@ -2524,7 +2539,7 @@ index 894910e..abab74f 100644
  # r2-discovery non-alloc core types (HiveId/TransportId) — no async API at this tier.
  r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  
-@@ -21,26 +28,153 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+@@ -21,26 +31,153 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  # VERSION PINS — hive: confirm against the installed toolchain before flashing.
  # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
  # skeleton is written against.
@@ -2709,10 +2724,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..37ed2b0 100644
+index 8c49f1c..65a9b0a 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3400 @@
+@@ -1,83 +1,3430 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -2777,14 +2792,16 @@ index 8c49f1c..37ed2b0 100644
 +
 +// R2 transient-networking core (no_std, the portable substance — unchanged on metal).
 +use r2_cbor::Encoder;
++use r2_dataplane::{encode_dc_seq_cbor, frame_fingerprint, parse_dc, parse_seq};
++use r2_route::dedup::FingerprintCache;
 +use r2_route::{
-+    DropReason, ForwardAction, ForwardRequest, MobilityClass, Observation, QualitySample,
++    DropReason, DutyClass, ForwardAction, ForwardRequest, MobilityClass, Observation, QualitySample,
 +    RouteEngine, Target, Transport,
 +};
 +use r2_trust::GroupHmac;
 +use r2_wire::{
 +    decode_extended, encode_extended, sign_extended, verify_extended, ExtendedHeader,
-+    ExtendedMessage, Flags, MsgType,
++    ExtendedMessage, ExtendedRouteStack, Flags, MsgType,
 +};
 +
 +// On-device proof-surface LCD (ST7735S) — restored after the WiFi refactor.
@@ -3439,14 +3456,23 @@ index 8c49f1c..37ed2b0 100644
 +    #[cfg(not(feature = "pco"))]
 +    let mut hb_lcg: u32 = my_hive ^ 0x1234_5678;
 +    let mut last_err_ms: u32 = 0; // latest coupling phase error in ms = the leaderless spread_ms metric
-+    // SCF §3B.1: this node's SELF-ASSERTED power_state (r2-route PowerState as u8: 1=AlwaysOn, 2=Intermittent;
-+    // 0=Unknown), advertised on the HB so a receiver's SCF layer makes the flood-vs-buffer decision (self-asserted
-+    // = no auth needed, §3B.1: no attack benefit). DFR boards are mains/always-on = AlwaysOn; the fr4 SENSOR role
-+    // (D1) models a duty-cycled sensor = Intermittent. (Receiver-side STORE = core's set_power_state, flagged.)
++    // dc re-emit (§12.6 / SCF §3B.1): this node's SELF-ASSERTED duty_class, advertised on the HB as the CBOR `dc`
++    // key (SUPERSEDES the forked fixed byte-8 power_state — R2-WIRE §12.6 is a CBOR map). DFR boards = mains/always-on
++    // (AlwaysOn); the fr4 SENSOR role (D1) models a duty-cycled sensor (Intermittent). Self-asserted = no auth needed.
 +    #[cfg(feature = "fr4")]
-+    let my_power_state: u8 = if my_hive == FR4_SENSOR_HIVE { 2 } else { 1 };
++    let my_duty: DutyClass = if my_hive == FR4_SENSOR_HIVE {
++        DutyClass::Intermittent
++    } else {
++        DutyClass::AlwaysOn
++    };
 +    #[cfg(not(feature = "fr4"))]
-+    let my_power_state: u8 = 1;
++    let my_duty: DutyClass = DutyClass::AlwaysOn;
++    // H9 keepalive freshness: receiver-side session-constant boot epoch (no-eFuse tier; accept_keepalive namespaces
++    // the per-neighbour seq tracking under it — Close-B). Session-constant 0 is the no-eFuse default.
++    let boot_epoch: u32 = 0;
++    // Relay loop-bound (A1 option-c): the Event relay is trust-agnostic (no verify) so plan_forward does NOT record
++    // the (origin,msg_id) dedup (un-poisonable) — bound the relay loop on the content fingerprint instead.
++    let mut relay_fp: FingerprintCache<64> = FingerprintCache::new();
 +
 +    let mut scratch = [0u8; 512];
 +    let mut txbuf = [0u8; 256];
@@ -3515,10 +3541,11 @@ index 8c49f1c..37ed2b0 100644
 +                    // Heartbeat payload: originator hive_id (4B) + firmware version (4B, #18) + SCF §3B.1
 +                    // power_state (1B, byte 8: 1=AlwaysOn/2=Intermittent/0=Unknown). Backward-compatible — existing
 +                    // receivers read bytes 0..4 (sender) and ignore byte 8. (Format proposed; flagged specs to ratify.)
-+                    let mut hb_payload = [0u8; 9];
-+                    hb_payload[0..4].copy_from_slice(&my_hive.to_be_bytes());
-+                    hb_payload[4..8].copy_from_slice(&VERSION_FNV.to_be_bytes());
-+                    hb_payload[8] = my_power_state;
++                    // dc re-emit (§12.6): the HB payload is the {0:seq, 1:dc} Compact CBOR (single-sourced
++                    // encode_dc_seq_cbor); the originator moves to route_stack[0] (ROUTE-ORIGIN-1A), dropping the
++                    // old 4B-origin + 4B-fw-ver from the payload.
++                    let mut hb_payload = [0u8; 16];
++                    let dc_len = encode_dc_seq_cbor(&mut hb_payload, fire_seq, my_duty).unwrap_or(0);
 +                    let header = ExtendedHeader {
 +                        version: 0,
 +                        msg_type: MsgType::Heartbeat,
@@ -3527,13 +3554,17 @@ index 8c49f1c..37ed2b0 100644
 +                        k: 1,
 +                        msg_id: fire_seq,
 +                        event_hash: 0,
-+                        payload_len: 9, // 4B origin + 4B fw-ver + 1B power_state (§3B.1)
-+                        target_group: my_tg_hash, // TG-scoped: only co-members couple
-+                        target_hive: 0,           // broadcast within TG
++                        payload_len: dc_len as u32, // §12.6 {0:seq,1:dc} CBOR
++                        target_group: my_tg_hash,   // TG-scoped: only co-members couple
++                        target_hive: 0,             // broadcast within TG
 +                    };
 +                    #[allow(unused_mut)]
-+                    let mut msg =
-+                        ExtendedMessage { header, route: None, payload: &hb_payload, hmac_tag: None };
++                    let mut msg = ExtendedMessage {
++                        header,
++                        route: Some(ExtendedRouteStack::with_origin(my_hive)), // route_stack[0]=origin (ROUTE-ORIGIN-1A)
++                        payload: &hb_payload[..dc_len],
++                        hmac_tag: None,
++                    };
 +                    // 2-TG (#20, specs §6.3): SIGN the heartbeat pulse with the TG GroupHmac so the
 +                    // receiver can gate coupling on a GroupHmac-VERIFIED pulse (cross-TG isolation).
 +                    // Plaintext target_group is spoofable + non-isolating — the HMAC is the partition.
@@ -3898,16 +3929,9 @@ index 8c49f1c..37ed2b0 100644
 +                        #[cfg(feature = "multitg")]
 +                        let couple_ok = verify_extended(&m, &group_hmac);
 +                        if couple_ok {
-+                            let sender_hive = if m.payload.len() >= 4 {
-+                                u32::from_be_bytes([
-+                                    m.payload[0],
-+                                    m.payload[1],
-+                                    m.payload[2],
-+                                    m.payload[3],
-+                                ])
-+                            } else {
-+                                u32::MAX
-+                            };
++                            // dc re-emit (ROUTE-ORIGIN-1): the originator is route_stack[0], NOT payload[0..4]
++                            // (the old origin+fw-ver format). couple_ok above already GroupHmac-verified the pulse.
++                            let sender_hive = m.route.and_then(|r| r.origin()).unwrap_or(u32::MAX);
 +                            lowest_heard = lowest_heard.min(sender_hive); // tracking only (ev orig + dashboard), NOT sync
 +                            // M-ESPNOW-3b: the heartbeat sender is a direct ESP-NOW neighbour → feed
 +                            // r2-route's neighbour table so plan_forward can route/relay over the mesh.
@@ -3920,7 +3944,12 @@ index 8c49f1c..37ed2b0 100644
 +                                let mob = rssi_mobility(sender_hive);
 +                                #[cfg(not(feature = "rssicls"))]
 +                                let mob = MobilityClass::Mobile; // wearables move → continual reform
-+                                let _ = engine.ingest_observation(Observation {
++                                // dc re-emit + H9: route DG-1 liveness through accept_keepalive ((boot_epoch,seq)-
++                                // fresh) instead of a raw ingest — couple_ok above already GroupHmac-verified the
++                                // pulse. On a fresh accept, record the §12.6 dc for the SCF flood-vs-buffer decision.
++                                let hb_seq = parse_seq(m.payload).unwrap_or(0);
++                                let hb_dc = parse_dc(m.payload).unwrap_or(DutyClass::Unknown);
++                                let obs = Observation {
 +                                    hive_id: sender_hive,
 +                                    transport: Transport::EspNow,
 +                                    timestamp: route_now_s(), // BL-103: scaled clock under fastevict (consistent with decay)
@@ -3930,7 +3959,10 @@ index 8c49f1c..37ed2b0 100644
 +                                    // → is_viable=false → build_flood_plan finds 0 neighbours → Drop(NoViableNeighbour)).
 +                                    mcu_origin: false,
 +                                    mobility: mob,
-+                                });
++                                };
++                                if engine.accept_keepalive(obs, boot_epoch, hb_seq, false) {
++                                    engine.set_neighbour_duty_class(sender_hive, hb_dc);
++                                }
 +                                // Dashboard liveness: mark this peer heard now (fast join/leave for the mesh size).
 +                                if let Some(e) = seen.iter_mut().find(|(h, _)| *h == sender_hive) {
 +                                    e.1 = now_s;
@@ -4087,11 +4119,17 @@ index 8c49f1c..37ed2b0 100644
 +                        if h.event_hash == ROUTETEST_HASH {
 +                            emit_msg("msg.rx", h.msg_id as u32, my_hive, src_hive, Some(fr_origin));
 +                        }
++                        // A1 (verify-then-record): verify the Event against our TG key. A VERIFIED frame (our TG)
++                        // records the (origin,msg_id) dedup -> preserves TN-FR-1 exactly-once + the relay loop-bound.
++                        // An UNVERIFIED frame (transit / other TG / forged) does NOT record (un-poisonable) -> its
++                        // relay loop is bounded by the content fingerprint below (option-c).
++                        let event_verified = verify_extended(&m, &group_hmac);
 +                        let req = ForwardRequest {
 +                            now,
-+                            msg_id: h.msg_id as u16,
++                            msg_id: h.msg_id as u32, // F3: full 32-bit dedup id
 +                            origin: fr_origin,
-+                            source_hop: (my_hive & 0xFFFF) as u16,
++                            source_hop: src_hive, // F2: the immediate sender, to exclude the inbound peer from flood
++                            authenticated: event_verified,
 +                            ttl: h.ttl,
 +                            k: h.k,
 +                            destination: Target::Address(h.target_hive),
@@ -4146,13 +4184,20 @@ index 8c49f1c..37ed2b0 100644
 +                            let relay_role = is_ap;
 +                            #[cfg(feature = "ble")]
 +                            let relay_role = true;
-+                            if relay_role
++                            // A1 option-c: bound the relay LOOP on the content fingerprint. For VERIFIED frames
++                            // plan_forward already deduped (Drop(Duplicate) above), so this catches UNVERIFIED transit
++                            // loops — poison-immune (a forgery hashes elsewhere, cannot censor the real frame).
++                            let do_relay = relay_role
 +                                && h.ttl > 1
 +                                && matches!(
 +                                    advice.action,
 +                                    ForwardAction::Directed(_) | ForwardAction::Flood(_)
 +                                )
-+                            {
++                                && !relay_fp.seen_or_mark(
++                                    now,
++                                    frame_fingerprint(fr_origin, h.msg_id as u32, m.payload, m.hmac_tag),
++                                );
++                            if do_relay {
 +                                // BL-200: relaying puts us on this msg's forward path → note it so the
 +                                // returning reply strong-reinforces the trail through us (used-path-wins).
 +                                #[cfg(feature = "routetest")]

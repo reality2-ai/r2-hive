@@ -4,9 +4,8 @@
 //!  1. `agents_md_exists_with_required_headings` — asserts AGENTS.md exists with its normative headings
 //!     (the operating contract can't silently disappear or lose a section).
 //!  2. `heartbeat_v12_6_dc_seq_canonical` — locks the R2-WIRE §12.6 keepalive encoding `{0:seq, 1:dc}`
-//!     (Compact uint keys, ascending canonical). #[ignore]'d (xfail-tracked) while the FIRMWARE still
-//!     emits the legacy fixed byte-8 power_state (see FORKS.md). UN-IGNORE when the firmware dc re-emit
-//!     lands — the flip from ignored→passing is the signal the fork is resolved.
+//!     (Compact uint keys, ascending canonical). Was #[ignore]'d as the byte-8 fork-tracker; the firmware
+//!     dc re-emit landed (2026-06-25), so it is now ACTIVE — it keeps the firmware emit pinned to canon.
 
 const REPO_ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
@@ -94,7 +93,6 @@ fn parse_dc(b: &[u8]) -> Option<u8> {
 }
 
 #[test]
-#[ignore = "FORKS.md: firmware HB byte-8 power_state diverges from R2-WIRE §12.6 until the dc re-emit lands — un-ignore to flip this gate green"]
 fn heartbeat_v12_6_dc_seq_canonical() {
     // Byte-identical to core's verified r2_dataplane::encode_dc_seq_cbor (seq=42, dc=Intermittent=2).
     assert_eq!(
