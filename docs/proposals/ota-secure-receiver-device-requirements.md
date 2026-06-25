@@ -61,3 +61,30 @@ path, two call-sites, same order (verify-before-ANY-flash/disk byte):
   consolidated worktree + builds green; the DFR firmware has 0 refs today, so this ADDS it.
 - **Sequencing:** firmware dc re-emit FIRST, then the OTA wire. Ping core at wire-start → core confirms the exact
   `DeviceContext` field plumbing. core's A7/A8 sequence after its Wave-1 (A1/F2/F3 dedup-poisoning).
+
+## 7. `DeviceContext` field plumbing — CONFIRMED by core (2026-06-25, the r2-update public API, STABLE)
+The 10 fields `verify_header(header_bytes, sig, &DeviceContext)` takes, with the DFR scope-1 sourcing. Build it once
+per OTA-START. (#20 GO; core landing role-0x05 cert Phase 1 + the linux/esp32 receiver rewrite — byte offsets may
+ping, this field SET will not change.)
+1. `class_hash: u32` = FNV1a-32(device CLASS string) — gate 4 (target_class 0-or-match).
+2. `carrier_hash: u32` = FNV1a-32(CARRIER-board string) — gate 3 (target_carrier 0-or-match).
+3. `tg_prefix: [u8;8]` = the device trust-group prefix (the 8-byte TG id already addressed with).
+4. `device_id_prefix: [u8;8]` = device_id[0:8] (R2-WIRE §6.2.2; durable FIRST-firmware key prefix; provisioned/
+   persisted, NOT tg-scoped).
+5. `current_seq: u32` = the replay floor from the NEW NVS anti-rollback slot. BUMP on every accepted update.
+6. `battery_pct: u8` = the firmware battery gate.
+7. `tg_pk: [u8;32]` = `persona.tg_pk` (key 5, raw) — §2.4 acceptable-signer-1 + the verifier of the certs/revocations.
+8. `update_authority_certs: &[[u8;151]]` = **EMPTY** for scope-1 (TG_SK-direct only; role-0x05 certs are #20 Phase 1).
+9. `revocation_gset: &[[u8;32]]` = **EMPTY** for scope-1 (grow-only union; verify each incoming RevocationEntry via
+   `verify_revocation_entry` then union, never remove — scope-2).
+10. `authority_epoch_floor: u32` = from the NVS slot (anti-rollback BACKSTOP). BUMP to `VerifiedHeader.authority_epoch`
+    on a successful verify, persist in NVM.
+
+**Scope-1 = the 8 direct fields + 2 empties, NO §9.4a.** With EMPTY (8)+(9) there are no certs to revoke and no floor
+to bump on the verify path, so `verify_header` + `PayloadVerifier` finish-before-activate IS the whole of scope-1. The
+§9.4a recovery (`parse_recovery_section` → merge RevocationEntry + bump the NVM floor as an activation precondition)
+is exercised only once update_authority delegation + the 0x0B recovery packaging land (scope-2 / #20).
+
+**The NEW anti-rollback NVS slot** (hive defines): persists `current_seq` + `authority_epoch_floor`, monotonic, MUST
+survive an app-reflash (a distinct raw-offset region in the partition gap, like persona@0x12000 / board-profile@0x13000
+— NOT inside the app). Both bumped only on an accepted verify.
