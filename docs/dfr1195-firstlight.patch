@@ -2724,10 +2724,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..65a9b0a 100644
+index 8c49f1c..aa382fa 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3430 @@
+@@ -1,83 +1,3432 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -4186,7 +4186,9 @@ index 8c49f1c..65a9b0a 100644
 +                            let relay_role = true;
 +                            // A1 option-c: bound the relay LOOP on the content fingerprint. For VERIFIED frames
 +                            // plan_forward already deduped (Drop(Duplicate) above), so this catches UNVERIFIED transit
-+                            // loops — poison-immune (a forgery hashes elsewhere, cannot censor the real frame).
++                            // loops. (The poison-IMMUNITY is A1's not-recording unverified frames into the origin-dedup
++                            // above; this unkeyed FNV-1a-64 fingerprint just bounds HONEST loops — it is collidable, so a
++                            // keyed hash is the post-Wave-2 relay-path hardening, per core's CODEX cross-check.)
 +                            let do_relay = relay_role
 +                                && h.ttl > 1
 +                                && matches!(
