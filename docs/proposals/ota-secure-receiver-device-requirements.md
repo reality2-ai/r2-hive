@@ -88,3 +88,33 @@ is exercised only once update_authority delegation + the 0x0B recovery packaging
 **The NEW anti-rollback NVS slot** (hive defines): persists `current_seq` + `authority_epoch_floor`, monotonic, MUST
 survive an app-reflash (a distinct raw-offset region in the partition gap, like persona@0x12000 / board-profile@0x13000
 — NOT inside the app). Both bumped only on an accepted verify.
+
+## 8. The 0x03 wire-start protocol — CONFIRMED by core (2026-06-25, byte-identical with core's linux/esp32 receivers)
+**FRAME (pusher → device):** `byte[0]=0x03` (CMD_START_SIGNED) ‖ **123-byte** §2.2 v2 `UpdateHeader` ‖ **64-byte**
+detached Ed25519 authenticator over `header[0..123]` ‖ then `payload_size` bytes streamed. `payload_size =
+header[42..46]` as **u32 BE**.
+
+**RESPONSE (device → pusher):** accept → `byte[0]=0x00` (RESP_OK). reject → `byte[0]=0x01` (RESP_ERR) ‖ **one**
+`r2_update::reject_reason` byte. Pinned table: `BadHeader=1, LengthMismatch=2, BadSignature=3, UnauthorizedSigner=4,
+PayloadHashMismatch=5, StaleSeq=6, ClassMismatch=7, TgMismatch=8, DeviceMismatch=9, BatteryTooLow=10, CarrierMismatch=11,
+RevokedAuthority=12`.
+
+**ORDER — the verify-before-any-payload-byte invariant (the whole point):**
+1. Read the `123+64` header+authenticator FIRST.
+2. `verify_header(&header, &sig, &ctx)` BEFORE opening the inactive slot. Any `VerifyError` → RESP_ERR + reject_reason,
+   discard the inactive slot, NEVER partial-activate.
+3. `PayloadVerifier::new(&vh)`. Per chunk: `pv.update(chunk)?` THEN `esp_ota_write(chunk)` to the **INACTIVE** slot.
+4. `pv.finish()?` BEFORE `esp_ota_set_boot_partition` (activate). **No byte reaches the ACTIVE/boot slot until
+   `finish()` returns Ok.**
+- FLIP the current esp `handle_start` (today writes-to-flash-BEFORE-the-hash-check = write-then-verify) → verify_header
+  up front + gate `set_boot` on `finish()`.
+
+**DEV path:** the unsigned `0x01` opcode behind a `dev-unsigned-ota` cargo feature, OFF by default → RESP_ERR on a
+production build.
+
+**ANTI-ROLLBACK (on accept, monotonic, never decrease):** persist `max(current_seq, vh.seq)` and
+`max(floor, vh.authority_epoch.unwrap_or(0))`. FORMAT = core's `anti_rollback.bin`, **8 bytes LE: `seq[0..4] ‖
+floor[4..8]`** (the §7 NVS slot concretized — match it byte-for-byte).
+
+**`VerifiedHeader` gotcha:** `payload_hash` is PRIVATE (`PayloadVerifier::new` consumes it). The pub fields to bump the
+anti-rollback from are `seq: u32` and `authority_epoch: Option<u32>`.
