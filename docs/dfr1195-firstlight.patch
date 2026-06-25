@@ -1,5 +1,5 @@
 diff --git a/platforms/dfr1195/Cargo.lock b/platforms/dfr1195/Cargo.lock
-index fadd6a4..f2750ac 100644
+index fadd6a4..f643430 100644
 --- a/platforms/dfr1195/Cargo.lock
 +++ b/platforms/dfr1195/Cargo.lock
 @@ -2,6 +2,31 @@
@@ -1708,7 +1708,7 @@ index fadd6a4..f2750ac 100644
  ]
  
  [[package]]
-@@ -1087,59 +1803,115 @@ dependencies = [
+@@ -1087,59 +1803,124 @@ dependencies = [
  ]
  
  [[package]]
@@ -1767,16 +1767,18 @@ index fadd6a4..f2750ac 100644
 + "r2-sx1262",
   "r2-transport",
 + "r2-trust",
-+ "r2-wire",
++ "r2-update",
+  "r2-wire",
 + "sha2",
 + "static_cell",
 + "trouble-host",
-+]
-+
-+[[package]]
-+name = "r2-discovery"
-+version = "0.1.0"
-+dependencies = [
+ ]
+ 
+ [[package]]
+ name = "r2-discovery"
+ version = "0.1.0"
+ dependencies = [
+- "r2-fnv",
 + "hkdf",
 + "hmac",
 + "r2-fnv",
@@ -1793,38 +1795,32 @@ index fadd6a4..f2750ac 100644
 +dependencies = [
 + "heapless 0.8.0",
 + "libm",
-  "r2-wire",
- ]
- 
- [[package]]
--name = "r2-discovery"
++ "r2-wire",
++]
++
++[[package]]
 +name = "r2-sx1262"
- version = "0.1.0"
- dependencies = [
-- "r2-fnv",
++version = "0.1.0"
++dependencies = [
 + "embedded-hal 1.0.0",
 + "r2-transport",
  ]
  
  [[package]]
 -name = "r2-fnv"
--version = "0.1.0"
--
--[[package]]
--name = "r2-route"
 +name = "r2-transport"
+ version = "0.1.0"
++dependencies = [
++ "r2-wire",
++]
+ 
+ [[package]]
+-name = "r2-route"
++name = "r2-trust"
  version = "0.1.0"
  dependencies = [
 - "heapless",
 - "libm",
-  "r2-wire",
- ]
- 
- [[package]]
--name = "r2-transport"
-+name = "r2-trust"
- version = "0.1.0"
- dependencies = [
 + "chacha20poly1305",
 + "curve25519-dalek",
 + "displaydoc",
@@ -1842,7 +1838,17 @@ index fadd6a4..f2750ac 100644
  ]
  
  [[package]]
-@@ -1158,11 +1930,40 @@ version = "0.6.4"
+-name = "r2-transport"
++name = "r2-update"
+ version = "0.1.0"
+ dependencies = [
+- "r2-wire",
++ "ed25519-dalek",
++ "sha2",
+ ]
+ 
+ [[package]]
+@@ -1158,11 +1939,40 @@ version = "0.6.4"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
  
@@ -1885,7 +1891,7 @@ index fadd6a4..f2750ac 100644
  dependencies = [
   "critical-section",
   "embedded-hal 1.0.0",
-@@ -1173,13 +1974,13 @@ dependencies = [
+@@ -1173,13 +1983,13 @@ dependencies = [
  
  [[package]]
  name = "riscv-macros"
@@ -1902,7 +1908,7 @@ index fadd6a4..f2750ac 100644
  ]
  
  [[package]]
-@@ -1188,15 +1989,55 @@ version = "0.2.0"
+@@ -1188,15 +1998,55 @@ version = "0.2.0"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "8188909339ccc0c68cfb5a04648313f09621e8b87dc03095454f1a11f6c5d436"
  
@@ -1961,7 +1967,7 @@ index fadd6a4..f2750ac 100644
  ]
  
  [[package]]
-@@ -1205,6 +2046,18 @@ version = "1.0.22"
+@@ -1205,6 +2055,18 @@ version = "1.0.22"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
  
@@ -1980,7 +1986,7 @@ index fadd6a4..f2750ac 100644
  [[package]]
  name = "scopeguard"
  version = "1.2.0"
-@@ -1217,6 +2070,12 @@ version = "0.1.25"
+@@ -1217,6 +2079,12 @@ version = "0.1.25"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "f8e4abf97879f4e80db69a9fba7bd64998e9bdad25f58ef045a778e191172fd4"
  
@@ -1993,7 +1999,7 @@ index fadd6a4..f2750ac 100644
  [[package]]
  name = "serde"
  version = "1.0.228"
-@@ -1244,31 +2103,88 @@ checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
+@@ -1244,31 +2112,88 @@ checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
  dependencies = [
   "proc-macro2",
   "quote",
@@ -2089,7 +2095,7 @@ index fadd6a4..f2750ac 100644
  [[package]]
  name = "stable_deref_trait"
  version = "1.2.1"
-@@ -1292,24 +2208,53 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+@@ -1292,24 +2217,53 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
  
  [[package]]
  name = "strum"
@@ -2149,7 +2155,7 @@ index fadd6a4..f2750ac 100644
  ]
  
  [[package]]
-@@ -1333,47 +2278,41 @@ dependencies = [
+@@ -1333,47 +2287,41 @@ dependencies = [
  ]
  
  [[package]]
@@ -2215,7 +2221,7 @@ index fadd6a4..f2750ac 100644
  ]
  
  [[package]]
-@@ -1383,9 +2322,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+@@ -1383,9 +2331,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "d2153edc6955a6c354fad8f5efd38b6a8769bdccf9fe50f8e1329f81b0baa5d7"
  dependencies = [
   "indexmap",
@@ -2227,7 +2233,7 @@ index fadd6a4..f2750ac 100644
  ]
  
  [[package]]
-@@ -1394,14 +2333,93 @@ version = "1.1.2+spec-1.1.0"
+@@ -1394,14 +2342,93 @@ version = "1.1.2+spec-1.1.0"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "a2abe9b86193656635d2411dc43050282ca48aa31c2451210f4202550afb7526"
  dependencies = [
@@ -2325,7 +2331,7 @@ index fadd6a4..f2750ac 100644
  
  [[package]]
  name = "ufmt-write"
-@@ -1415,22 +2433,62 @@ version = "1.0.24"
+@@ -1415,22 +2442,62 @@ version = "1.0.24"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
  
@@ -2389,7 +2395,7 @@ index fadd6a4..f2750ac 100644
  [[package]]
  name = "void"
  version = "1.0.2"
-@@ -1452,6 +2510,15 @@ version = "0.2.1"
+@@ -1452,6 +2519,15 @@ version = "0.2.1"
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
  
@@ -2405,7 +2411,7 @@ index fadd6a4..f2750ac 100644
  [[package]]
  name = "windows-sys"
  version = "0.61.2"
-@@ -1463,58 +2530,90 @@ dependencies = [
+@@ -1463,58 +2539,90 @@ dependencies = [
  
  [[package]]
  name = "winnow"
@@ -2519,16 +2525,19 @@ index fadd6a4..f2750ac 100644
 + "syn 2.0.118",
  ]
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 894910e..f307030 100644
+index 894910e..845b03c 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
-@@ -14,6 +14,16 @@ path = "src/main.rs"
+@@ -14,6 +14,19 @@ path = "src/main.rs"
  r2-wire = { path = "../../crates/r2-wire", default-features = false }
  r2-transport = { path = "../../crates/r2-transport", default-features = false }
  r2-route = { path = "../../crates/r2-route", default-features = false }
 +# Shared no_std data-plane: the §12.6 {0:seq,1:dc} keepalive codec (encode_dc_seq_cbor/parse_dc/parse_seq,
 +# single-sourced) + frame_fingerprint for the A1 relay loop-bound. RX (handle_rx_frame) is DCE'd (unused here).
 +r2-dataplane = { path = "../../crates/r2-dataplane", default-features = false }
++# Secure OTA primitive (R2-UPDATE v0.6): verify_header + PayloadVerifier, verify-BEFORE-write. The ota_task
++# migrates from unsigned sha-on-commit to CMD_START_SIGNED 0x03 (A7/A8 shared receiver contract).
++r2-update = { path = "../../crates/r2-update", default-features = false }
 +# Concrete SX1262 LoRa driver (core's r2-sx1262, impl LoRaRadio) — wired under the `lora` feature
 +# onto the DFR1195's SX1262 (SPI3 SCK7/MISO5/MOSI6, NSS10, RST41, BUSY40, DIO1=4). Optional.
 +r2-sx1262 = { path = "../../crates/r2-sx1262", optional = true }
@@ -2539,7 +2548,7 @@ index 894910e..f307030 100644
  # r2-discovery non-alloc core types (HiveId/TransportId) — no async API at this tier.
  r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  
-@@ -21,26 +31,153 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+@@ -21,26 +34,156 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  # VERSION PINS — hive: confirm against the installed toolchain before flashing.
  # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
  # skeleton is written against.
@@ -2614,6 +2623,9 @@ index 894910e..f307030 100644
 +
 +[features]
 +default = []
++# OTA: the legacy UNSIGNED OST/ODT/OCM path (sha256 = integrity only, NOT authenticity). OFF by default —
++# a production build refuses it (RESP/OER). The DEFAULT OTA path is CMD_START_SIGNED 0x03 (verify-before-write).
++dev-unsigned-ota = []
 +ble = ["esp-radio/ble", "esp-radio/coex", "esp-radio/esp-now", "dep:trouble-host", "dep:bt-hci"]
 +# BLE DATA-MESH (Roy's single-transport rung): the R2 data plane runs over the L2CAP CoC (Transport::Ble)
 +# instead of ESP-NOW. Reuses the proven io_task PLL + GroupHmac via the same DATA_TX/RX bridge; only the
@@ -2724,10 +2736,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..aa382fa 100644
+index 8c49f1c..9a1d5e6 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3432 @@
+@@ -1,83 +1,3508 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -2989,10 +3001,7 @@ index 8c49f1c..aa382fa 100644
 +            drive_mode: DriveMode::PushPull,
 +        })
 +        .unwrap();
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +    // 5. WiFi config for the role. M8c (--features ble): the engine-elected provider serves its OWN
 +    //    SoftAP "r2-tn-form" (the formed data plane); other boards are STAs that JOIN it on negotiation.
 +    //    Default build = the static r2-fieldlab mesh by MAC (UNCHANGED — protects the live mesh).
@@ -3029,12 +3038,7 @@ index 8c49f1c..aa382fa 100644
 +                .with_password(dp_pass.into()),
 +        )
 +    };
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +    // 6. Create the WiFi controller + interfaces (this also starts WiFi).
 +    let controller_cfg = ControllerConfig::default().with_initial_config(wifi_cfg);
 +    let (controller, interfaces): (WifiController<'static>, Interfaces<'static>) =
@@ -3158,41 +3162,7 @@ index 8c49f1c..aa382fa 100644
 +    // RXEN42 + DIO1=4(IRQ, polled). TCXO 1.8V (loratcxo) is REQUIRED on the DFR1195. Runs alongside the
 +    // ESP-NOW/WiFi radio (different hardware/band — no coex). Build nobt,lora,loratcxo.
 +    #[cfg(feature = "lora")]
-     {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
--    }
--
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++    {
 +        let lora_spi = Spi::new(
 +            p.SPI3,
 +            SpiConfig::default().with_frequency(Rate::from_mhz(8)).with_mode(Mode::_0),
@@ -3218,7 +3188,7 @@ index 8c49f1c..aa382fa 100644
 +        spawner.spawn(lora_task(radio, rxen, my_hive).unwrap());
 +        println!("r2-dfr1195: LORA task spawned (SPI3 SCK7/MISO5/MOSI6 NSS10 RST41 BUSY40 RXEN42 DIO1=4)");
 +    }
- 
++
 +    let role = if is_ap { "AP" } else { "STA" };
 +    // LED heartbeat envelope state: ms into the current lub-DUB beat, or -1 idle.
 +    // Segments are kicked at 50 ms tick boundaries; LEDC hardware fades between them.
@@ -3229,9 +3199,7 @@ index 8c49f1c..aa382fa 100644
 +    // under loraroute so the ONLY LED activity at C is "a routed message arrived" — unambiguous for the eye.
 +    #[cfg(feature = "loraroute")]
 +    let mut recv_flash: i32 = 0;
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        // ── TN-FR-1 (loraroute): LED = message RECEIPT, NOT heartbeat. Bright solid for ~400ms on each
 +        //    delivered routed Event (RECEIPT_SIGNAL fired by the deliver-gate); idle/off otherwise. ──
 +        #[cfg(feature = "loraroute")]
@@ -4452,6 +4420,7 @@ index 8c49f1c..aa382fa 100644
 +    tg_hash: u32,                   // FNV-1a-32(tg_id) = frame target_group
 +    hk: [u8; 32],                   // group HMAC key — RECEIVED, used directly by the gate
 +    hive_id: u32,                   // FNV-1a-32(UUID(HKDF(master_secret, tg_id)))
++    tg_pk: [u8; 32],                // TG Ed25519 pubkey (bundle key 5) — §2.4 OTA acceptable-signer
 +}
 +
 +/// Read + decode the persona bundle from flash @0x12000. None if absent/invalid
@@ -4468,7 +4437,11 @@ index 8c49f1c..aa382fa 100644
 +    let p = r2_trust::parse_persona(&buf)?;
 +    let mut tg_label: heapless::String<40> = heapless::String::new();
 +    tg_label.push_str(p.tg_id).ok()?;
-+    Some(Persona { tg_label, tg_hash: p.tg_hash, hk: p.hk, hive_id: p.hive_id })
++    let mut tg_pk = [0u8; 32];
++    if p.tg_pk.len() == 32 {
++        tg_pk.copy_from_slice(p.tg_pk);
++    }
++    Some(Persona { tg_label, tg_hash: p.tg_hash, hk: p.hk, hive_id: p.hive_id, tg_pk })
 +}
 +
 +/// Carrier-aware board profile (9-board: one binary on DFR1195 + screenless XIAO-S3).
@@ -5568,7 +5541,10 @@ index 8c49f1c..aa382fa 100644
 +    }
 +}
 +
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +// ── TN-FR-1: BL-200 MESSAGE-PASSING over LoRa (loraroute) ──────────────────────────────────────────
 +// Replaces the naive half-duplex lora_mesh_task with core's READY LoRaTransport data-plane:
 +// service(now_ms) does continuous-RX + TX-pacing + §4.2/§4.3 airtime-gating (defer-not-drop) in ONE call.
@@ -5578,7 +5554,12 @@ index 8c49f1c..aa382fa 100644
 +// threads the true RELAYER (not the origin) as src_hive into DATA_RX for the §4.3.4 TrailReinforcer. The
 +// R2-WIRE ORIGIN (A) is carried INSIDE the frame and decoded into ForwardRequest.origin by io_task —
 +// distinct from the immediate sender, per core's BL-200 contract.
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +// RXEN-aware LoRaRadio wrapper: core's LoRaTransport drives the radio through the LoRaRadio trait but is
 +// chip-agnostic — it doesn't know the DFR1195's RF switch (GPIO42, HIGH-RX/LOW-TX). Wrap so transmit/
 +// standby pull RXEN low and listen pulls it high, keeping the RF-switch concern in the thin per-platform
@@ -5652,7 +5633,41 @@ index 8c49f1c..aa382fa 100644
 +    // labrig: RF-ISOLATE the laptop rig — shift the LoRa carrier off tuxedo's 916.8 (>3 MHz = no BW125 overlap)
 +    // so the co-located tuxedo D-rig's traffic is OUT OF BAND (eliminates the run-1 LoRa-collision confound).
 +    #[cfg(feature = "labrig")]
-+    {
+     {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +        cfg.freq_hz = 919_800_000;
 +    }
 +    let lora = match LoRaTransport::new(RxenRadio { inner: radio, rxen }, cfg, 8) {
@@ -5979,9 +5994,46 @@ index 8c49f1c..aa382fa 100644
 +/// flash writes run with WiFi up (de-risked: ~20ms/sector, heartbeat-safe), so no quiesce.
 +/// Protocol (stop-and-wait): OST<total:4><sha:32> -> OAK; ODT<off:4><payload> -> OAK<written:4>;
 +/// OCM -> verify -> ODN + activate + reboot (or OER).
++/// OTA anti-rollback NVS slot — 8 bytes LE: seq[0..4] || authority_epoch_floor[4..8] (core's
++/// anti_rollback.bin format, byte-identical). Raw-flash region in the partition gap (its own 4 KB
++/// sector, like provisioned-TG @0x14000), so it survives an app-reflash. Bumped (monotonic, max())
++/// only on a successful verify-and-finish.
++const ANTI_ROLLBACK_OFFSET: u32 = 0x15000;
++fn read_anti_rollback() -> (u32, u32) {
++    use embedded_storage::ReadStorage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 8];
++    if flash.read(ANTI_ROLLBACK_OFFSET, &mut b).is_err() {
++        return (0, 0);
++    }
++    let z = |v: u32| if v == u32::MAX { 0 } else { v }; // 0xFFFFFFFF = erased flash -> 0 (no floor yet)
++    (
++        z(u32::from_le_bytes([b[0], b[1], b[2], b[3]])),
++        z(u32::from_le_bytes([b[4], b[5], b[6], b[7]])),
++    )
++}
++fn write_anti_rollback(seq: u32, floor: u32) {
++    use embedded_storage::Storage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 8];
++    b[0..4].copy_from_slice(&seq.to_le_bytes());
++    b[4..8].copy_from_slice(&floor.to_le_bytes());
++    let _ = flash.write(ANTI_ROLLBACK_OFFSET, &b); // esp-storage erases+writes the 4 KB sector
++}
+ 
++/// SIGNED OTA receiver (A7/A8 contract, R2-UPDATE v0.6) — verify-BEFORE-write, byte-identical verify
++/// path with core's linux/esp32. Frame (over the existing UDP stop-and-wait carrier): "OST" || 123-byte
++/// UpdateHeader || 64-byte Ed25519 sig (verify_header up front) ; "ODT"<off:4><chunk> (pv.update? THEN
++/// write to the INACTIVE slot) ; "OCM" (pv.finish? BEFORE activate). No byte boots until finish() is Ok.
++/// RESP_OK=0x00 / RESP_ERR=0x01+reject_reason. The legacy UNSIGNED sha-on-commit path is REMOVED from the
++/// production build (the strongest dev-unsigned-OFF: not even present); re-add behind dev-unsigned-ota if
++/// the bench ota_sender needs it. (TRANSPORT NOTE: core's contract is TCP-streamed; this carries the SAME
++/// signed-frame + verify contract over the DFR's UDP stop-and-wait — a TCP swap is the byte-identical-
++/// transport follow-up. SCOPE-1: tg_pk-direct + empty certs/G-Set; target gates 0 = broadcast updates,
++/// full per-device target-gating lands with #20 provisioning.)
 +async fn ota_receiver(stack: embassy_net::Stack<'static>) {
-+    use embedded_storage::{ReadStorage, Storage};
-+    use sha2::{Digest, Sha256};
++    use embedded_storage::Storage;
++    use r2_update::{reject_reason, verify_header, DeviceContext, PayloadVerifier, HEADER_LEN};
 +    let mut rx_meta = [PacketMetadata::EMPTY; 8];
 +    let mut rx_buf = [0u8; 2048];
 +    let mut tx_meta = [PacketMetadata::EMPTY; 4];
@@ -5995,15 +6047,17 @@ index 8c49f1c..aa382fa 100644
 +        Err(_) => return,
 +    };
 +    let mut region = None;
-+    let mut hasher = Sha256::new();
-+    let mut expected = [0u8; 32];
-+    let mut total = 0u32;
++    let mut pv: Option<PayloadVerifier> = None; // None until verify_header accepts -> verify-before-write
++    let mut pend_seq = 0u32;
++    let mut pend_floor = 0u32;
 +    let mut written = 0u32;
 +    let mut secbuf = [0u8; 4096];
 +    let mut secfill = 0usize;
 +    let mut secbase = 0u32;
 +    let mut pkt = [0u8; 1500];
-+    loop {
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        let (n, from) = match socket.recv_from(&mut pkt).await {
 +            Ok(v) => v,
 +            Err(_) => continue,
@@ -6012,23 +6066,58 @@ index 8c49f1c..aa382fa 100644
 +            continue;
 +        }
 +        match &pkt[0..3] {
-+            b"OST" if n >= 39 => {
-+                total = u32::from_be_bytes([pkt[3], pkt[4], pkt[5], pkt[6]]);
-+                expected.copy_from_slice(&pkt[7..39]);
-+                region = match ota.next_partition() {
-+                    Ok((r, _)) => Some(r),
-+                    Err(_) => None,
++            // SIGNED start: verify the 123-byte header + 64-byte sig BEFORE opening the inactive slot.
++            b"OST" if n >= 3 + HEADER_LEN + 64 => {
++                let header = &pkt[3..3 + HEADER_LEN];
++                let sig = &pkt[3 + HEADER_LEN..3 + HEADER_LEN + 64];
++                let persona = read_persona();
++                let tg_pk = persona.as_ref().map(|p| p.tg_pk).unwrap_or([0u8; 32]);
++                let (cur_seq, floor) = read_anti_rollback();
++                let ctx = DeviceContext {
++                    class_hash: 0,        // §20: per-device target-gating provisioned later (0 = broadcast)
++                    carrier_hash: 0,      //  "
++                    tg_prefix: [0u8; 8],  //  "
++                    device_id_prefix: [0u8; 8],
++                    current_seq: cur_seq,
++                    battery_pct: 100, // mains DFR
++                    tg_pk,
++                    update_authority_certs: &[], // scope-1: TG_SK-direct only
++                    revocation_gset: &[],        // scope-1
++                    authority_epoch_floor: floor,
 +                };
-+                hasher = Sha256::new();
-+                written = 0;
-+                secfill = 0;
-+                secbase = 0;
-+                println!("r2-dfr1195: OTA RX start total={total}");
-+                let _ = socket.send_to(b"OAK\0\0\0\0", from).await;
++                match verify_header(header, sig, &ctx) {
++                    Ok(vh) => {
++                        pend_seq = vh.seq;
++                        pend_floor = vh.authority_epoch.unwrap_or(0);
++                        pv = Some(PayloadVerifier::new(&vh));
++                        region = ota.next_partition().ok().map(|(r, _)| r);
++                        written = 0;
++                        secfill = 0;
++                        secbase = 0;
++                        println!("r2-dfr1195: OTA SIGNED start seq={}", vh.seq);
++                        let _ = socket.send_to(&[r2_update::RESP_OK], from).await;
++                    }
++                    Err(e) => {
++                        pv = None;
++                        region = None;
++                        println!("r2-dfr1195: OTA verify REJECT reason={}", reject_reason(e));
++                        let _ = socket.send_to(&[r2_update::RESP_ERR, reject_reason(e)], from).await;
++                    }
++                }
 +            }
++            // SIGNED data: pv.update(chunk)? BEFORE the slot write — a corrupt/forged chunk -> reject + discard.
 +            b"ODT" if n >= 7 => {
 +                let off = u32::from_be_bytes([pkt[3], pkt[4], pkt[5], pkt[6]]);
 +                if off == written {
++                    let chunk_ok = pv.as_mut().is_some_and(|v| v.update(&pkt[7..n]).is_ok());
++                    if !chunk_ok {
++                        pv = None;
++                        region = None;
++                        let _ = socket
++                            .send_to(&[r2_update::RESP_ERR, reject_reason(r2_update::VerifyError::PayloadHashMismatch)], from)
++                            .await;
++                        continue;
++                    }
 +                    if let Some(r) = region.as_mut() {
 +                        let mut p = &pkt[7..n];
 +                        while !p.is_empty() {
@@ -6042,7 +6131,6 @@ index 8c49f1c..aa382fa 100644
 +                                secfill = 0;
 +                            }
 +                        }
-+                        hasher.update(&pkt[7..n]);
 +                        written += (n - 7) as u32;
 +                    }
 +                }
@@ -6050,30 +6138,30 @@ index 8c49f1c..aa382fa 100644
 +                ack[3..7].copy_from_slice(&written.to_be_bytes());
 +                let _ = socket.send_to(&ack, from).await;
 +            }
++            // SIGNED commit: flush the slot, then pv.finish()? (payload hash) BEFORE set_boot. Bump the
++            // anti-rollback floor (monotonic) only on a successful finish. No byte boots until finish() Ok.
 +            b"OCM" => {
-+                let mut magic = [0u8; 4];
 +                if let Some(r) = region.as_mut() {
 +                    if secfill > 0 {
 +                        let _ = r.write(secbase, &secbuf[..secfill]);
 +                    }
-+                    let _ = r.read(0, &mut magic); // read back ota_1 image header (expect 0xE9)
 +                }
-+                let got = hasher.finalize_reset();
-+                let sha_ok = got.as_slice() == expected;
-+                let ok = written == total && sha_ok;
-+                println!(
-+                    "r2-dfr1195: OTA RX commit written={written}/{total} sha_ok={sha_ok} ota1_hdr={:02x}{:02x}{:02x}{:02x}",
-+                    magic[0], magic[1], magic[2], magic[3]
-+                );
-+                if ok {
++                let finish_ok = pv.take().is_some_and(|v| v.finish().is_ok());
++                if finish_ok {
 +                    region = None; // drop the FlashRegion borrow before activate
-+                    let _ = socket.send_to(b"ODN\0\0\0\0", from).await;
++                    let (cs, cf) = read_anti_rollback();
++                    write_anti_rollback(cs.max(pend_seq), cf.max(pend_floor));
++                    let _ = socket.send_to(&[r2_update::RESP_OK], from).await;
 +                    let ar = ota.activate_next_partition();
-+                    println!("r2-dfr1195: OTA activate ok={}", ar.is_ok());
++                    println!("r2-dfr1195: OTA SIGNED activate ok={}", ar.is_ok());
 +                    Timer::after(Duration::from_millis(300)).await;
 +                    esp_hal::system::software_reset();
 +                } else {
-+                    let _ = socket.send_to(b"OER\0\0\0\0", from).await;
++                    region = None;
++                    println!("r2-dfr1195: OTA finish REJECT (payload hash)");
++                    let _ = socket
++                        .send_to(&[r2_update::RESP_ERR, reject_reason(r2_update::VerifyError::PayloadHashMismatch)], from)
++                        .await;
 +                }
 +            }
 +            _ => {}
