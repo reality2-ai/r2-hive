@@ -151,6 +151,16 @@ pub async fn handle_frame_with_subs(
         }
     }
 
+    // r2.mgmt.ensemble.{deploy,remove} — recognised CANON (R2-TG-TOOL §5.3) but the handlers are BACKLOG.
+    // §6 (R2-HOST-API): a recognised r2.mgmt.* class MUST route to a handler OR reply a structured error —
+    // NEVER a silent unknown_event. Recognise them here (hive-independent) and reply `unsupported`. (The
+    // implemented ensemble.* lifecycle verbs — load/list/info/stop/reset — are handled below.)
+    for unimpl in [ens::EV_ENSEMBLE_DEPLOY, ens::EV_ENSEMBLE_REMOVE] {
+        if h == r2_hash(unimpl).expect("known-good event name") {
+            return build_error_response(correlation_id, "unsupported");
+        }
+    }
+
     // r2.mgmt.ensemble.* — ensemble lifecycle (R2-HIVE §5.3, R2-ENSEMBLE).
     if let Some(hive) = state.hive_state() {
         let hive = hive.clone();

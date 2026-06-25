@@ -33,6 +33,10 @@ pub const EV_ENSEMBLE_LIST: &str = "r2.mgmt.ensemble.list";
 pub const EV_ENSEMBLE_INFO: &str = "r2.mgmt.ensemble.info";
 pub const EV_ENSEMBLE_STOP: &str = "r2.mgmt.ensemble.stop";
 pub const EV_ENSEMBLE_RESET: &str = "r2.mgmt.ensemble.reset";
+/// `deploy` (install/activate from a definition file) + `remove` — recognised CANON (R2-TG-TOOL §5.3),
+/// but the handlers are BACKLOG; dispatch replies a structured `unsupported` error (§6), not unknown_event.
+pub const EV_ENSEMBLE_DEPLOY: &str = "r2.mgmt.ensemble.deploy";
+pub const EV_ENSEMBLE_REMOVE: &str = "r2.mgmt.ensemble.remove";
 
 /// CBOR integer keys.
 const K_CORRELATION: u64 = 0;
