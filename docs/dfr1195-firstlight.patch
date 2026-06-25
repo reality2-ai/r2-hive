@@ -2736,10 +2736,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..9a1d5e6 100644
+index 8c49f1c..8acedd3 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3508 @@
+@@ -1,83 +1,3517 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -6149,13 +6149,22 @@ index 8c49f1c..9a1d5e6 100644
 +                let finish_ok = pv.take().is_some_and(|v| v.finish().is_ok());
 +                if finish_ok {
 +                    region = None; // drop the FlashRegion borrow before activate
-+                    let (cs, cf) = read_anti_rollback();
-+                    write_anti_rollback(cs.max(pend_seq), cf.max(pend_floor));
-+                    let _ = socket.send_to(&[r2_update::RESP_OK], from).await;
-+                    let ar = ota.activate_next_partition();
-+                    println!("r2-dfr1195: OTA SIGNED activate ok={}", ar.is_ok());
-+                    Timer::after(Duration::from_millis(300)).await;
-+                    esp_hal::system::software_reset();
++                    // verify + payload-hash BOTH passed -> activate the inactive slot (atomic set_boot).
++                    if ota.activate_next_partition().is_ok() {
++                        // anti-rollback bumps ONLY on a SUCCESSFUL install — a failed install must allow a re-send
++                        // of the same seq (else StaleSeq would block the retry).
++                        let (cs, cf) = read_anti_rollback();
++                        write_anti_rollback(cs.max(pend_seq), cf.max(pend_floor));
++                        let _ = socket.send_to(&[r2_update::RESP_OK], from).await;
++                        println!("r2-dfr1195: OTA SIGNED activate ok seq={pend_seq}");
++                        Timer::after(Duration::from_millis(300)).await;
++                        esp_hal::system::software_reset();
++                    } else {
++                        // POST-VERIFY install failure (reject byte 0x0D, core db75932): both gates PASSED but the
++                        // slot activate failed — the running image is UNCHANGED (atomic), NO rollback-floor bump.
++                        println!("r2-dfr1195: OTA install FAIL post-verify (0x0D)");
++                        let _ = socket.send_to(&[r2_update::RESP_ERR, 0x0D], from).await;
++                    }
 +                } else {
 +                    region = None;
 +                    println!("r2-dfr1195: OTA finish REJECT (payload hash)");
