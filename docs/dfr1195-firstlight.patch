@@ -2525,7 +2525,7 @@ index fadd6a4..f643430 100644
 + "syn 2.0.118",
  ]
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 894910e..845b03c 100644
+index 894910e..cf7e23b 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,19 @@ path = "src/main.rs"
@@ -2548,7 +2548,7 @@ index 894910e..845b03c 100644
  # r2-discovery non-alloc core types (HiveId/TransportId) — no async API at this tier.
  r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  
-@@ -21,26 +34,156 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+@@ -21,26 +34,167 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  # VERSION PINS — hive: confirm against the installed toolchain before flashing.
  # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
  # skeleton is written against.
@@ -2710,6 +2710,11 @@ index 894910e..845b03c 100644
 +# is bridged. Telemetry: msg.hold (buffered) / msg.scffwd (forwarded-on-return) / msg.silence (absence).
 +# Composes with the carrier features (D1/D2 loraroute, D3 bridge, D4 routetest) + multitg.
 +fr4 = []
++# FIELD image (R2-RUNTIME §3.2 keystone): the unified role machinery (implies fr4) + the R2-PROVISION §3.5
++# canon boot decision (UNPROVISIONED/invalid persona → FAIL CLOSED: no demo-TG fallback, no self-enrol).
++# The four roles (sensor/repeater/bridge/receiver) are config-activated from the NVS role-profile @0x17000
++# within this ONE image. Bench/demo builds OMIT `field` (keep the mac_low3+demo-TG fallback affordance).
++field = ["fr4"]
 +# Bench-visibility ONLY (OFF by default): drops the §1A.1 keepalive period 30s -> 8s so the silence-fade is
 +# watchable in a short flash-session. NEVER ship-enabled — the default (no feature) keeps the spec-correct 30s.
 +benchkeepalive = []
@@ -2718,6 +2723,12 @@ index 894910e..845b03c 100644
 +# so the laptop rig is physically isolated from the co-located tuxedo D-rig (the run-1 crosstalk confound). The
 +# migrated fw (mesh-retire + rate-decouple) is unchanged; default build stays the canonical pinned tuxedo rig.
 +labrig = []
++# BOARD: Seeed XIAO ESP32-S3 + Wio-SX1262 module (the OTHER LoRa carrier — hive's half of D3; composer owns
++# board.toml). Selects the XIAO Wio-SX1262 SPI/control pin-map instead of the DFR1195's integrated SX1262
++# pins (a HARDWARE-tier fact, radio_set §3.2.2 — NOT a role fork). Standard Seeed Wio-SX1262-for-XIAO pinout;
++# the RF switch is the SX1262's DIO2 (not a GPIO RXEN). ⚠ PENDING workshop pinout confirm + core DIO2-RF-
++# switch driver support (r2-sx1262 has new()/new_with_rxen() but no SetDIO2AsRfSwitchCtrl — see main.rs).
++xiao = []
  
  [profile.release]
  opt-level = "s"
@@ -2736,10 +2747,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..8acedd3 100644
+index 8c49f1c..e94679f 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3517 @@
+@@ -1,83 +1,3943 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -2918,13 +2929,20 @@ index 8c49f1c..8acedd3 100644
 +        Some(p) => (p.hk, p.tg_hash, p.hive_id, p.tg_label.as_str()),
 +        None => (TG_HK_DEMO, MY_TG_HASH, mac_low3, TG_ID),
 +    };
-+    // BOOT PROVISIONING STATE — make a dropped NVS persona instantly visible at boot (a clobbered persona
-+    // partition silently falls back to mac_low3 => no FR-role/wrong TG => dead dataflow; this cost a full bench
-+    // cycle to diagnose via a HEALTH-key0 decode). Loud UNPROVISIONED warning + the resulting hive/tg either way.
++    // R2-PROVISION §3.5 — POWER-ON RE-ATTACHMENT. A subsequent power-on of a provisioned device is a
++    // RE-ATTACH, not a re-join: read_persona() does the §3.5 structural validation (r2_trust::parse_persona
++    // = CBOR decode + canonical derive_hive_id self-consistency; full cert-sig/revocation verify is a
++    // follow-up) → on success SILENTLY RESUME the provisioned role + re-announce (no JoinRequest). On an
++    // absent/invalid persona the §3.5 boot decision is: FAIL CLOSED — UNPROVISIONED + inert, NO self-enrol
++    // (canonized from hive's field-firmware-role-prep.md). The bench/demo build keeps the mac_low3 + demo-TG
++    // fallback (NOT field-canon — a diagnosed convenience); the `field` feature makes it canon fail-closed.
 +    if persona.is_some() {
-+        println!("r2-dfr1195: PERSONA loaded (NVS) -> hive={my_hive:08x} tg={my_tg_hash:08x}");
++        println!("r2-dfr1195: §3.5 RE-ATTACH -> persona valid; resuming role in TG hive={my_hive:08x} tg={my_tg_hash:08x} (no join)");
 +    } else {
-+        println!("r2-dfr1195: !! UNPROVISIONED -- no NVS persona; mac_low3 fallback hive={my_hive:08x} + demo TG (re-provision persona.bin @0x12000)");
++        #[cfg(not(feature = "field"))]
++        println!("r2-dfr1195: !! UNPROVISIONED -- no NVS persona; mac_low3 fallback hive={my_hive:08x} + demo TG (bench affordance; re-provision persona.bin @0x12000)");
++        #[cfg(feature = "field")]
++        println!("r2-dfr1195: §3.5 UNPROVISIONED (FAIL-CLOSED, field) -- no valid persona; NO self-enrol, awaiting provisioning (persona.bin @0x12000)");
 +    }
 +    // 2-TG (#20): a runtime-PROVISIONED key (NVS @0x14000) OVERRIDES the persona/demo TG. my_hive
 +    // (the wire id) is unchanged — provisioning swaps the TRUST GROUP, not the board identity. The
@@ -2949,6 +2967,26 @@ index 8c49f1c..8acedd3 100644
 +        ROUTETEST_DEST.store(dest, Ordering::Relaxed);
 +        println!("r2-dfr1195: SENDTO restored from NVS — origin -> {dest:08x}");
 +    }
++    // R2-RUNTIME §3.2 — resolve the deploy-time role-profile (NVS record wins; else derive to preserve
++    // the bench/demo). ONE image; the role-profile config-activates the ensemble (Roy's keystone).
++    let profile = resolve_role_profile(my_hive);
++    println!(
++        "r2-dfr1195: ROLE PROFILE -> {} (duty={} dest={:08x} keepalive={}ms) [§3.2.2 {}]",
++        profile.role.label(),
++        profile.duty.to_wire_uint(),
++        profile.destination,
++        profile.keepalive_period_ms,
++        if read_role_profile().is_some() { "provisioned" } else { "derived" },
++    );
++    // §3.2.3 boundary 1 / R2-LORA §6: the sensor's duty-cycle is ADVERTISED (duty_class + wake cadence so
++    // neighbours size the §3B.2 SCF hold), NOT yet ENFORCED — real deep-sleep wake→read→send→sleep is
++    // net-new on the SENTINEL→MCU custom-sensor HW, not this DFR/XIAO stand-in. Log the advertised policy.
++    if profile.role == Role::Sensor {
++        println!(
++            "r2-dfr1195: §3.2.3 duty-cycle ADVERTISED (interim, not enforced) -> wake~{}s window~{}ms enforced={}",
++            profile.wake_interval_s, profile.wake_window_ms, profile.sleep_enforced
++        );
++    }
 +    // TN-FR-1 (loraroute): self-contained bench default so the 3-board A->B->C run needs NO provisioning
 +    // (raw-tty MASK/SENDTO writes are unreliable — see the bench-workflow memory). Board A (0dcadbf8)
 +    // originates to C (0xf91c8911); the hive-based can_hear MASK in lora_route_task forces the A->B->C
@@ -2959,13 +2997,15 @@ index 8c49f1c..8acedd3 100644
 +    // Originator (D1=480e900e) dest, scenario-aware: FR-4 role-sim -> RECEIVER D4 (06ae082b, across the
 +    // bridge); the all-LoRa two-arm -> D3 (f91c8911, LoRa-leaf receiver). (BRIDGE/FR-2b also uses D4.)
 +    #[cfg(all(feature = "loraroute", not(feature = "bridge")))]
-+    if my_hive == FR4_SENSOR_HIVE {
++    if profile.role == Role::Sensor {
++        // A provisioned profile.destination wins; else the feature-derived bench default (demo-preserving).
 +        #[cfg(feature = "fr4")]
-+        let (dest, lbl): (u32, &str) = (FR4_RECV_HIVE, "D4(06ae082b) [FR-4 role-sim]");
++        let derived: u32 = FR4_RECV_HIVE; // D4(06ae082b) [FR-4 role-sim]
 +        #[cfg(not(feature = "fr4"))]
-+        let (dest, lbl): (u32, &str) = (0xf91c_8911, "D3(f91c8911) [all-LoRa chain]");
++        let derived: u32 = 0xf91c_8911; // D3(f91c8911) [all-LoRa chain]
++        let dest = if profile.destination != 0 { profile.destination } else { derived };
 +        ROUTETEST_DEST.store(dest, Ordering::Relaxed);
-+        println!("r2-dfr1195: loraroute FORCED SENDTO D1(480e900e) -> {lbl}");
++        println!("r2-dfr1195: SENSOR (§3.2.1 originator) SENDTO -> {dest:08x}");
 +    }
 +
 +    // 2. Start the esp-rtos scheduler (required before esp-radio). TimerSource = TIMG0.
@@ -3083,7 +3123,14 @@ index 8c49f1c..8acedd3 100644
 +    let peer = if serve_ap { Ipv4Address::new(192, 168, 4, 2) } else { Ipv4Address::new(192, 168, 4, 1) };
 +    println!("r2-dfr1195: net — {} {} (peer {peer})", if serve_ap { "AP serving" } else { "STA" }, ip);
 +    let _ = peer;
-+    spawner.spawn(io_task(stack, is_ap, ip, hk, my_tg_hash, my_hive).unwrap());
++    // Per-node SECRET seed keying the relay frame_fingerprint (core dataplane: keyed SipHash-2-4,
++    // codex finding b). Sourced from the ESP32-S3 HWRNG with the radio CLOCK up (line 280 wifi::new) so
++    // the RNG is true-random, not the boot-time pseudo source. Node-local: never leaves the board, never
++    // on the wire (§13.2-clean) — it just denies an attacker a precomputed collision to suppress a real
++    // frame's relay (A1 poison-immunity). A zero seed would still be sound (no regression).
++    let mut fp_seed = [0u8; 16];
++    esp_hal::rng::Rng::new().read(&mut fp_seed);
++    spawner.spawn(io_task(stack, is_ap, ip, hk, my_tg_hash, my_hive, fp_seed, profile).unwrap());
 +    spawner.spawn(ota_task(is_ap, stack).unwrap());
 +    // IDENTIFY inject-bridge: read commands off the USB-Serial-JTAG (esp-println keeps the TX FIFO
 +    // via raw regs; we take only the RX half). composer points --identify-port at the chosen board.
@@ -3163,30 +3210,53 @@ index 8c49f1c..8acedd3 100644
 +    // ESP-NOW/WiFi radio (different hardware/band — no coex). Build nobt,lora,loratcxo.
 +    #[cfg(feature = "lora")]
 +    {
++        // PIN-PARAMETRIC SX1262 (SX1262-LORA-DESIGN.md): the radio is wired DIFFERENTLY per carrier, so the
++        // SPI + control pins come from a per-board map, NOT hardcoded. Two boards share this ONE image:
++        //  • DFR1195 (default): INTEGRATED SX1262 — SPI3 SCK7/MISO5/MOSI6, NSS10, RST41, BUSY40, DIO1=4, and
++        //    an explicit GPIO42 RXEN RF-switch (toggled by the RxenRadio wrapper below the seam).
++        //  • XIAO ESP32-S3 + Wio-SX1262 (`xiao`): SEPARATE module — XIAO default SPI SCK7/MISO8/MOSI9, NSS41,
++        //    RST42, BUSY40, DIO1=39; the RF switch is the SX1262's DIO2 (SetDIO2AsRfSwitchCtrl), NOT a GPIO.
++        //    ⚠ PINS PENDING workshop confirmation (asked); ⚠ DIO2-RF-switch needs r2-sx1262 driver support
++        //    (it currently has new()/new_with_rxen() only — flagged to core). Until DIO2 lands, the XIAO path
++        //    passes a benign placeholder RXEN (GPIO2) so the structure builds; the RF switch is NOT yet
++        //    actually driven → no-RF until the driver gains SetDIO2AsRfSwitchCtrl. (radio_set is a §3.2.2
++        //    hardware-tier fact, so a per-board build is canon-acceptable; runtime board-profile pin
++        //    selection — one image picks pins from read_board_profile — is the one-image refinement.)
++        #[cfg(not(feature = "xiao"))]
++        let (sck, miso, mosi, cs_pin, busy_pin, rst_pin, rxen_pin) =
++            (p.GPIO7, p.GPIO5, p.GPIO6, p.GPIO10, p.GPIO40, p.GPIO41, p.GPIO42);
++        #[cfg(feature = "xiao")]
++        let (sck, miso, mosi, cs_pin, busy_pin, rst_pin, rxen_pin) =
++            (p.GPIO7, p.GPIO8, p.GPIO9, p.GPIO41, p.GPIO40, p.GPIO42, p.GPIO2);
 +        let lora_spi = Spi::new(
 +            p.SPI3,
 +            SpiConfig::default().with_frequency(Rate::from_mhz(8)).with_mode(Mode::_0),
 +        )
 +        .unwrap()
-+        .with_sck(p.GPIO7)
-+        .with_miso(p.GPIO5)
-+        .with_mosi(p.GPIO6);
-+        let lora_cs = Output::new(p.GPIO10, Level::High, OutputConfig::default());
++        .with_sck(sck)
++        .with_miso(miso)
++        .with_mosi(mosi);
++        let lora_cs = Output::new(cs_pin, Level::High, OutputConfig::default());
 +        let lora_dev = ExclusiveDevice::new(lora_spi, lora_cs, Delay::new()).unwrap();
-+        let busy = Input::new(p.GPIO40, InputConfig::default());
-+        let reset = Output::new(p.GPIO41, Level::High, OutputConfig::default());
-+        let rxen = Output::new(p.GPIO42, Level::Low, OutputConfig::default());
++        let busy = Input::new(busy_pin, InputConfig::default());
++        let reset = Output::new(rst_pin, Level::High, OutputConfig::default());
++        let rxen = Output::new(rxen_pin, Level::Low, OutputConfig::default());
 +        let radio = Sx1262::new(lora_dev, busy, reset, Delay::new());
 +        #[cfg(feature = "loratcxo")]
 +        let radio = radio.with_tcxo(TcxoVoltage::V1_8);
 +        // loraroute -> BL-200 message-passing over LoRa via core's LoRaTransport data-plane (TN-FR-1);
 +        // else (lora-only) -> the first-light beacon task.
 +        // (loramesh half-duplex PCO-sync bridge RETIRED — Occam HB-simplification; loraroute superseded it.)
++        // R2-BEACON §8.1 class_hash for the LoRa discovery beacon — the device class (§4) per role.
++        let beacon_class_hash = role_class_hash(profile.role);
 +        #[cfg(feature = "loraroute")]
-+        spawner.spawn(lora_route_task(radio, rxen, my_hive).unwrap());
++        spawner.spawn(lora_route_task(radio, rxen, my_hive, hk, beacon_class_hash).unwrap());
 +        #[cfg(not(feature = "loraroute"))]
-+        spawner.spawn(lora_task(radio, rxen, my_hive).unwrap());
-+        println!("r2-dfr1195: LORA task spawned (SPI3 SCK7/MISO5/MOSI6 NSS10 RST41 BUSY40 RXEN42 DIO1=4)");
++        spawner.spawn(lora_task(radio, rxen, my_hive, hk, beacon_class_hash).unwrap());
++        #[cfg(not(feature = "xiao"))]
++        println!("r2-dfr1195: LORA task spawned (DFR1195 integrated: SPI3 SCK7/MISO5/MOSI6 NSS10 RST41 BUSY40 RXEN42 DIO1=4)");
++        #[cfg(feature = "xiao")]
++        println!("r2-dfr1195: LORA task spawned (XIAO+Wio-SX1262: SPI3 SCK7/MISO8/MOSI9 NSS41 RST42 BUSY40 DIO1=39; RF-sw=DIO2 PENDING driver+workshop)");
 +    }
 +
 +    let role = if is_ap { "AP" } else { "STA" };
@@ -3326,6 +3396,8 @@ index 8c49f1c..8acedd3 100644
 +    hk: [u8; 32],
 +    #[allow(unused_mut)] mut my_tg_hash: u32,
 +    my_hive: u32,
++    fp_seed: [u8; 16],
++    profile: RoleProfile,
 +) {
 +    let mut rx_meta = [PacketMetadata::EMPTY; 4];
 +    let mut rx_buf = [0u8; 1024];
@@ -3377,7 +3449,7 @@ index 8c49f1c..8acedd3 100644
 +    // Dashboard liveness: (peer_hive, last_heard_secs) for a FAST mesh-size signal — join shows immediately,
 +    // leave decrements within MESH_PEER_TTL_S (the route-engine decay is 300s for Mobile = too slow to SEE).
 +    let mut seen: heapless::Vec<(u32, u32), 16> = heapless::Vec::new();
-+    const MESH_PEER_TTL_S: u32 = 7; // ~3 missed beats → counts as left
++    let mesh_peer_ttl_s: u32 = profile.peer_ttl_s; // §3.2.2 peer_ttl_s (default 7) — ~3 missed beats = left
 +
 +    // Leaderless PCO constants (R2-HEARTBEAT v0.4 §4).
 +    // Board period. Feature `driftinject` = +0.4% (2008ms ≈ 4000ppm) on THIS board = a KNOWN rate-offset
@@ -3395,10 +3467,11 @@ index 8c49f1c..8acedd3 100644
 +    // of s" => 30s; un-conflates liveness from the demo/proof signal). DG-1 silence-detect ~= 3×period (~90s fade).
 +    // (Under `pco`, the phase-lock needs every-beat pulses → no throttle.) `benchkeepalive` = OFF-BY-DEFAULT
 +    // bench-visibility build (8s) so the silence-fade is watchable in a short flash-session; default ships 30s.
-+    #[cfg(all(not(feature = "blackout"), not(feature = "pco"), feature = "benchkeepalive"))]
-+    const KEEPALIVE_PERIOD_MS: u64 = 8_000; // BENCH-ONLY (off by default) — watchable fade
-+    #[cfg(all(not(feature = "blackout"), not(feature = "pco"), not(feature = "benchkeepalive")))]
-+    const KEEPALIVE_PERIOD_MS: u64 = 30_000; // SHIP (§1A "tens of s")
++    // §3.2.2 keepalive cadence — now the role-profile knob (NVS-overridable). Defaults to 30 000 ms ship /
++    // 8 000 ms under `benchkeepalive` (resolve_role_profile), so the emit cadence is unchanged unless a
++    // record sets it. (pco needs every-beat pulses; blackout has its own arm — both skip this knob.)
++    #[cfg(all(not(feature = "blackout"), not(feature = "pco")))]
++    let keepalive_period_ms: u64 = profile.keepalive_period_ms as u64;
 +    const K_PHI: f32 = 0.25; // §4.1 phase coupling gain (concave M&S, critically damped)
 +    // §4.3 rate-consensus gain β — PCO-convergence machinery (R2-HEARTBEAT §2-§8), ONLY under the optional
 +    // `pco` phase-lock. v0.5 §1A default = free-run (β=0): the loose-jittered keepalive needs no rate-consensus.
@@ -3427,14 +3500,9 @@ index 8c49f1c..8acedd3 100644
 +    // dc re-emit (§12.6 / SCF §3B.1): this node's SELF-ASSERTED duty_class, advertised on the HB as the CBOR `dc`
 +    // key (SUPERSEDES the forked fixed byte-8 power_state — R2-WIRE §12.6 is a CBOR map). DFR boards = mains/always-on
 +    // (AlwaysOn); the fr4 SENSOR role (D1) models a duty-cycled sensor (Intermittent). Self-asserted = no auth needed.
-+    #[cfg(feature = "fr4")]
-+    let my_duty: DutyClass = if my_hive == FR4_SENSOR_HIVE {
-+        DutyClass::Intermittent
-+    } else {
-+        DutyClass::AlwaysOn
-+    };
-+    #[cfg(not(feature = "fr4"))]
-+    let my_duty: DutyClass = DutyClass::AlwaysOn;
++    // §3.2.2/§3.2.3: self-asserted duty_class from the resolved role-profile (Intermittent sensor /
++    // AlwaysOn else, by default). Advertised on the HB `dc` (§12.6); ENFORCED duty-cycle is STEP 4.
++    let my_duty: DutyClass = profile.duty;
 +    // H9 keepalive freshness: receiver-side session-constant boot epoch (no-eFuse tier; accept_keepalive namespaces
 +    // the per-neighbour seq tracking under it — Close-B). Session-constant 0 is the no-eFuse default.
 +    let boot_epoch: u32 = 0;
@@ -3451,24 +3519,26 @@ index 8c49f1c..8acedd3 100644
 +    // Entry: (frame, len, msg_id, dest, expiry_route_s).
 +    #[cfg(feature = "fr4")]
 +    let mut scf_buf: heapless::Vec<([u8; 256], usize, u16, u32, u32), 8> = heapless::Vec::new();
++    // §3.2.2 SCF hold-TTL — role-profile knob (NVS-overridable; defaults to 120 route-s).
 +    #[cfg(feature = "fr4")]
-+    const SCF_TTL_S: u32 = 120; // hold up to ~120 route-s for the dest to reappear, else drop+release
-+    // REACHABILITY threshold: a GENUINELY-reachable dest = a viable neighbour OR a path with conf > this.
-+    // 0.0 was too permissive — a decayed/stale near-zero entry passed -> SCF churned (forward-to-nowhere +
-+    // remove) before the dest actually returned -> buffer emptied. A real neighbour seeds ~0.7; decayed <0.3.
++    let scf_ttl_s: u32 = profile.scf_ttl_s;
++    // §3.2.2 REACHABILITY threshold (reach_conf): a GENUINELY-reachable dest = a viable neighbour OR a path
++    // with conf > this. 0.0 was too permissive (decayed near-zero passed → SCF churned). Default 0.3.
 +    #[cfg(feature = "fr4")]
-+    const REACH_CONF: f32 = 0.3;
++    let reach_conf: f32 = profile.reach_conf;
 +    // TN-FR-4 E4 silence-is-signal: the RECEIVER tracks per-SENSOR last-heard + infers ABSENCE (emits
 +    // msg.silence) when an EXPECTED sensor goes silent past the window — the complement of delivery, no
 +    // spurious delivery. Entry: (origin, last_heard_route_s, absent_flag). Seeded with the expected SENSOR.
 +    #[cfg(feature = "fr4")]
 +    let mut sensor_seen: heapless::Vec<(u32, u32, bool), 8> = heapless::Vec::new();
++    // §3.2.2 absence window (silence_s) — role-profile knob (NVS-overridable; default 30 route-s).
 +    #[cfg(feature = "fr4")]
-+    const SILENCE_S: u32 = 30; // a sensor silent > ~30 route-s past last-heard = inferred absent
-+    // RECEIVER (D4 06ae082b) EXPECTS the SENSOR D1 (480e900e) — so a never-waking sensor is inferred absent.
++    let silence_s: u32 = profile.silence_s;
++    // §3.2.1 RECEIVER: pre-seed the EXPECTED sensor (profile.expected_sensor; derived = FR4_SENSOR_HIVE) so
++    // a never-waking sensor is inferred absent from boot. expected_sensor == 0 ⇒ dynamic-only tracking.
 +    #[cfg(feature = "fr4")]
-+    if my_hive == FR4_RECV_HIVE {
-+        let _ = sensor_seen.push((FR4_SENSOR_HIVE, route_now_s(), false));
++    if profile.role == Role::Receiver && profile.expected_sensor != 0 {
++        let _ = sensor_seen.push((profile.expected_sensor, route_now_s(), false));
 +    }
 +
 +    loop {
@@ -3554,7 +3624,7 @@ index 8c49f1c..8acedd3 100644
 +                    let do_broadcast = {
 +                        let now_ms = embassy_time::Instant::now().as_millis();
 +                        if last_keepalive_ms == 0
-+                            || now_ms.wrapping_sub(last_keepalive_ms) >= KEEPALIVE_PERIOD_MS
++                            || now_ms.wrapping_sub(last_keepalive_ms) >= keepalive_period_ms
 +                        {
 +                            last_keepalive_ms = now_ms;
 +                            true
@@ -3619,17 +3689,22 @@ index 8c49f1c..8acedd3 100644
 +                    // dest path/neighbour REAPPEARED is relayed now (ttl-1); one past its TTL is dropped+released.
 +                    // Reachability-checked DIRECTLY (NOT via plan_forward, which would self-dedup the held frame);
 +                    // the dest's (msg_id,origin) dedup keeps exactly-once across the delay.
++                    // R2-ROUTE §3B.2 (sleeping-leaf wake-flush SLA): this IS the contract's carrier side — a
++                    // duty-cycled leaf's wake re-announces it (its §1A.1 sense-wake HB re-seeds the neighbour
++                    // entry → "genuine reachability"), and we PUSH (not poll) the buffered frames to TX,
++                    // flush-bypasses-dedup. TTL invariant: profile.scf_ttl_s MUST be set conservatively ≫ the
++                    // leaf's max sleep (else TTL-drop before its next wake) — it's a deploy-time policy knob.
 +                    #[cfg(feature = "fr4")]
 +                    {
 +                        let now_rs = route_now_s();
 +                        let mut i = 0;
 +                        while i < scf_buf.len() {
 +                            let (frame, fl, mid, dest, expiry) = scf_buf[i];
-+                            let reachable = engine.neighbours().has_viable(dest, REACH_CONF)
++                            let reachable = engine.neighbours().has_viable(dest, reach_conf)
 +                                || engine
 +                                    .paths()
 +                                    .best_for(dest)
-+                                    .map(|p| p.confidence > REACH_CONF)
++                                    .map(|p| p.confidence > reach_conf)
 +                                    .unwrap_or(false);
 +                            if reachable {
 +                                if let Ok(mut fwd) = decode_extended(&frame[..fl]) {
@@ -3661,12 +3736,12 @@ index 8c49f1c..8acedd3 100644
 +                        // TN-FR-4 E4 silence-is-signal: an EXPECTED sensor silent > SILENCE_S past last-heard
 +                        // -> infer ABSENCE (emit msg.silence once; cleared when it next delivers). RECEIVER only
 +                        // (sensor_seen is seeded only on D4); the complement of delivery, no spurious delivery.
-+                        if my_hive == FR4_RECV_HIVE {
++                        if profile.role == Role::Receiver {
 +                            for e in sensor_seen.iter_mut() {
-+                                if !e.2 && now_rs.saturating_sub(e.1) > SILENCE_S {
++                                if !e.2 && now_rs.saturating_sub(e.1) > silence_s {
 +                                    e.2 = true;
 +                                    emit_msg("msg.silence", 0, my_hive, 0, Some(e.0));
-+                                    println!("r2-dfr1195: SILENCE inferred sensor={:08x} (absent >{SILENCE_S}s)", e.0);
++                                    println!("r2-dfr1195: SILENCE inferred sensor={:08x} (absent >{silence_s}s)", e.0);
 +                                }
 +                            }
 +                        }
@@ -3688,7 +3763,7 @@ index 8c49f1c..8acedd3 100644
 +                    // Dashboard mesh size = peers heard within MESH_PEER_TTL_S (fast join++/leave--).
 +                    let live = seen
 +                        .iter()
-+                        .filter(|(_, t)| now_s.saturating_sub(*t) <= MESH_PEER_TTL_S)
++                        .filter(|(_, t)| now_s.saturating_sub(*t) <= mesh_peer_ttl_s)
 +                        .count();
 +                    NBRS.store(live as u32, Ordering::Relaxed);
 +                    CONDUCTOR.store(0, Ordering::Relaxed); // leaderless: no conductor (dashboard blank)
@@ -3885,6 +3960,11 @@ index 8c49f1c..8acedd3 100644
 +                // §4.3.4 (routetest): immediate-sender hive threaded from espnow_task (0=unknown).
 +                #[cfg(all(feature = "ble", feature = "routetest"))]
 +                let src_hive = got.2;
++                // Non-routetest ble builds (e.g. plain `nobt`) don't thread the immediate sender, but the
++                // ForwardRequest below still needs `source_hop` → 0 = "unknown immediate sender" (F2: the
++                // engine then can't exclude the inbound peer from the flood set, which is fine for the demo).
++                #[cfg(all(feature = "ble", not(feature = "routetest")))]
++                let src_hive: u32 = 0;
 +                match decode_extended(&scratch[..n]) {
 +                Ok(m) => match m.header.msg_type {
 +                    MsgType::Heartbeat => {
@@ -4155,8 +4235,9 @@ index 8c49f1c..8acedd3 100644
 +                            // A1 option-c: bound the relay LOOP on the content fingerprint. For VERIFIED frames
 +                            // plan_forward already deduped (Drop(Duplicate) above), so this catches UNVERIFIED transit
 +                            // loops. (The poison-IMMUNITY is A1's not-recording unverified frames into the origin-dedup
-+                            // above; this unkeyed FNV-1a-64 fingerprint just bounds HONEST loops — it is collidable, so a
-+                            // keyed hash is the post-Wave-2 relay-path hardening, per core's CODEX cross-check.)
++                            // above; the fingerprint is now KEYED — core's frame_fingerprint is SipHash-2-4 under the
++                            // per-node secret fp_seed (codex finding b CLOSED), so an attacker can't precompute a
++                            // collision to pre-mark + suppress a real frame's relay.)
 +                            let do_relay = relay_role
 +                                && h.ttl > 1
 +                                && matches!(
@@ -4165,7 +4246,7 @@ index 8c49f1c..8acedd3 100644
 +                                )
 +                                && !relay_fp.seen_or_mark(
 +                                    now,
-+                                    frame_fingerprint(fr_origin, h.msg_id as u32, m.payload, m.hmac_tag),
++                                    frame_fingerprint(&fp_seed, fr_origin, h.msg_id as u32, m.payload, m.hmac_tag),
 +                                );
 +                            if do_relay {
 +                                // BL-200: relaying puts us on this msg's forward path → note it so the
@@ -4222,11 +4303,11 @@ index 8c49f1c..8acedd3 100644
 +                                && h.ttl > 1
 +                                && h.target_hive != 0
 +                                && h.event_hash == ROUTETEST_HASH
-+                                && !engine.neighbours().has_viable(h.target_hive, REACH_CONF)
++                                && !engine.neighbours().has_viable(h.target_hive, reach_conf)
 +                                && engine
 +                                    .paths()
 +                                    .best_for(h.target_hive)
-+                                    .map(|p| p.confidence > REACH_CONF)
++                                    .map(|p| p.confidence > reach_conf)
 +                                    .unwrap_or(false)
 +                                    == false
 +                            {
@@ -4238,7 +4319,7 @@ index 8c49f1c..8acedd3 100644
 +                                    if scf_buf.is_full() {
 +                                        scf_buf.remove(0); // oldest-first evict (bounded buffer)
 +                                    }
-+                                    let _ = scf_buf.push((f, fl, mid, h.target_hive, route_now_s() + SCF_TTL_S));
++                                    let _ = scf_buf.push((f, fl, mid, h.target_hive, route_now_s() + scf_ttl_s));
 +                                    emit_msg("msg.hold", h.msg_id as u32, my_hive, 0, Some(fr_origin));
 +                                    println!(
 +                                        "r2-dfr1195: SCF-HOLD msg_id={} dest={:08x} buffered={} (unroutable)",
@@ -4271,7 +4352,7 @@ index 8c49f1c..8acedd3 100644
 +                                    // its last-heard + clear absence. RECEIVER-only (else D1/D2/D3 spuriously
 +                                    // populate sensor_seen + infer silence — the metal bug composer caught).
 +                                    #[cfg(feature = "fr4")]
-+                                    if my_hive == FR4_RECV_HIVE {
++                                    if profile.role == Role::Receiver {
 +                                        let now_rs = route_now_s();
 +                                        if let Some(e) = sensor_seen.iter_mut().find(|e| e.0 == fr_origin) {
 +                                            e.1 = now_rs;
@@ -4524,6 +4605,206 @@ index 8c49f1c..8acedd3 100644
 +    } else {
 +        Err(())
 +    }
++}
++
++// ─── R2-RUNTIME §3.2 — device role as an ensemble PROFILE (one signed image, config-activated) ───
++// Roy's keystone (re-orient 2026-06-26): ONE no_std image; the ENSEMBLE differentiates, NOT the firmware
++// and NOT a compile-time-baked role. The four canonical profiles (§3.2.1) — sensor / repeater / bridge /
++// receiver — are NAMES for ensemble profiles selected at DEPLOY-TIME from the §3.2.2 role-profile config
++// record (NVS @0x17000, composer-emitted), not from hive_id pins or Cargo features. Relay is INTRINSIC
++// (every profile relays for the mesh, R2-ROUTE); the profile only adds the per-role behaviour deltas
++// (§3.2.1 table: sensor originates+Intermittent; receiver deliver-gate+absence; bridge cross-carrier;
++// repeater = the bare TN node). When NO record is provisioned the role DERIVES from the legacy signals
++// (hive pins + bridge feature) so the bench/demo is byte-for-byte preserved — the record is the OVERRIDE,
++// exactly like the persona/TG. carrier_set/carrier_creds (§3.2.2, bridge only) are composer-led sealed
++// material (R2-KEYSTORE §2) kept categorically distinct from TG trust; the firmware reads only the
++// behaviour knobs and the encoding is config-record detail, NOT a pinned wire layout (§3.2.2).
++#[derive(Clone, Copy, PartialEq, Eq)]
++enum Role {
++    Repeater,
++    Sensor,
++    Bridge,
++    Receiver,
++}
++
++impl Role {
++    fn from_wire(b: u8) -> Option<Role> {
++        match b {
++            0 => Some(Role::Repeater),
++            1 => Some(Role::Sensor),
++            2 => Some(Role::Bridge),
++            3 => Some(Role::Receiver),
++            _ => None,
++        }
++    }
++    fn label(self) -> &'static str {
++        match self {
++            Role::Repeater => "repeater",
++            Role::Sensor => "sensor",
++            Role::Bridge => "bridge",
++            Role::Receiver => "receiver",
++        }
++    }
++    /// §3.2.1: the SENSOR is the only originator; repeater/bridge are transit, receiver is a sink.
++    #[allow(dead_code)]
++    fn originates(self) -> bool {
++        matches!(self, Role::Sensor)
++    }
++    /// §3.2.2 default duty_class: Intermittent (sensor) / AlwaysOn (else).
++    fn default_duty(self) -> DutyClass {
++        match self {
++            Role::Sensor => DutyClass::Intermittent,
++            _ => DutyClass::AlwaysOn,
++        }
++    }
++}
++
++// §3.2.2 typical defaults (deployment-tunable policy, not normative SLAs — cf. R2-ROUTE §3B.1).
++const RP_DEFAULT_KEEPALIVE_MS: u32 = 30_000; // §1A "tens of s" ship default
++const RP_DEFAULT_SCF_CAP: u16 = 8;
++const RP_DEFAULT_SCF_TTL_S: u32 = 120;
++const RP_DEFAULT_REACH_CONF: f32 = 0.3;
++const RP_DEFAULT_SILENCE_S: u32 = 30;
++const RP_DEFAULT_PEER_TTL_S: u32 = 7;
++
++/// The §3.2.2 role-profile config record (the knobs an ensemble drives), resolved once at boot. `Copy`
++/// so it threads into io_task like the other provisioned scalars (my_hive/hk/tg).
++#[derive(Clone, Copy)]
++struct RoleProfile {
++    role: Role,
++    duty: DutyClass,
++    destination: u32,     // sensor: collector for originated events (0 = none / NVS SENDTO governs)
++    expected_sensor: u32, // receiver: pre-seed an expected sensor for absence-tracking (0 = dynamic-only)
++    keepalive_period_ms: u32,
++    #[allow(dead_code)]
++    scf_cap: u16,
++    scf_ttl_s: u32,
++    reach_conf: f32,
++    silence_s: u32,
++    peer_ttl_s: u32,
++    // §3.2.2 {wake_cadence, wake_window, sleep_policy} — the duty-cycle knobs. ADVERTISED, not yet ENFORCED
++    // (§3.2.3 boundary 1): a sensor sets duty_class=Intermittent + these knobs so neighbours size the SCF
++    // hold (§3B.2 TTL invariant), but real deep-sleep wake→read→send→sleep is net-new firmware on the
++    // SENTINEL→MCU custom-sensor HW (R2-LORA §6 Mode 1/2/3), NOT this DFR/XIAO stand-in. sleep_enforced
++    // stays false here (interim); enforcement is the metal-gated target.
++    #[allow(dead_code)]
++    wake_interval_s: u32,
++    #[allow(dead_code)]
++    wake_window_ms: u32,
++    #[allow(dead_code)]
++    sleep_enforced: bool,
++}
++
++impl RoleProfile {
++    fn defaults_for(role: Role) -> RoleProfile {
++        RoleProfile {
++            role,
++            duty: role.default_duty(),
++            destination: 0,
++            expected_sensor: 0,
++            keepalive_period_ms: RP_DEFAULT_KEEPALIVE_MS,
++            scf_cap: RP_DEFAULT_SCF_CAP,
++            scf_ttl_s: RP_DEFAULT_SCF_TTL_S,
++            reach_conf: RP_DEFAULT_REACH_CONF,
++            silence_s: RP_DEFAULT_SILENCE_S,
++            peer_ttl_s: RP_DEFAULT_PEER_TTL_S,
++            // Sensor: a sense-wake cadence (advertised); else AlwaysOn → 0 (no sleep). Interim: not enforced.
++            wake_interval_s: if matches!(role, Role::Sensor) { 300 } else { 0 },
++            wake_window_ms: if matches!(role, Role::Sensor) { 5_000 } else { 0 },
++            sleep_enforced: false,
++        }
++    }
++}
++
++const ROLE_PROFILE_OFFSET: u32 = 0x17000; // own 4 KB sector, after sendto@0x16000, below ota_0@0x20000
++const ROLE_PROFILE_MAGIC: u32 = 0x5250_4631; // "RPF1"
++
++/// Read the deploy-time role-profile record (§3.2.2) from NVS @0x17000. `None` = no record provisioned →
++/// the caller DERIVES the role (demo-preserving fallback). A 0/sentinel field falls back to the per-role
++/// default so a record may set only the knobs it cares about. Layout (big-endian, 40 B):
++/// [0..4] magic "RPF1" · [4] role · [5] duty_class (0xFF=role default) · [8..12] destination ·
++/// [12..16] expected_sensor · [16..20] keepalive_ms (0=default) · [24..26] scf_cap (0=default) ·
++/// [26..28] scf_ttl_s (0=default) · [28..30] reach_conf×1000 (0xFFFF=default) · [30..32] silence_s
++/// (0=default) · [32..34] peer_ttl_s (0=default) · [34..38] wake_interval_s (0=default) ·
++/// [38..42] wake_window_ms (0=default) · [42] sleep_enforced (1=enforce; interim ignores). (Encoding is
++/// config detail, not pinned wire — §3.2.2.)
++fn read_role_profile() -> Option<RoleProfile> {
++    use embedded_storage::ReadStorage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 48];
++    flash.read(ROLE_PROFILE_OFFSET, &mut b).ok()?;
++    if u32::from_be_bytes([b[0], b[1], b[2], b[3]]) != ROLE_PROFILE_MAGIC {
++        return None;
++    }
++    let role = Role::from_wire(b[4])?;
++    let mut rp = RoleProfile::defaults_for(role);
++    if let Some(d) = DutyClass::from_wire_uint(b[5]) {
++        rp.duty = d; // 0xFF / out-of-range keeps the role default
++    }
++    rp.destination = u32::from_be_bytes([b[8], b[9], b[10], b[11]]);
++    rp.expected_sensor = u32::from_be_bytes([b[12], b[13], b[14], b[15]]);
++    let ka = u32::from_be_bytes([b[16], b[17], b[18], b[19]]);
++    if ka != 0 {
++        rp.keepalive_period_ms = ka;
++    }
++    let cap = u16::from_be_bytes([b[24], b[25]]);
++    if cap != 0 {
++        rp.scf_cap = cap;
++    }
++    let ttl = u16::from_be_bytes([b[26], b[27]]);
++    if ttl != 0 {
++        rp.scf_ttl_s = ttl as u32;
++    }
++    let rc = u16::from_be_bytes([b[28], b[29]]);
++    if rc != 0xFFFF {
++        rp.reach_conf = rc as f32 / 1000.0;
++    }
++    let sil = u16::from_be_bytes([b[30], b[31]]);
++    if sil != 0 {
++        rp.silence_s = sil as u32;
++    }
++    let pt = u16::from_be_bytes([b[32], b[33]]);
++    if pt != 0 {
++        rp.peer_ttl_s = pt as u32;
++    }
++    let wi = u32::from_be_bytes([b[34], b[35], b[36], b[37]]);
++    if wi != 0 {
++        rp.wake_interval_s = wi;
++    }
++    let ww = u32::from_be_bytes([b[38], b[39], b[40], b[41]]);
++    if ww != 0 {
++        rp.wake_window_ms = ww;
++    }
++    rp.sleep_enforced = b[42] == 1; // interim: advertised-only regardless (§3.2.3 boundary 1)
++    Some(rp)
++}
++
++/// Resolve the device role-profile (§3.2.2). A provisioned NVS record wins; otherwise DERIVE the role
++/// from the legacy signals so the bench/demo is unchanged (sensor/receiver hive pins + the bridge
++/// feature). This is the migration seam: today's hardcoded behaviour becomes the *default* profile, and
++/// composer's record is the deploy-time override — the keystone "one image, config-activated".
++fn resolve_role_profile(my_hive: u32) -> RoleProfile {
++    if let Some(rp) = read_role_profile() {
++        return rp;
++    }
++    let role = if cfg!(feature = "bridge") {
++        Role::Bridge
++    } else if my_hive == FR4_SENSOR_HIVE {
++        Role::Sensor
++    } else if my_hive == FR4_RECV_HIVE {
++        Role::Receiver
++    } else {
++        Role::Repeater
++    };
++    let mut rp = RoleProfile::defaults_for(role);
++    if role == Role::Receiver {
++        rp.expected_sensor = FR4_SENSOR_HIVE; // D4 expects D1 from boot (preserves the fr4 silence seed)
++    }
++    #[cfg(feature = "benchkeepalive")]
++    {
++        rp.keepalive_period_ms = 8_000; // bench-watchable fade (the benchkeepalive feature)
++    }
++    rp
 +}
 +
 +// ── TN-L2-IT-BL-100: per-neighbour RSSI-σ store + mobility classifier (R2-ROUTE §2.4) ───────────
@@ -5473,8 +5754,114 @@ index 8c49f1c..8acedd3 100644
 +>;
 +
 +#[cfg(feature = "lora")]
++// ─── R2-BEACON §8.1 — the LoRa discovery beacon (RBID, NO hive_id, NO counter) ──────────────────────
++// The km-range active-discovery signpost (§8.1). Replaces the interim `[hive_id_be32 | seq]` 8-byte beacon
++// — the exact §8.1.2 conformance gate ("an interim implementation which broadcast [hive_id | seq] in the
++// clear"). Wire format (§8.1.1, 15-byte core, big-endian): [0]=magic 0xB2 · [1]=version 0x01 · [2]=flags
++// (bit7 profile=0, bit6 has_bloom=0 MUST) · [3..11]=rbid (8B Rotating Beacon ID, §6.1) · [11..15]=class_hash
++// (FNV-1a-32 of the class string, §4) · [15]=tx_power (OPTIONAL i8 dBm@1m). The rbid uses core's RBID
++// primitives so a fellow TG member resolves rbid→hive with NO key distribution (§6.1), while a km-range
++// stranger without `hk` can neither predict nor correlate it across epochs. NO sequence field (§8.1.2 #2:
++// a cross-epoch counter re-links rotated RBIDs — forbidden). T_rotate = 3600 s (§8.1.3). Airtime: priority
++// 4, lowest (R2-LORA §4.4) — emitted only when no higher-priority traffic is queued (§8.1.4).
++#[cfg(feature = "lora")]
++const LORA_BEACON_CORE_LEN: usize = 15;
++#[cfg(feature = "lora")]
++const LORA_BEACON_T_ROTATE_S: u64 = 3600; // §8.1.3 LoRa T_rotate = 1 h (sparse/airtime-bounded cadence)
++
++/// FNV-1a-32 of the class string (§4) → the beacon `class_hash`.
++#[cfg(feature = "lora")]
++fn fnv1a32(s: &[u8]) -> u32 {
++    let mut h: u32 = 0x811c_9dc5;
++    for &b in s {
++        h ^= b as u32;
++        h = h.wrapping_mul(0x0100_0193);
++    }
++    h
++}
++
++/// The device-class string per role (§4) — gives §8.1 pre-connection filtering a class to match on.
++#[cfg(feature = "lora")]
++fn role_class_hash(role: Role) -> u32 {
++    fnv1a32(
++        match role {
++            Role::Repeater => "r2.repeater",
++            Role::Sensor => "r2.sensor",
++            Role::Bridge => "r2.bridge",
++            Role::Receiver => "r2.receiver",
++        }
++        .as_bytes(),
++    )
++}
++
++/// Current RBID rotation epoch (§6.1: `floor(shared_coarse_time / T_rotate)`). INTERIM: the shared
++/// coarse-time base is not yet wired on this tier (the BLE beacon path uses the same epoch=0 placeholder,
++/// pending scan→resolve_rbid_windowed); the rbid is still NOT a stable id (it is the keyed §6.1 RBID, not
++/// the hive_id). When a shared coarse-time base lands, return `coarse_time_s / LORA_BEACON_T_ROTATE_S`.
++#[cfg(feature = "lora")]
++fn current_beacon_epoch() -> u64 {
++    let _ = LORA_BEACON_T_ROTATE_S;
++    0
++}
++
++/// Build this node's §8.1 LoRa beacon into `buf`; returns the byte length (15, or 16 with tx_power).
++#[cfg(feature = "lora")]
++fn build_lora_beacon(
++    buf: &mut [u8; 16],
++    hk: &[u8; 32],
++    my_hive: u32,
++    class_hash: u32,
++    tx_power: Option<i8>,
++) -> usize {
++    use r2_discovery::beacon::{
++        compute_rbid, derive_beacon_session_key, BEACON_VERSION, R2_BEACON_MAGIC,
++    };
++    let sk = derive_beacon_session_key(hk, my_hive);
++    let rbid = compute_rbid(&sk, current_beacon_epoch());
++    buf[0] = R2_BEACON_MAGIC; // 0xB2
++    buf[1] = BEACON_VERSION; // 0x01
++    buf[2] = 0; // flags: bit7 (profile)=0, bit6 (has_bloom)=0 (§8.1.1 MUST); others default 0
++    buf[3..11].copy_from_slice(&rbid);
++    buf[11..15].copy_from_slice(&class_hash.to_be_bytes()); // big-endian (§8.1.1)
++    match tx_power {
++        Some(p) => {
++            buf[15] = p as u8;
++            16
++        }
++        None => LORA_BEACON_CORE_LEN,
++    }
++}
++
++/// Recognise a §8.1 LoRa beacon (magic+version+length). Returns (rbid, class_hash, tx_power) — NOT the
++/// hive_id: a stranger cannot resolve it; a fellow member resolves rbid→hive via resolve_rbid_windowed
++/// (§6.1) against the member registry (registry-driven resolution is a follow-up; logged unresolved here).
++#[cfg(feature = "lora")]
++fn decode_lora_beacon(p: &[u8]) -> Option<([u8; 8], u32, Option<i8>)> {
++    use r2_discovery::beacon::{BEACON_VERSION, R2_BEACON_MAGIC};
++    // Exactly 15 or 16 bytes — distinguishes a beacon from a `[4B hive | core frame]` data frame (which is
++    // always larger than a 12-byte R2-WIRE header), so the demux is unambiguous on the shared carrier.
++    if (p.len() != LORA_BEACON_CORE_LEN && p.len() != LORA_BEACON_CORE_LEN + 1)
++        || p[0] != R2_BEACON_MAGIC
++        || p[1] != BEACON_VERSION
++    {
++        return None;
++    }
++    let mut rbid = [0u8; 8];
++    rbid.copy_from_slice(&p[3..11]);
++    let class_hash = u32::from_be_bytes([p[11], p[12], p[13], p[14]]);
++    let tx_power = if p.len() == LORA_BEACON_CORE_LEN + 1 { Some(p[15] as i8) } else { None };
++    Some((rbid, class_hash, tx_power))
++}
++
++#[cfg(feature = "lora")]
 +#[embassy_executor::task]
-+async fn lora_task(mut radio: LoraRadioTy, mut rxen: Output<'static>, my_hive: u32) {
++async fn lora_task(
++    mut radio: LoraRadioTy,
++    mut rxen: Output<'static>,
++    my_hive: u32,
++    hk: [u8; 32],
++    class_hash: u32,
++) {
 +    // BENCH first-light: boards are ~30cm apart -> +20dBm SF12 SATURATES the RX (close-range overload ->
 +    // every packet detected but CRC-fails). Drop to the SX1262 high-PA minimum (-9 dBm) for the bench.
 +    // (The Wairoa deployment uses the full +20/+22 for 18km hops; this override is bench-only.)
@@ -5494,7 +5881,6 @@ index 8c49f1c..8acedd3 100644
 +    }
 +    rxen.set_high();
 +    let _ = radio.listen();
-+    let mut seq: u32 = 0;
 +    loop {
 +        // listen ~3s
 +        for _ in 0..30 {
@@ -5502,15 +5888,18 @@ index 8c49f1c..8acedd3 100644
 +                Ok(Some(RadioEvent::RxDone)) => {
 +                    let mut buf = [0u8; 64];
 +                    if let Ok(info) = radio.read(&mut buf) {
-+                        let from = if info.len >= 4 {
-+                            u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]])
++                        if let Some((rbid, ch, _txp)) = decode_lora_beacon(&buf[..info.len]) {
++                            // §8.1 discovery beacon — log the RBID (NOT a hive_id) + class hash.
++                            println!(
++                                "r2-dfr1195: LORA-BEACON rbid={:02x}{:02x}{:02x}.. class={ch:08x} rssi={}dBm snr={}dB",
++                                rbid[0], rbid[1], rbid[2], info.rssi_dbm, info.snr_db
++                            );
 +                        } else {
-+                            0
-+                        };
-+                        println!(
-+                            "r2-dfr1195: LORA-RX from={from:08x} len={} rssi={}dBm snr={}dB",
-+                            info.len, info.rssi_dbm, info.snr_db
-+                        );
++                            println!(
++                                "r2-dfr1195: LORA-RX len={} rssi={}dBm snr={}dB",
++                                info.len, info.rssi_dbm, info.snr_db
++                            );
++                        }
 +                    }
 +                }
 +                Ok(Some(RadioEvent::CrcError)) => println!("r2-dfr1195: LORA-RX crc-err"),
@@ -5518,12 +5907,12 @@ index 8c49f1c..8acedd3 100644
 +            }
 +            embassy_time::Timer::after(embassy_time::Duration::from_millis(100)).await;
 +        }
-+        // TX a beacon
-+        let mut pl = [0u8; 8];
-+        pl[0..4].copy_from_slice(&my_hive.to_be_bytes());
-+        pl[4..8].copy_from_slice(&seq.to_be_bytes());
++        // TX a §8.1 LoRa discovery beacon (RBID, NOT [hive|seq] — closes the §8.1.2 conformance gate).
++        let mut bbuf = [0u8; 16];
++        let blen = build_lora_beacon(&mut bbuf, &hk, my_hive, class_hash, Some(-9));
++        let pl = &bbuf[..blen];
 +        rxen.set_low();
-+        match radio.transmit(&pl) {
++        match radio.transmit(pl) {
 +            Ok(()) => {
 +                for _ in 0..25 {
 +                    if let Ok(Some(RadioEvent::TxDone)) = radio.poll() {
@@ -5531,13 +5920,12 @@ index 8c49f1c..8acedd3 100644
 +                    }
 +                    embassy_time::Timer::after(embassy_time::Duration::from_millis(20)).await;
 +                }
-+                println!("r2-dfr1195: LORA-TX beacon seq={seq} ({}B)", pl.len());
++                println!("r2-dfr1195: LORA-TX §8.1 beacon ({}B)", pl.len());
 +            }
 +            Err(e) => println!("r2-dfr1195: LORA-TX ERR {e:?}"),
 +        }
 +        rxen.set_high();
 +        let _ = radio.listen();
-+        seq = seq.wrapping_add(1);
 +    }
 +}
 +
@@ -5625,7 +6013,13 @@ index 8c49f1c..8acedd3 100644
 +/// drop) and drains RX in the same call — call it every tick = continuous-RX. SF7 bench (916.8/BW125/-9dBm).
 +#[cfg(feature = "loraroute")]
 +#[embassy_executor::task]
-+async fn lora_route_task(radio: LoraRadioTy, rxen: Output<'static>, my_hive: u32) {
++async fn lora_route_task(
++    radio: LoraRadioTy,
++    rxen: Output<'static>,
++    my_hive: u32,
++    hk: [u8; 32],
++    class_hash: u32,
++) {
 +    use r2_transport::{LoRaTransport, Transport}; // Transport trait brings send()/current_mtu() into scope
 +    let mut cfg = wairoa_as923_nz();
 +    cfg.tx_power_dbm = -9; // bench close-range (30cm); the Wairoa deployment uses +20/+22 for 18km
@@ -5670,6 +6064,7 @@ index 8c49f1c..8acedd3 100644
 -    // r2-harness sim — this firmware only supplies the real radios.
 +        cfg.freq_hz = 919_800_000;
 +    }
++    let beacon_tx_power: i8 = cfg.tx_power_dbm; // capture before cfg moves into the transport (§8.1 tx_power)
 +    let lora = match LoRaTransport::new(RxenRadio { inner: radio, rxen }, cfg, 8) {
 +        Ok(l) => {
 +            println!("r2-dfr1195: LORA-ROUTE up (SF7 BW125 916.8 sync0x21 -9dBm) — BL-200 message-passing over LoRa");
@@ -5688,6 +6083,12 @@ index 8c49f1c..8acedd3 100644
 +    // (the deferred redesign) — just per-board TX decorrelation. Seeded per-board by my_hive.
 +    let mut lcg: u32 = my_hive ^ 0x9E37_79B9;
 +    let mut tx_backoff: i32 = 0;
++    // R2-BEACON §8.1 discovery beacon — emitted on the field path as the lowest-priority class (§8.1.4 /
++    // R2-LORA §4.4 priority 4). NO fixed interval: this is a MIN-interval floor; it is enqueued only when
++    // no app traffic was pending this tick (higher-priority first), and the transport's §4.2/§4.3 airtime
++    // budget defers it further under load — so dense/busy meshes naturally lengthen the inter-beacon gap.
++    let mut last_beacon_ms: u32 = 0;
++    const LORA_BEACON_MIN_INTERVAL_MS: u32 = 30_000;
 +    loop {
 +        let now_ms = embassy_time::Instant::now().as_millis() as u32;
 +        // TX: drain io_task's outbound frames behind a per-board random backoff -> PREPEND the 4-byte
@@ -5707,11 +6108,28 @@ index 8c49f1c..8acedd3 100644
 +            if sent_any {
 +                lcg = lcg.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
 +                tx_backoff = ((lcg >> 22) % 60) as i32; // 0..60 ticks @5ms = 0..300ms random backoff
++            } else if now_ms.wrapping_sub(last_beacon_ms) >= LORA_BEACON_MIN_INTERVAL_MS {
++                // §8.1.4: no app traffic was queued this tick (sent_any == false) → enqueue the lowest-
++                // priority §8.1 discovery beacon. The transport's airtime budget defers it under load; a
++                // full queue back-pressures (beacons are sheddable). Beacon = raw 15B (NO 4B hive prepend).
++                let mut bbuf = [0u8; 16];
++                let blen = build_lora_beacon(&mut bbuf, &hk, my_hive, class_hash, Some(beacon_tx_power));
++                if lora.send(0, &bbuf[..blen]).is_ok() {
++                    last_beacon_ms = now_ms;
++                }
 +            }
 +        }
 +        // SERVICE: one data-plane step — TX-pacing + RX-drain. Returns the carrier frame on RxDone.
 +        if let Some((carrier, info)) = lora.service(now_ms) {
-+            if carrier.len() >= 4 {
++            if let Some((rbid, ch, _txp)) = decode_lora_beacon(&carrier) {
++                // §8.1 discovery beacon (demuxed by magic+version+len, ahead of the data-frame path). The
++                // rbid is NOT a hive_id; resolving rbid→hive (resolve_rbid_windowed, §6.1) against the
++                // member registry is a follow-up — logged unresolved here (presence signpost).
++                println!(
++                    "r2-dfr1195: LORA-BEACON rbid={:02x}{:02x}{:02x}.. class={ch:08x} rssi={}dBm",
++                    rbid[0], rbid[1], rbid[2], info.rssi_dbm
++                );
++            } else if carrier.len() >= 4 {
 +                let sender = u32::from_be_bytes([carrier[0], carrier[1], carrier[2], carrier[3]]);
 +                // RX diagnostic (the metal proof + link health): every good frame, its immediate sender,
 +                // RSSI, and whether the hive-MASK admits it.
@@ -5977,6 +6395,18 @@ index 8c49f1c..8acedd3 100644
 +/// real OTA pushes come from the orchestrator over the same START/DATA/COMMIT protocol.
 +const OTA_SELFTEST: bool = false;
 +
++// SECURITY (codex A7/A8 finding b — mirrors core's linux ota_tcp_recv + esp32 ota_tcp): the
++// `dev-unsigned-ota` feature accepts UNAUTHENTICATED firmware (sha256 = integrity only, NOT authenticity)
++// = remote code execution. It is DEV-ONLY and MUST NOT ship in a release build. A release build (NOT
++// debug_assertions) with the feature enabled FAILS TO COMPILE — the default OTA path is CMD_START_SIGNED
++// (verify-before-write). (On the DFR the legacy unsigned path is additionally absent from the production
++// build entirely; this guard is the belt-and-braces mirror of core's, so the fleet's guard is uniform.)
++#[cfg(all(feature = "dev-unsigned-ota", not(debug_assertions)))]
++compile_error!(
++    "dev-unsigned-ota is DEV-ONLY (it accepts unauthenticated firmware = RCE) and MUST NOT be enabled in \
++     a release build — use the default CMD_START_SIGNED (0x03) verify-before-write OTA path instead"
++);
+ 
 +#[embassy_executor::task]
 +async fn ota_task(is_ap: bool, stack: embassy_net::Stack<'static>) {
 +    Timer::after(Duration::from_secs(12)).await; // let WiFi + the mesh settle
@@ -5998,7 +6428,14 @@ index 8c49f1c..8acedd3 100644
 +/// anti_rollback.bin format, byte-identical). Raw-flash region in the partition gap (its own 4 KB
 +/// sector, like provisioned-TG @0x14000), so it survives an app-reflash. Bumped (monotonic, max())
 +/// only on a successful verify-and-finish.
-+const ANTI_ROLLBACK_OFFSET: u32 = 0x15000;
++///
++/// A7/A8 triage (a): this is a FIXED flash sector, NOT a relative/cwd `anti_rollback.bin` file (that path
++/// concern is the linux-host receiver's, N/A here) — so the floor is anchored. FIXED a latent COLLISION:
++/// this was @0x15000, the SAME sector as MASK_NVS_OFFSET — and since `loraroute` implies `routetest`
++/// (which uses the mask), the FIELD build aliased the rollback floor onto the mask sector (a mask write
++/// would corrupt the security_version floor, and vice versa). Moved to its own 0x18000 sector (still below
++/// ota_0@0x20000). A board carrying an old 0x15000 floor restarts at 0 here — acceptable pre-deployment.
++const ANTI_ROLLBACK_OFFSET: u32 = 0x18000;
 +fn read_anti_rollback() -> (u32, u32) {
 +    use embedded_storage::ReadStorage;
 +    let mut flash = esp_storage::FlashStorage::new();
@@ -6020,7 +6457,7 @@ index 8c49f1c..8acedd3 100644
 +    b[4..8].copy_from_slice(&floor.to_le_bytes());
 +    let _ = flash.write(ANTI_ROLLBACK_OFFSET, &b); // esp-storage erases+writes the 4 KB sector
 +}
- 
++
 +/// SIGNED OTA receiver (A7/A8 contract, R2-UPDATE v0.6) — verify-BEFORE-write, byte-identical verify
 +/// path with core's linux/esp32. Frame (over the existing UDP stop-and-wait carrier): "OST" || 123-byte
 +/// UpdateHeader || 64-byte Ed25519 sig (verify_header up front) ; "ODT"<off:4><chunk> (pv.update? THEN
@@ -6324,3 +6761,25 @@ index 8c49f1c..8acedd3 100644
 +        }
      }
  }
+diff --git a/platforms/esp32/sdkconfig.defaults b/platforms/esp32/sdkconfig.defaults
+index 8dca32f..1406ecc 100644
+--- a/platforms/esp32/sdkconfig.defaults
++++ b/platforms/esp32/sdkconfig.defaults
+@@ -54,6 +54,17 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
+ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+ CONFIG_PARTITION_TABLE_SINGLE_APP=n
+ 
++# ---- OTA confirmed-boot rollback (R2-UPDATE §5/§9.1) ----
++# Required by core's platforms/esp32 ota_tcp::confirm_or_rollback_on_boot(): enables ESP-IDF NATIVE app
++# rollback — a freshly-OTA'd image boots in PENDING_VERIFY and the bootloader rolls it back on the next
++# reset UNLESS the app calls esp_ota_mark_app_valid_cancel_rollback() (the §5 health-gate CONFIRM). Without
++# this flag esp_ota_get_state_partition never reports PENDING_VERIFY and the confirmed-boot SLA is inert.
++CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
++# CONFIG_BOOTLOADER_APP_ANTI_ROLLBACK (eFuse security_version, R2-UPDATE §9.2) is INTENTIONALLY LEFT OFF:
++# these are the NON-eFuse tier (R2-UPDATE v0.22 §9.2 — MAY collapse security_version into current_seq), and
++# the firmware NVS anti-rollback floor already covers §9.1. Enabling it burns eFuses IRREVERSIBLY, so it is
++# a deliberate per-deployment choice on eFuse-secured hardware, not a default.
++
+ # ---- WiFi ----
+ CONFIG_ESP_WIFI_ENABLED=y
+ CONFIG_ESP_WIFI_STA_DISCONNECTED_PM_ENABLE=y

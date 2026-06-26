@@ -1,5 +1,169 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► CURRENT SESSION 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
+Build the field-firmware triplet against the COMPLETE canon (R2-RUNTIME §3.2 role-profiles + §3.2.4
+multi-carrier bridge; R2-BEACON §8.1 LoRa-beacon RBID; wake/sleep+SCF; re-attach; OTA-after-confirm both
+platforms). ONE-IMAGE config-activated firmware, ENSEMBLE-differentiated (NOT compile-time roles):
+sensor / repeater (bare TN, relay intrinsic) / bridge / receiver — role from the §3.2.2 role-profile
+record composer emits. Worktree = `/home/roycdavies/Development/R2/dfr1195-fw-wt` (branch `dfr1195-fw`).
+This session runs ON **Alfred** (esp toolchain present; `source ~/Development/homelab/export-esp.sh` NO pipe).
+
+STEP TRACKER:
+- **[✓] STEP 1 — RE-VENDOR r2-core 0ebfd09 → c46383e (DONE + build-GREEN 13.44s).** Method: committed the
+  freshest working-tree firmware as a WIP commit, `git rebase --onto c46383e 0ebfd09 dfr1195-fw`; the ONLY
+  conflict = `crates/r2-dataplane/src/lib.rs` → resolved by TAKING core's c46383e version (it already
+  exposes `pub parse_dc/parse_seq/frame_fingerprint` + the KEYED seed-first `frame_fingerprint(&seed,…)`,
+  807cab5 landed) and DROPPING my redundant 12-line visibility delta. Then fixed main.rs: sourced a 16B
+  HWRNG `fp_seed` (esp_hal::rng::Rng::new().read(); radio-clock up at wifi::new line 280 = true-random),
+  threaded it into `io_task(…, fp_seed)`, updated the relay call site `frame_fingerprint(&fp_seed,…)`.
+  Full pre-revendor backup at scratchpad `fw-backup-prevendor/`. c46383e also brings core's esp32
+  confirmed-boot OTA mirror (platforms/esp32/ota_tcp.rs +400) + linux anti_rollback.rs — feeds STEP 5.
+- **[✓] STEP 2 — ROLE-PROFILE §3.2 (DONE + matrix-GREEN; worktree `6a221e7`).** New `RoleProfile` config
+  record (NVS @0x17000 "RPF1", 40B versioned, big-endian) carrying the §3.2.2 knobs (role/duty/destination/
+  expected_sensor/keepalive/scf{cap,ttl,reach_conf}/silence/peer_ttl). `read_role_profile` + `resolve_role_profile(my_hive)`:
+  a provisioned record WINS; else DERIVE from the legacy signals (hive-pins + bridge feature) so the
+  bench/demo is byte-for-byte preserved. Rewired ALL role gates OFF hive_id pins onto `profile.role`:
+  sensor originate+dest, `my_duty` (= profile.duty, un-gated from fr4), receiver deliver-track + absence
+  seed/silence, + the keepalive/scf-ttl/reach-conf/silence/peer-ttl tunables now profile-driven. The four
+  roles {sensor,repeater,bridge,receiver} are all selectable from ONE image by the record (keystone). Also
+  fixed a PRE-EXISTING nobt drift bug (src_hive undefined under ble-without-routetest → source_hop=0).
+  Matrix GREEN: nobt / nobt,multitg / loraroute,fr4 / loraroute,bridge,fr4 / routetest.
+  CARRIER caveat: carrier_set/carrier_creds (§3.2.2 bridge) are composer-led SEALED material (R2-KEYSTORE
+  §2), NOT carried in firmware — encoding is config detail, not pinned wire. NOTE for composer/specs:
+  the RPF1 record layout is hive's pragmatic encoding; if composer wants a different emit format, reconcile.
+- **[✓] STEP 3 — R2-BEACON §8.1 (DONE + matrix-GREEN; worktree `afc27ae`).** New 15/16B codec
+  (build_lora_beacon/decode_lora_beacon): magic 0xB2/ver 0x01/flags(bit7=0,bit6=0)/rbid-8B(core
+  compute_rbid+derive_beacon_session_key)/class_hash(FNV-1a-32 of per-role class str)/optional tx_power, BE.
+  RBID = §6.1 RID (NOT hive_id), NO seq counter — §8.1.2 #1+#2 conformance gate CLOSED (epoch=0 interim,
+  same as BLE path, pending shared coarse-time base). lora_task: [hive|seq]→§8.1. lora_route_task (field):
+  emits §8.1 as LOWEST-priority (R2-LORA §4.4 pri-4 / §8.1.4) — only when no app traffic pending + 30s
+  min-interval floor, transport airtime budget defers further; RX demuxes beacon-vs-data by magic+ver+len.
+  can_hear mask UNAFFECTED (keys on per-frame 4B sender prepend, not the beacon). NOTE core/specs: the §8.1
+  codec canonically belongs in r2-discovery::beacon (next to encode_advert) — firmware-local to unblock,
+  OFFERED for upstreaming. FOLLOW-UP: rbid→hive resolution via resolve_rbid_windowed needs a member registry.
+- **[✓] STEP 4 — wake/sleep + SCF + re-attach (DONE + matrix-GREEN; worktree `98e7acf`).** §3.5 RE-ATTACH:
+  explicit boot decision — persona valid (parse_persona structural validate) → silently RESUME role, no
+  join; absent/invalid → bench keeps mac_low3+demo-TG fallback, NEW `field` feature FAIL-CLOSES (no demo
+  TG, no self-enrol) per §3.5 MUST. (Full cert-sig/revocation verify = FOLLOW-UP; structural decode is the
+  interim.) §3.2.3 boundary-1 / R2-LORA §6: added {wake_interval_s, wake_window_ms, sleep_enforced} to
+  RoleProfile (record now 48B), ADVERTISED-only (logged) — real deep-sleep is net-new on the SENTINEL→MCU
+  custom-sensor HW, NOT this DFR/XIAO stand-in. §3B.2 sleeping-leaf wake-flush: existing SCF annotated as
+  the contract carrier side (PUSH-on-wake, flush-bypasses-dedup, TTL≫sleep = profile.scf_ttl_s). Restored a
+  lora-feature gate on lora_task dropped in the step-3 commit (nobt regression). RECORD now 48B (composer
+  notified): +[34..38]wake_interval_s +[38..42]wake_window_ms +[42]sleep_enforced.
+- **[✓] STEP 5 — esp32 OTA + A7/A8 DFR triage (DONE; worktree `a859848`; ASKED core to confirm).** A7/A8(a)
+  anti-rollback: DFR floor is a FIXED raw-flash sector (NOT a cwd anti_rollback.bin — N/A path concern) +
+  FIXED a latent COLLISION (was @0x15000 = MASK_NVS_OFFSET; loraroute⇒routetest⇒mask ⇒ field build aliased
+  the security_version floor onto the mask sector) → moved to its own 0x18000. A7/A8(b): mirrored core's
+  dev-unsigned-ota release build-guard into the DFR — release+feature FAILS to compile (VERIFIED firing).
+  esp32 (core platform): set CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y in sdkconfig.defaults (per core
+  ota_tcp.rs:171); left APP_ANTI_ROLLBACK OFF (non-eFuse tier, R2-UPDATE v0.22 §9.2; eFuse burn=deliberate).
+  FFI idents canonical esp_idf_sys (confirmed by inspection). ⚠ CANNOT xtensa/IDF compile-verify
+  platforms/esp32 here — NO ESP-IDF toolchain on Alfred (only esp-hal for the DFR no_std build). Asked core:
+  who owns the platforms/esp32 IDF build + on-metal confirmed-boot? = OPEN. NVS map now: persona@12000 /
+  board@13000 / tg@14000 / mask@15000 / sendto@16000 / role-profile@17000 / anti-rollback@18000.
+- **[✓] STEP 6 — XIAO+Wio-SX1262 board pin-map (DONE structure; worktree `7a014e4`; 2 OPENS).** Board-
+  conditional SX1262 pins via a new `xiao` feature (pin-parametric per SX1262-LORA-DESIGN.md; radio_set =
+  §3.2.2 HW-tier fact, not a role fork). DFR1195 (default): SPI3 SCK7/MISO5/MOSI6 NSS10 RST41 BUSY40 RXEN42
+  DIO1=4. XIAO+Wio-SX1262 (`xiao`): SCK7/MISO8/MOSI9 NSS41 RST42 BUSY40 DIO1=39 (std Seeed pinout). BOTH
+  compile GREEN. OPENS: (1) exact XIAO pins PENDING workshop confirm (ASKED); (2) Wio RF switch = SX1262
+  DIO2 (SetDIO2AsRfSwitchCtrl), but r2-sx1262 has only new()/new_with_rxen() → no DIO2 support; XIAO path
+  uses a placeholder RXEN to compile, RF NOT driven until core adds with_dio2_as_rf_switch (FLAGGED to core).
+  Runtime board-profile pin selection = the one-image refinement over the compile-time xiao feature.
+- **[✓] STEP 7 — COMPILE-VERIFY ALL CONFIGS (xtensa) GREEN.** 13/13 configs build clean on Alfred
+  (xtensa-esp32s3, errors=0): nobt / nobt,multitg / nobt,routetest / lora / loraroute / loraroute,fr4 /
+  loraroute,bridge,fr4 / field,loraroute / field,loraroute,bridge / xiao,field,loraroute / blemesh /
+  loraroute,fr4,pco / field,loraroute,benchkeepalive. Recovery patch refreshed:
+  `docs/dfr1195-firstlight.patch` = `git diff c46383e..HEAD` (6785 lines), synced into r2-hive/docs.
+  ⚠ HOLD flashing/metal until Roy frees the bench boards (per the supervisor ruling — do not interrupt the
+  live demo). Worktree HEAD `d3fdc7c` (branch `dfr1195-fw`, base c46383e).
+
+### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
+- The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
+  role-profile activation (provision an RPF1 record @0x17000, confirm role behaviour), §8.1 beacon RX
+  resolution, §3.5 re-attach, OTA confirmed-boot round-trip.
+- 3 cross-fleet OPENS (asked, non-blocking): core = platforms/esp32 IDF build+confirmed-boot ownership +
+  r2-sx1262 DIO2-RF-switch support; workshop = authoritative XIAO+Wio-SX1262 pinout; composer = RPF1 emit
+  (48B record) + board.toml. §8.1 codec OFFERED to core for upstreaming into r2-discovery::beacon.
+- SEPARATE TRACK (not firmware): repoint r2-hive-bin/Cargo.toml path-deps at r2-core's now-landed
+  r2-def/r2-dispatch/r2-ensemble/r2-transport/r2-discovery (core msg 21:27) — awaiting core 'build green' go.
+Canon refs read + pinned: R2-RUNTIME §3.2.1–3.2.4, R2-BEACON §8.1.1–8.1.4. Gap-analysis input doc =
+`docs/field-firmware-role-prep.md`. Shorter cycles; update this tracker each step.
+
+---
+
+## (PRIOR) 2026-06-26 — LoRa PHASE 0 (does LoRa survive #20?)
+**Re-oriented after a /clear (context-saturation stall).** #20 hardening CLOSED; my DFR signed-OTA
+receiver DONE+committed (r2-hive `434132e` + `5c93026`). **TASK NOW = LoRa PHASE 0** (supervisor-directed,
+I LEAD): the one test telling us what survived #20 — does LoRa still work on CURRENT firmware (HEAD,
+post-#20/hardening)?
+1. Build CURRENT unified firmware with `loraroute` feature (full = `nobt,loraroute,loratcxo,multitg`).
+   Firmware worktree = `/home/roycdavies/Development/R2/dfr1195-fw-wt` (branch `dfr1195-fw`, was `0ebfd09`).
+   Build on Alfred: `source ~/Development/homelab/export-esp.sh` first (xtensa linker).
+2. Flash 2 DFR1195s AS923-NZ wairoa (R2-LORA §2.1/§3.1 = TN-FR-1 config). DFR boards are on **tuxedo**
+   (`ssh tuxedo`); by-id ports from composer at flash-time. XIAO can't run LoRa (no SX1262).
+3. Re-run heartbeat-sync + TN-FR-1 neighbour-discovery/`directed_via`; confirm mutual-RX + HB-sync hold.
+**REPORT:** PASS = LoRa survived #20 → restore → Phase 1 parity. FAIL = regression to localise. Framing:
+conjecture/refutation, TN-FR-1 re-asserted on current firmware.
+
+### ☑ CHECKPOINT (2026-06-26 ~02:30 NZ) — Phase 0 metal HELD by supervisor; build-PASS = the accepted result.
+**SUPERVISOR FINAL CALL:** stand down on Phase 0 metal. BUILD-PASS IS the Phase 0 result that matters —
+*LoRa survived #20, confirmed.* Metal mutual-RX + HB-sync is a CONFIRMATION that waits for a clean window
+(Roy/composer freeing a 2nd board, or the demo ending) — do NOT interrupt Roy's live demo, do NOT grab the
+1 free port, STOP queuing composer. Everything staged at `tuxedo-os:~/phase0/` for an instant run when a
+window opens. **Two follow-ups queued (both no-rush, both confirmed to core):**
+1. **frame_fingerprint seed-first sig (core 807cab5):** my call-site is main.rs:1403 (A1 option-c
+   FingerprintCache). Worktree base (0ebfd09) still has the OLD 4-arg sig → NO break now. When core advances
+   the worktree base to include 807cab5: update :1403 to `frame_fingerprint(&seed, fr_origin, msg_id,
+   payload, hmac_tag)` + source a 16B secret seed from the ESP32-S3 HWRNG (esp_hal Rng/Trng) for
+   DataPlane::new + the call (NOT derived — guessable). Interim [0;16] = sound.
+2. **Field-firmware prep (supervisor-offered) — GAP ANALYSIS DELIVERED.** The supervisor (NOT specs) owns
+   the field-firmware canon, and it's NOT yet authored (only `docs/planning/FIELD-SENSOR-FIRMWARE.md` plan
+   exists) → my current-firmware ground truth is its authoring input. Wrote the full answer in
+   `docs/field-firmware-role-prep.md` + sent the supervisor (a)-(e): roles=FOUR (receiver=terminal
+   sink/display+absence-track, distinct from bridge=transit); NO config-struct today (role = hive_id-match ×
+   features, all hardcoded consts — listed the knobs+values); 8B beacon = my_hive(u32 BE)++seq(u32 BE),
+   separate from §12.6 HB (keep distinct, evolve beacon into R2-BEACON §8); per-role deltas; join = persona
+   @0x12000 persists, re-attach silently resumes, **NO self-enrol**. TWO new-behaviour flags for canon:
+   (i) sensor duty-cycle ADVERTISED not ENFORCED (no real wake/sleep yet); (ii) no autonomous enrol.
+   **OWNERSHIP CLARIFIED:** **specs** is the actual canon AUTHOR (it owns R2-LORA/R2-BEACON/R2-ROUTE;
+   already landed R2-ROUTE §13.4 + R2-LORA §9.1 LoRa-no-sender-quota; will author R2-BEACON §8 + the
+   role-profile) and was EXPLICITLY blocked on hive's gap analysis. Sent the full analysis to BOTH supervisor
+   AND specs (specs' earlier fork-ask predated the analysis). **NEXT GATE:** specs pins R2-BEACON §8 + the
+   role-profile struct/enum → THEN I implement against the pinned canon (NOT a guessed struct). Both replies
+   pending. (Attribution quirk post-account-B: specs↔supervisor msgs sometimes mislabel sender — content is fine.)
+
+### PROGRESS (2026-06-26 ~01:50 NZ):
+- **BUILD-LEVEL VERDICT = PASS.** Built current firmware `nobt,loraroute,loratcxo,multitg` on Alfred —
+  13.4s, ZERO errors, 24 dead-code warnings only, fresh ELF
+  `dfr1195-fw-wt/platforms/dfr1195/target/xtensa-esp32s3-none-elf/release/r2-dfr1195` (1065112B, 01:44).
+  LoRa firmware survives #20 at source level (no API-drift from r2-dataplane/route/wire consolidation,
+  dc re-emit, H9-secure HB-rx, A1 reconcile). **GOTCHA:** must `source ~/Development/homelab/export-esp.sh`
+  WITHOUT a pipe (piping source = subshell = PATH lost → "linker xtensa-esp32s3-elf-gcc not found").
+- **BENCH IS LIVE — not a hardware gap.** The `tuxedo` ssh alias is a DEAD tailnet node (7d offline) =
+  my timeout. Rig moved to **`tuxedo-os`** (100.90.50.112). All 5 DFR1195 enumerate; TN-FR-1 rig present
+  + provisioned Jun22: D1 50:26:98=ttyACM0 (480e900e orig), D2 b7:90:10=ttyACM1 (2cab5f69),
+  D3 b6:0a:a0=ttyACM4 (f91c8911), D4 52:99:28=ttyACM3 (06ae082b), D5 50:23:E4=ttyACM2 (0dcadbf8).
+- **FLASH PAYLOAD PRE-STAGED** to `tuxedo-os:~/phase0/` = {espflash 4.4.0 (tuxedo-os has none), ELF
+  `r2-dfr1195-loraroute`, `dfr1195-partitions.csv`}. espflash runs natively there.
+- **GATE = port-release (REFINED ~02:1x NZ).** Orchestrator RESTARTED → PID 3197; now holds
+  ttyACM0/2/3/4, leaves **ttyACM1 (D2 2cab5f69) FREE**. Only ONE of two needed ports free → can't run
+  mutual-RX yet (needs 2 boards that hear each other; originator role NOT required — any pair works).
+  Queued composer TWICE for a 2nd port (unanswered, busy/offline). ESCALATED to supervisor →
+  **SUPERVISOR RULING (resolved): hive = STAND BY.** The metal-run is gated on Roy's live demo holding the
+  ttys; do NOT interrupt it. Hold until composer/Roy frees ≥2 boards (then run instantly). (Overnight freeze
+  was account A's weekly cap; now on account B, fresh budget.) Run script
+  is staged at `tuxedo-os:~/phase0/phase0-run.sh` (hardcoded D1 ACM0 + D2 ACM1 — EDIT ports if a different
+  pair is freed). **NEXT when 2 ports free:** ssh tuxedo-os, flash both with
+  `~/phase0/espflash flash --chip esp32s3 --partition-table ~/phase0/dfr1195-partitions.csv --port <by-id>
+  -a hard-reset --non-interactive ~/phase0/r2-dfr1195-loraroute` (partition-table = persona@0x12000 survives),
+  monitor both for boot `DEV <maclow3> hive=` + mutual-RX + heartbeat-sync + neighbour-discovery, then
+  RESTORE baseline + tell composer to re-attach.
+Refs: [[lora-message-passing-metal]], [[dfr1195-firmware-bench-workflow]]. Shorter cycles + /clear when prompted.
+(Everything below this block is PRIOR state — kept for recovery.)
+
+---
+
 Updated 2026-06-24 (owned by hive). Master save (read-only ref):
 `r2-fleet/fleet-context/FLEET-CONTEXT-SAVE.md` (moved from claude-fleet, now tooling-code-only).
 
