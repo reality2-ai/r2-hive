@@ -51,6 +51,16 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   (RX) / DI→GPIO43 (TX) / DE-RE→GPIO6 ; (3) confirm the radar is actually transmitting (LED/scope) ; (4) radar
   MODEL/datasheet (protocol/baud/addr + any wake/init command; may not be Modbus). Probe is fully built +
   metal-proven-functional (CRC-selftest PASS); ready to re-run the instant a physical variable changes.
+- **A/B SWAP (Roy) = STILL FULLY NULL** (both A/B orientations now tested). 7 listen-NONE + 21/21 Modbus
+  combos, zero response/garbage. So A/B polarity is NOT it either. Firmware DEFINITIVELY EXHAUSTED (active
+  format space × both A/B orientations + passive listen). RX path delivers zero bytes regardless ⇒ a BROKEN
+  SIGNAL LINK or POWER/PROTOCOL issue. NARROWED next steps (Roy's bench, escalated): (1) CONTINUITY-meter
+  RO→GPIO44(RX) [prime — RX path] / DI→GPIO43(TX) / DE-RE→GPIO6 ; (2) MAX485 POWER — Vcc=5V (not 3V3) + GND
+  landed? (a MAX485 needs 5V; unpowered/3V3 transceiver = dead bus) ; (3) the A/B pair actually on the
+  MAX485 A/B terminals? ; (4) **RADAR MODEL/DATASHEET** (highest value) — confirms Modbus-vs-proprietary, the
+  real baud/addr/register-map, AND any WAKE/INIT command (a radar needing an init sequence never answers a
+  blind read). Firmware side COMPLETE; no further probe iteration until a physical variable changes or the
+  model lands. Logs: scratchpad/radar-{sweep,sweep-powered,listen,abswap}.log (all null).
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
