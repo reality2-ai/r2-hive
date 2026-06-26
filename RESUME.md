@@ -106,10 +106,20 @@ first-light + pin-map + DIO2 RF-switch WORKING.
 METAL-CAUGHT BUG FIXED (`0f87bd3`): read_persona buffer 256B truncated composer's 336B persona → persona=false
 fallback; bumped to 512B. RE-FLASH NOTE: NVS blobs (persona/role/board-profile) PERSIST across an app re-flash
 (they're raw sectors, not in ota_0) — only re-flash the app for a firmware fix.
-REMAINING: OTA confirmed-boot round-trip — needs composer's ota_push (push side); I HOLD the ports (composer
-orchestrator STOPPED via systemctl --user stop r2-orchestrator.service — it's a systemd user svc that
-auto-respawns a bare kill). Awaiting Roy's OTA-now-vs-handback call + composer's ota_push-over-WiFi answer.
-When done: ping composer 'flash done' → it runs `systemctl --user start r2-orchestrator.service` (re-grabs ttys).
+FIELD-RESULTS RECORD: `docs/field-results/mariko-triplet-metal-0627.md` (committed c92e7ba). composer CONCURS
+with document-as-follow-up for OTA.
+OTA round-trip = DOCUMENTED FOLLOW-UP — blocked by bench NETWORK topology (triplet on DFR-D1's isolated
+soft-AP 192.168.4.x; Alfred on LAN 192.168.1.33; no route + no push host on the soft-AP). Firmware path
+IMPLEMENTED + slot-switch metal-validated (test-b PASS); signer (composer tg ota-sign f7cd3fe) + trust-model
+(§2.4 TG_SK-direct issuer_pk==tg_pk, verified in my receiver) + wire-contract all confirmed. PATH B (sensor
+on a LAN AP via FIELDLAB_SSID change + reflash) ready on Roy's go + LAN WiFi creds.
+NEW FORK (FORKS.md, routed to specs 2026-06-27): **OTA transport framing** — my DFR receiver = OST/ODT/OCM
+PACKETIZED UDP :21043; R2-UPDATE §3.1.2.3 canon (composer + r2-core HEAD) = CMD_START_SIGNED TCP STREAM.
+SIGNING shared+correct (verify_header passes both); transport-only divergence. specs to rule: align
+hive→TCP, or ratify a no_std UDP profile. Not blocking (bench network-parked).
+PENDING ROY: accept-complete (→ ping composer 'flash done' → `systemctl --user start r2-orchestrator.service`
+re-grabs ttys + restores dashboard) vs PATH B (→ LAN creds → reflash sensor + run OTA round-trip). Ports
+HELD (composer orchestrator stopped) until the call.
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
 - The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
