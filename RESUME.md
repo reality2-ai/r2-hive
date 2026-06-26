@@ -22,6 +22,18 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   the esp-hal UART half-duplex DE/RE + Modbus-RTU + firmware-integration spec; API-drift-hardened since it
   bit us 3× this session). Fork-asked core for the esp-hal UART TX-complete/baud-reconfig/UART-peripheral
   gotchas. NEXT: implement the `radarprobe` feature + probe task per the synth spec, build-verify xtensa, hold flash.
+- **PROBE BUILT + FLASHED + RUNNING (worktree `3bc56d1`+parity-sweep).** `radarprobe` cargo feature
+  (standalone RS-485 Modbus master on UART1, radio stack OFF, USB-CDC output). Design via Workflow
+  `wk6evtri0` (source-verified esp-hal API: flush()=tx-idle mod.rs:850/906, apply_config live baud sweep;
+  adversarial-verified Modbus CRC poly 0xA001) + core's UART gotchas. esp-hal flush/spawn(Result)/Config
+  builders all source-confirmed. CRC self-test PASSES on metal. Flashed to radar XIAO 1c:db:d4 (identity
+  re-confirmed via board-info).
+- **FIRST SWEEP = NULL (no device responded).** All 6 bauds START→DONE clean (no garbage, no panic) at
+  8N1, Roy's pins (TX=43/RX=44/DE-RE=6). Clean-silence ⇒ radar received nothing back ⇒ format/baud OR
+  wiring. EXPANDED to rule out the format space: parity sweep {None,Even,Odd} × bauds {2400..115200},
+  re-flashed + re-running (bg capture). IF still null after the format-exhaustive sweep ⇒ the remaining
+  variables are WIRING (TX/RX swap vs DI/RO — Roy flagged this ambiguity / DE-RE polarity-or-pin) or POWER
+  or NON-Modbus — escalate to Roy to confirm the physical wiring (firmware can't resolve those).
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
