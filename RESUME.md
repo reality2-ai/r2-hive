@@ -133,9 +133,18 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    build platforms/esp32 (esp-idf-sys/std; the 13 green = the DFR no_std build only) + on-metal confirmed-boot.
 3. **bridge CCR1 carrier-cred read** (§3.2.4 multi-carrier uplink) — firmware unseal+read of the sealed
    WiFi/cell creds @0x19000 (reserved; composer emits on demand). First triplet used bench WiFi.
-WATCH on next spec landing: specs authoring the datagram-binding package (Roy-gate) + §5.1 → then implement
-both FORKS.md items + flip them Resolved. composer follow-up (theirs): wire the signed path into the Deploy
-sentant + a one-shot field push CLI (still emits unsigned CMD_START today).
+4. **Datagram-binding ratify** (specs, all-3-aligned, Roy-gate, non-urgent) — specs authoring the package +
+   §5.1 boot_confirm_late; on landing, implement both FORKS.md items (transport binding already IS the impl;
+   the OCM after-confirm floor-fix) + flip them Resolved.
+5. **Radar sensor integration** — real sense-read for the SENSOR role (today it originates test/synthetic
+   events); ties to [[custom-sensor-3stage-architecture]] (SENTINEL→MCU sense + the enforced wake/sleep §3.2.3).
+6. **bridge WiFi-uplink** (§3.2.4 multi-carrier) — beyond CCR1 cred-read: the actual pluggable uplink
+   (WiFi-STA / wired / cellular) egress for the bridge role (first triplet bridge used bench WiFi).
+7. **Deploy-sentant signed path** (composer's, theirs) — wire the signed CMD_START into Deploy + a one-shot
+   field push CLI (emits unsigned CMD_START today). Tracked so the field OTA path isn't half-wired.
+8. **Dashboard label reconcile** (composer's, cosmetic) — orchestrator --status-port labels show the old mesh
+   hives; the 3 boards re-personae'd to field identities. composer logged it; not hive's.
+(Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
 - The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
