@@ -1,6 +1,25 @@
 # RESUME — r2-hive (hive-worker)
 
-## ► CURRENT SESSION 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
+## ► CURRENT 2026-06-27 — RADAR BRING-UP (Modbus-RTU PROBE, Roy chose PROBE-to-discover; ULTRACODE on)
+First REAL sensor. Build+flash a Modbus-RTU PROBE firmware to the radar XIAO to discover the radar protocol
+empirically (baud + slave-addr + register map), → then build the real radar driver + sentant on the sensor ensemble.
+- **RADAR XIAO IDENTITY-VERIFIED (safety gate):** MAC **1c:db:d4:5b:8a:60**, esp32s3 rev v0.2, 8MB, **ttyACM12**
+  (by-id `usb-Espressif_USB_JTAG_serial_debug_unit_1C:DB:D4:5B:8A:60-if00`), port FREE. It is the ONLY
+  Espressif NOT in {triplet 14:C1:9F../E8:3D..E5:20/D8:3B.. + spare E8:3D..DB:44 + 5 DFR F4:12:FA:*}. FLASH
+  ONLY this by-id path (ttyACMn remaps — verified the trap; Alfred has 11 Espressif boards now).
+- **PROBE LOGIC:** Modbus-RTU master over XIAO UART→RS-485 transceiver; sweep baud {4800,9600,19200,38400,
+  115200}×slave-addr (1 first, then 1..247 subset); on CRC-valid response → dump holding(fn 0x03)+input(fn
+  0x04) regs 0..63 + device-id (fn 0x2B/0x0E); print over USB serial. Report baud+addr+register-map.
+- **BLOCKED PREREQ:** RS-485 wiring (UART TX/RX GPIO + DE/RE direction GPIO + transceiver type) — Roy
+  relaying via supervisor. SCAFFOLD pin-parametric (named consts, FILL-FROM-ROY placeholders); FLASH HELD
+  until pins relayed + identity re-confirmed.
+- **IN FLIGHT (2026-06-27):** Workflow `wk6evtri0` (radar-probe-design: research→adversarial-verify→synthesize
+  the esp-hal UART half-duplex DE/RE + Modbus-RTU + firmware-integration spec; API-drift-hardened since it
+  bit us 3× this session). Fork-asked core for the esp-hal UART TX-complete/baud-reconfig/UART-peripheral
+  gotchas. NEXT: implement the `radarprobe` feature + probe task per the synth spec, build-verify xtensa, hold flash.
+ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
+
+## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
 Build the field-firmware triplet against the COMPLETE canon (R2-RUNTIME §3.2 role-profiles + §3.2.4
 multi-carrier bridge; R2-BEACON §8.1 LoRa-beacon RBID; wake/sleep+SCF; re-attach; OTA-after-confirm both
 platforms). ONE-IMAGE config-activated firmware, ENSEMBLE-differentiated (NOT compile-time roles):
