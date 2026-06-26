@@ -41,6 +41,16 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   protocol or a different bus)? — radar MODEL/datasheet would pin the real baud/addr/protocol.
   AWAITING Roy: confirm wiring/power OR the radar model. Next firmware experiment (only after Roy OKs the
   wiring): TX/RX-swapped re-flash. Probe + parity-sweep already committed (worktree).
+- **POWERED RE-RUN (battery on) = STILL FULLY NULL** + **PASSIVE LISTEN-ONLY phase = NONE at every baud.**
+  Added a safe RX-only listen phase (DE/RE low, never drives the bus) to catch a STREAMING/non-Modbus radar
+  + test the RX path. Result: ZERO bytes received passively at ANY baud (9600..2400), AND the active Modbus
+  sweep null again. DECISIVE: the UART RX (GPIO44←MAX485 RO) gets NOTHING under any condition, and the radar
+  is NOT streaming. Firmware has exhausted BOTH active (format space) + passive (listen) testing → the issue
+  is PHYSICAL, not firmware/format. ESCALATED to Roy, prioritized: (1) SWAP A/B bus wires (most common RS-485
+  fix; reversed A/B ⇒ MAX485 receiver outputs nothing valid ⇒ clean silence) ; (2) verify continuity RO→GPIO44
+  (RX) / DI→GPIO43 (TX) / DE-RE→GPIO6 ; (3) confirm the radar is actually transmitting (LED/scope) ; (4) radar
+  MODEL/datasheet (protocol/baud/addr + any wake/init command; may not be Modbus). Probe is fully built +
+  metal-proven-functional (CRC-selftest PASS); ready to re-run the instant a physical variable changes.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
