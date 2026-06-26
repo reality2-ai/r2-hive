@@ -78,6 +78,17 @@ STEP TRACKER:
   ⚠ HOLD flashing/metal until Roy frees the bench boards (per the supervisor ruling — do not interrupt the
   live demo). Worktree HEAD `d3fdc7c` (branch `dfr1195-fw`, base c46383e).
 
+### CANON-DELTA PASS (post-build, canon landed mid-session; worktree `7961ced`):
+A batch of canon notes landed AFTER the build — most CONFIRM my work matches (specs pinned §3.2 role-profile
++ §8.1 v0.7 + wake/sleep canon; my impl matches). Two genuine NEW deltas implemented: (1) R2-LORA §6.5.2
+MUST — seed the initial lora_route_task tx_backoff from the per-board LCG (0..1s) so the mains-restore
+cohort's FIRST post-boot TX de-correlates (was 0=immediate); (2) R2-HEARTBEAT §1A.2 SHOULD — my symmetric
+half of core's fade-window check: warn at config load (provisioned profiles) if scf_ttl_s < 3×wake_interval_s.
+CONFIRMED already-aligned (no change): SEC-02 deliver-gate (for_me=target_hive==my_hive||0 + tg+hmac, already
+stricter); §8.1 15/16B; §3.5 re-attach; A7/A8(a)+(b). Answered specs' no_std-one-image feasibility Q = YES,
+PROVEN (13/13 green, role-by-NVS-record). NOTED for metal: switch SCF trigger reachability-heuristic →
+core's DropReason::BufferForWake signal (current heuristic is metal-validated, so confirm equivalence on metal).
+
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
 - The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
   role-profile activation (provision an RPF1 record @0x17000, confirm role behaviour), §8.1 beacon RX
