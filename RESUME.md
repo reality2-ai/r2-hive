@@ -117,9 +117,25 @@ NEW FORK (FORKS.md, routed to specs 2026-06-27): **OTA transport framing** — m
 PACKETIZED UDP :21043; R2-UPDATE §3.1.2.3 canon (composer + r2-core HEAD) = CMD_START_SIGNED TCP STREAM.
 SIGNING shared+correct (verify_header passes both); transport-only divergence. specs to rule: align
 hive→TCP, or ratify a no_std UDP profile. Not blocking (bench network-parked).
-PENDING ROY: accept-complete (→ ping composer 'flash done' → `systemctl --user start r2-orchestrator.service`
-re-grabs ttys + restores dashboard) vs PATH B (→ LAN creds → reflash sensor + run OTA round-trip). Ports
-HELD (composer orchestrator stopped) until the call.
+★ SESSION STOOD DOWN (2026-06-27, Roy BANKED the milestone, supervisor stand-down). Boards HANDED BACK —
+composer re-attached (r2-orchestrator.service active, PID re-grabbed ttyACM1-4 + :21050 dashboard restored);
+no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepted result.
+
+**DEFERRED NEXT-SESSION (resume-clean checklist):**
+1. **OTA confirmed-boot networked round-trip** — needs (a) a board on a LAN-reachable AP (PATH B: change
+   `FIELDLAB_SSID`/pass + reflash; bench soft-AP is DFR-D1-isolated, Alfred can't route) + (b) an
+   OTA-authority signer (composer `tg ota-sign` §2.4 TG_SK-direct = the working path; mint-ota would NOT
+   verify, no role-0x05 cert). Wire = the DATAGRAM binding (OST/ODT/OCM UDP :21043, chunk≤1024B) specs
+   ratified. ALSO bundle the FORKS.md fix: move the OCM anti-rollback floor-bump → confirmed-boot health-gate
+   (after-confirm v0.21) — IMPLEMENT on specs' §5.1 boot_confirm_late detail (asked: health-check def +
+   native PENDING_VERIFY vs firmware pending-marker; my DFR has no native gate yet).
+2. **esp32 platform IDF compile-verify** (core ruled it's hive's) — stand up ESP-IDF via espup on Alfred,
+   build platforms/esp32 (esp-idf-sys/std; the 13 green = the DFR no_std build only) + on-metal confirmed-boot.
+3. **bridge CCR1 carrier-cred read** (§3.2.4 multi-carrier uplink) — firmware unseal+read of the sealed
+   WiFi/cell creds @0x19000 (reserved; composer emits on demand). First triplet used bench WiFi.
+WATCH on next spec landing: specs authoring the datagram-binding package (Roy-gate) + §5.1 → then implement
+both FORKS.md items + flip them Resolved. composer follow-up (theirs): wire the signed path into the Deploy
+sentant + a one-shot field push CLI (still emits unsigned CMD_START today).
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
 - The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
