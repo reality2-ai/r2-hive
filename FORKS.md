@@ -6,7 +6,7 @@ no removal-condition is a bug. Review this file at every spec landing + every fi
 
 | Fork | Owner | Spec / canon | Removal-condition | Tracking gate | Status |
 |---|---|---|---|---|---|
-| _(none — empty is the goal)_ | | | | | |
+| **OTA transport framing** — DFR receiver uses **OST/ODT/OCM packetized UDP** (start+hdr+sig / offset-chunks+OAK / commit) on UDP :21043; canon (+ composer + r2-core HEAD) is the **CMD_START_SIGNED TCP stream** ([0x03][hdr 123][sig 64]+payload) on TCP :21043 | hive | **R2-UPDATE §3.1.2.3** (CMD_START_SIGNED TCP stream) | specs rules: hive adopts the canon TCP stream **OR** specs ratifies a no_std UDP profile of §3.1.2.3 — impl converges to the ruling | `ota_wire_canon_tcp_stream` (to add) | **OPEN** — routed to specs 2026-06-27 (composer flagged it too). Signing is SHARED+correct (same UpdateHeader+sig, verify_header passes both) — transport-only. Does NOT block the bench round-trip (network-parked) — field-OTA-readiness reconcile. Rationale for UDP: no_std embassy-net (TCP server = heavier MCU state); but TCP is available. |
 
 ## Resolved (log)
 - **HB byte-8 `power_state`** vs **R2-WIRE §12.6** — RESOLVED 2026-06-25. The firmware dc re-emit landed: byte-8 →
