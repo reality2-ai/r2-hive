@@ -93,6 +93,15 @@ core's DropReason::BufferForWake signal (current heuristic is metal-validated, s
 - The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
   role-profile activation (provision an RPF1 record @0x17000, confirm role behaviour), §8.1 beacon RX
   resolution, §3.5 re-attach, OTA confirmed-boot round-trip.
+- COORDINATION RESOLVED (2nd batch): composer ADOPTED RPF1 byte-exact (40B then 48B, encode_rpf1 2d1bd25);
+  sent composer the XIAO board.toml GPIO map (SCK7/MISO8/MOSI9 NSS41 RST42 BUSY40 DIO1=39, RF-sw=DIO2,
+  TCXO-DIO3-1.8) + 4 RPF1 answers: dest/expected_sensor=0 OK for first triplet; bridge carrier-creds sector
+  RESERVED @0x19000 ('CCR1' format) but firmware read/unseal = §3.2.4 FOLLOW-UP (first triplet uses bench
+  WiFi); .role blob written RAW to flash @0x17000 (not an NVS partition image). **core CONFIRMED the XIAO
+  RF-switch WORKS with Sx1262::new()** (DIO2 keyed unconditionally in configure(); 88f549f added
+  with_dio2_as_rf_switch alias) — dropped the false "RF not driven" caveat (worktree HEAD updated). **specs
+  landed R2-RUNTIME v0.12 §3.2** stating one-image config-activated PROVEN, citing this build. NVS map now
+  ends: role-profile@17000 / anti-rollback@18000 / (reserved) carrier-creds@19000.
 - Cross-fleet OPENS (replies in): **core RULED** sdkconfig+FFI correct, NVS-collision N/A for esp32
   (namespaced API), and **platforms/esp32 IDF build + on-metal confirmed-boot is HIVE's** → I must install
   ESP-IDF (espup) to compile-verify platforms/esp32 (Alfred has only esp-hal/xtensa) = OWED. core's
