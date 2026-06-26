@@ -89,6 +89,28 @@ stricter); §8.1 15/16B; §3.5 re-attach; A7/A8(a)+(b). Answered specs' no_std-o
 PROVEN (13/13 green, role-by-NVS-record). NOTED for metal: switch SCF trigger reachability-heuristic →
 core's DropReason::BufferForWake signal (current heuristic is metal-validated, so confirm equivalence on metal).
 
+### ★ FIELD TRIPLET FLASHED + VALIDATED ON METAL (2026-06-27, Roy FLASH-GO; worktree `0f87bd3`):
+3 XIAO+Wio-SX1262 on Alfred, flashed via STABLE by-id MAC paths (ttyACMn REMAPS on USB re-enum — board-info
+read a DIFFERENT MAC on /dev/ttyACM1 than its old by-id; +5 DFR1195 also on Alfred ttyACM6-10 → flashing by
+ttyACMn would hit a wrong board; ALWAYS use /dev/serial/by-id/usb-Espressif..._<MAC>-if00). Image =
+`xiao,field,loraroute,loratcxo,multitg` (1.32MB), 4MB parttable, app→flash + persona→0x12000 + RPF1→0x17000
++ board-profile(00 01)→0x13000. composer's mint out-dir = /home/roycdavies/r2-bench/mariko-triplet/, TG
+1494e803.
+- SENSOR   14:C1:9F:C4:FC:8C → hive=c01cee4d MATCH, role=sensor duty=2 §3.2.2-provisioned, persona=true ✓
+- REPEATER E8:3D:C1:FB:E5:20 → hive=296f308b MATCH, role=repeater duty=1, persona=true ✓
+- BRIDGE   D8:3B:DA:75:C3:3C → hive=bd72902e MATCH, role=bridge duty=1, persona=true ✓ (4th XIAO E8:..DB:44 spare)
+VALIDATED: (1) ROLE-ACTIVATION ✓ — all 3 config-activate role from ONE image via RPF1 (§3.2 keystone, METAL).
+(2) §8.1 LoRa-BEACON RX ✓ — bridge logged `LORA-BEACON rbid=6acdd5.. class=991db9af rssi=-54`. (3) LoRa
+data-plane ✓ — triplet mutual RX (c01cee4d/296f308b/bd72902e masked=false) + hears DFR mesh; XIAO+Wio
+first-light + pin-map + DIO2 RF-switch WORKING.
+METAL-CAUGHT BUG FIXED (`0f87bd3`): read_persona buffer 256B truncated composer's 336B persona → persona=false
+fallback; bumped to 512B. RE-FLASH NOTE: NVS blobs (persona/role/board-profile) PERSIST across an app re-flash
+(they're raw sectors, not in ota_0) — only re-flash the app for a firmware fix.
+REMAINING: OTA confirmed-boot round-trip — needs composer's ota_push (push side); I HOLD the ports (composer
+orchestrator STOPPED via systemctl --user stop r2-orchestrator.service — it's a systemd user svc that
+auto-respawns a bare kill). Awaiting Roy's OTA-now-vs-handback call + composer's ota_push-over-WiFi answer.
+When done: ping composer 'flash done' → it runs `systemctl --user start r2-orchestrator.service` (re-grabs ttys).
+
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
 - The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
   role-profile activation (provision an RPF1 record @0x17000, confirm role behaviour), §8.1 beacon RX
