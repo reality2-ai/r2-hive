@@ -10,9 +10,14 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
 - **PROBE LOGIC:** Modbus-RTU master over XIAO UART→RS-485 transceiver; sweep baud {4800,9600,19200,38400,
   115200}×slave-addr (1 first, then 1..247 subset); on CRC-valid response → dump holding(fn 0x03)+input(fn
   0x04) regs 0..63 + device-id (fn 0x2B/0x0E); print over USB serial. Report baud+addr+register-map.
-- **BLOCKED PREREQ:** RS-485 wiring (UART TX/RX GPIO + DE/RE direction GPIO + transceiver type) — Roy
-  relaying via supervisor. SCAFFOLD pin-parametric (named consts, FILL-FROM-ROY placeholders); FLASH HELD
-  until pins relayed + identity re-confirmed.
+- **RS-485 PINS RECEIVED (Roy, 2026-06-27):** MAX485 transceiver. RADAR_UART_TX=**GPIO43** (D6 → MAX485 DI),
+  RADAR_UART_RX=**GPIO44** (D7 ← MAX485 RO), RADAR_DE_RE=**GPIO6** (D5, DE+RE tied; HIGH=TX, LOW=RX). Radar
+  self-powered 12V (live slave answers). OUTPUT on USB-CDC console ONLY (the GPIO43/44 UART IS the RS-485
+  bus — never log to it). GPIO43/44 = esp32-s3 default UART0 pins BUT console rides USB-Serial-JTAG (free);
+  use UART1 via GPIO-matrix to avoid any UART0 console remnant. radarprobe gates OFF LoRa so GPIO6 (=DFR LoRa
+  MOSI) won't collide. Half-duplex: DE/RE HIGH before TX, HOLD until UART TX-COMPLETE, then LOW for RX (the
+  brick gotcha — get esp-hal tx-done detection right; core advising). Flash NO LONGER pin-blocked — gated only
+  on the design workflow finishing + build-green; re-confirm identity (1c:db:d4) at flash.
 - **IN FLIGHT (2026-06-27):** Workflow `wk6evtri0` (radar-probe-design: research→adversarial-verify→synthesize
   the esp-hal UART half-duplex DE/RE + Modbus-RTU + firmware-integration spec; API-drift-hardened since it
   bit us 3× this session). Fork-asked core for the esp-hal UART TX-complete/baud-reconfig/UART-peripheral
