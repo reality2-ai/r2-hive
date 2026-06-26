@@ -82,9 +82,12 @@ STEP TRACKER:
 - The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
   role-profile activation (provision an RPF1 record @0x17000, confirm role behaviour), §8.1 beacon RX
   resolution, §3.5 re-attach, OTA confirmed-boot round-trip.
-- 3 cross-fleet OPENS (asked, non-blocking): core = platforms/esp32 IDF build+confirmed-boot ownership +
-  r2-sx1262 DIO2-RF-switch support; workshop = authoritative XIAO+Wio-SX1262 pinout; composer = RPF1 emit
-  (48B record) + board.toml. §8.1 codec OFFERED to core for upstreaming into r2-discovery::beacon.
+- Cross-fleet OPENS (replies in): **core RULED** sdkconfig+FFI correct, NVS-collision N/A for esp32
+  (namespaced API), and **platforms/esp32 IDF build + on-metal confirmed-boot is HIVE's** → I must install
+  ESP-IDF (espup) to compile-verify platforms/esp32 (Alfred has only esp-hal/xtensa) = OWED. core's
+  r2-sx1262 DIO2-RF-switch support = still open (flagged). **workshop CONFIRMED** the XIAO pins vs
+  meshtastic seeed_xiao_s3 variant.h (my map was right) — confirm vs Seeed schematic before canon. composer
+  = RPF1 emit (48B) + board.toml = queued. §8.1 codec OFFERED to core for r2-discovery::beacon upstreaming.
 - SEPARATE TRACK (not firmware): repoint r2-hive-bin/Cargo.toml path-deps at r2-core's now-landed
   r2-def/r2-dispatch/r2-ensemble/r2-transport/r2-discovery (core msg 21:27) — awaiting core 'build green' go.
 Canon refs read + pinned: R2-RUNTIME §3.2.1–3.2.4, R2-BEACON §8.1.1–8.1.4. Gap-analysis input doc =
