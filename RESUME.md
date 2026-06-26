@@ -28,12 +28,19 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   adversarial-verified Modbus CRC poly 0xA001) + core's UART gotchas. esp-hal flush/spawn(Result)/Config
   builders all source-confirmed. CRC self-test PASSES on metal. Flashed to radar XIAO 1c:db:d4 (identity
   re-confirmed via board-info).
-- **FIRST SWEEP = NULL (no device responded).** All 6 bauds START→DONE clean (no garbage, no panic) at
-  8N1, Roy's pins (TX=43/RX=44/DE-RE=6). Clean-silence ⇒ radar received nothing back ⇒ format/baud OR
-  wiring. EXPANDED to rule out the format space: parity sweep {None,Even,Odd} × bauds {2400..115200},
-  re-flashed + re-running (bg capture). IF still null after the format-exhaustive sweep ⇒ the remaining
-  variables are WIRING (TX/RX swap vs DI/RO — Roy flagged this ambiguity / DE-RE polarity-or-pin) or POWER
-  or NON-Modbus — escalate to Roy to confirm the physical wiring (firmware can't resolve those).
+- **FORMAT-EXHAUSTIVE SWEEP = FULLY NULL (escalated to Roy).** 21 combos (parity {N,E,O} × baud
+  {2400,4800,9600,19200,38400,57600,115200}, 8 data /1 stop), Roy's pins (TX=43/RX=44/DE-RE=6): ALL
+  START→DONE clean, ZERO responses, ZERO garbage, no panic. Probe FUNCTIONAL (CRC-selftest PASS). The
+  CLEAN-silence across the WHOLE format space ⇒ UART RX received NOTHING ⇒ radar never got our request
+  (TX-path) or isn't transmitting. Firmware's safe space EXHAUSTED. Sweep log: scratchpad/radar-sweep.log.
+- **REMAINING = PHYSICAL (Roy's bench) — escalated.** (1) TX/RX wiring vs MAX485 DI/RO (the ambiguity Roy
+  flagged) — ⚠ I will NOT blind-swap in firmware: if GPIO44 is wired to RO (an output), driving it as TX =
+  output-contention = HW-damage risk; the swap must be a WIRING change or confirmed first. (2) DE/RE pin
+  (is D5=GPIO6 right?) + polarity (standard tied DE-high/!RE-low ⇒ HIGH=TX is what I use). (3) radar 12V on
+  + A/B actually landed on the MAX485 A/B. (4) is it genuinely Modbus-RTU (vs a proprietary/streaming
+  protocol or a different bus)? — radar MODEL/datasheet would pin the real baud/addr/protocol.
+  AWAITING Roy: confirm wiring/power OR the radar model. Next firmware experiment (only after Roy OKs the
+  wiring): TX/RX-swapped re-flash. Probe + parity-sweep already committed (worktree).
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
