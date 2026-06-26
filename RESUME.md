@@ -97,7 +97,11 @@ core's DropReason::BufferForWake signal (current heuristic is metal-validated, s
   sent composer the XIAO board.toml GPIO map (SCK7/MISO8/MOSI9 NSS41 RST42 BUSY40 DIO1=39, RF-sw=DIO2,
   TCXO-DIO3-1.8) + 4 RPF1 answers: dest/expected_sensor=0 OK for first triplet; bridge carrier-creds sector
   RESERVED @0x19000 ('CCR1' format) but firmware read/unseal = §3.2.4 FOLLOW-UP (first triplet uses bench
-  WiFi); .role blob written RAW to flash @0x17000 (not an NVS partition image). **core CONFIRMED the XIAO
+  WiFi); .role blob written RAW to flash @0x17000 (not an NVS partition image). composer CONVERGED:
+  board.toml [pinout] landed (8e2b2f9, matches my map); delivery = `espflash write-bin 0x17000 <file>.role`;
+  composer's Mariko orchestrator side COMPLETE+green (RPF1 v2 48B emit + §3.2.4 carrier+seal + deploy-set).
+  Remaining XIAO check = Seeed schematic-PDF confirm = METAL-BRING-UP item (verify MISO/MOSI on first
+  XIAO LoRa light; not blocking). **core CONFIRMED the XIAO
   RF-switch WORKS with Sx1262::new()** (DIO2 keyed unconditionally in configure(); 88f549f added
   with_dio2_as_rf_switch alias) — dropped the false "RF not driven" caveat (worktree HEAD updated). **specs
   landed R2-RUNTIME v0.12 §3.2** stating one-image config-activated PROVEN, citing this build. NVS map now
