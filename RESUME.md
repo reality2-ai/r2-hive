@@ -88,7 +88,8 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   race. Next action remains Roy bench: continuity RO->GPIO44 / DI->GPIO43 / DE-RE->GPIO6, MAX485 5V+GND,
   actual radar model/datasheet. Do not assume a firmware TX/RX swap is safe; driving GPIO44 if it is wired to
   MAX485 RO can contend outputs.
-- **SECURITY CRITICAL CLOSED (hive-codex, 2026-06-27; commit pending from HEAD `225b8f4`):** verified and fixed
+- **SECURITY CRITICAL CLOSED (hive-codex, 2026-06-27; security commit `d48094f`, patch-artifact commit
+  `d13a12d`, pre-fix HEAD `225b8f4`):** verified and fixed
   the reported unauthenticated public management WebSocket. `/r2/mgmt` now has three gates: default daemon bind
   is loopback (`127.0.0.1`); non-loopback bind requires explicit `--allow-public-bind`; even with that opt-in
   the management WS is not mounted on non-loopback listeners, so local control is UDS/loopback-only by
