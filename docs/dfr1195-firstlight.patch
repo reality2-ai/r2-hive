@@ -2525,7 +2525,7 @@ index fadd6a4..f643430 100644
 + "syn 2.0.118",
  ]
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 894910e..cf7e23b 100644
+index 894910e..a68a7ff 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,19 @@ path = "src/main.rs"
@@ -2548,7 +2548,7 @@ index 894910e..cf7e23b 100644
  # r2-discovery non-alloc core types (HiveId/TransportId) — no async API at this tier.
  r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  
-@@ -21,26 +34,167 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+@@ -21,26 +34,174 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  # VERSION PINS — hive: confirm against the installed toolchain before flashing.
  # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
  # skeleton is written against.
@@ -2723,6 +2723,13 @@ index 894910e..cf7e23b 100644
 +# so the laptop rig is physically isolated from the co-located tuxedo D-rig (the run-1 crosstalk confound). The
 +# migrated fw (mesh-retire + rate-decouple) is unchanged; default build stays the canonical pinned tuxedo rig.
 +labrig = []
++# RADAR Modbus-RTU PROBE (bring-up diagnostic, NOT a role): a standalone RS-485 Modbus master on UART1 that
++# discovers an unknown radar sensor's baud + unit-addr + register map. Under this feature main() spawns ONLY
++# radar_probe_task + parks — the entire radio/mesh stack (wifi/net/io/ota/ble/lora spawns) is left unreached,
++# so RS-485 turnaround timing isn't perturbed by radio coex. Output on the USB-Serial-JTAG console (the
++# UART1/GPIO43-44 line IS the RS-485 bus). esp-hal API source-verified (flush()=tx-idle for DE/RE; apply_config
++# for the live baud sweep). Build: cargo build --release --features radarprobe.
++radarprobe = []
 +# BOARD: Seeed XIAO ESP32-S3 + Wio-SX1262 module (the OTHER LoRa carrier — hive's half of D3; composer owns
 +# board.toml). Selects the XIAO Wio-SX1262 SPI/control pin-map instead of the DFR1195's integrated SX1262
 +# pins (a HARDWARE-tier fact, radio_set §3.2.2 — NOT a role fork). Standard Seeed Wio-SX1262-for-XIAO pinout;
@@ -2747,10 +2754,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..e94679f 100644
+index 8c49f1c..333e2a0 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,3943 @@
+@@ -1,83 +1,4401 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -2906,6 +2913,9 @@ index 8c49f1c..e94679f 100644
 +const VERSION_FNV: u32 = r2_fnv::fnv1a_32(BUILD_ID.as_bytes());
 +
 +#[esp_rtos::main]
++// Under `radarprobe` main() spawns ONLY the probe + parks (loop diverges), so the radio/mesh region below
++// is intentionally unreachable in that build — allow the warning ONLY there (no effect on normal builds).
++#[cfg_attr(feature = "radarprobe", allow(unreachable_code))]
 +async fn main(spawner: Spawner) -> ! {
 +    // 1. esp-hal init — WiFi needs >= 80 MHz; use max.
 +    let p = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
@@ -2987,6 +2997,22 @@ index 8c49f1c..e94679f 100644
 +            profile.wake_interval_s, profile.wake_window_ms, profile.sleep_enforced
 +        );
 +    }
++    // R2-HEARTBEAT §1A.2 (SHOULD) — config-validation, the SYMMETRIC half of core's fade-window check
++    // (specs: core owns the §2.4 fade/silence window, hive owns the SCF buffer TTL). Each per-transport
++    // bound MUST be ≫ the sleeper cadence (margin 3×), else a frame held for a sleeping leaf is evicted
++    // before its next wake and SCF silently fails. Fail LOUD at config, not silently in the field.
++    // Only meaningful for a PROVISIONED profile (composer set wake_interval_s + scf_ttl_s together); the
++    // derived defaults are independent values, so skip the check there to avoid spurious boot warnings.
++    if read_role_profile().is_some() {
++        const SCF_TTL_MARGIN: u32 = 3;
++        let cadence = profile.wake_interval_s;
++        if cadence > 0 && profile.scf_ttl_s < SCF_TTL_MARGIN * cadence {
++            println!(
++                "r2-dfr1195: !! §1A.2 CONFIG WARNING — scf_ttl_s={}s is NOT ≫ wake_interval_s={}s (margin {}×); a sleeping leaf's buffered frames may be evicted before its next wake (raise scf_ttl_s)",
++                profile.scf_ttl_s, cadence, SCF_TTL_MARGIN
++            );
++        }
++    }
 +    // TN-FR-1 (loraroute): self-contained bench default so the 3-board A->B->C run needs NO provisioning
 +    // (raw-tty MASK/SENDTO writes are unreliable — see the bench-workflow memory). Board A (0dcadbf8)
 +    // originates to C (0xf91c8911); the hive-based can_hear MASK in lora_route_task forces the A->B->C
@@ -3020,7 +3046,10 @@ index 8c49f1c..e94679f 100644
 +        if is_ap { "SOFT-AP" } else { "STA" }
 +    );
 +    println!("r2-dfr1195: carrier has_screen={has_screen} led_active_low={led_active_low}");
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +    // 4. Status LED (GPIO21) via LEDC PWM — for the organic lub-DUB heartbeat envelope.
 +    //    io_task signals the FIRE (conductor-PLL = WHEN); main renders the SHAPE below.
 +    let mut ledc = Ledc::new(p.LEDC);
@@ -3041,6 +3070,67 @@ index 8c49f1c..e94679f 100644
 +            drive_mode: DriveMode::PushPull,
 +        })
 +        .unwrap();
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
++    // ─── RADAR Modbus-RTU PROBE (radarprobe): standalone RS-485 sweep, NO radio stack ───────────────
++    // esp_rtos is already started (drives embassy_time for the probe's deadlines). Construct UART1 +
++    // the DE/RE Output here (real pins from Roy), spawn ONLY the probe, and PARK — the radio/mesh region
++    // below is never reached. Build: cargo build --release --features radarprobe. Pins: see RADAR_* consts.
++    #[cfg(feature = "radarprobe")]
+     {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
++        use radarprobe::{radar_cfg, radar_probe_task, RADAR_BAUDS, RADAR_DE_RE, RADAR_PARITIES, RADAR_UART_RX, RADAR_UART_TX};
++        use esp_hal::uart::Uart;
++        println!("r2-dfr1195: RADARPROBE — radio stack OFF; UART1 RS-485 Modbus sweep (TX=GPIO{} RX=GPIO{} DE/RE=GPIO{})",
++            RADAR_UART_TX, RADAR_UART_RX, RADAR_DE_RE);
++        let de_re = Output::new(p.GPIO6, Level::Low, OutputConfig::default()); // RADAR_DE_RE=GPIO6; start in RX
++        // TX=GPIO43 (D6→DI), RX=GPIO44 (D7←RO) on UART1; concrete pins so no PeripheralOutput/Input naming.
++        let uart = Uart::new(p.UART1, radar_cfg(RADAR_BAUDS[0], RADAR_PARITIES[0]))
++            .expect("radar UART config")
++            .with_tx(p.GPIO43)
++            .with_rx(p.GPIO44);
++        spawner.spawn(radar_probe_task(uart, de_re).unwrap());
++        loop {
++            embassy_time::Timer::after(embassy_time::Duration::from_secs(3600)).await;
++        }
++    }
 +
 +    // 5. WiFi config for the role. M8c (--features ble): the engine-elected provider serves its OWN
 +    //    SoftAP "r2-tn-form" (the formed data plane); other boards are STAs that JOIN it on negotiation.
@@ -3215,13 +3305,19 @@ index 8c49f1c..e94679f 100644
 +        //  • DFR1195 (default): INTEGRATED SX1262 — SPI3 SCK7/MISO5/MOSI6, NSS10, RST41, BUSY40, DIO1=4, and
 +        //    an explicit GPIO42 RXEN RF-switch (toggled by the RxenRadio wrapper below the seam).
 +        //  • XIAO ESP32-S3 + Wio-SX1262 (`xiao`): SEPARATE module — XIAO default SPI SCK7/MISO8/MOSI9, NSS41,
-+        //    RST42, BUSY40, DIO1=39; the RF switch is the SX1262's DIO2 (SetDIO2AsRfSwitchCtrl), NOT a GPIO.
-+        //    ⚠ PINS PENDING workshop confirmation (asked); ⚠ DIO2-RF-switch needs r2-sx1262 driver support
-+        //    (it currently has new()/new_with_rxen() only — flagged to core). Until DIO2 lands, the XIAO path
-+        //    passes a benign placeholder RXEN (GPIO2) so the structure builds; the RF switch is NOT yet
-+        //    actually driven → no-RF until the driver gains SetDIO2AsRfSwitchCtrl. (radio_set is a §3.2.2
-+        //    hardware-tier fact, so a per-board build is canon-acceptable; runtime board-profile pin
-+        //    selection — one image picks pins from read_board_profile — is the one-image refinement.)
++        //    RST42, BUSY40, DIO1=39, DIO3-TCXO 1.8V; the RF switch is the SX1262's DIO2 (SetDIO2AsRfSwitchCtrl,
++        //    SX126X_DIO2_AS_RF_SWITCH), NOT a host GPIO. PINS CONFIRMED by workshop+core against meshtastic's
++        //    variants/esp32s3/seeed_xiao_s3/variant.h (only BUSY40 + TCXO-1.8 coincide with the DFR; all else
++        //    differs + the RF-switch mechanism differs structurally). ⚠ CONFIRM vs the Seeed Wio-SX1262
++        //    schematic PDF before this lands as canon. RF-SWITCH IS DRIVEN (core confirmed): r2-sx1262
++        //    configure() issues SetDIO2AsRfSwitchCtrl (0x9D 0x01) UNCONDITIONALLY on every board, so DIO2 keys
++        //    the Wio's antenna with no host GPIO — Sx1262::new() (the NoRxen default this code uses) IS the
++        //    correct XIAO config. The placeholder rxen GPIO2 handed to the task is a harmless NO-OP on the Wio
++        //    (no external front-end is wired to it; the RxenRadio toggle just flips an unused pin). [Re-vendor
++        //    ≥ core 88f549f to swap new()→Sx1262::with_dio2_as_rf_switch() for self-documentation — cosmetic,
++        //    c46383e pin holds.] radio_set is a §3.2.2 hardware-tier fact (per-board pin-map is a board fact,
++        //    not a role fork); runtime board-profile pin selection from read_board_profile is the one-image
++        //    refinement over this compile-time `xiao` cfg.
 +        #[cfg(not(feature = "xiao"))]
 +        let (sck, miso, mosi, cs_pin, busy_pin, rst_pin, rxen_pin) =
 +            (p.GPIO7, p.GPIO5, p.GPIO6, p.GPIO10, p.GPIO40, p.GPIO41, p.GPIO42);
@@ -3256,7 +3352,7 @@ index 8c49f1c..e94679f 100644
 +        #[cfg(not(feature = "xiao"))]
 +        println!("r2-dfr1195: LORA task spawned (DFR1195 integrated: SPI3 SCK7/MISO5/MOSI6 NSS10 RST41 BUSY40 RXEN42 DIO1=4)");
 +        #[cfg(feature = "xiao")]
-+        println!("r2-dfr1195: LORA task spawned (XIAO+Wio-SX1262: SPI3 SCK7/MISO8/MOSI9 NSS41 RST42 BUSY40 DIO1=39; RF-sw=DIO2 PENDING driver+workshop)");
++        println!("r2-dfr1195: LORA task spawned (XIAO+Wio-SX1262: SPI3 SCK7/MISO8/MOSI9 NSS41 RST42 BUSY40 DIO1=39; RF-sw=DIO2-internal, no RXEN)");
 +    }
 +
 +    let role = if is_ap { "AP" } else { "STA" };
@@ -3540,8 +3636,10 @@ index 8c49f1c..e94679f 100644
 +    if profile.role == Role::Receiver && profile.expected_sensor != 0 {
 +        let _ = sensor_seen.push((profile.expected_sensor, route_now_s(), false));
 +    }
-+
-+    loop {
+ 
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        // 2-TG (#20): install a runtime re-PROVISION (uart_rx_task validated + persisted it to NVS).
 +        // Swap the live GroupHmac + target_group so the deliver-gate (B1) + TG-scoped sends use the new
 +        // key WITHOUT a reboot. The engine retains no key (R2-RUNTIME §13.2) — we take it from the conduit.
@@ -3964,6 +4062,10 @@ index 8c49f1c..e94679f 100644
 +                // ForwardRequest below still needs `source_hop` → 0 = "unknown immediate sender" (F2: the
 +                // engine then can't exclude the inbound peer from the flood set, which is fine for the demo).
 +                #[cfg(all(feature = "ble", not(feature = "routetest")))]
++                let src_hive: u32 = 0;
++                // No-radio builds (e.g. `radarprobe`, where io_task is compiled-but-never-spawned): the
++                // ForwardRequest still needs `source_hop` to type-check. Value is inert (io_task never runs).
++                #[cfg(not(feature = "ble"))]
 +                let src_hive: u32 = 0;
 +                match decode_extended(&scratch[..n]) {
 +                Ok(m) => match m.header.msg_type {
@@ -4510,7 +4612,10 @@ index 8c49f1c..e94679f 100644
 +fn read_persona() -> Option<Persona> {
 +    use embedded_storage::ReadStorage;
 +    let mut flash = esp_storage::FlashStorage::new();
-+    let mut buf = [0u8; 256];
++    // 512B (persona partition is 0x2000) — composer's c46383e persona grew to 336B; the old 256B buffer
++    // TRUNCATED it so parse_persona failed → spurious UNPROVISIONED fallback (metal-caught on the field
++    // triplet). parse_persona reads the self-delimiting CBOR prefix, so trailing erased 0xFF is ignored.
++    let mut buf = [0u8; 512];
 +    flash.read(PERSONA_OFFSET, &mut buf).ok()?;
 +    // SHARED parser (north-star, core 1b93108): r2_trust::parse_persona does the r2_cbor
 +    // decode + canonical derive_hive_id + tg_hash internally, so consume can't disagree
@@ -5929,10 +6034,7 @@ index 8c49f1c..e94679f 100644
 +    }
 +}
 +
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +// ── TN-FR-1: BL-200 MESSAGE-PASSING over LoRa (loraroute) ──────────────────────────────────────────
 +// Replaces the naive half-duplex lora_mesh_task with core's READY LoRaTransport data-plane:
 +// service(now_ms) does continuous-RX + TX-pacing + §4.2/§4.3 airtime-gating (defer-not-drop) in ONE call.
@@ -5942,12 +6044,7 @@ index 8c49f1c..e94679f 100644
 +// threads the true RELAYER (not the origin) as src_hive into DATA_RX for the §4.3.4 TrailReinforcer. The
 +// R2-WIRE ORIGIN (A) is carried INSIDE the frame and decoded into ForwardRequest.origin by io_task —
 +// distinct from the immediate sender, per core's BL-200 contract.
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +// RXEN-aware LoRaRadio wrapper: core's LoRaTransport drives the radio through the LoRaRadio trait but is
 +// chip-agnostic — it doesn't know the DFR1195's RF switch (GPIO42, HIGH-RX/LOW-TX). Wrap so transmit/
 +// standby pull RXEN low and listen pulls it high, keeping the RF-switch concern in the thin per-platform
@@ -6027,41 +6124,7 @@ index 8c49f1c..e94679f 100644
 +    // labrig: RF-ISOLATE the laptop rig — shift the LoRa carrier off tuxedo's 916.8 (>3 MHz = no BW125 overlap)
 +    // so the co-located tuxedo D-rig's traffic is OUT OF BAND (eliminates the run-1 LoRa-collision confound).
 +    #[cfg(feature = "labrig")]
-     {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
--    }
--
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++    {
 +        cfg.freq_hz = 919_800_000;
 +    }
 +    let beacon_tx_power: i8 = cfg.tx_power_dbm; // capture before cfg moves into the transport (§8.1 tx_power)
@@ -6082,7 +6145,12 @@ index 8c49f1c..e94679f 100644
 +    // half-duplex channel (the metal symptom: B's frames reached A/C ~1/100s under lockstep TX). NOT CSMA
 +    // (the deferred redesign) — just per-board TX decorrelation. Seeded per-board by my_hive.
 +    let mut lcg: u32 = my_hive ^ 0x9E37_79B9;
-+    let mut tx_backoff: i32 = 0;
++    // R2-LORA §6.5.2 (MUST): randomise the FIRST post-boot TX to de-correlate the mains-restore cohort
++    // (a power blip restarts every node at once; CAD alone won't break a synchronised tie). Seed the
++    // initial backoff from the per-board LCG (distinct per my_hive ⇒ distinct first-TX offset per board)
++    // instead of 0 (which would TX immediately on the first frame = a synchronised cohort).
++    lcg = lcg.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
++    let mut tx_backoff: i32 = ((lcg >> 22) % 200) as i32; // 0..200 ticks @5ms = 0..1s first-TX spread
 +    // R2-BEACON §8.1 discovery beacon — emitted on the field path as the lowest-priority class (§8.1.4 /
 +    // R2-LORA §4.4 priority 4). NO fixed interval: this is a MIN-interval floor; it is enqueued only when
 +    // no app traffic was pending this tick (higher-priority first), and the transport's §4.2/§4.3 airtime
@@ -6406,7 +6474,7 @@ index 8c49f1c..e94679f 100644
 +    "dev-unsigned-ota is DEV-ONLY (it accepts unauthenticated firmware = RCE) and MUST NOT be enabled in \
 +     a release build — use the default CMD_START_SIGNED (0x03) verify-before-write OTA path instead"
 +);
- 
++
 +#[embassy_executor::task]
 +async fn ota_task(is_ap: bool, stack: embassy_net::Stack<'static>) {
 +    Timer::after(Duration::from_secs(12)).await; // let WiFi + the mesh settle
@@ -6492,9 +6560,7 @@ index 8c49f1c..e94679f 100644
 +    let mut secfill = 0usize;
 +    let mut secbase = 0u32;
 +    let mut pkt = [0u8; 1500];
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        let (n, from) = match socket.recv_from(&mut pkt).await {
 +            Ok(v) => v,
 +            Err(_) => continue,
@@ -6758,6 +6824,405 @@ index 8c49f1c..e94679f 100644
 +                    Timer::after(Duration::from_secs(2)).await;
 +                }
 +            }
++        }
++    }
++}
++
++// ═══════════════════════════════════════════════════════════════════════════════════════════════
++//  RADAR Modbus-RTU PROBE (feature `radarprobe`) — standalone RS-485 sweep, no radio stack.
++//  esp-hal 1.1.1 API source-verified (Config builders with_baudrate/with_data_bits/with_parity/
++//  with_stop_bits; DataBits::_8/Parity::None/StopBits::_1; new/with_tx/with_rx; apply_config for the
++//  LIVE baud sweep; write()=short-write→loop; flush()=true tx-idle (mod.rs:850/906) = the only safe
++//  DE/RE de-assert point; read_ready()+read_buffered() + a software deadline since read() never times
++//  out). Modbus CRC + framing independently re-derived (poly 0xA001/init 0xFFFF; {01 04 00 00 00 01}
++//  -> wire 31 CA). Output: USB-Serial-JTAG println! (the UART1 line IS the RS-485 bus — never log there).
++// ═══════════════════════════════════════════════════════════════════════════════════════════════
++#[cfg(feature = "radarprobe")]
++mod radarprobe {
++    use super::*;
++    use core::fmt::Write as _;
++    use embassy_time::Instant;
++    use esp_hal::gpio::Output;
++    use esp_hal::uart::{Config as UartConfig, DataBits, Parity, RxError, StopBits, Uart};
++    use esp_hal::Blocking;
++
++    // ─── PIN MAP (from Roy 2026-06-27): XIAO ESP32-S3 + MAX485. D-header→GPIO: D5=6 D6=43 D7=44 ───
++    pub const RADAR_UART_TX: u8 = 43; // XIAO D6 / GPIO43 → MAX485 DI  (UART1 TX)
++    pub const RADAR_UART_RX: u8 = 44; // XIAO D7 / GPIO44 ← MAX485 RO  (UART1 RX)
++    pub const RADAR_DE_RE: u8 = 6; //   XIAO D5 / GPIO6  → MAX485 DE+!RE tied (HIGH=TX, LOW=RX)
++    // Frame format. 8 data bits, 1 stop. PARITY is now SWEPT (radar may be 8N1/8E1/8O1 — Modbus's spec
++    // default is actually 8E1) so we don't have to guess. Stop bits fixed _1 (8N2 covered by the gap math).
++    const RADAR_DATA_BITS: DataBits = DataBits::_8;
++    const RADAR_STOP_BITS: StopBits = StopBits::_1;
++    // Parity sweep (outer loop) — None first (most common cheap sensors), then Even (Modbus default), Odd.
++    pub const RADAR_PARITIES: &[Parity] = &[Parity::None, Parity::Even, Parity::Odd];
++    // Baud sweep — the full common Modbus set (2400..115200), most likely first.
++    pub const RADAR_BAUDS: &[u32] = &[9600, 115200, 19200, 38400, 57600, 4800, 2400];
++    // Address scan: 1 first, then dense 1..=20, then sparse to 247. (addr 0 = broadcast, never probed.)
++    const RADAR_ADDR_DENSE_HI: u8 = 20;
++    const RADAR_ADDR_SPARSE: &[u8] = &[30, 40, 50, 60, 80, 100, 120, 160, 200, 240, 247];
++    // Timeouts. T3.5 inter-frame: char-time ≤19200, fixed ~1.75ms >19200 (Modbus serial spec) — use a 3ms
++    // floor that satisfies both. Per-(baud,addr) response wall-clock deadline kept generous for slow slaves.
++    const RADAR_RESP_TIMEOUT_MS: u64 = 120;
++    const RADAR_INTERCHAR_GAP_MS: u64 = 3;
++    const RADAR_PRE_RECONFIG_IDLE_MS: u64 = 20;
++
++    /// CRC-16/MODBUS: poly 0xA001 (reflected), init 0xFFFF, no final XOR. Append crc_lo THEN crc_hi.
++    /// Verified: crc16(&[01,04,00,00,00,01])==0xCA31 (wire 31 CA); crc16(&[01,03,00,00,00,0A])==0xCDC5.
++    pub fn crc16_modbus(data: &[u8]) -> u16 {
++        let mut crc: u16 = 0xFFFF;
++        for &b in data {
++            crc ^= b as u16;
++            for _ in 0..8 {
++                if crc & 1 != 0 {
++                    crc = (crc >> 1) ^ 0xA001;
++                } else {
++                    crc >>= 1;
++                }
++            }
++        }
++        crc
++    }
++
++    fn append_crc(buf: &mut heapless::Vec<u8, 8>) {
++        let c = crc16_modbus(buf);
++        let _ = buf.push((c & 0xFF) as u8); // lo first
++        let _ = buf.push((c >> 8) as u8); // hi second
++    }
++
++    /// fn 0x03 (Read Holding) / 0x04 (Read Input): 8 bytes, addr/start/qty big-endian.
++    fn build_read_request(addr: u8, func: u8, start: u16, qty: u16) -> heapless::Vec<u8, 8> {
++        let mut f: heapless::Vec<u8, 8> = heapless::Vec::new();
++        let _ = f.push(addr);
++        let _ = f.push(func);
++        let _ = f.push((start >> 8) as u8);
++        let _ = f.push((start & 0xFF) as u8);
++        let _ = f.push((qty >> 8) as u8);
++        let _ = f.push((qty & 0xFF) as u8);
++        append_crc(&mut f);
++        f
++    }
++
++    /// fn 0x2B / MEI 0x0E Read Device Identification (basic, start at VendorName). 7 bytes.
++    fn build_mei_request(addr: u8) -> heapless::Vec<u8, 8> {
++        let mut f: heapless::Vec<u8, 8> = heapless::Vec::new();
++        let _ = f.push(addr);
++        let _ = f.push(0x2B);
++        let _ = f.push(0x0E);
++        let _ = f.push(0x01); // basic device id
++        let _ = f.push(0x00); // start object = VendorName
++        append_crc(&mut f);
++        f
++    }
++
++    enum Probe<'a> {
++        Silence,                                // 0 bytes — no device at this (baud,addr)
++        Garbage,                                // bytes but CRC/addr/len bad — wrong baud or noise
++        Exception { code: u8 },                 // CRC-valid fn|0x80 — DEVICE PRESENT
++        Ok { data: &'a [u8] },                  // CRC-valid normal read — DEVICE PRESENT
++    }
++
++    /// Presence = ANY CRC-valid reply with matching addr (normal OR exception). CRC is the gate.
++    fn parse_response<'a>(req_addr: u8, req_func: u8, rx: &'a [u8]) -> Probe<'a> {
++        if rx.is_empty() {
++            return Probe::Silence;
++        }
++        if rx.len() < 5 {
++            return Probe::Garbage; // shortest valid (exception) = 5
++        }
++        let n = rx.len();
++        let got = ((rx[n - 1] as u16) << 8) | (rx[n - 2] as u16); // hi<<8 | lo
++        if got != crc16_modbus(&rx[..n - 2]) {
++            return Probe::Garbage; // wrong baud / line noise
++        }
++        if rx[0] != req_addr {
++            return Probe::Garbage; // someone else / our own echo
++        }
++        let fnb = rx[1];
++        if fnb == (req_func | 0x80) {
++            return if n == 5 { Probe::Exception { code: rx[2] } } else { Probe::Garbage };
++        }
++        if fnb == req_func {
++            let bc = rx[2] as usize;
++            if n == 3 + bc + 2 {
++                return Probe::Ok { data: &rx[3..3 + bc] };
++            }
++        }
++        Probe::Garbage
++    }
++
++    /// The radar UART Config at a given baud (8N1 default). Pin-free — main() constructs the Uart with
++    /// the concrete pins (`Uart::new(p.UART1, radar_cfg(b)).with_tx(p.GPIO43).with_rx(p.GPIO44)`), which
++    /// avoids naming the (interconnect-private) PeripheralOutput/Input traits in a signature.
++    pub fn radar_cfg(baud: u32, parity: Parity) -> UartConfig {
++        UartConfig::default()
++            .with_baudrate(baud)
++            .with_data_bits(RADAR_DATA_BITS)
++            .with_parity(parity)
++            .with_stop_bits(RADAR_STOP_BITS)
++    }
++
++    /// Per-(baud,parity) reconfig on the LIVE peripheral (apply_config, mod.rs:1977 — no drop/rebuild).
++    /// Drain stale RX + idle the bus first so a half-received frame at the old setting isn't misparsed.
++    async fn radar_set_line(uart: &mut Uart<'_, Blocking>, baud: u32, parity: Parity) {
++        let mut scratch = [0u8; 64];
++        while uart.read_ready() {
++            let _ = uart.read_buffered(&mut scratch);
++        }
++        Timer::after(Duration::from_millis(RADAR_PRE_RECONFIG_IDLE_MS)).await;
++        let _ = uart.apply_config(&radar_cfg(baud, parity));
++    }
++
++    fn parity_str(p: Parity) -> &'static str {
++        match p {
++            Parity::None => "N",
++            Parity::Even => "E",
++            Parity::Odd => "O",
++        }
++    }
++
++    /// One Modbus transaction: DE/RE HIGH → write whole frame → flush to TRUE tx-idle → DE/RE LOW →
++    /// receive until a 3.5-char silent gap OR the wall-clock deadline. Returns response bytes captured.
++    async fn modbus_txn(
++        uart: &mut Uart<'_, Blocking>,
++        de_re: &mut Output<'_>,
++        req: &[u8],
++        resp: &mut [u8],
++        timeout: Duration,
++        interchar_gap: Duration,
++    ) -> usize {
++        // echo guard: drain RX before transmitting (our own bytes mustn't be parsed as the reply)
++        let mut junk = [0u8; 64];
++        while uart.read_ready() {
++            let _ = uart.read_buffered(&mut junk);
++        }
++        // ── TRANSMIT ──
++        de_re.set_high(); // enable driver
++        let mut sent = 0;
++        while sent < req.len() {
++            sent += uart.write(&req[sent..]).expect("TxError uninhabited"); // short-write loop
++        }
++        let _ = uart.flush(); // VERIFIED: returns only after the last bit is shifted out
++        de_re.set_low(); // ← de-assert DE/RE HERE (frame fully on the wire), switch to RX
++                         // ── LISTEN (manual deadline; read() has no timeout) ──
++        let hard_deadline = Instant::now() + timeout;
++        let mut n = 0usize;
++        let mut last_rx: Option<Instant> = None;
++        loop {
++            if uart.read_ready() && n < resp.len() {
++                if let Ok(got) = uart.read_buffered(&mut resp[n..]) {
++                    if got > 0 {
++                        n += got;
++                        last_rx = Some(Instant::now());
++                    }
++                }
++            } else {
++                let now = Instant::now();
++                if let Some(t) = last_rx {
++                    if now.duration_since(t) >= interchar_gap {
++                        break; // end-of-frame (3.5-char silence after data)
++                    }
++                }
++                if now >= hard_deadline {
++                    break; // response timeout / silence
++                }
++                Timer::after(Duration::from_micros(200)).await; // yield
++            }
++            if n == resp.len() {
++                break; // buffer full
++            }
++        }
++        n
++    }
++
++    fn print_reg_chunk(baud: u32, addr: u8, func: u8, start: u16, data: &[u8]) {
++        let mut words: heapless::String<200> = heapless::String::new();
++        for i in 0..(data.len() / 2) {
++            let w = ((data[2 * i] as u16) << 8) | (data[2 * i + 1] as u16);
++            if i > 0 {
++                let _ = words.push(',');
++            }
++            let _ = write!(words, "{:04X}", w);
++        }
++        println!(
++            "RADAR reg baud={} addr={} fn={:02X} start={} qty={} words={}",
++            baud, addr, func, start, data.len() / 2, words
++        );
++    }
++
++    /// Parse + print the MEI (fn 0x2B/0x0E) device-id objects (0=vendor 1=product 2=rev), CRC-gated.
++    fn print_mei(baud: u32, addr: u8, rx: &[u8]) {
++        let none = || println!("RADAR devid baud={} addr={} NONE", baud, addr);
++        if rx.len() < 10 {
++            return none();
++        }
++        let n = rx.len();
++        let got = ((rx[n - 1] as u16) << 8) | (rx[n - 2] as u16);
++        if got != crc16_modbus(&rx[..n - 2]) || rx[0] != addr || rx[1] != 0x2B || rx[2] != 0x0E {
++            return none();
++        }
++        // header: [0]addr [1]2B [2]0E [3]readcode [4]conformity [5]more [6]next_obj [7]num_objs, then TLVs
++        let num = rx[7] as usize;
++        let mut p = 8usize;
++        let body = &rx[..n - 2]; // exclude CRC
++        let mut vendor: &str = "";
++        let mut product: &str = "";
++        let mut rev: &str = "";
++        for _ in 0..num {
++            if p + 2 > body.len() {
++                break;
++            }
++            let oid = body[p];
++            let olen = body[p + 1] as usize;
++            let vstart = p + 2;
++            if vstart + olen > body.len() {
++                break;
++            }
++            let val = core::str::from_utf8(&body[vstart..vstart + olen]).unwrap_or("?");
++            match oid {
++                0x00 => vendor = val,
++                0x01 => product = val,
++                0x02 => rev = val,
++                _ => {}
++            }
++            p = vstart + olen;
++        }
++        println!(
++            "RADAR devid baud={} addr={} vendor=\"{}\" product=\"{}\" rev=\"{}\"",
++            baud, addr, vendor, product, rev
++        );
++    }
++
++    /// Read regs 0..=63 of `func` (0x03/0x04) in qty<=8 chunks; print each chunk (or EXC/TIMEOUT/GARBAGE).
++    async fn dump_regs(
++        uart: &mut Uart<'_, Blocking>,
++        de_re: &mut Output<'_>,
++        rx: &mut [u8],
++        baud: u32,
++        addr: u8,
++        func: u8,
++        timeout: Duration,
++        gap: Duration,
++    ) {
++        let mut start: u16 = 0;
++        while start < 64 {
++            let qty = core::cmp::min(8, 64 - start);
++            let req = build_read_request(addr, func, start, qty);
++            let n = modbus_txn(uart, de_re, &req, rx, timeout, gap).await;
++            match parse_response(addr, func, &rx[..n]) {
++                Probe::Ok { data } => print_reg_chunk(baud, addr, func, start, data),
++                Probe::Exception { code } => println!(
++                    "RADAR reg baud={} addr={} fn={:02X} start={} EXC={:02X}",
++                    baud, addr, func, start, code
++                ),
++                Probe::Silence => println!(
++                    "RADAR reg baud={} addr={} fn={:02X} start={} TIMEOUT",
++                    baud, addr, func, start
++                ),
++                Probe::Garbage => println!(
++                    "RADAR reg baud={} addr={} fn={:02X} start={} GARBAGE",
++                    baud, addr, func, start
++                ),
++            }
++            start += qty;
++        }
++    }
++
++    /// PASSIVE LISTEN-ONLY sweep — DE/RE held LOW (RX only, NEVER drives the bus, zero contention risk).
++    /// Catches a STREAMING radar (emits data unsolicited, not Modbus poll-response) AND proves whether the
++    /// RX path delivers ANY bytes. Per baud, listen ~1.5s and hex-dump whatever arrives (or NONE).
++    async fn listen_only_sweep(uart: &mut Uart<'_, Blocking>, de_re: &mut Output<'_>) {
++        de_re.set_low(); // RX mode — do not transmit
++        println!("RADAR LISTEN-ONLY phase (passive, DE/RE low; catches a streaming/non-Modbus radar)");
++        for &baud in RADAR_BAUDS {
++            radar_set_line(uart, baud, Parity::None).await; // 8N1 listen
++            let mut buf = [0u8; 128];
++            let mut n = 0usize;
++            let deadline = Instant::now() + Duration::from_millis(1500);
++            while Instant::now() < deadline && n < buf.len() {
++                if uart.read_ready() {
++                    if let Ok(g) = uart.read_buffered(&mut buf[n..]) {
++                        n += g;
++                    }
++                } else {
++                    Timer::after(Duration::from_micros(500)).await;
++                }
++            }
++            if n == 0 {
++                println!("RADAR listen baud={} NONE", baud);
++            } else {
++                let mut hex: heapless::String<300> = heapless::String::new();
++                for (i, b) in buf[..n].iter().enumerate() {
++                    if i > 0 {
++                        let _ = hex.push(' ');
++                    }
++                    let _ = write!(hex, "{:02X}", b);
++                }
++                println!("RADAR listen baud={} n={} bytes={}", baud, n, hex);
++            }
++        }
++    }
++
++    /// The sweep: for each baud, scan addresses; on a CRC-valid presence reply dump holding+input regs
++    /// + device-id. Construct the Uart+Output in main(); this task owns the sweep.
++    #[embassy_executor::task]
++    pub async fn radar_probe_task(mut uart: Uart<'static, Blocking>, mut de_re: Output<'static>) {
++        let st1 = crc16_modbus(&[0x01, 0x04, 0x00, 0x00, 0x00, 0x01]) == 0xCA31;
++        let st2 = crc16_modbus(&[0x01, 0x03, 0x00, 0x00, 0x00, 0x0A]) == 0xCDC5;
++        println!(
++            "RADARPROBE crc-selftest v1={} v2={} -> {}",
++            st1, st2, if st1 && st2 { "PASS" } else { "FAIL" }
++        );
++        let timeout = Duration::from_millis(RADAR_RESP_TIMEOUT_MS);
++        let gap = Duration::from_millis(RADAR_INTERCHAR_GAP_MS);
++        let mut rxbuf = [0u8; 256];
++
++        // Phase 1: PASSIVE listen (safe, RX-only) — reveals a streaming radar + tests the RX path.
++        listen_only_sweep(&mut uart, &mut de_re).await;
++
++        // Phase 2: ACTIVE Modbus master sweep (parity × baud × addr).
++        for &parity in RADAR_PARITIES {
++            let ps = parity_str(parity);
++            for &baud in RADAR_BAUDS {
++                radar_set_line(&mut uart, baud, parity).await;
++                println!("RADAR baud={} parity={} START", baud, ps);
++                // 1 first, then dense 1..=20, then sparse — dedup the leading 1.
++                for addr in core::iter::once(1u8)
++                    .chain(2..=RADAR_ADDR_DENSE_HI)
++                    .chain(RADAR_ADDR_SPARSE.iter().copied())
++                {
++                    if addr == 0 {
++                        continue; // never broadcast
++                    }
++                    let req = build_read_request(addr, 0x03, 0x0000, 1); // presence probe
++                    let mut found = false;
++                    for _attempt in 0..2 {
++                        let n = modbus_txn(&mut uart, &mut de_re, &req, &mut rxbuf, timeout, gap).await;
++                        match parse_response(addr, 0x03, &rxbuf[..n]) {
++                            Probe::Ok { .. } | Probe::Exception { .. } => {
++                                println!("RADAR found baud={} parity={} addr={} (probe-fn=03)", baud, ps, addr);
++                                found = true;
++                                break;
++                            }
++                            Probe::Silence => break, // no device — no retry
++                            Probe::Garbage => {}     // collision/noise — retry once
++                        }
++                    }
++                    if !found {
++                        continue;
++                    }
++                    dump_regs(&mut uart, &mut de_re, &mut rxbuf, baud, addr, 0x03, timeout, gap).await;
++                    dump_regs(&mut uart, &mut de_re, &mut rxbuf, baud, addr, 0x04, timeout, gap).await;
++                    let mei = build_mei_request(addr);
++                    let n = modbus_txn(&mut uart, &mut de_re, &mei, &mut rxbuf, timeout, gap).await;
++                    print_mei(baud, addr, &rxbuf[..n]);
++                }
++                println!("RADAR baud={} parity={} DONE", baud, ps);
++            }
++        }
++        println!("RADAR SWEEP COMPLETE");
++        loop {
++            Timer::after(Duration::from_secs(3600)).await; // park
 +        }
      }
  }
