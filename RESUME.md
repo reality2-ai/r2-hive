@@ -106,6 +106,24 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   red test `r2-hive-core::sync_host::tests::route_relays_to_known_neighbour` ("expected a relay decision, got
   Dropped") that supervisor already called out; critical mgmt-WS surface is closed. `git diff --check` still has
   only the known generated-patch whitespace warnings in `docs/dfr1195-firstlight.patch`.
+- **CODEX REVIEW CLEANUP COMPLETE (hive-codex, 2026-06-27; branch `platform-trait`, test-fix commit
+  `aba0ab7`, pre-cleanup HEAD `8531935`):** supervisor asked to close the three remaining codex-review items.
+  Verified current code first: web-auth revocation is enforced in `web_auth::verify_cookie_header` by checking
+  the active device ledger (`is_known_device`) after cookie signature/expiry validation; web plugins fail closed
+  with `503 web auth not configured` when `web_auth` is absent unless explicit `--web-dev-mode` is set. Those two
+  MED items were already closed by the security commit `d48094f` and are covered by
+  `web_auth::tests::revoked_device_cookie_is_rejected`, `web_auth_integration::revoked_cookie_is_rejected`,
+  `web_auth_integration::missing_web_auth_fails_closed_by_default`, and
+  `web_auth_integration::explicit_dev_mode_serves_with_warning_header`. Fixed the remaining RED test in
+  `crates/r2-hive-core/src/sync_host.rs`: `route_relays_to_known_neighbour` now builds a conformant extended
+  fixture with `route_stack[0] = source` and `has_route = true`, preserving the relay-wiring assertion while
+  matching R2-ROUTE v0.14 §3.3 ROUTE-ORIGIN (route-less inbound routed frames are invalid and must be dropped).
+  Verification: `cargo test -p r2-hive-core sync_host::tests::route_relays_to_known_neighbour -- --nocapture`
+  PASS; `cargo test --workspace` PASS (all workspace unit/integration/doc tests green; one existing ignored
+  authenticated-dedup router fixture remains intentionally ignored); `git diff --check` PASS before the RESUME
+  handoff edit. Changed files for this cleanup: `crates/r2-hive-core/src/sync_host.rs` and this `RESUME.md`.
+  No blockers remain for the three codex-review items. Do not assume public plugin serving is allowed without
+  explicit auth/dev-mode; do not assume route-less extended relay frames are valid test fixtures.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
