@@ -170,9 +170,26 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   and the custom CSV still in place. This is a real direction fork for the ESP32 deployment layout, not build
   output. Asked core whether the diff is intended, should be left for core, or should be restored/turned into a
   patch artifact; sent hive an FYI. No local revert/commit was made because AGENTS.md says r2-core/platform
-  source is core-owned and user/peer changes must not be overwritten. Until core answers, do not assume
-  `docs/dfr1195-firstlight.patch` is in sync with the firmware worktree, and do not flash/build ESP32 from this
-  dirty state as if it were accepted.
+  source is core-owned and user/peer changes must not be overwritten. At that checkpoint, core had not answered,
+  so the dirty state was explicitly not accepted. Superseded by the next note.
+- **TAKEOVER RE-CHECK / ESP32 `TWO_OTA` REFUTED (hive-codex, 2026-06-28; r2-hive HEAD `255db5c`):** cross-provider
+  handoff promoted codex to sole writer. Re-verified r2-hive clean on `platform-trait`; firmware worktree had only
+  the dirty `platforms/esp32/sdkconfig.defaults` switch to `CONFIG_PARTITION_TABLE_TWO_OTA=y`. Core answered that
+  the choice was hive-owned and acceptable if it still supplied two OTA slots + `otadata` + rollback-enable, but
+  adversarial verification found a size counterexample. After deleting the stale copied
+  `target/.../esp-idf-sys-*/out/partitions.csv`, `source /home/roycdavies/Development/homelab/export-esp.sh &&
+  cargo build --release` from `platforms/esp32` PASSED in 2m34s with generated sdkconfig showing
+  `CONFIG_PARTITION_TABLE_TWO_OTA=y`, `CONFIG_PARTITION_TABLE_CUSTOM` off, and
+  `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y`. However the generated partition table decodes to 1 MiB app slots
+  (`factory@0x10000 size=0x100000`, `ota_0@0x110000 size=0x100000`, `ota_1@0x210000 size=0x100000`), while
+  `espflash save-image --chip esp32c6 ...` produced an app image of 1,643,744 bytes. Therefore built-in
+  `TWO_OTA` is a compile-green but deploy-invalid trap for the current image. Restored the firmware worktree to
+  the custom `partitions.csv` config (`ota_0/ota_1` 0x1E0000 slots) with rollback-enable intact; firmware worktree
+  is clean again at `9fe219d`. Verified `git -C dfr1195-fw-wt diff c46383e -- ... > /tmp/dfr1195-firstlight.check.patch`
+  byte-matches `docs/dfr1195-firstlight.patch`, and reverse-apply check passes. No patch artifact change needed.
+  Remaining build caveat: custom CSV remains the correct deploy layout, but the esp-idf-sys copy race still requires
+  either the documented manual copy workaround or a future portable partition mechanism. Do not re-adopt
+  `CONFIG_PARTITION_TABLE_TWO_OTA=y` unless the image shrinks below 1 MiB or a different built-in table is proven.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
