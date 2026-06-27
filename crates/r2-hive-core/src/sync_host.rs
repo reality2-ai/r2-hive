@@ -330,13 +330,18 @@ mod tests {
         assert_eq!(stub.sent.borrow()[0], (0xABCD, b"wire".to_vec()));
     }
 
-    fn ext_frame(target_hive: u32, ttl: u8, k: u8, msg_id: u32) -> Vec<u8> {
-        use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
+    fn ext_frame(origin_hive: u32, target_hive: u32, ttl: u8, k: u8, msg_id: u32) -> Vec<u8> {
+        use r2_wire::{
+            encode_extended, ExtendedHeader, ExtendedMessage, ExtendedRouteStack, Flags, MsgType,
+        };
         let msg = ExtendedMessage {
             header: ExtendedHeader {
                 version: 0,
                 msg_type: MsgType::Event,
-                flags: Flags::default(),
+                flags: Flags {
+                    has_route: true,
+                    ..Flags::default()
+                },
                 ttl,
                 k,
                 msg_id,
@@ -345,7 +350,7 @@ mod tests {
                 target_group: 0,
                 target_hive,
             },
-            route: None,
+            route: Some(ExtendedRouteStack::with_origin(origin_hive)),
             payload: &[],
             hmac_tag: None,
         };
@@ -380,9 +385,10 @@ mod tests {
             mobility: MobilityClass::Infrastructure,
         });
         let stub = StubTransport::new(TransportKind::Wifi, vec![]);
-        let frame = ext_frame(target, 5, 3, 0x1234);
+        let source = 0x0000_00BB;
+        let frame = ext_frame(source, target, 5, 3, 0x1234);
         let out = route_inbound_sync(
-            &mut engine, 0x0000_00FF, &[&stub], 0x0000_00BB, TransportKind::Wifi, &frame, 200, 0.5,
+            &mut engine, 0x0000_00FF, &[&stub], source, TransportKind::Wifi, &frame, 200, 0.5,
         );
         // The engine reached a relay decision and the frame went to `target` over
         // the matching sync transport (the whole point of the host-loop wiring).
