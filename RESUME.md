@@ -146,18 +146,19 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   worktree clean at `9fe219d`):** after the ESP32 compile, checked the next deferred item: bridge CCR1
   carrier-credential read. Spec-first read: R2-RUNTIME §3.2.2/§3.2.4 requires `carrier_set`/`carrier_creds`
   for bridge, sealed at rest and distinct from TG material, but explicitly leaves encoding as config-record
-  detail (not pinned wire). Composer evidence: `r2-composer/RESUME.md` says the provisional sector shape is
-  `[CCR1 u32 BE][carrier_type u8][rsv 3B][sealed blob]`, but also says CCR1 emit is deferred until hive reads
-  it; `tg_cli.rs` currently seals bridge config only into composer custody (`seal_bytes`) and says
-  carrier creds are NOT in RPF1. That at-rest custody seal is not a device-side unseal contract. Asked composer
-  for the exact current device blob/version, seal key/KDF, and emitter command; no answer was in
-  `fleet inbox hive-codex` before idle. I did NOT implement a guessed parser/unsealer because that would be a
-  security fork: the device cannot safely read "sealed" carrier creds until the producer format and device
-  unseal key source are agreed. Remaining local queue after this audit: no code-only item is unblocked.
-  Blocked/Roy-gated: radar physical/model, OTA/networked + ESP32 confirmed-boot metal pass, CCR1 format/emit
-  contract, specs datagram ratification. Other-repo: deploy-sentant signed path and dashboard label reconcile.
-  Do not assume CCR1 means composer custody `seal_bytes` can be copied to flash; it is an at-rest host seal,
-  not proven device-consumable material.
+  detail (not pinned wire). Composer answer landed after idle and is decisive: **CCR1 and 0x19000 do not exist
+  in composer code** — no emitter, no literal format, no flash artifact. The current composer bridge config is
+  an internal CBOR role-profile/custody record; carrier creds are deliberately NOT in the device-facing RPF1.
+  `tg_cli.rs` seals that CBOR with `seal_bytes(custody_root, passphrase, ...)`, which uses the operator custody
+  tier (Argon2id/OS-keyring + XChaCha20-Poly1305) and is stored only as `Member.role_profile_record`. The
+  device has no custody passphrase, so this is not device-consumable material. Composer says the required next
+  work is composer-side first: define the CCR1 wire/blob format, switch to a device-unsealable seal (likely
+  Channel-B-style seal-to-`mesh_pk` using X25519 + XChaCha20-Poly1305), add emitter/delivery (e.g.
+  `espflash write-bin 0x19000`). I did NOT implement a guessed parser/unsealer because that would be a security
+  fork. Remaining local queue after this audit: no code-only item is unblocked. Blocked/Roy-gated: radar
+  physical/model, OTA/networked + ESP32 confirmed-boot metal pass, CCR1 format/emit contract, specs datagram
+  ratification. Other-repo: deploy-sentant signed path and dashboard label reconcile. Do not assume CCR1 means
+  composer custody `seal_bytes` can be copied to flash; composer explicitly refuted that.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
@@ -293,9 +294,9 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    present; `cargo build --release` for `platforms/esp32` passes after the documented partition-table copy
    workaround. Remaining: on-metal confirmed-boot/PENDING_VERIFY/rollback behavior.
 3. **bridge CCR1 carrier-cred read — BLOCKED-ON-CONTRACT 2026-06-28.** Firmware unseal+read of sealed
-   WiFi/cell creds @0x19000 is still needed, but do not implement until composer/specs pin the device-side
-   CCR1 blob, seal key/KDF, and emitter command. Current composer custody `seal_bytes` is host at-rest
-   sealing, not a proven device-unseal format. First triplet used bench WiFi.
+   WiFi/cell creds is still needed, but do not implement until composer first defines/emits the device-side
+   CCR1 blob. Composer confirmed `CCR1`/`0x19000` do not exist in its code today; current custody
+   `seal_bytes` is host at-rest sealing, not device-unsealable. First triplet used hardcoded FIELDLAB/bench WiFi.
 4. **Datagram-binding ratify** (specs, all-3-aligned, Roy-gate, non-urgent) — specs authoring the package +
    §5.1 boot_confirm_late; on landing, implement both FORKS.md items (transport binding already IS the impl;
    the OCM after-confirm floor-fix) + flip them Resolved.
