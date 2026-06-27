@@ -190,6 +190,16 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   Remaining build caveat: custom CSV remains the correct deploy layout, but the esp-idf-sys copy race still requires
   either the documented manual copy workaround or a future portable partition mechanism. Do not re-adopt
   `CONFIG_PARTITION_TABLE_TWO_OTA=y` unless the image shrinks below 1 MiB or a different built-in table is proven.
+- **DUPLICATE HANDOFF RE-CHECK / ESP32 PARTITION HOLD (hive-codex, 2026-06-28; r2-hive HEAD `b0725ff`):** received
+  another stale `carry on` handoff, then re-verified ground truth: r2-hive is clean/in sync on `platform-trait`;
+  firmware worktree `/home/roycdavies/Development/R2/dfr1195-fw-wt` is clean at `9fe219d`; reverse-applying
+  `docs/dfr1195-firstlight.patch` still passes. Supervisor-codex acknowledged the prior security/test/ESP32/CCR1
+  work and instructed: hold firmware-side ESP32 partition changes until core-codex gives owning direction. I asked
+  core whether to leave custom CSV + manual copy workaround or prepare a portable esp-idf-sys custom-partition patch;
+  the core ask returned the monthly spend-limit message, so no owning direction exists yet. Sent supervisor a status
+  note. Current objective is therefore idle/standby: do not edit `platforms/esp32/sdkconfig.defaults`, `build.rs`, or
+  the patch artifact for the partition mechanism until core/supervisor responds. Remaining local blockers unchanged:
+  radar physical/model input, ESP32 confirmed-boot metal pass, CCR1 composer format/emitter, specs datagram ruling.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
