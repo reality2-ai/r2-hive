@@ -142,6 +142,22 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   Remaining ESP32 validation is on-metal only: boot a freshly OTA'd candidate into native `PENDING_VERIFY`,
   confirm health/pass marks valid + advances seq, and failure/next-reset rolls back. Do not assume the compile
   proves that runtime state machine.
+- **QUEUE AUDIT / CCR1 BLOCKED-ON-CONTRACT (hive-codex, 2026-06-28; r2-hive HEAD `c6c71e4`, firmware
+  worktree clean at `9fe219d`):** after the ESP32 compile, checked the next deferred item: bridge CCR1
+  carrier-credential read. Spec-first read: R2-RUNTIME §3.2.2/§3.2.4 requires `carrier_set`/`carrier_creds`
+  for bridge, sealed at rest and distinct from TG material, but explicitly leaves encoding as config-record
+  detail (not pinned wire). Composer evidence: `r2-composer/RESUME.md` says the provisional sector shape is
+  `[CCR1 u32 BE][carrier_type u8][rsv 3B][sealed blob]`, but also says CCR1 emit is deferred until hive reads
+  it; `tg_cli.rs` currently seals bridge config only into composer custody (`seal_bytes`) and says
+  carrier creds are NOT in RPF1. That at-rest custody seal is not a device-side unseal contract. Asked composer
+  for the exact current device blob/version, seal key/KDF, and emitter command; no answer was in
+  `fleet inbox hive-codex` before idle. I did NOT implement a guessed parser/unsealer because that would be a
+  security fork: the device cannot safely read "sealed" carrier creds until the producer format and device
+  unseal key source are agreed. Remaining local queue after this audit: no code-only item is unblocked.
+  Blocked/Roy-gated: radar physical/model, OTA/networked + ESP32 confirmed-boot metal pass, CCR1 format/emit
+  contract, specs datagram ratification. Other-repo: deploy-sentant signed path and dashboard label reconcile.
+  Do not assume CCR1 means composer custody `seal_bytes` can be copied to flash; it is an at-rest host seal,
+  not proven device-consumable material.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
@@ -276,8 +292,10 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
 2. **esp32 platform IDF compile-verify — COMPILE GREEN 2026-06-28; ON-METAL STILL OWED.** ESP-IDF via espup is
    present; `cargo build --release` for `platforms/esp32` passes after the documented partition-table copy
    workaround. Remaining: on-metal confirmed-boot/PENDING_VERIFY/rollback behavior.
-3. **bridge CCR1 carrier-cred read** (§3.2.4 multi-carrier uplink) — firmware unseal+read of the sealed
-   WiFi/cell creds @0x19000 (reserved; composer emits on demand). First triplet used bench WiFi.
+3. **bridge CCR1 carrier-cred read — BLOCKED-ON-CONTRACT 2026-06-28.** Firmware unseal+read of sealed
+   WiFi/cell creds @0x19000 is still needed, but do not implement until composer/specs pin the device-side
+   CCR1 blob, seal key/KDF, and emitter command. Current composer custody `seal_bytes` is host at-rest
+   sealing, not a proven device-unseal format. First triplet used bench WiFi.
 4. **Datagram-binding ratify** (specs, all-3-aligned, Roy-gate, non-urgent) — specs authoring the package +
    §5.1 boot_confirm_late; on landing, implement both FORKS.md items (transport binding already IS the impl;
    the OCM after-confirm floor-fix) + flip them Resolved.
