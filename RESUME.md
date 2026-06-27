@@ -124,6 +124,24 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   handoff edit. Changed files for this cleanup: `crates/r2-hive-core/src/sync_host.rs` and this `RESUME.md`.
   No blockers remain for the three codex-review items. Do not assume public plugin serving is allowed without
   explicit auth/dev-mode; do not assume route-less extended relay frames are valid test fixtures.
+- **ESP32 IDF COMPILE-VERIFY COMPLETE (hive-codex, 2026-06-28; r2-hive `platform-trait` HEAD `d1cc9b7`,
+  firmware worktree `/home/roycdavies/Development/R2/dfr1195-fw-wt` branch `dfr1195-fw` HEAD `9fe219d`):**
+  carried the deferred platforms/esp32 build through without touching core-owned source. Core peer confirmed
+  non-mutating build/test is hive's responsibility and highlighted the silent metal caveat: compile alone does
+  not prove native `PENDING_VERIFY` rollback, but `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y` is load-bearing.
+  Verified that setting is present in `platforms/esp32/sdkconfig.defaults`; `CONFIG_BOOTLOADER_APP_ANTI_ROLLBACK`
+  remains intentionally off for the non-eFuse tier. Build command:
+  `source /home/roycdavies/Development/homelab/export-esp.sh && cargo build --release` from
+  `platforms/esp32`. First pass hit the documented esp-idf-sys partition race (`out/partitions.csv` missing);
+  copied `partitions.csv` into `target/riscv32imac-esp-espidf/release/build/esp-idf-sys-*/out/` per
+  `BUILD.md` and reran. Result: PASS in 2m14s after workaround; produced
+  `platforms/esp32/target/riscv32imac-esp-espidf/release/r2-esp32` (3.6M RISC-V ELF). This compile proves the
+  ESP-IDF rollback FFI identifiers used by `ota_tcp::confirm_or_rollback_on_boot()` resolve under the current
+  bindgen/sys crate. Warnings only: no WiFi SSID configured, existing unused imports/mut/dead-code, and
+  `static_mut_refs` warnings in `l2cap.rs`. Both r2-hive and firmware worktrees are clean after the build.
+  Remaining ESP32 validation is on-metal only: boot a freshly OTA'd candidate into native `PENDING_VERIFY`,
+  confirm health/pass marks valid + advances seq, and failure/next-reset rolls back. Do not assume the compile
+  proves that runtime state machine.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
@@ -255,8 +273,9 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    ratified. ALSO bundle the FORKS.md fix: move the OCM anti-rollback floor-bump → confirmed-boot health-gate
    (after-confirm v0.21) — IMPLEMENT on specs' §5.1 boot_confirm_late detail (asked: health-check def +
    native PENDING_VERIFY vs firmware pending-marker; my DFR has no native gate yet).
-2. **esp32 platform IDF compile-verify** (core ruled it's hive's) — stand up ESP-IDF via espup on Alfred,
-   build platforms/esp32 (esp-idf-sys/std; the 13 green = the DFR no_std build only) + on-metal confirmed-boot.
+2. **esp32 platform IDF compile-verify — COMPILE GREEN 2026-06-28; ON-METAL STILL OWED.** ESP-IDF via espup is
+   present; `cargo build --release` for `platforms/esp32` passes after the documented partition-table copy
+   workaround. Remaining: on-metal confirmed-boot/PENDING_VERIFY/rollback behavior.
 3. **bridge CCR1 carrier-cred read** (§3.2.4 multi-carrier uplink) — firmware unseal+read of the sealed
    WiFi/cell creds @0x19000 (reserved; composer emits on demand). First triplet used bench WiFi.
 4. **Datagram-binding ratify** (specs, all-3-aligned, Roy-gate, non-urgent) — specs authoring the package +
