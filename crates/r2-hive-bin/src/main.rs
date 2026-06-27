@@ -24,8 +24,14 @@ struct Args {
     port: u16,
 
     /// Bind address.
-    #[arg(long, default_value = "0.0.0.0")]
+    #[arg(long, default_value = "127.0.0.1")]
     bind: String,
+
+    /// Permit binding the HTTP/WebSocket listener to a non-loopback address.
+    /// The management WebSocket remains disabled on non-loopback listeners;
+    /// use the Unix-domain management socket for local control.
+    #[arg(long)]
+    allow_public_bind: bool,
 
     /// Event buffer size per trust group.
     #[arg(long, default_value = "1000")]
@@ -80,6 +86,12 @@ struct Args {
     /// Disable the local management API (start only the mesh-side stack).
     #[arg(long)]
     no_mgmt: bool,
+
+    /// **DEV/TEST ONLY.** Serve web-plugin assets without browser auth when
+    /// the master-secret-backed web-auth registry is unavailable. Production
+    /// deployments MUST NOT set this; the default is fail-closed.
+    #[arg(long)]
+    web_dev_mode: bool,
 
     /// Run transport auto-detection at startup. When set, --lan, --ble,
     /// and --lora that are *not* explicitly passed are filled in from
@@ -307,12 +319,26 @@ async fn main() {
     let addr: SocketAddr = format!("{}:{}", args.bind, args.port)
         .parse()
         .expect("invalid bind address");
+    if !addr.ip().is_loopback() && !args.allow_public_bind {
+        log::error!(
+            "refusing non-loopback bind {} without --allow-public-bind; \
+             default is loopback to keep local control surfaces private",
+            addr
+        );
+        return;
+    }
 
     log::info!("r2-hive listening on {}", addr);
     log::info!("  Dashboard: http://{}:{}/", args.bind, args.port);
     log::info!("  WebSocket: ws://{}:{}/r2", args.bind, args.port);
     log::info!("  Buffer: {} frames/group", args.buffer_size);
     log::info!("  Max connections: {}", args.max_connections);
+    if args.web_dev_mode {
+        state.set_web_dev_mode(true);
+        log::warn!(
+            "  Web auth: --web-dev-mode is set — web-plugin assets may be served without auth. DEVELOPMENT USE ONLY."
+        );
+    }
 
     let mut active_plugins = vec!["word-codes", "dashboard"];
 
@@ -451,15 +477,17 @@ async fn main() {
                 // surface (R2-HOST-API §2.2) is mounted onto the existing
                 // axum router below, sharing this DaemonState via Extension.
                 // Install browser-auth registry derived from the master
-                // secret (R2-PLUGIN §13.5). Without this, web plugins
-                // serve in dev-mode and stamp X-R2-Web-Auth: dev-mode on
-                // every response.
+                // secret (R2-PLUGIN §13.5). Without this, web-plugin
+                // assets fail closed unless --web-dev-mode was explicitly
+                // requested.
                 if let Some(key) = daemon_state.derive_web_auth_key() {
                     let auth = std::sync::Arc::new(r2_hive::web_auth::WebAuth::new(key));
                     state.set_web_auth(auth);
                     log::info!("  Web auth: enabled (cookie-bound to master secret)");
                 } else {
-                    log::warn!("  Web auth: dev-mode (no identity); web plugins are unauthenticated");
+                    log::warn!(
+                        "  Web auth: unavailable (no identity); web-plugin assets fail closed unless --web-dev-mode is set"
+                    );
                 }
                 ws_mgmt_state = Some(daemon_state.clone());
                 match mgmt::socket::spawn(mgmt_socket_path, daemon_state).await {
@@ -498,18 +526,26 @@ async fn main() {
             get(r2_hive::web::web_provision_get).post(r2_hive::web::web_provision_post),
         )
         .merge(plugins::word_codes::routes())
-        .merge(plugins::dashboard::routes())
-        .layer(CorsLayer::permissive())
-        .with_state(state.clone());
+        .merge(plugins::dashboard::routes());
 
     if let Some(daemon_state) = ws_mgmt_state {
         // /r2/mgmt is the loopback parallel transport for R2-HOST-API §2.2.
         // It carries the same R2-WIRE extended frames as the UDS but as
         // binary WebSocket messages (no length prefix; WS provides framing).
-        app = app.route("/r2/mgmt", get(mgmt::ws::handler))
-                 .layer(axum::Extension(daemon_state));
-        log::info!("  Management WS: ws://{}:{}/r2/mgmt", args.bind, args.port);
+        if addr.ip().is_loopback() {
+            app = app
+                .route("/r2/mgmt", get(mgmt::ws::handler))
+                .layer(axum::Extension(daemon_state));
+            log::info!("  Management WS: ws://{}:{}/r2/mgmt (auth required)", args.bind, args.port);
+        } else {
+            log::warn!(
+                "  Management WS: disabled on non-loopback listener {}; use the management Unix socket",
+                addr
+            );
+        }
     }
+
+    let app = app.layer(CorsLayer::permissive()).with_state(state.clone());
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 

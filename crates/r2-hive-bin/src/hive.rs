@@ -1,7 +1,7 @@
 //! Hive state — the core state object owning transports and routing.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Instant;
 use tokio::sync::{mpsc, Mutex, RwLock};
 
@@ -137,11 +137,13 @@ pub struct HiveState {
     pub web_plugins: Arc<crate::web::WebPluginRegistry>,
     /// Browser-device credentials and cookie signing key
     /// (R2-PLUGIN §13.5). Set after `HiveState::new` via
-    /// [`HiveState::set_web_auth`] once the master secret is loaded; until
-    /// then, web plugins serve in **dev-mode** (no auth gate, every
-    /// response carries an `X-R2-Web-Auth: dev-mode` header so callers can
-    /// tell).
+    /// [`HiveState::set_web_auth`] once the master secret is loaded. If
+    /// absent, web surfaces fail closed unless [`HiveState::set_web_dev_mode`]
+    /// has explicitly enabled the development bypass.
     web_auth: std::sync::RwLock<Option<Arc<crate::web_auth::WebAuth>>>,
+    /// Explicit development bypass for web-plugin static assets. Defaults
+    /// false; production must install `web_auth` instead.
+    web_dev_mode: AtomicBool,
     /// USB peripheral bring-up handle. Linux-only and gated on
     /// `--no-usb` / runtime presence; mgmt-event handlers reach into
     /// it for the `r2.mgmt.usb.*` vocabulary. `None` when the
@@ -200,6 +202,7 @@ impl HiveState {
             ensembles: Arc::new(EnsembleRegistry::new()),
             web_plugins: Arc::new(crate::web::WebPluginRegistry::new()),
             web_auth: std::sync::RwLock::new(None),
+            web_dev_mode: AtomicBool::new(false),
             #[cfg(target_os = "linux")]
             usb_handle: std::sync::RwLock::new(None),
             buffer_size,
@@ -212,16 +215,25 @@ impl HiveState {
     }
 
     /// Install the web-plugin browser-auth registry. Called from main
-    /// after the master secret is loaded (or skipped on `--no-mgmt`).
-    /// Until set, web plugins are served in dev-mode (no cookie gate).
+    /// after the master secret is loaded.
     pub fn set_web_auth(&self, auth: Arc<crate::web_auth::WebAuth>) {
         *self.web_auth.write().expect("web_auth lock") = Some(auth);
     }
 
-    /// Borrow the auth registry, if installed. Returns `None` when the
-    /// hive is in dev-mode.
+    /// Borrow the auth registry, if installed.
     pub fn web_auth(&self) -> Option<Arc<crate::web_auth::WebAuth>> {
         self.web_auth.read().expect("web_auth lock").clone()
+    }
+
+    /// Enable or disable the explicit web development bypass.
+    pub fn set_web_dev_mode(&self, enabled: bool) {
+        self.web_dev_mode.store(enabled, Ordering::Relaxed);
+    }
+
+    /// Returns true only when the operator explicitly enabled the web
+    /// development bypass.
+    pub fn web_dev_mode(&self) -> bool {
+        self.web_dev_mode.load(Ordering::Relaxed)
     }
 
     /// Install the USB peripheral bring-up handle. Called from main

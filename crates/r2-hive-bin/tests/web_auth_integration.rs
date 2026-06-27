@@ -181,11 +181,29 @@ async fn provision_with_bad_code_returns_400() {
 }
 
 #[tokio::test]
-async fn dev_mode_serves_with_warning_header() {
-    // No web_auth installed → dev-mode.
+async fn missing_web_auth_fails_closed_by_default() {
+    let tmp = tempfile::tempdir().unwrap();
+    make_bundle(tmp.path(), b"<h1>closed</h1>");
+    let state = Arc::new(HiveState::new(0xCAFEBEEF, 64, 4));
+    let m = manifest("ui", None, "ui/");
+    state.web_plugins.mount("closed", &m, tmp.path()).unwrap();
+    let addr = spawn_app(state.clone()).await;
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("http://{}/ensemble/closed", addr))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 503);
+}
+
+#[tokio::test]
+async fn explicit_dev_mode_serves_with_warning_header() {
     let tmp = tempfile::tempdir().unwrap();
     make_bundle(tmp.path(), b"<h1>open</h1>");
     let state = Arc::new(HiveState::new(0xCAFEBEEF, 64, 4));
+    state.set_web_dev_mode(true);
     let m = manifest("ui", None, "ui/");
     state.web_plugins.mount("open", &m, tmp.path()).unwrap();
     let addr = spawn_app(state.clone()).await;
@@ -204,4 +222,24 @@ async fn dev_mode_serves_with_warning_header() {
         .to_str()
         .unwrap();
     assert_eq!(dev, "dev-mode");
+}
+
+#[tokio::test]
+async fn revoked_cookie_is_rejected() {
+    let (state, addr, _tmp) = setup_with_auth().await;
+    let auth = state.web_auth().expect("auth");
+    let code = auth.mint_provision_code_with_ttl(60);
+    let (cred, set_cookie) = auth.redeem_provision_code(&code).unwrap();
+    let cookie_pair = set_cookie.split(';').next().unwrap().trim().to_string();
+
+    auth.revoke_device(&cred.device_id);
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("http://{}/ensemble/guarded", addr))
+        .header(reqwest::header::COOKIE, cookie_pair)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 401);
 }

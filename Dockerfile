@@ -23,6 +23,7 @@ FROM debian:trixie-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /build/r2-hive/target/release/r2-hive /usr/local/bin/
 EXPOSE 21042
-# Bind 0.0.0.0 inside the container; put a TLS terminator (Caddy/nginx)
-# in front for wss:// in production.
-CMD ["r2-hive", "--bind", "0.0.0.0", "--port", "21042", "--no-usb"]
+# Bind 0.0.0.0 inside the container only by explicit opt-in; /r2/mgmt stays
+# disabled on non-loopback listeners. Put a TLS terminator (Caddy/nginx) in
+# front for wss:// in production.
+CMD ["r2-hive", "--bind", "0.0.0.0", "--allow-public-bind", "--port", "21042", "--no-usb"]

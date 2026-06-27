@@ -72,6 +72,7 @@ async fn ensemble_load_path_mounts_web_plugin_and_stop_unmounts() {
 
     // Daemon + hive + factory.
     let hive = Arc::new(HiveState::new(0xCAFE_BABE, 64, 16));
+    hive.set_web_dev_mode(true);
     hive.ensembles
         .register_factory(Arc::new(NoopFactory(Arc::new(AtomicU32::new(0)))));
 

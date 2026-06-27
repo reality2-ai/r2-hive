@@ -89,16 +89,18 @@ dependencies, build it from the parent directory containing both
 
 ### Checking it works
 
-Open `http://<your-ip>:21042` — you'll see the wayfinder dashboard: a
-live view of connections, trust groups, and frames being routed. The
-hexagon pulses each time a frame passes through.
+Open `http://127.0.0.1:21042` on the host — you'll see the wayfinder
+dashboard: a live view of connections, trust groups, and frames being
+routed. Public listeners require `--allow-public-bind`; put TLS in
+front before exposing one.
 
 ## Options
 
 ```
 r2-hive [OPTIONS]
   --port <PORT>           Port for WebSocket + HTTP   [default: 21042]
-  --bind <ADDR>           Bind address                [default: 0.0.0.0]
+  --bind <ADDR>           Bind address                [default: 127.0.0.1]
+  --allow-public-bind     Permit a non-loopback listener
   --buffer-size <N>       Recent frames kept per trust group [default: 1000]
   --max-connections <N>   Max simultaneous connections [default: 10000]
   --auto                  Auto-detect transports at startup
@@ -110,6 +112,10 @@ Run `r2-hive --help` for the full list. Settings can also come from
 `$XDG_CONFIG_HOME/r2/hive.toml`; see
 [`crates/r2-hive-bin/packaging/defaults/hive.toml`](crates/r2-hive-bin/packaging/defaults/hive.toml).
 CLI flags override the file.
+
+The management WebSocket `/r2/mgmt` is mounted only on loopback listeners
+and requires browser-session auth. On public binds, use the local Unix
+management socket for control.
 
 ## How a wayfinder works
 

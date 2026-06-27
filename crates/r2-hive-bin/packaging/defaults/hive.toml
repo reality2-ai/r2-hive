@@ -19,10 +19,14 @@ name = "r2-hive"
 
 # Bind address for the HTTP / WebSocket listener.
 # CLI: --bind
-bind = "0.0.0.0"
+# Non-loopback binds require the explicit --allow-public-bind CLI flag.
+# The /r2/mgmt WebSocket is never mounted on non-loopback listeners; use
+# the management Unix socket for local control.
+bind = "127.0.0.1"
 
-# Listener port. The dashboard, /r2 WS, /r2/mgmt WS, /ensemble/<name>
-# web plugins, and /r2/web/provision all share this port.
+# Listener port. The dashboard, /r2 WS, /ensemble/<name> web plugins,
+# and /r2/web/provision all share this port. /r2/mgmt is added only on
+# loopback listeners and requires browser-session auth.
 # CLI: --port
 port = 21042
 

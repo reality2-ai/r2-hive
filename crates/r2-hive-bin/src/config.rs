@@ -46,7 +46,7 @@ impl Default for DaemonConfig {
     fn default() -> Self {
         Self {
             name: "r2-hive".to_string(),
-            bind: "0.0.0.0".to_string(),
+            bind: "127.0.0.1".to_string(),
             port: 21042,
             buffer_size: 1000,
             max_connections: 10000,

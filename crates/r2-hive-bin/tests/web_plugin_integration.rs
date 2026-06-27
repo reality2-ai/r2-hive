@@ -34,6 +34,7 @@ fn manifest(name: &str, mount: Option<&str>, bundle: &str) -> WebPluginManifest 
 }
 
 async fn spawn_app(state: Arc<HiveState>) -> SocketAddr {
+    state.set_web_dev_mode(true);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let app = make_app(state);

@@ -61,6 +61,50 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   real baud/addr/register-map, AND any WAKE/INIT command (a radar needing an init sequence never answers a
   blind read). Firmware side COMPLETE; no further probe iteration until a physical variable changes or the
   model lands. Logs: scratchpad/radar-{sweep,sweep-powered,listen,abswap}.log (all null).
+- **COMPANION AUDIT (hive-codex, 2026-06-27):** git state clean on `platform-trait` before work; firmware
+  worktree `/home/roycdavies/Development/R2/dfr1195-fw-wt` clean at `9fe219d` (base `c46383e`). Found a
+  durable-handoff gap: r2-hive's `docs/dfr1195-firstlight.patch` did not include the radarprobe commits even
+  though the firmware worktree did. Refreshed the patch artifact from
+  `git -C ../dfr1195-fw-wt diff c46383e..HEAD -- platforms/dfr1195/Cargo.lock platforms/dfr1195/Cargo.toml platforms/dfr1195/build.rs platforms/dfr1195/src/main.rs platforms/esp32/sdkconfig.defaults`
+  (intentionally excluding the nested `docs/dfr1195-firstlight.patch` inside the firmware worktree). Verified:
+  `rg radarprobe docs/dfr1195-firstlight.patch` now hits; `git apply --reverse --check
+  /home/roycdavies/Development/R2/r2-hive/docs/dfr1195-firstlight.patch` passes in the firmware worktree. No
+  firmware source changed this turn; only the r2-hive patch artifact changed. Hygiene note: global
+  `git diff --check` reports three trailing-whitespace warnings inside the generated patch artifact itself
+  (`+ ` blank source lines); left intact so the patch remains a faithful diff of the firmware worktree.
+  Coordination note: `fleet ask hive` could not get a substantive challenge because the base provider hit the
+  org monthly spend limit; sent a heads-up anyway. Do not assume the scratchpad radar logs exist in this
+  checkout (`scratchpad/` absent here).
+- **COMPANION RE-CHECK (hive-codex, 2026-06-27):** objective remains patch/handoff hygiene only; no firmware
+  iteration while the radar result is blocked on physical checks or a radar model. Verified branch
+  `platform-trait`; r2-hive HEAD `225b8f4`; firmware worktree clean at `9fe219d`. Re-ran:
+  `rg radarprobe docs/dfr1195-firstlight.patch` (hits the feature, GPIO43/44/6, passive listen, parity sweep)
+  and `git -C /home/roycdavies/Development/R2/dfr1195-fw-wt apply --reverse --check
+  /home/roycdavies/Development/R2/r2-hive/docs/dfr1195-firstlight.patch` (PASS). `git diff --check` still
+  reports the same three trailing-whitespace warnings inside the generated patch artifact only; intentionally
+  not normalized. `scratchpad/` is absent in this checkout. Coordination: `fleet ask hive` returned the org
+  monthly spend-limit message, but `fleet inbox hive-codex` later had a base-hive ACK confirming the firmware
+  worktree is stable, radar bring-up is paused on Roy-side physical/model input, and there is no patch-artifact
+  race. Next action remains Roy bench: continuity RO->GPIO44 / DI->GPIO43 / DE-RE->GPIO6, MAX485 5V+GND,
+  actual radar model/datasheet. Do not assume a firmware TX/RX swap is safe; driving GPIO44 if it is wired to
+  MAX485 RO can contend outputs.
+- **SECURITY CRITICAL CLOSED (hive-codex, 2026-06-27; commit pending from HEAD `225b8f4`):** verified and fixed
+  the reported unauthenticated public management WebSocket. `/r2/mgmt` now has three gates: default daemon bind
+  is loopback (`127.0.0.1`); non-loopback bind requires explicit `--allow-public-bind`; even with that opt-in
+  the management WS is not mounted on non-loopback listeners, so local control is UDS/loopback-only by
+  construction. The WS upgrade now requires a valid active `r2_web_session` cookie and rejects cross-origin
+  browser upgrades. Web auth now enforces revocation inside `verify_cookie_header`; web plugins fail closed
+  when `web_auth` is missing unless the operator explicitly sets `--web-dev-mode`. Install/package defaults
+  changed to loopback; Docker keeps public container bind only with explicit `--allow-public-bind`.
+  Changed security files: `crates/r2-hive-bin/src/{main.rs,hive.rs,web.rs,web_auth.rs,config.rs,mgmt/ws.rs}`,
+  `crates/r2-hive-bin/tests/{web_auth_integration.rs,web_plugin_integration.rs,web_plugin_load.rs}`,
+  `install.sh`, `Dockerfile`, `README.md`, and `crates/r2-hive-bin/packaging/defaults/hive.toml`.
+  Verification: `cargo test -p r2-hive` PASS (105 lib + all integration/doc tests); `bash -n install.sh` PASS;
+  `RUST_LOG=info target/debug/r2-hive --bind 0.0.0.0 --port 0 --no-mgmt --no-usb` exits before listen with the
+  expected non-loopback refusal. `cargo test --workspace` still fails only at the pre-existing lower-priority
+  red test `r2-hive-core::sync_host::tests::route_relays_to_known_neighbour` ("expected a relay decision, got
+  Dropped") that supervisor already called out; critical mgmt-WS surface is closed. `git diff --check` still has
+  only the known generated-patch whitespace warnings in `docs/dfr1195-firstlight.patch`.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
