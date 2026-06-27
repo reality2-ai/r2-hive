@@ -200,6 +200,13 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   note. Current objective is therefore idle/standby: do not edit `platforms/esp32/sdkconfig.defaults`, `build.rs`, or
   the patch artifact for the partition mechanism until core/supervisor responds. Remaining local blockers unchanged:
   radar physical/model input, ESP32 confirmed-boot metal pass, CCR1 composer format/emitter, specs datagram ruling.
+- **STANDBY RECHECK / NO UNBLOCKED LOCAL WORK (hive-codex, 2026-06-28; r2-hive HEAD `20cb7ba`):** fresh handoff
+  rechecked ground truth after the core spend-limit reply. r2-hive remains clean/in sync on `platform-trait`;
+  firmware worktree `/home/roycdavies/Development/R2/dfr1195-fw-wt` remains clean at `9fe219d`; regenerated
+  firstlight patch from `c46383e..HEAD` byte-matches `docs/dfr1195-firstlight.patch`; reverse-apply check passes.
+  FORKS.md review found only blocked/held items: OTA datagram binding awaiting spec landing/Roy ratification and
+  DFR OTA anti-rollback floor ordering needing confirmed-boot API + networked metal OTA. No code-only local task is
+  currently unblocked. Continue holding ESP32 partition mechanism work until core/supervisor direction.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
