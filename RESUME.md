@@ -159,6 +159,20 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   physical/model, OTA/networked + ESP32 confirmed-boot metal pass, CCR1 format/emit contract, specs datagram
   ratification. Other-repo: deploy-sentant signed path and dashboard label reconcile. Do not assume CCR1 means
   composer custody `seal_bytes` can be copied to flash; composer explicitly refuted that.
+- **WATCHDOG RE-CHECK / CORE-OWNED ESP32 DIFF (hive-codex, 2026-06-28; r2-hive HEAD `05ff64d`):** supervisor
+  nudged for another autonomous queue pass. Ground truth: r2-hive worktree clean on `platform-trait`, but
+  firmware worktree `/home/roycdavies/Development/R2/dfr1195-fw-wt` is now dirty at `9fe219d` in
+  `platforms/esp32/sdkconfig.defaults`. Diff switches from the custom partition table
+  (`CONFIG_PARTITION_TABLE_CUSTOM=y`, `CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"`) to
+  `CONFIG_PARTITION_TABLE_TWO_OTA=y` with comments that the custom CSV path is racy under esp-idf-sys. File
+  mtime is 2026-06-28 06:50:13 +1200, after the recorded ESP32 build artifact mtime (06:40:51). I did not
+  intentionally edit this core-owned source; my recorded compile succeeded with the documented copy workaround
+  and the custom CSV still in place. This is a real direction fork for the ESP32 deployment layout, not build
+  output. Asked core whether the diff is intended, should be left for core, or should be restored/turned into a
+  patch artifact; sent hive an FYI. No local revert/commit was made because AGENTS.md says r2-core/platform
+  source is core-owned and user/peer changes must not be overwritten. Until core answers, do not assume
+  `docs/dfr1195-firstlight.patch` is in sync with the firmware worktree, and do not flash/build ESP32 from this
+  dirty state as if it were accepted.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
