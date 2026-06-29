@@ -31,8 +31,10 @@ the reader attaches) + one INERT line / 30s → none of the telemetry the orches
 (fail-closed) but reads as a dead bench.
 - GATING FACTS (answer to composer's Q): on a NORMALLY-RUNNING board the idle heartbeat is ALREADY UNGATED —
   status ~2s (main render loop, line 653) + HEALTH ~6s (io_task `fire_seq % 3`, line ~1111). NEITHER is
-  routetest-gated. msg.* IS routetest-gated (per-Event traffic — correct). beacon is LoRa-only (loraroute) → N/A
-  on the WiFi ESP32 boards. So idle liveness is not the problem; the INERT halt suppressing ALL tasks is.
+  routetest-gated. msg.* IS routetest-gated (per-Event traffic — correct). [⚠ CORRECTION 2026-06-30: my
+  "beacon is LoRa-only → N/A on WiFi ESP32" claim here was WRONG — see the BLE-BEACON GAP entry below; there IS a
+  BLE-beacon advert but it's gated to am_provider==M7_PROVIDER_HIVE, never generalized.] So idle liveness is not
+  the problem; the INERT halt suppressing ALL tasks is.
 - FIX PATH sent to supervisor+composer (2026-06-30): (1) IMMEDIATE no-fw — PROVISION each board (persona.bin
   @0x12000 + reboot) OR flash a NON-field bench build (demo-TG fallback emits idle telemetry out of the box,
   fastest). (2) FIRMWARE FIDELITY FIX (build on GO) — emit a minimal idle HEALTH/status FROM the INERT loop
@@ -893,7 +895,33 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    RouteEngine weights so composer renders the true values. CORE defines the exact weight-SET to surface
    (RouteEngine owner — I consume/emit via the engine's accessors, core sources). Sequenced AFTER the staota flash
    batch + the §2.3A/§2.3B firmware work. Leave room in the telemetry shape now (additive CBOR keys, like k4).
-(Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-12 added 2026-06-30.)
+13. **BLE-BEACON GAP — every board must advertise (Roy: fundamental R2 mesh; spec-first)** (verified 2026-06-30).
+   The firmware HAS the R2-BEACON advert codec (ble_task main.rs:2487, r2_discovery::beacon byte-exact:
+   derive_beacon_session_key + compute_rbid + encode_advert, manufacturer-AD 0xFF) — BUT the peripheral.advertise
+   is GATED to `am_provider == M7_PROVIDER_HIVE` (line 2547/2550), a hardcoded test hive: ONLY that board
+   advertises (M7/M8b 2-board SoftAP-CoC-negotiation scaffolding); every other board is a JOINER (central.connect,
+   NO advertise, line 2594+). Field boards (hive != M7_PROVIDER_HIVE) → ZERO advertise → a BLE scan finds nothing
+   (Roy confirmed). ROOT CAUSE: NOT a regression — the per-board always-advertise was NEVER generalized (the BLE
+   advertise was only ever the 2-board-negotiation provider path). [My earlier "beacon = LoRa-only" claim was
+   WRONG — corrected at top.] FIX (spec-first, small): UN-GATE so EVERY board advertises its encode_advert payload
+   continuously, independent of the provider/joiner CoC role (payload already built; just advertise on all). Coord
+   specs (normative BLE-beacon §8.1 confirm) + core (r2_discovery::beacon owner). + REGRESSION-GUARD (Roy core
+   discipline): hosted-CI assert the beacon-advertise is wired UNCONDITIONALLY + the codec round-trips, so it can't
+   silently vanish again. Under `nobt` (no BLE) there's no BLE at all — separate.
+14. **OTA-READY BOOTSTRAP — reboot-to-download + persona-over-wire (Roy PRIORITY: THE unlock)** (verified 2026-06-30).
+   Remote provisioning/reflash is BLOCKED by the USB-JTAG download-mode-entry race (running firmware blocks
+   espflash/esptool → 'write timeout'/'connecting' hang; hit Roy + supervisor). TWO firmware gaps, both ADDABLE:
+   (1) REBOOT-TO-DOWNLOAD = NOT present (only software_reset = normal reboot). Add an authenticated console/mgmt
+   command that sets the ESP32-S3 usb-serial-jtag/RTC download flag + resets → ROM download (app not running →
+   esptool connects cleanly, no race, no BOOT button) = remote-reflash unlock. (2) PERSONA-OVER-WIRE = NOT present
+   (persona @0x12000 is external-write-bin ONLY, no firmware write_persona; serial PROVISION is the @0x14000
+   TG-KEY over serial, NOT identity, NOT mesh/mgmt). Add a firmware persona/identity receiver over console/mgmt
+   that writes @0x12000 = no-download-mode provisioning (best). CHICKEN-AND-EGG: bootstrapping either onto a board
+   still needs ONE reliable download entry (no-reset-chaining + connect-retry, or the physical BOOT button when
+   Roy's home). Build order proposed to supervisor: (1) reboot-to-download → (2) persona-over-wire → then #13
+   beacon; each xtensa-verified + committed + regression-guarded, per Roy's incremental directive. Asked supervisor
+   the fork: build reboot-to-download NOW vs finish staota D5/batch provisioning first.
+(Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-14 added 2026-06-30.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
 - The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
