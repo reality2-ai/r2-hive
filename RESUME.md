@@ -3,9 +3,10 @@
 ## ► 2026-06-30T06:26:56+12:00 — DOCTOR-ONLY FINAL IDLE REFRESH
 Objective: doctor-only durable handoff refresh after stopped-lane fleet activity. No code/content edits; update
 `RESUME.md` only if ground truth shows stale current state, then commit/push and idle.
-- **Branch/HEAD/worktree:** r2-hive is on `platform-trait` at `a10d63f032fb`
-  (`a10d63f docs: clean resume handoff markers`), matching `origin/platform-trait`. Pre-edit
-  `git status --short --branch` was clean. This entry is the only intended r2-hive file change.
+- **Branch/HEAD/worktree:** final pushed state after this refresh is r2-hive on `platform-trait` at
+  `18e3b1c` (`18e3b1c docs: refresh final idle resume state`), matching `origin/platform-trait`. The earlier
+  pre-edit verification for this entry saw a clean worktree at `a10d63f032fb` before the RESUME-only refresh
+  commit was created; do not treat `a10d63f` as current.
 - **Firmware worktree state:** `/home/roycdavies/Development/R2/dfr1195-fw-wt` is on `dfr1195-fw` at
   `54973b9ba17a` (`feat(dfr-ota): R2/R3/R4 OTA-receiver hardening (specs-sanctioned)`), matching
   `origin/dfr1195-fw`, with exactly one dirty file: `M docs/dfr1195-firstlight.patch` inside that sibling
@@ -43,6 +44,9 @@ Objective: doctor-only durable handoff refresh after stopped-lane fleet activity
   allow-mask firmware role-profile ingestion, per-hop telemetry tags, and bench metal validation were not added by
   the host/sync/mgmt patch and remain scoped to later contract/bench work. Do not re-adopt ESP-IDF
   `CONFIG_PARTITION_TABLE_TWO_OTA=y` unless the image shrinks below 1 MiB or a different built-in table is proven.
+- **Paused-branch note:** `crates/r2-hive-core/src/record_store.rs` is not part of current `platform-trait`; it
+  belongs to the paused `storing-backend` branch at `478203a`. Treat any RecordStore seam notes as branch-scoped
+  unless that branch is explicitly resumed.
 - **Verification this turn:** `git status --short --branch`; `git log -5 --oneline --decorate`; `date -Iseconds`;
   focused `git ls-files`/`rg` wiring checks; the four targeted cargo tests above; sibling firmware
   `git status`/`git log`; patch `cmp` byte-match and reverse-apply check; ESP32 sdkconfig/partition/artifact
