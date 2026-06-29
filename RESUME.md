@@ -1,9 +1,11 @@
 # RESUME — r2-hive (hive-worker)
 
 ## ► 2026-06-28 — DFR FIRMWARE PRE-METAL HARDENING (refutation-review items, supervisor GO) — DONE+GREEN
-Worktree `dfr1195-fw` HEAD `428f81c`. Three refutation-review items implemented + build-green (field,loraroute,
-multitg / nobt / radarprobe / field,loraroute,bridge,multitg); patch refreshed (`docs/dfr1195-firstlight.patch`,
-c46383e..HEAD = 15 commits). Metal validation of the OTA round-trip remains bench-network-gated.
+Worktree `dfr1195-fw` HEAD `54973b9`. Three refutation-review items implemented + build-green at `428f81c`
+(field,loraroute,multitg / nobt / radarprobe / field,loraroute,bridge,multitg), then R2/R3/R4 OTA-receiver
+hardening landed at `54973b9` with commit-recorded `cargo build --release` GREEN (xtensa esp32s3, 13.54s).
+Patch refreshed (`docs/dfr1195-firstlight.patch`, c46383e..HEAD = 16 commits). Metal validation of the OTA
+round-trip remains bench-network-gated.
 1. **§3.5 fail-closed is now INERT (not advisory).** Under `field` + no valid persona: HALT before any TG/
    radio/task setup — no demo-TG adoption, no radio/HB/beacon/io spawns (was only a louder println). Bench
    builds (no `field`) keep the demo fallback. (main.rs persona-boot block.)
@@ -16,9 +18,31 @@ c46383e..HEAD = 15 commits). Metal validation of the OTA round-trip remains benc
    floor) to a new OTA-pending NVS sector @0x1A000; the live anti-rollback floor commits ONLY at confirmed-
    boot after the §5 gate. Kills the v0.21 brick-defect (a bad image can't raise the floor) — this CLOSES the
    FORKS.md "OTA anti-rollback floor ORDERING" fork (impl done; metal-validate when the OTA round-trip unblocks).
+4. **OTA receiver R2/R3/R4 hardening (specs-sanctioned receiver robustness, not binding ratification).** R2:
+   30s inactivity timeout abandons a stalled in-flight OTA session. R3: `payload_size = vh.payload_len`, ODT
+   rejects off+len beyond the declared payload, and OCM commits only when `written == payload_size`. R4: ODT/OCM
+   are bound to the authenticated OST sender address; foreign chunks/commits are dropped silently. Verify-before-
+   write + New/PendingVerify confirmed-boot lifecycle intact.
 NVS map now: persona@12000 / board@13000 / tg@14000 / mask@15000 / sendto@16000 / role-profile@17000 /
 anti-rollback@18000 / CCR1-reserved@19000 / ota-pending@1A000. ⚠ crash-on-boot auto-rollback still needs
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE in the composer-staged bootloader (deployment follow-up; core owns it).
+- **CORE PARTITION RULING LANDED:** keep custom `partitions.csv`; do NOT switch to ESP-IDF built-in
+  `CONFIG_PARTITION_TABLE_TWO_OTA=y` (deploy-invalid: 1 MiB slots, current image is ~1.6 MiB). Core confirmed
+  custom CSV supplies the needed `otadata` + two OTA slots + rollback-enable. Remaining non-metal diagnostic:
+  esp-idf-sys custom-partition copy race still needs a portable fix or documented workaround; do not re-litigate
+  `TWO_OTA` unless the image shrinks below 1 MiB or another built-in table is proven.
+- **TAKEOVER HYGIENE (hive-codex, 2026-06-29; pre-edit r2-hive HEAD `e27b56e`):** rechecked r2-hive clean on
+  `platform-trait`; firmware worktree at `54973b9` with only its nested `docs/dfr1195-firstlight.patch` dirty.
+  Regenerated the r2-hive recovery artifact from `c46383e..HEAD` over the owned firmware paths and found
+  r2-hive's `docs/dfr1195-firstlight.patch` stale by 87 lines (missing `54973b9` R2/R3/R4 OTA hardening), then
+  refreshed it. Composer telemetry answer: firmware emits `r2-dfr1195: msg.* <hexcbor>` over USB serial; composer
+  has already forwarded/used normal `msg.tx/rx/relay/delivered` as the `/r2` orchestrator `msg.*` stream for
+  step-a/happy-path/E2/E3. Earlier SCF one-shot evidence used raw serial because of a one-shot orch WS gap, so
+  Phase 2 path animation can consume `/r2` for normal lifecycle, but should keep raw serial as the diagnostic
+  fallback for rare SCF-gap captures until composer confirms the gap is closed. Changed files this turn:
+  `docs/dfr1195-firstlight.patch` and `RESUME.md`. Verification: regenerated-patch byte-match PASS;
+  reverse-apply in `/home/roycdavies/Development/R2/dfr1195-fw-wt` PASS; `git diff --check` PASS. No full
+  workspace tests run because this is a docs/artifact-only refresh.
 
 ## ► CURRENT 2026-06-27 — RADAR BRING-UP (Modbus-RTU PROBE, Roy chose PROBE-to-discover; ULTRACODE on)
 First REAL sensor. Build+flash a Modbus-RTU PROBE firmware to the radar XIAO to discover the radar protocol
@@ -220,13 +244,15 @@ empirically (baud + slave-addr + register map), → then build the real radar dr
   note. Current objective is therefore idle/standby: do not edit `platforms/esp32/sdkconfig.defaults`, `build.rs`, or
   the patch artifact for the partition mechanism until core/supervisor responds. Remaining local blockers unchanged:
   radar physical/model input, ESP32 confirmed-boot metal pass, CCR1 composer format/emitter, specs datagram ruling.
+  SUPERSEDED 2026-06-29 by core's ruling: custom `partitions.csv` is canonical; `TWO_OTA` is refuted/deploy-invalid.
 - **STANDBY RECHECK / NO UNBLOCKED LOCAL WORK (hive-codex, 2026-06-28; r2-hive HEAD `20cb7ba`):** fresh handoff
   rechecked ground truth after the core spend-limit reply. r2-hive remains clean/in sync on `platform-trait`;
   firmware worktree `/home/roycdavies/Development/R2/dfr1195-fw-wt` remains clean at `9fe219d`; regenerated
   firstlight patch from `c46383e..HEAD` byte-matches `docs/dfr1195-firstlight.patch`; reverse-apply check passes.
   FORKS.md review found only blocked/held items: OTA datagram binding awaiting spec landing/Roy ratification and
-  DFR OTA anti-rollback floor ordering needing confirmed-boot API + networked metal OTA. No code-only local task is
-  currently unblocked. Continue holding ESP32 partition mechanism work until core/supervisor direction.
+  DFR OTA anti-rollback floor ordering needing networked metal OTA. No code-only local task was unblocked at that
+  checkpoint. SUPERSEDED 2026-06-29: core ruled the partition mechanism (custom CSV canonical); `54973b9` added
+  R2/R3/R4 OTA receiver hardening and the r2-hive recovery patch is refreshed to that HEAD.
 ULTRACODE: orchestrate substantive work via Workflow + adversarial verify; token cost not a constraint.
 
 ## (prior session) 2026-06-26 — FIELD-FIRMWARE BUILD LAUNCH (Roy GO)
@@ -355,9 +381,9 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    `FIELDLAB_SSID`/pass + reflash; bench soft-AP is DFR-D1-isolated, Alfred can't route) + (b) an
    OTA-authority signer (composer `tg ota-sign` §2.4 TG_SK-direct = the working path; mint-ota would NOT
    verify, no role-0x05 cert). Wire = the DATAGRAM binding (OST/ODT/OCM UDP :21043, chunk≤1024B) specs
-   ratified. ALSO bundle the FORKS.md fix: move the OCM anti-rollback floor-bump → confirmed-boot health-gate
-   (after-confirm v0.21) — IMPLEMENT on specs' §5.1 boot_confirm_late detail (asked: health-check def +
-   native PENDING_VERIFY vs firmware pending-marker; my DFR has no native gate yet).
+   ratified. The OCM after-confirm floor fix is now implemented (`428f81c`) and the receiver hardening is now
+   implemented (`54973b9`); remaining action is metal validation of confirmed-boot/PENDING_VERIFY/rollback plus
+   the networked OTA round-trip.
 2. **esp32 platform IDF compile-verify — COMPILE GREEN 2026-06-28; ON-METAL STILL OWED.** ESP-IDF via espup is
    present; `cargo build --release` for `platforms/esp32` passes after the documented partition-table copy
    workaround. Remaining: on-metal confirmed-boot/PENDING_VERIFY/rollback behavior.

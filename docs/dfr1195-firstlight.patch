@@ -2754,10 +2754,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..d562e76 100644
+index 8c49f1c..6d3a72a 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,4515 @@
+@@ -1,83 +1,4590 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -6663,14 +6663,40 @@ index 8c49f1c..d562e76 100644
 +    let mut pend_seq = 0u32;
 +    let mut pend_floor = 0u32;
 +    let mut written = 0u32;
++    let mut payload_size = 0u32; // R3: declared total payload (vh.payload_len) — bounds + completeness gate
++    let mut session_from = None; // R4: in-flight reassembly is BOUND to the OST sender's addr
 +    let mut secbuf = [0u8; 4096];
 +    let mut secfill = 0usize;
 +    let mut secbase = 0u32;
 +    let mut pkt = [0u8; 1500];
++    // R2 (datagram-binding §4a, specs-verified): a stalled OTA session MUST NOT wedge the receiver. recv with
++    // an inactivity deadline; on timeout with an in-flight session, abandon it. Safe — the candidate slot is
++    // staged-not-booted, so a dropped transfer just frees the receiver for a fresh OST.
++    const OTA_SESSION_TIMEOUT_S: u64 = 30;
 +    loop {
-+        let (n, from) = match socket.recv_from(&mut pkt).await {
-+            Ok(v) => v,
-+            Err(_) => continue,
++        let (n, from) = match embassy_time::with_timeout(
++            Duration::from_secs(OTA_SESSION_TIMEOUT_S),
++            socket.recv_from(&mut pkt),
++        )
++        .await
++        {
++            Ok(Ok(v)) => v,
++            Ok(Err(_)) => continue, // socket error
++            Err(_) => {
++                if pv.is_some() || session_from.is_some() {
++                    println!(
++                        "r2-dfr1195: OTA session inactivity-timeout (>{OTA_SESSION_TIMEOUT_S}s) — abandoning stalled transfer"
++                    );
++                    pv = None;
++                    region = None;
++                    written = 0;
++                    secfill = 0;
++                    secbase = 0;
++                    payload_size = 0;
++                    session_from = None;
++                }
++                continue;
++            }
 +        };
 +        if n < 3 {
 +            continue;
@@ -6704,12 +6730,19 @@ index 8c49f1c..d562e76 100644
 +                        written = 0;
 +                        secfill = 0;
 +                        secbase = 0;
-+                        println!("r2-dfr1195: OTA SIGNED start seq={}", vh.seq);
++                        // R3: the declared total — every ODT chunk must fit inside it and OCM only commits when
++                        // the cumulative written == this. R4: (re)bind the reassembly to THIS sender; a fresh
++                        // authenticated OST re-binds, but no ODT/OCM from any other addr can touch this session.
++                        payload_size = vh.payload_len as u32;
++                        session_from = Some(from);
++                        println!("r2-dfr1195: OTA SIGNED start seq={} payload_size={}", vh.seq, payload_size);
 +                        let _ = socket.send_to(&[r2_update::RESP_OK], from).await;
 +                    }
 +                    Err(e) => {
 +                        pv = None;
 +                        region = None;
++                        payload_size = 0;
++                        session_from = None;
 +                        println!("r2-dfr1195: OTA verify REJECT reason={}", reject_reason(e));
 +                        let _ = socket.send_to(&[r2_update::RESP_ERR, reject_reason(e)], from).await;
 +                    }
@@ -6717,7 +6750,28 @@ index 8c49f1c..d562e76 100644
 +            }
 +            // SIGNED data: pv.update(chunk)? BEFORE the slot write — a corrupt/forged chunk -> reject + discard.
 +            b"ODT" if n >= 7 => {
++                // R4: a chunk is accepted ONLY from the addr that opened the session. A foreign ODT (no
++                // matching authenticated OST) is dropped SILENTLY — no ack, no state, no reply to leak to.
++                if session_from != Some(from) {
++                    continue;
++                }
 +                let off = u32::from_be_bytes([pkt[3], pkt[4], pkt[5], pkt[6]]);
++                let chunk_len = (n - 7) as u32;
++                // R3: the chunk MUST fit inside the declared payload — off and off+len bounded by payload_size.
++                // An over-long or out-of-bounds frame is a malformed/forged transfer: reject + tear the session
++                // down (no partial slot write past the declared image).
++                if off.saturating_add(chunk_len) > payload_size {
++                    pv = None;
++                    region = None;
++                    written = 0;
++                    secfill = 0;
++                    secbase = 0;
++                    payload_size = 0;
++                    session_from = None;
++                    println!("r2-dfr1195: OTA ODT REJECT — frame past declared payload (off+{chunk_len} > {payload_size})");
++                    let _ = socket.send_to(&[r2_update::RESP_ERR, 0x0E], from).await; // 0x0E = framing out-of-bounds
++                    continue;
++                }
 +                if off == written {
 +                    let chunk_ok = pv.as_mut().is_some_and(|v| v.update(&pkt[7..n]).is_ok());
 +                    if !chunk_ok {
@@ -6751,6 +6805,27 @@ index 8c49f1c..d562e76 100644
 +            // SIGNED commit: flush the slot, then pv.finish()? (payload hash) BEFORE set_boot. Bump the
 +            // anti-rollback floor (monotonic) only on a successful finish. No byte boots until finish() Ok.
 +            b"OCM" => {
++                // R4: only the session owner may commit.
++                if session_from != Some(from) {
++                    continue;
++                }
++                // R3: commit ONLY when the cumulative bytes equal the declared payload. A short/incomplete
++                // transfer must never reach activate — tear it down so the candidate slot is never booted.
++                // (pv.finish() also catches this via the payload hash, but the framing gate is the MUST.)
++                if written != payload_size {
++                    let got = written;
++                    let want = payload_size;
++                    pv = None;
++                    region = None;
++                    written = 0;
++                    secfill = 0;
++                    secbase = 0;
++                    payload_size = 0;
++                    session_from = None;
++                    println!("r2-dfr1195: OTA OCM REJECT — incomplete ({got} != declared {want})");
++                    let _ = socket.send_to(&[r2_update::RESP_ERR, 0x0E], from).await; // 0x0E = framing/incomplete
++                    continue;
++                }
 +                if let Some(r) = region.as_mut() {
 +                    if secfill > 0 {
 +                        let _ = r.write(secbase, &secbuf[..secfill]);
