@@ -20,6 +20,7 @@ use r2_wire::{
 use super::ensemble as ens;
 use super::primitive;
 use super::state::DaemonState;
+use super::transport_policy;
 #[cfg(target_os = "linux")]
 use super::usb;
 
@@ -107,6 +108,24 @@ pub async fn handle_frame_with_subs(
     }
     if h == r2_hash(EV_IDENTITY_STATUS).expect("known-good event name") {
         return build_identity_status_response(correlation_id, state);
+    }
+    if h == r2_hash(transport_policy::EV_TRANSPORT_ALLOW_MASK_STATE).expect("known-good event name") {
+        let Some(hive) = state.hive_state() else {
+            return build_error_response(correlation_id, "unsupported");
+        };
+        return transport_policy::handle_state(correlation_id, hive).await;
+    }
+    if h == r2_hash(transport_policy::EV_TRANSPORT_ALLOW_MASK_SET).expect("known-good event name") {
+        let Some(hive) = state.hive_state() else {
+            return build_error_response(correlation_id, "unsupported");
+        };
+        return transport_policy::handle_set(correlation_id, msg.payload, hive).await;
+    }
+    if h == r2_hash(transport_policy::EV_TRANSPORT_ALLOW_MASK_CLEAR).expect("known-good event name") {
+        let Some(hive) = state.hive_state() else {
+            return build_error_response(correlation_id, "unsupported");
+        };
+        return transport_policy::handle_clear(correlation_id, msg.payload, hive).await;
     }
 
     // r2.api.* — application vocabulary (R2-HOST-API §3).

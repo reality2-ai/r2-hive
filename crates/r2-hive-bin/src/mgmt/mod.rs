@@ -14,6 +14,7 @@ pub mod primitive;
 pub mod socket;
 pub mod state;
 pub mod subscriptions;
+pub mod transport_policy;
 #[cfg(target_os = "linux")]
 pub mod usb;
 pub mod ws;

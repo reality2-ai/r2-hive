@@ -1,5 +1,65 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-29 — BENCH PHASE-2 TRANSPORT-DISABLE WIRING / IMPLEMENTED+GREEN
+Objective: wire the now-unblocked Phase-2 node-wide egress transport software-disable policy in r2-hive without
+inventing hive-local routing semantics, then verify and push. Result: **IMPLEMENTED** against core's canonical
+`r2_route` API on branch `platform-trait` (pre-work HEAD `852e03b`; this RESUME entry is in the transport-policy
+implementation commit).
+- **Verified authority before coding:** r2-specifications clean on `spec-conformance-v0.2` at
+  `45b8a507e731aeeaae124f263f0809c4116502c5`; R2-TRANSPORT §2.3A says `transport_allow_mask` is `0x7F`
+  default all-on, node-wide, egress-only, disable-only, leased/acknowledged/clearable, local-authority-only by
+  default, not gossiped/mesh-written; R2-ROUTE §5.2 applies it as a hard candidate filter before scoring;
+  R2-RUNTIME §3.2.2 lists it as an optional role-profile knob. r2-core clean on `r2-core-consolidation` at
+  `7c0320eaa9ca49e26dcb2d4ae4fb27fd6af405cb`; `c2737b9` exposes
+  `RouteEngine::{transport_allow_mask,set_transport_allow_mask_bits,clear_transport_allow_mask,set_transport_allowed,transport_allowed}`
+  over the canonical 7-bit `TransportSet`, and `DataPlane` delegates to the same surface. No r2-core files were
+  edited.
+- **Host/state wiring:** `HiveState` now keeps only local ACK/state lease metadata; the effective policy remains
+  single-sourced in `route_engine.transport_allow_mask()`. Added `transport_policy_snapshot`,
+  `set_transport_policy_lease`, and `clear_transport_policy`. `send_to_hive_via` now snapshots the core allow mask
+  and skips disabled transports before any physical WS/UDP/BLE/LoRa/USB-dongle send attempt. This covers local
+  sends that do not pass through `RouteEngine::plan_forward` first; route-engine planned egress already gets the
+  core hard filter before scoring.
+- **Mgmt surface (local only, no mesh mutation):** new UDS/loopback mgmt event classes:
+  `r2.mgmt.transport.allow_mask.state`, `.set`, `.clear`. Requests are R2-WIRE extended frames with CBOR payloads:
+  `state {0:cid}`; `set {0:cid,1:mask_uint8,2:lease_id_uint,3:source_text}`; `clear {0:cid,1:lease_id_uint?}`.
+  Set ACK returns `{0:cid,1:requested_mask,2:accepted_mask,3:effective_mask,4:all_mask,5:lease_id,6:source,7:true}`.
+  State/clear return `{0:cid,3:effective_mask,4:all_mask,7:active_bool}` plus lease fields `{1,2,5,6}` when active.
+  Unknown bits are acknowledged via core truncation (e.g. requested `0x82` → accepted/effective `0x02`). A second
+  different lease gets `r2.mgmt.event.error` code `lease_conflict`; clearing without a lease id is the local
+  force-clear. Mgmt-only daemon state returns `unsupported` rather than silently unknown.
+- **Sync/no_std proof:** `r2-hive-core::sync_host::route_inbound_sync` still delegates to the caller's
+  `RouteEngine`; focused tests set the core mask directly and prove (a) masked higher-scoring LoRa is not sent
+  while WiFi remains viable, and (b) a masked only-candidate drops without egress. No firmware source or
+  `docs/dfr1195-firstlight.patch` changed; firmware/host boundaries preserved.
+- **Changed files:** `crates/r2-hive-bin/src/hive.rs`,
+  `crates/r2-hive-bin/src/mgmt/{api.rs,mod.rs,transport_policy.rs}`,
+  `crates/r2-hive-bin/tests/{mgmt_integration.rs,transport_integration.rs}`,
+  `crates/r2-hive-core/src/sync_host.rs`, and `RESUME.md`.
+- **Verification:** targeted tests PASS:
+  `cargo test -p r2-hive-core route_respects_transport_allow_mask_before_sync_send -- --nocapture`;
+  `cargo test -p r2-hive-core route_drops_when_mask_removes_only_sync_candidate -- --nocapture`;
+  `cargo test -p r2-hive --test transport_integration transport_allow_mask_filters_host_send_before_physical_egress -- --nocapture`;
+  `cargo test -p r2-hive --test mgmt_integration transport_allow_mask_mgmt -- --nocapture`.
+  Full gate PASS: `cargo test --workspace` (105 r2-hive lib tests, 20 mgmt integration tests, 4 transport
+  integration tests, all other workspace tests/doc-tests green; one pre-existing ignored router authenticated-dedup
+  fixture remains ignored). `git diff --check` PASS. `cargo fmt --all --check` is NOT a valid repo-local gate today
+  because it tries to format/check the sibling `r2-core` path dependency and reports pre-existing r2-core rustfmt
+  drift; the new `transport_policy.rs` was rustfmt'd directly and unrelated rustfmt churn was reverted.
+- **Refutation / peer challenge:** asked core for an adversarial API/semantics check. The direct off-thread answer
+  hit the provider spend-limit message, but supervisor relayed the peer-review result: specs-codex found no spec
+  gaps; core-codex found one concrete WIP blocker, to ensure `transport_policy.rs` is tracked and that `mgmt/mod.rs`
+  + `mgmt/api.rs` dispatch it. That blocker is resolved by the final staged file set before commit.
+- **Composer/bench next endpoint:** composer should drive the local UDS management socket (default
+  `r2_hive::default_socket_path()`, usually `$XDG_RUNTIME_DIR/r2-hive.sock` or `/tmp/r2-hive-<uid>.sock`) with
+  `r2.mgmt.transport.allow_mask.set {0:cid,1:mask,2:lease_id,3:"composer:bench-phase2"}`. For "disable LoRa only",
+  send mask `0x7B` (`0x7F & !Transport::Lora.bit()`). Clear with
+  `r2.mgmt.transport.allow_mask.clear {0:cid,1:lease_id}` or omit key `1` for local force-clear. Do not send this
+  as a mesh `r2.api.event.send`; mesh-received frames intentionally do not mutate the policy.
+- **Do not assume:** this is host/sync/mgmt enforcement only. No firmware role-profile ingestion of
+  `transport_allow_mask` was added in this patch, no per-hop telemetry tags were added, and no metal bench was run
+  because no core-crate pin/bump or firmware artifact changed in r2-hive.
+
 ## ► 2026-06-29 — BENCH PHASE-2 TRANSPORT-DISABLE RECHECK / BLOCKED-ON-HIVE-CALLABLE CANONICAL API
 Objective: re-check the stale transport-disable hold after specs/core landed the Phase-2 policy commits, then either
 wire the smallest hive integration or record the precise blocker. Result: **NO HIVE CODE WIRING YET**; the spec is

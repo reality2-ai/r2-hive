@@ -14,6 +14,7 @@ use r2_discovery::bindings::ble::BleTransport;
 #[cfg(feature = "lora")]
 use r2_discovery::bindings::lora::LoraTransport;
 use r2_route::engine::RouteEngine;
+use r2_route::transport::{Transport, TransportSet};
 use r2_trust::wire_hmac::GroupHmac;
 
 use crate::compat::buffer::RingBuffer;
@@ -84,6 +85,35 @@ impl TgMemberRole {
     }
 }
 
+/// Local management lease for the node-wide transport egress allow mask.
+///
+/// The routing semantics live in `r2-route::RouteEngine`; this is only local
+/// ACK/state metadata for the management surface.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransportPolicyLease {
+    pub lease_id: u64,
+    pub source: String,
+    pub requested_mask: u8,
+    pub accepted_mask: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransportPolicySnapshot {
+    pub effective_mask: u8,
+    pub all_mask: u8,
+    pub active_lease: Option<TransportPolicyLease>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransportPolicyAck {
+    pub requested_mask: u8,
+    pub accepted_mask: u8,
+    pub effective_mask: u8,
+    pub all_mask: u8,
+    pub lease_id: u64,
+    pub source: String,
+}
+
 /// Global wayfinder state.
 pub struct HiveState {
     /// This hive's own canonical 32-bit identifier. Set once at startup from
@@ -104,6 +134,12 @@ pub struct HiveState {
     pub lora_transport: RwLock<Option<Arc<LoraTransport>>>,
     /// R2-ROUTE engine — Layer 2-4 routing decisions.
     pub route_engine: Mutex<RouteEngine<64, 64, 64>>,
+    /// Local management lease metadata for the node-wide egress allow mask.
+    ///
+    /// The effective policy is kept in `route_engine.transport_allow_mask()` so
+    /// route selection remains single-sourced in core. This field only lets the
+    /// local management API acknowledge and report the current local writer.
+    transport_policy_lease: RwLock<Option<TransportPolicyLease>>,
     /// §7.5.4 deliver-gate: GroupHmac per trust group, keyed by the WIRE
     /// `target_group` (u32). The inbound deliver-gate verifies a frame against
     /// `group_hmacs[target_group]` before local dispatch (R2-TRUST §7.5.4).
@@ -193,6 +229,7 @@ impl HiveState {
             #[cfg(feature = "lora")]
             lora_transport: RwLock::new(None),
             route_engine: Mutex::new(RouteEngine::new()),
+            transport_policy_lease: RwLock::new(None),
             group_hmacs: load_bench_group_hmacs(),
             active_tg: RwLock::new(None),
             subscribers: Mutex::new(Vec::new()),
@@ -284,6 +321,65 @@ impl HiveState {
     /// Detach from the current trust group, if any.
     pub async fn clear_active_tg(&self) {
         *self.active_tg.write().await = None;
+    }
+
+    /// Snapshot the local transport egress allow policy.
+    pub async fn transport_policy_snapshot(&self) -> TransportPolicySnapshot {
+        let effective_mask = self.route_engine.lock().await.transport_allow_mask().bits();
+        let active_lease = self.transport_policy_lease.read().await.clone();
+        TransportPolicySnapshot {
+            effective_mask,
+            all_mask: TransportSet::ALL_BITS,
+            active_lease,
+        }
+    }
+
+    /// Install/refresh the single local transport-policy lease and ACK the
+    /// canonical mask that core accepted.
+    pub async fn set_transport_policy_lease(
+        &self,
+        lease_id: u64,
+        source: String,
+        requested_mask: u8,
+    ) -> TransportPolicyAck {
+        let accepted_mask = self
+            .route_engine
+            .lock()
+            .await
+            .set_transport_allow_mask_bits(requested_mask)
+            .bits();
+        let lease = TransportPolicyLease {
+            lease_id,
+            source: source.clone(),
+            requested_mask,
+            accepted_mask,
+        };
+        *self.transport_policy_lease.write().await = Some(lease);
+        TransportPolicyAck {
+            requested_mask,
+            accepted_mask,
+            effective_mask: accepted_mask,
+            all_mask: TransportSet::ALL_BITS,
+            lease_id,
+            source,
+        }
+    }
+
+    /// Clear the current local transport-policy lease and restore the canonical
+    /// default all-on mask.
+    pub async fn clear_transport_policy(&self) -> TransportPolicySnapshot {
+        let effective_mask = self
+            .route_engine
+            .lock()
+            .await
+            .clear_transport_allow_mask()
+            .bits();
+        *self.transport_policy_lease.write().await = None;
+        TransportPolicySnapshot {
+            effective_mask,
+            all_mask: TransportSet::ALL_BITS,
+            active_lease: None,
+        }
     }
 
     /// Register a new mgmt-API subscriber. Returns the Subscriber's ID;
@@ -422,28 +518,41 @@ impl HiveState {
     pub async fn send_to_hive_via(
         &self,
         hive_id: u32,
-        hint: Option<r2_route::transport::Transport>,
+        hint: Option<Transport>,
         frame: &[u8],
-    ) -> Option<r2_route::transport::Transport> {
-        use r2_route::transport::Transport;
+    ) -> Option<Transport> {
         // Build attempt order: hint first (if any), then default priority,
         // skipping duplicates.
-        let default_order = [Transport::Internet, Transport::Wifi, Transport::Ble];
-        let mut order: [Option<Transport>; 3] = [None, None, None];
-        let mut idx = 0;
+        let default_order = [
+            Transport::Internet,
+            Transport::Wifi,
+            Transport::Ble,
+            Transport::Lora,
+            Transport::Usb,
+            Transport::EspNow,
+            Transport::Udp,
+        ];
+        let mut order: Vec<Transport> = Vec::with_capacity(Transport::COUNT);
         if let Some(h) = hint {
-            order[idx] = Some(h);
-            idx += 1;
+            order.push(h);
         }
         for t in default_order {
             if Some(t) != hint {
-                order[idx] = Some(t);
-                idx += 1;
+                order.push(t);
             }
         }
-        for slot in order.iter().flatten() {
-            if self.try_send_on(*slot, hive_id, frame).await {
-                return Some(*slot);
+        let allow_mask = self.route_engine.lock().await.transport_allow_mask();
+        for transport in order {
+            if !allow_mask.contains(transport) {
+                log::debug!(
+                    "send: {:?} disabled by local transport_allow_mask=0x{:02X}",
+                    transport,
+                    allow_mask.bits()
+                );
+                continue;
+            }
+            if self.try_send_on(transport, hive_id, frame).await {
+                return Some(transport);
             }
         }
         None

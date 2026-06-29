@@ -402,4 +402,81 @@ mod tests {
             "expected a relay send to target, sent={sent:?}",
         );
     }
+
+    #[test]
+    fn route_respects_transport_allow_mask_before_sync_send() {
+        let mut engine = RouteEngine::<64, 64, 64>::new();
+        let target = 0x0000_00AA;
+        engine.ingest_observation(Observation {
+            hive_id: target,
+            transport: TransportKind::Lora,
+            timestamp: 100,
+            quality: QualitySample::Direct(1.0),
+            rssi: None,
+            mcu_origin: false,
+            mobility: MobilityClass::Infrastructure,
+        });
+        engine.ingest_observation(Observation {
+            hive_id: target,
+            transport: TransportKind::Wifi,
+            timestamp: 100,
+            quality: QualitySample::Direct(0.4),
+            rssi: None,
+            mcu_origin: false,
+            mobility: MobilityClass::Infrastructure,
+        });
+        engine.set_transport_allow_mask_bits(TransportKind::Wifi.bit());
+
+        let wifi = StubTransport::new(TransportKind::Wifi, vec![]);
+        let lora = StubTransport::new(TransportKind::Lora, vec![]);
+        let source = 0x0000_00BB;
+        let frame = ext_frame(source, target, 5, 3, 0x1235);
+        let out = route_inbound_sync(
+            &mut engine, 0x0000_00FF, &[&wifi, &lora], source, TransportKind::Wifi, &frame, 200, 0.5,
+        );
+
+        assert!(
+            matches!(
+                out,
+                SyncRouteOutcome::Directed { sent: true } | SyncRouteOutcome::Flooded { sent: 1 }
+            ),
+            "expected exactly one accepted relay over the allowed transport, got {out:?}"
+        );
+        assert!(
+            wifi.sent.borrow().iter().any(|(t, _)| *t == target),
+            "policy should leave Wifi as the only egress"
+        );
+        assert!(
+            lora.sent.borrow().is_empty(),
+            "masked LoRa must not be sent even though it scores better"
+        );
+    }
+
+    #[test]
+    fn route_drops_when_mask_removes_only_sync_candidate() {
+        let mut engine = RouteEngine::<64, 64, 64>::new();
+        let target = 0x0000_00AA;
+        engine.ingest_observation(Observation {
+            hive_id: target,
+            transport: TransportKind::Lora,
+            timestamp: 100,
+            quality: QualitySample::Direct(1.0),
+            rssi: None,
+            mcu_origin: false,
+            mobility: MobilityClass::Infrastructure,
+        });
+        engine.set_transport_allow_mask_bits(TransportKind::Wifi.bit());
+
+        let wifi = StubTransport::new(TransportKind::Wifi, vec![]);
+        let lora = StubTransport::new(TransportKind::Lora, vec![]);
+        let source = 0x0000_00BB;
+        let frame = ext_frame(source, target, 5, 3, 0x1236);
+        let out = route_inbound_sync(
+            &mut engine, 0x0000_00FF, &[&wifi, &lora], source, TransportKind::Wifi, &frame, 200, 0.5,
+        );
+
+        assert_eq!(out, SyncRouteOutcome::Dropped);
+        assert!(wifi.sent.borrow().is_empty());
+        assert!(lora.sent.borrow().is_empty());
+    }
 }

@@ -15,7 +15,7 @@ use std::sync::Arc;
 use r2_discovery::bindings::udp_lan::UdpLanTransport;
 use r2_discovery::{AsyncTransport, LinkQuality, PeerMap};
 use r2_hive::hive::HiveState;
-use r2_route::transport::Transport;
+use r2_route::transport::{Transport, TransportSet};
 
 const ID_A: u32 = 0x0000_00AA;
 const ID_B: u32 = 0x0000_00BB;
@@ -98,4 +98,50 @@ async fn wifi_hint_routes_over_udp_lan() {
         .expect("recv did not time out")
         .expect("recv ok");
     assert_eq!(got.data, b"hinted");
+}
+
+/// The host fallback path is not allowed to bypass the node-local
+/// `transport_allow_mask`. This covers locally originated sends that do not go
+/// through `RouteEngine::plan_forward` first.
+#[tokio::test]
+async fn transport_allow_mask_filters_host_send_before_physical_egress() {
+    let udp_a = Arc::new(UdpLanTransport::bind("127.0.0.1:0").await.expect("bind A"));
+    let udp_b = Arc::new(UdpLanTransport::bind("127.0.0.1:0").await.expect("bind B"));
+    udp_a
+        .peers()
+        .add_peer(ID_B, udp_b.local_addr().to_string(), LinkQuality::default());
+
+    let state = HiveState::new(ID_A, 64, 16);
+    state.set_udp_transport(udp_a.clone()).await;
+
+    let ack = state
+        .set_transport_policy_lease(77, "transport-integration-test".to_string(), Transport::Internet.bit())
+        .await;
+    assert_eq!(ack.requested_mask, Transport::Internet.bit());
+    assert_eq!(ack.accepted_mask, Transport::Internet.bit());
+
+    let used = state
+        .send_to_hive_via(ID_B, Some(Transport::Wifi), b"masked")
+        .await;
+    assert_eq!(used, None, "disabled Wifi must not be used");
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(100), udp_b.recv())
+            .await
+            .is_err(),
+        "masked send should not reach the UDP-LAN socket"
+    );
+
+    let snapshot = state.clear_transport_policy().await;
+    assert_eq!(snapshot.effective_mask, TransportSet::ALL_BITS);
+    assert!(snapshot.active_lease.is_none());
+
+    let used = state
+        .send_to_hive_via(ID_B, Some(Transport::Wifi), b"unmasked")
+        .await;
+    assert_eq!(used, Some(Transport::Wifi));
+    let got = tokio::time::timeout(std::time::Duration::from_secs(2), udp_b.recv())
+        .await
+        .expect("recv did not time out")
+        .expect("recv ok");
+    assert_eq!(got.data, b"unmasked");
 }

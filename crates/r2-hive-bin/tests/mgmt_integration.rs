@@ -465,6 +465,126 @@ async fn event_send_broadcast_returns_msg_id() {
 }
 
 #[tokio::test]
+async fn transport_allow_mask_mgmt_state_set_clear_roundtrip() {
+    use std::sync::Arc;
+    use r2_hive::hive::HiveState;
+    use r2_hive::mgmt::transport_policy::{
+        build_clear_request, build_set_request, build_state_request, parse_response,
+        EV_TRANSPORT_ALLOW_MASK_CLEAR, EV_TRANSPORT_ALLOW_MASK_SET,
+        EV_TRANSPORT_ALLOW_MASK_STATE,
+    };
+    use r2_route::transport::{Transport, TransportSet};
+
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let socket_path = tmp.path().join("r2-hive.sock");
+    let state = DaemonState::new();
+    let hive = Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64));
+    state.attach_hive_state(hive.clone());
+
+    let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let mut stream = UnixStream::connect(&socket_path).await.expect("connect");
+    let (mut reader, mut writer) = stream.split();
+
+    write_frame(&mut writer, &build_state_request(1)).await.expect("write state");
+    let frame = read_frame(&mut reader).await.expect("read").expect("state");
+    let parsed = r2_wire::decode_extended(&frame).expect("decode");
+    assert_eq!(
+        parsed.header.event_hash,
+        r2_fnv::r2_hash(EV_TRANSPORT_ALLOW_MASK_STATE).unwrap()
+    );
+    let state_resp = parse_response(parsed.payload).expect("parse state");
+    assert_eq!(state_resp.correlation_id, 1);
+    assert_eq!(state_resp.effective_mask, TransportSet::ALL_BITS);
+    assert_eq!(state_resp.all_mask, TransportSet::ALL_BITS);
+    assert!(!state_resp.active_lease);
+
+    let requested = Transport::Wifi.bit() | 0x80;
+    write_frame(&mut writer, &build_set_request(2, requested, 0xA11CE, "bench-phase2"))
+        .await
+        .expect("write set");
+    let frame = read_frame(&mut reader).await.expect("read").expect("set");
+    let parsed = r2_wire::decode_extended(&frame).expect("decode");
+    assert_eq!(
+        parsed.header.event_hash,
+        r2_fnv::r2_hash(EV_TRANSPORT_ALLOW_MASK_SET).unwrap()
+    );
+    let set_resp = parse_response(parsed.payload).expect("parse set");
+    assert_eq!(set_resp.correlation_id, 2);
+    assert_eq!(set_resp.requested_mask, Some(requested));
+    assert_eq!(set_resp.accepted_mask, Some(Transport::Wifi.bit()));
+    assert_eq!(set_resp.effective_mask, Transport::Wifi.bit());
+    assert_eq!(set_resp.lease_id, Some(0xA11CE));
+    assert_eq!(set_resp.source.as_deref(), Some("bench-phase2"));
+    assert!(set_resp.active_lease);
+    assert_eq!(
+        hive.transport_policy_snapshot().await.effective_mask,
+        Transport::Wifi.bit()
+    );
+
+    write_frame(&mut writer, &build_state_request(3)).await.expect("write state");
+    let frame = read_frame(&mut reader).await.expect("read").expect("state");
+    let parsed = r2_wire::decode_extended(&frame).expect("decode");
+    let state_resp = parse_response(parsed.payload).expect("parse state");
+    assert_eq!(state_resp.correlation_id, 3);
+    assert_eq!(state_resp.requested_mask, Some(requested));
+    assert_eq!(state_resp.accepted_mask, Some(Transport::Wifi.bit()));
+    assert_eq!(state_resp.effective_mask, Transport::Wifi.bit());
+    assert!(state_resp.active_lease);
+
+    write_frame(&mut writer, &build_clear_request(4, Some(0xA11CE)))
+        .await
+        .expect("write clear");
+    let frame = read_frame(&mut reader).await.expect("read").expect("clear");
+    let parsed = r2_wire::decode_extended(&frame).expect("decode");
+    assert_eq!(
+        parsed.header.event_hash,
+        r2_fnv::r2_hash(EV_TRANSPORT_ALLOW_MASK_CLEAR).unwrap()
+    );
+    let clear_resp = parse_response(parsed.payload).expect("parse clear");
+    assert_eq!(clear_resp.correlation_id, 4);
+    assert_eq!(clear_resp.effective_mask, TransportSet::ALL_BITS);
+    assert!(!clear_resp.active_lease);
+    assert!(
+        hive.transport_policy_snapshot()
+            .await
+            .active_lease
+            .is_none()
+    );
+
+    let _ = handle.shutdown.send(());
+    let _ = handle.join.await;
+}
+
+#[tokio::test]
+async fn transport_allow_mask_mgmt_without_hive_state_is_unsupported() {
+    use r2_fnv::r2_hash;
+    use r2_hive::mgmt::transport_policy::build_state_request;
+
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let socket_path = tmp.path().join("r2-hive.sock");
+    let state = DaemonState::new();
+
+    let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let mut stream = UnixStream::connect(&socket_path).await.expect("connect");
+    let (mut reader, mut writer) = stream.split();
+    write_frame(&mut writer, &build_state_request(1)).await.expect("write");
+    let frame = read_frame(&mut reader).await.expect("read").expect("frame");
+    let parsed = r2_wire::decode_extended(&frame).expect("decode");
+    assert_eq!(
+        parsed.header.event_hash,
+        r2_hash("r2.mgmt.event.error").expect("hash"),
+        "recognised local event should fail closed without HiveState"
+    );
+
+    let _ = handle.shutdown.send(());
+    let _ = handle.join.await;
+}
+
+#[tokio::test]
 async fn event_send_targeted_unknown_peer_returns_peer_not_found() {
     use std::sync::Arc;
     use r2_fnv::r2_hash;
