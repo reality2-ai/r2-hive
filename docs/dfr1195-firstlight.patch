@@ -2754,10 +2754,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..6d3a72a 100644
+index 8c49f1c..a389558 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,4590 @@
+@@ -1,83 +1,4608 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -2911,10 +2911,7 @@ index 8c49f1c..6d3a72a 100644
 +const TG_HK_DEMO: [u8; 32] = [0x5C; 32]; // shared intra-TG group HMAC key (hk)
 +/// Firmware version tag for telemetry (#18) — FNV of the build id, carried in the heartbeat.
 +const VERSION_FNV: u32 = r2_fnv::fnv1a_32(BUILD_ID.as_bytes());
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +#[esp_rtos::main]
 +// Under `radarprobe` main() spawns ONLY the probe + parks (loop diverges), so the radio/mesh region below
 +// is intentionally unreachable in that build — allow the warning ONLY there (no effect on normal builds).
@@ -2923,12 +2920,7 @@ index 8c49f1c..6d3a72a 100644
 +    // 1. esp-hal init — WiFi needs >= 80 MHz; use max.
 +    let p = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 +    esp_alloc::heap_allocator!(size: HEAP_SIZE);
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +    // 1a. OTA test (b) — otadata slot-switch validation (#17), BEFORE the radio (the
 +    //     flash op can't collide with WiFi). One-shot + safe: if a VALID image (0xE9
 +    //     magic) sits in the INACTIVE slot AND we booted from ota_0, activate it +
@@ -3098,41 +3090,7 @@ index 8c49f1c..6d3a72a 100644
 +    // the DE/RE Output here (real pins from Roy), spawn ONLY the probe, and PARK — the radio/mesh region
 +    // below is never reached. Build: cargo build --release --features radarprobe. Pins: see RADAR_* consts.
 +    #[cfg(feature = "radarprobe")]
-     {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
--    }
--
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++    {
 +        use radarprobe::{radar_cfg, radar_probe_task, RADAR_BAUDS, RADAR_DE_RE, RADAR_PARITIES, RADAR_UART_RX, RADAR_UART_TX};
 +        use esp_hal::uart::Uart;
 +        println!("r2-dfr1195: RADARPROBE — radio stack OFF; UART1 RS-485 Modbus sweep (TX=GPIO{} RX=GPIO{} DE/RE=GPIO{})",
@@ -3195,7 +3153,7 @@ index 8c49f1c..6d3a72a 100644
 +    // coexists with the STA/AP netif + BLE). M-ESPNOW-1: validate broadcast/recv mechanics on metal.
 +    #[cfg(all(feature = "ble", not(feature = "blemesh")))]
 +    let esp_now = interfaces.esp_now;
- 
++
 +    // 7. Static IPs by role (deterministic 2-node net; no DHCP server needed).
 +    let (device, ip) = if serve_ap {
 +        (interfaces.access_point, Ipv4Address::new(192, 168, 4, 1))
@@ -3382,9 +3340,7 @@ index 8c49f1c..6d3a72a 100644
 +    // under loraroute so the ONLY LED activity at C is "a routed message arrived" — unambiguous for the eye.
 +    #[cfg(feature = "loraroute")]
 +    let mut recv_flash: i32 = 0;
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        // ── TN-FR-1 (loraroute): LED = message RECEIPT, NOT heartbeat. Bright solid for ~400ms on each
 +        //    delivered routed Event (RECEIPT_SIGNAL fired by the deliver-gate); idle/off otherwise. ──
 +        #[cfg(feature = "loraroute")]
@@ -3835,7 +3791,7 @@ index 8c49f1c..6d3a72a 100644
 +                                            let mm = en.min(256);
 +                                            f[..mm].copy_from_slice(&txbuf[..mm]);
 +                                            mesh_broadcast(f, mm);
-+                                            emit_msg("msg.scffwd", mid as u32, my_hive, dest, Some(org));
++                                            emit_msg("msg.scffwd", mid as u32, my_hive, dest, Some(org), None);
 +                                            println!("r2-dfr1195: SCF-FWD msg_id={mid} dest={dest:08x} (reappeared)");
 +                                        }
 +                                    }
@@ -3855,7 +3811,7 @@ index 8c49f1c..6d3a72a 100644
 +                            for e in sensor_seen.iter_mut() {
 +                                if !e.2 && now_rs.saturating_sub(e.1) > silence_s {
 +                                    e.2 = true;
-+                                    emit_msg("msg.silence", 0, my_hive, 0, Some(e.0));
++                                    emit_msg("msg.silence", 0, my_hive, 0, Some(e.0), None);
 +                                    println!("r2-dfr1195: SILENCE inferred sensor={:08x} (absent >{silence_s}s)", e.0);
 +                                }
 +                            }
@@ -3927,7 +3883,7 @@ index 8c49f1c..6d3a72a 100644
 +                                mesh_broadcast(f, mm);
 +                                println!("r2-dfr1195: RT-REQ msg_id={rt_seq} -> {dest:08x}");
 +                                // msg.tx{0:id,1:origin(=from),2:to} — this board IS the origin.
-+                                emit_msg("msg.tx", rt_seq as u32, my_hive, dest, None);
++                                emit_msg("msg.tx", rt_seq as u32, my_hive, dest, None, None);
 +                            }
 +                            // Cap to 15 bits so the reply id (req_id | 0x8000) NEVER collides with a
 +                            // request id under the u16 dedup (core's caveat: req_id >= 0x8000 would alias).
@@ -4281,10 +4237,17 @@ index 8c49f1c..6d3a72a 100644
 +                        };
 +                        #[cfg(not(feature = "routetest"))]
 +                        let fr_origin: u32 = 0;
-+                        // msg.rx{0:id,1:at,2:from_hop,3:origin} — receive-flash at each hop (the relayer = src_hive).
++                        // msg.rx{0:id,1:at,2:from_hop,3:origin,4:transport} — receive-flash at each hop (the
++                        // relayer = src_hive). k4 = the carrier this frame was RECEIVED on, so the bench counts
++                        // REAL traffic crossing each (from_hop, transport) link — the link-strength-through-usage
++                        // signal. ble builds carry the per-feeder tag (got.3); the default/UDP path is Udp.
++                        #[cfg(all(feature = "routetest", feature = "ble"))]
++                        let rx_via: u8 = got.3;
++                        #[cfg(all(feature = "routetest", not(feature = "ble")))]
++                        let rx_via: u8 = r2_route::Transport::Udp as u8;
 +                        #[cfg(feature = "routetest")]
 +                        if h.event_hash == ROUTETEST_HASH {
-+                            emit_msg("msg.rx", h.msg_id as u32, my_hive, src_hive, Some(fr_origin));
++                            emit_msg("msg.rx", h.msg_id as u32, my_hive, src_hive, Some(fr_origin), Some(rx_via));
 +                        }
 +                        // A1 (verify-then-record): verify the Event against our TG key. A VERIFIED frame (our TG)
 +                        // records the (origin,msg_id) dedup -> preserves TN-FR-1 exactly-once + the relay loop-bound.
@@ -4337,7 +4300,7 @@ index 8c49f1c..6d3a72a 100644
 +                            // msg.delivered{...,2:dup=1} — a duplicate (dedup canon held; dashboard flags it).
 +                            #[cfg(feature = "routetest")]
 +                            if h.event_hash == ROUTETEST_HASH {
-+                                emit_msg("msg.delivered", h.msg_id as u32, my_hive, 1, Some(fr_origin));
++                                emit_msg("msg.delivered", h.msg_id as u32, my_hive, 1, Some(fr_origin), None);
 +                            }
 +                        } else {
 +                            // AP L3 RELAY (B1: trust-agnostic) — re-broadcast forwarded
@@ -4408,7 +4371,7 @@ index 8c49f1c..6d3a72a 100644
 +                                            ForwardAction::Directed(hop) => hop.neighbour,
 +                                            _ => 0,
 +                                        };
-+                                        emit_msg("msg.relay", h.msg_id as u32, my_hive, next_hop, Some(fr_origin));
++                                        emit_msg("msg.relay", h.msg_id as u32, my_hive, next_hop, Some(fr_origin), None);
 +                                    }
 +                                }
 +                            }
@@ -4439,7 +4402,7 @@ index 8c49f1c..6d3a72a 100644
 +                                        scf_buf.remove(0); // oldest-first evict (bounded buffer)
 +                                    }
 +                                    let _ = scf_buf.push((f, fl, mid, h.target_hive, route_now_s() + scf_ttl_s));
-+                                    emit_msg("msg.hold", h.msg_id as u32, my_hive, 0, Some(fr_origin));
++                                    emit_msg("msg.hold", h.msg_id as u32, my_hive, 0, Some(fr_origin), None);
 +                                    println!(
 +                                        "r2-dfr1195: SCF-HOLD msg_id={} dest={:08x} buffered={} (unroutable)",
 +                                        h.msg_id, h.target_hive, scf_buf.len()
@@ -4465,7 +4428,7 @@ index 8c49f1c..6d3a72a 100644
 +                                    // msg.delivered{0:id,1:at,2:dup=0,3:origin} — the delivery settle.
 +                                    #[cfg(feature = "routetest")]
 +                                    if h.event_hash == ROUTETEST_HASH {
-+                                        emit_msg("msg.delivered", h.msg_id as u32, my_hive, 0, Some(fr_origin));
++                                        emit_msg("msg.delivered", h.msg_id as u32, my_hive, 0, Some(fr_origin), None);
 +                                    }
 +                                    // TN-FR-4 E4: a delivered reading -> the SENSOR (origin) is ALIVE; refresh
 +                                    // its last-heard + clear absence. RECEIVER-only (else D1/D2/D3 spuriously
@@ -5202,11 +5165,11 @@ index 8c49f1c..6d3a72a 100644
 +/// where k1 already IS the origin/from). The events: msg.tx{0:id,1:origin,2:to} / msg.rx{0:id,1:at,2:from_hop,
 +/// 3:origin} / msg.relay{0:id,1:at,2:next_hop(0=flood),3:origin} / msg.delivered{0:id,1:at,2:dup,3:origin}.
 +#[cfg(feature = "routetest")]
-+fn emit_msg(name: &str, k0: u32, k1: u32, k2: u32, origin: Option<u32>) {
++fn emit_msg(name: &str, k0: u32, k1: u32, k2: u32, origin: Option<u32>, transport: Option<u8>) {
 +    let mut buf = [0u8; 48];
 +    let len = {
 +        let mut e = Encoder::new(&mut buf);
-+        let n = if origin.is_some() { 4 } else { 3 };
++        let n = 3 + origin.is_some() as u64 + transport.is_some() as u64;
 +        if e.map(n).is_err() {
 +            return;
 +        }
@@ -5219,6 +5182,13 @@ index 8c49f1c..6d3a72a 100644
 +        if let Some(o) = origin {
 +            let _ = e.uint(3);
 +            let _ = e.uint(o as u64);
++        }
++        // k4 = per-hop transport ordinal (r2_route::Transport: Ble0/Wifi1/Lora2/Internet3/Usb4/EspNow5/
++        // Udp6 — the SAME 7-bit space as transport_allow_mask, so bench per-link counts map to host mask
++        // semantics). Observability only; never goes on-air.
++        if let Some(t) = transport {
++            let _ = e.uint(4);
++            let _ = e.uint(t as u64);
 +        }
 +        e.len()
 +    };
@@ -5481,7 +5451,7 @@ index 8c49f1c..6d3a72a 100644
 +                        let l = len.min(256);
 +                        let mut f = [0u8; 256];
 +                        f[..l].copy_from_slice(&buf[2..2 + l]);
-+                        let _ = DATA_RX.try_send((f, l, 0)); // → io_task PLL / deliver-gate (CoC sender hive unknown)
++                        let _ = DATA_RX.try_send((f, l, 0, r2_route::Transport::Ble as u8)); // → io_task PLL / deliver-gate (CoC sender hive unknown)
 +                    }
 +                }
 +                Ok(_) => {}
@@ -5596,7 +5566,11 @@ index 8c49f1c..6d3a72a 100644
 +// DATA_RX carries the immediate-sender hive (resolved from the L2 src MAC in espnow_task) so the
 +// §4.3.4 TrailReinforcer (routetest) can weak/strong-reinforce toward it. 0 = unknown sender.
 +#[cfg(feature = "ble")]
-+type MeshRxFrame = ([u8; 256], usize, u32);
++// (frame, len, immediate-sender hive, RX transport ordinal). The 4th field is the r2_route::Transport
++// ordinal of the carrier the frame was RECEIVED on (Ble0/Wifi1/Lora2/Internet3/Usb4/EspNow5/Udp6) — set
++// by each feeder (espnow/lora/blemesh). This is the per-hop link-usage tap: every received frame counts
++// one real traversal of the (sender, transport) link. Telemetry only — it never re-enters the wire.
++type MeshRxFrame = ([u8; 256], usize, u32, u8);
 +// Transport label for accurate serial evidence (Roy's eyes = ground truth — never log "esp-now" over BLE).
 +#[cfg(all(feature = "ble", not(feature = "blemesh")))]
 +const MESH_LABEL: &str = "esp-now";
@@ -5687,7 +5661,10 @@ index 8c49f1c..6d3a72a 100644
 +    });
 +    write_mask_nvs(macs); // persist so it survives the capture's serial-open DTR-reset (NVS @0x15000)
 +}
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +// MASK persisted to NVS @0x15000 (own 4KB sector, after provision@0x14000, below ota_0@0x20000) so the
 +// topology survives a board reset (the capture's serial-open toggles DTR -> reset -> RAM MASK would clear).
 +// Layout: [magic u32 BE]["R2MK"][count u8][count×6 MAC bytes].
@@ -5695,7 +5672,12 @@ index 8c49f1c..6d3a72a 100644
 +const MASK_NVS_OFFSET: u32 = 0x15000;
 +#[cfg(feature = "routetest")]
 +const MASK_NVS_MAGIC: u32 = 0x5232_4d4b; // "R2MK"
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +#[cfg(feature = "routetest")]
 +fn write_mask_nvs(macs: &[[u8; 6]]) {
 +    use embedded_storage::Storage;
@@ -5776,7 +5758,41 @@ index 8c49f1c..6d3a72a 100644
 +    // GENERAL no-AP mesh (default): every node hears every in-range peer → self-growing (N-join) +
 +    // self-healing (reform). This is the real-world TN case for mobile wearables.
 +    #[cfg(all(not(feature = "meshmask"), not(feature = "routetest")))]
-+    {
+     {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +        true
 +    }
 +    // BENCH multi-hop mask (meshmask): hide A↔C so A→B→C relay is forced on a bench (no physical range).
@@ -6287,7 +6303,7 @@ index 8c49f1c..6d3a72a 100644
 +                    f[..l].copy_from_slice(&inner[..l]);
 +                    // src_hive = the IMMEDIATE SENDER (relayer), per the §4.3.4 reinforcer contract — NOT the
 +                    // R2-WIRE origin (io_task decodes that from the frame for ForwardRequest.origin).
-+                    let _ = DATA_RX.try_send((f, l, sender));
++                    let _ = DATA_RX.try_send((f, l, sender, r2_route::Transport::Lora as u8));
 +                }
 +            }
 +        }
@@ -6345,7 +6361,7 @@ index 8c49f1c..6d3a72a 100644
 +            f[..n].copy_from_slice(&d[..n]);
 +            // src_hive = immediate-sender hive (reverse-lookup the L2 src MAC; 0 until it heartbeats).
 +            let src_hive = hive_for_mac(&s);
-+            let _ = DATA_RX.try_send((f, n, src_hive)); // → io_task PLL (the sync) + §4.3.4 reinforce
++            let _ = DATA_RX.try_send((f, n, src_hive, r2_route::Transport::EspNow as u8)); // → io_task PLL (the sync) + §4.3.4 reinforce
 +            // M-ESPNOW-2: learn hive_id↔MAC from the recv — the R2-WIRE Heartbeat payload carries the
 +            // originator hive (be32), the L2 src MAC is r.info.src_address. Map for r2-route unicast (M-ESPNOW-3).
 +            if let Ok(m) = r2_wire::decode_extended(&d[..n]) {
@@ -6509,7 +6525,7 @@ index 8c49f1c..6d3a72a 100644
 +    let on = it.next()? != "0";
 +    Some((target, on))
 +}
-+
+ 
 +/// Parse a colon-hex MAC "aa:bb:cc:dd:ee:ff" → [u8;6] (routetest topology MASK).
 +#[cfg(feature = "routetest")]
 +fn parse_mac(tok: &str) -> Option<[u8; 6]> {
@@ -6673,7 +6689,9 @@ index 8c49f1c..6d3a72a 100644
 +    // an inactivity deadline; on timeout with an in-flight session, abandon it. Safe — the candidate slot is
 +    // staged-not-booted, so a dropped transfer just frees the receiver for a fresh OST.
 +    const OTA_SESSION_TIMEOUT_S: u64 = 30;
-+    loop {
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        let (n, from) = match embassy_time::with_timeout(
 +            Duration::from_secs(OTA_SESSION_TIMEOUT_S),
 +            socket.recv_from(&mut pkt),
