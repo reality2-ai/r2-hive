@@ -737,8 +737,30 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    r2-fieldlab island, not Alfred). (2) core confirms no shared mgmt-plane contract (WiFi-STA is hive-platform) +
    OTA authority = CMD_START_SIGNED/TG_SK-direct. Coordinated both 2026-06-30; awaiting replies. composer already
    CONFIRMED the push side (device→IP from r2.hb.health key3, OST/ODT/OCM UDP sender to :21043, USB fallback via
-   esptool) — see its hop-6 msg. BUILD SCOPE on GO: WiFi config AP-island→STA-join-Alfred (SSID/creds/IP) +
-   reconnect + OTA receiver on the STA netif (DONE, reuse) + the mask-independence invariant guard.
+   esptool) — see its hop-6 msg.
+   ✅ FEASIBILITY FULLY PROVEN 2026-06-30 (read the firmware end-to-end): embassy-net 0.9 has `dhcpv4` ON; the
+   WiFi STA config (WifiConfig::Station, main.rs ~381) + build-time creds (build.rs sets R2_WIFI_SSID/R2_WIFI_PASS
+   from wifi_config.toml/env — main.rs does NOT yet read them; add env!()) exist; `wifi_task` (main.rs ~4197)
+   ALREADY does STA connect_async + reconnect-on-disconnect; `stack.config_v4()` yields the DHCP IP for health
+   key3. composer's DHCP-join-lab model is buildable with creds injected AT FLASH (never hardcoded).
+   PROPOSED SHAPE = opt-in feature **staota** (proposed to supervisor/composer 2026-06-30): WiFi = STA-join-(lab
+   SSID from env) + DHCP, NO self-AP (retire the 0x502698-AP island under staota), OTA receiver on that netif,
+   mesh data-plane (ESP-NOW/LoRa) UNCHANGED, + mask-independence guard. Opt-in = ZERO risk to existing builds.
+   IMPLEMENTATION PLAN (all `#[cfg(feature="staota")]`-gated; non-staota byte-identical):
+     1. dp_ssid/dp_pass = (env!("R2_WIFI_SSID"), env!("R2_WIFI_PASS")) — main.rs ~369-371.
+     2. serve_ap=false + is_ap=false under staota — the `#[cfg(any(ble,staota))] let serve_ap=false;` +
+        `#[cfg(all(not(ble),not(staota)))] let serve_ap=is_ap;` pattern (ditto is_ap shadow) — ~358-367.
+     3. net_config: `#[cfg(staota)] Config::dhcpv4(Default::default())` else the static StaticConfigV4 — ~411.
+     4. DO NOT block boot on wait_config_up under staota (avoid DHCP-deadlock if lab WiFi down): gate the
+        `stack.wait_config_up().await` to `not(staota)`; DHCP completes async, ota_task binds when up — ~428.
+     5. health emits the LIVE DHCP IP: in io_task's #18 block (~1113), `#[cfg(staota)] let my_ip =
+        stack.config_v4().map(|c| c.address.address()).unwrap_or(my_ip);` before build_health.
+     6. mask-independence INVARIANT GUARD: comment/structural note at the ota_task spawn (~416) that the OTA
+        socket is a standalone netif task, never gated by transport_allow_mask/§2.3B (mesh-RouteEngine-only).
+   env!("R2_WIFI_SSID") compiles even with empty creds (build-verify works without real creds; functional flash
+   needs Roy's lab SSID/pass via wifi_config.toml/env). BUILD HELD pending: (a) supervisor/composer OK on the
+   staota shape (esp. retiring the self-AP island), (b) core's model-confirm. Then build + xtensa build-verify
+   (staota / staota,ble / staota,loraroute,multitg + a non-staota combo to prove no regression).
 (Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-11 added 2026-06-30.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
