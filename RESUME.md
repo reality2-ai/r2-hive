@@ -805,8 +805,16 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    BUILD_ID=staota.0630.0915, staged at /home/roycdavies/r2-staota-artifacts/{r2-dfr1195-DFR-staota.elf,
    r2-dfr1195-XIAO-staota.elf} (Alfred-local, creds-baked → do NOT commit/relay). Handed composer the artifacts +
    the per-board flash protocol (by-id identity-verify → espflash flash → confirm staota banner + INERT → composer
-   writes repeater persona @0x12000 → verify INERT-exit→HEALTH with the STA DHCP IP in key3 = Alfred's push
-   target). composer flashes+provisions per board (supervisor directive); I'm on standby for firmware issues +
+   provisions → verify INERT-exit→HEALTH with the STA DHCP IP in key3 = Alfred's push target).
+   ⚠ PROVISIONING = TWO espflash write-bin records (verified 2026-06-30 — NO write_persona/write_role_profile in
+   firmware, so both are external-write-bin-only; SAME path as the Mariko triplet): (1) PERSONA @0x12000 (channel-a
+   `tg enrol` bundle) = identity + TG (tg_pk = OTA/deliver-gate verify key), EXITS INERT, needs Roy's master
+   passphrase R2_COMPOSER_PASSPHRASE (tg create seals TG_SK + enrol custody); (2) RPF1 ROLE-PROFILE @0x17000
+   (`encode_rpf1`, role=repeater; radar XIAO=sensor later) = the ROLE — the persona has NO role field; without RPF1
+   the role is hive_id-derived default. The serial PROVISION (prov2.py) is NOT this — it writes @0x14000 (magic
+   R2TG = the multitg #20 RUNTIME TG-KEY swap), does NOT write the persona, does NOT exit INERT (don't use it for
+   field provisioning). OTA chain: persona.tg_pk MUST equal the TG that signs OTA (tg ota-sign TG_SK) — one bench
+   TG for all 10. composer flashes+provisions per board (supervisor directive); I'm on standby for firmware issues +
    offered to flash myself. NEXT: composer executes the per-board flash+provision; the live 10-node mesh + OTA come
    up. METAL-VALIDATION OWED: channel-follow (ESP-NOW on the STA channel once associated) + the OTA round-trip +
    the confirmed-boot/rollback. If a board's health ip stays 0 after provision = WiFi-STA not associating to
