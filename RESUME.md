@@ -1,5 +1,54 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-30T06:26:56+12:00 — DOCTOR-ONLY FINAL IDLE REFRESH
+Objective: doctor-only durable handoff refresh after stopped-lane fleet activity. No code/content edits; update
+`RESUME.md` only if ground truth shows stale current state, then commit/push and idle.
+- **Branch/HEAD/worktree:** r2-hive is on `platform-trait` at `a10d63f032fb`
+  (`a10d63f docs: clean resume handoff markers`), matching `origin/platform-trait`. Pre-edit
+  `git status --short --branch` was clean. This entry is the only intended r2-hive file change.
+- **Firmware worktree state:** `/home/roycdavies/Development/R2/dfr1195-fw-wt` is on `dfr1195-fw` at
+  `54973b9ba17a` (`feat(dfr-ota): R2/R3/R4 OTA-receiver hardening (specs-sanctioned)`), matching
+  `origin/dfr1195-fw`, with exactly one dirty file: `M docs/dfr1195-firstlight.patch` inside that sibling
+  worktree. No platform source diff was observed there this turn. Do not "clean" that core-owned worktree from
+  r2-hive.
+- **Transport allow-mask status:** implemented in r2-hive host/sync/local-mgmt and currently verified. Tracked-file
+  check shows `crates/r2-hive-bin/src/mgmt/transport_policy.rs`, `mgmt/api.rs`, `mgmt/mod.rs`,
+  `crates/r2-hive-bin/src/hive.rs`, `crates/r2-hive-core/src/sync_host.rs`, and the focused integration tests are
+  all tracked. `rg` confirms `mgmt/mod.rs` exports `transport_policy`, `mgmt/api.rs` dispatches
+  `r2.mgmt.transport.allow_mask.{state,set,clear}`, `HiveState` delegates the effective mask to
+  `route_engine.transport_allow_mask()`, and host sends check the mask before physical egress. Targeted gates run
+  at current HEAD all PASS:
+  `cargo test -p r2-hive-core route_respects_transport_allow_mask_before_sync_send -- --nocapture`;
+  `cargo test -p r2-hive-core route_drops_when_mask_removes_only_sync_candidate -- --nocapture`;
+  `cargo test -p r2-hive --test transport_integration transport_allow_mask_filters_host_send_before_physical_egress -- --nocapture`;
+  `cargo test -p r2-hive --test mgmt_integration transport_allow_mask_mgmt -- --nocapture`. Only observed warning:
+  pre-existing `r2-wire` dead-code warning for `EXT_AUTH_MAX`.
+- **DFR/ESP32 patch + partition status:** r2-hive `docs/dfr1195-firstlight.patch` still byte-matches
+  `git -C /home/roycdavies/Development/R2/dfr1195-fw-wt diff c46383e..HEAD -- platforms/dfr1195/Cargo.lock
+  platforms/dfr1195/Cargo.toml platforms/dfr1195/build.rs platforms/dfr1195/src/main.rs
+  platforms/esp32/sdkconfig.defaults`, and reverse-apply check in the firmware worktree PASSes. Source config
+  remains custom-partition canonical: `platforms/esp32/sdkconfig.defaults` has
+  `CONFIG_PARTITION_TABLE_CUSTOM=y`, `CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"`, and
+  `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y`; `platforms/esp32/partitions.csv` has `otadata@0xf000`,
+  `ota_0@0x20000 size 0x1E0000`, and `ota_1@0x200000 size 0x1E0000`. Generated ESP-IDF `out/sdkconfig` also
+  shows rollback enabled, anti-rollback not set, `TWO_OTA` not set, and custom table enabled. The prior ESP32
+  build artifact still exists:
+  `platforms/esp32/target/riscv32imac-esp-espidf/release/r2-esp32` = 3,698,964 bytes, mtime
+  `2026-06-28 07:50:37 +1200`. I did NOT rerun the ESP32 build this turn; current `esp-idf-sys` output has no
+  copied `out/partitions.csv`, so the known custom-partition copy race/workaround is still a real build caveat.
+- **Known external-gated items / no local code-only action:** ESP32/DFR OTA confirmed-boot and rollback still need
+  metal/network validation; radarprobe remains blocked on Roy-side physical/model facts (continuity RO->GPIO44,
+  DI->GPIO43, DE-RE->GPIO6, MAX485 5V/GND, radar model/datasheet); CCR1 remains composer-contract/emitter gated;
+  ESP-IDF custom partition handling still needs a portable fix or documented repeatable workaround; transport
+  allow-mask firmware role-profile ingestion, per-hop telemetry tags, and bench metal validation were not added by
+  the host/sync/mgmt patch and remain scoped to later contract/bench work. Do not re-adopt ESP-IDF
+  `CONFIG_PARTITION_TABLE_TWO_OTA=y` unless the image shrinks below 1 MiB or a different built-in table is proven.
+- **Verification this turn:** `git status --short --branch`; `git log -5 --oneline --decorate`; `date -Iseconds`;
+  focused `git ls-files`/`rg` wiring checks; the four targeted cargo tests above; sibling firmware
+  `git status`/`git log`; patch `cmp` byte-match and reverse-apply check; ESP32 sdkconfig/partition/artifact
+  inspection; `fleet inbox | tail -80` confirming the doctor-only refresh request. No full workspace test or fresh
+  ESP32 build was run because this is a RESUME-only doctor refresh.
+
 ## ► 2026-06-30 — DOCTOR HYGIENE / MARKER WORDING CLEARED
 Objective: resolve fleet-doctor handoff hygiene only: inspect stale marker wording in `RESUME.md`, verify the
 old `transport_policy.rs` untracked/unwired blocker against disk, and avoid code changes. Result: **DOC HYGIENE
