@@ -840,7 +840,18 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    2 bytes; XIAO LEDs are active-LOW per Roy's ground-truth; a 1-byte [0x00] leaves b[1]=0xFF=active-HIGH =
    INVERTED XIAO LED — caught composer's 1-byte staging). DFR leaves 0x13000 ERASED (→ has_screen + active-high,
    both correct). The radar XIAO provisions as repeater now; role=sensor (RPF1 b[4]=0x01) via a later 0x17000
-   re-write (no re-persona). composer flashes+provisions per board (supervisor directive); I'm on standby for firmware issues +
+   re-write (no re-persona).
+   ✅ D5 STAOTA METAL-VALIDATED 2026-06-30: --partition-table fix CONFIRMED (app from ota_0 paddr=0x3a640 ∈
+   0x20000-0x200000 = dual-OTA table took, NOT 0x10000), BUILD_ID staota.0630.0915 in HEALTH, boots+meshes clean.
+   ⚠ ERASE-BEFORE-PROVISION (added to runbook 2026-06-30): the app flash does NOT erase the config gap, so the OLD
+   persona SURVIVES (D5 came up provisioned with its old wire_id 0dcadbf8). For a clean re-personae, ERASE the
+   raw-config gap FIRST: `espflash erase-region 0x12000 0xE000` (clears persona+board+runtime-TG@0x14000+mask+
+   sendto+RPF1+anti-rollback@0x18000+ota-pending; KEEPS otadata@0xf000 + app@0x20000). The CRITICAL reason: a stale
+   runtime-TG @0x14000 (magic R2TG) would OVERRIDE the new persona's TG (main.rs:218) → board verifies OTA/deliver
+   -gate against the OLD tg_pk not the new bench TG. Also clears a stale anti-rollback floor that could block OTA.
+   THEN write-bin persona(0x12000)+RPF1(0x17000)[+board-profile(0x13000) XIAO]. NO 0x9000 NVS erase (firmware reads
+   identity from raw 0x12000, NOT the esp-idf NVS partition). composer mints; supervisor runs espflash (both gated);
+   I'm on standby for firmware issues +
    offered to flash myself. NEXT: composer executes the per-board flash+provision; the live 10-node mesh + OTA come
    up. METAL-VALIDATION OWED: channel-follow (ESP-NOW on the STA channel once associated) + the OTA round-trip +
    the confirmed-boot/rollback. If a board's health ip stays 0 after provision = WiFi-STA not associating to
