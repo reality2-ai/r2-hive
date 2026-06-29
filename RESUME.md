@@ -622,8 +622,20 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    runtime allowed-MAC list (routetest 'MASK' cmd, main.rs ~2943) and LoRa `can_hear_hive` ingress drop (~3457),
    both at the SAME DATA_RX ingress point as the k4 transport tag. Enforcement = generalize per-(peer) → per-
    (peer,transport) at that ingress drop (each feeder knows its carrier); no new wire surface (local drop).
-   Advised specs to key the override on (peer_id, transport_ordinal) using core's 7-bit r2_route numbering and to
-   decide symmetric-vs-receiver-side drop. When the spec+hook land: wire the override at the per-carrier ingress.
+   FEASIBILITY CONSULT DONE 2026-06-30 (specs proposal r2-specifications docs/proposals/VIRTUAL-REACHABILITY-
+   CONTROL.md → lands as R2-TRANSPORT §2.3B + R2-ROUTE §5.2/§2). Feasibility = HIGH; §3-item-3 bidirectional
+   faithful-drop is METAL-PROVEN already (routetest can_hear/can_hear_hive IS a per-peer ingest-drop; §2.3B just
+   generalizes it to per-(peer,transport), lease-driven). Control surface = the existing serial inject-bridge
+   (IDENTIFY/PROVISION/MASK) → a new REACH lease line; runtime-only static set, NO NVS. DIVISION OF LABOR (told
+   specs): dedup lives INSIDE core's RouteEngine::plan_forward (firmware calls it), so drop-before-dedup can't be
+   firmware-after-engine — cleanest = CORE adds `arrival_transport` to ForwardRequest + does the drop as
+   plan_forward's FIRST step + the egress filter in select_transport + a setter mirroring set_transport_allow_mask;
+   HIVE = the REACH control/lease surface + threads arrival_transport (already have it from k4) + calls the setter.
+   ⇒ MY ONLY HARD DEP = core's ForwardRequest.arrival_transport field + the override setter. SNAG: faithful-drop
+   keys on the immediate-sender hive at ingress, which is 0/unknown on BLE-CoC / plain-ble-non-routetest (fine on
+   the bench carriers routetest/loraroute where it's resolved). SNAG: transport_id = 7-bit r2_route ordinal
+   (==k4); FLRC not in the enum ⇒ faking the nRF54 loraF link is gated on the FLRC-ordinal + nRF54 command-channel
+   (same nRF54 knot as #10); ESP32/DFR fake-distance is unblocked. Build held till spec normative-final + core hook.
 10. **nRF54 direct telemetry** (SCOPED 2026-06-30; needs FLRC ruling + path decision before build) — the 2
    nrf54-lr2021 LoRa-fast XIAO present CMSIS-DAP -if02, no serial console, so the orchestrator's by-id reader
    can't see them; loraF (FLRC) links exist ONLY between these 2 boards (no ESP32 hears FLRC) → invisible to
