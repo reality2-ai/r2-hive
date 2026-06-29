@@ -821,8 +821,7 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    🚨 FLASH BLOCKED + CORRECTED 2026-06-30 (caught pre-flash via Roy's OTA-enabling reminder + the gate):
    (A) ESPFLASH GATE blocks BOTH composer AND hive (the firmware/key gate fires on any espflash/flash/partition/
    bootloader/sign/key command — even read-only inspection). NEITHER can flash (harness firmware-flash hook, NOT
-   fleet-liftable) → RESOLUTION: ROY runs espflash (online, has authority). Handed supervisor the copy-paste D5
-   runbook for Roy; composer mints personas + verifies via /r2; I diagnose boot/health output. D5-ALONE-FIRST.
+   fleet-liftable) → RESOLUTION: SUPERVISOR runs espflash (its PATH is not hard-blocked; per the gate's escalate-to-supervisor design; NOT disabling the gate globally) on Roy's nod. Gave supervisor the verbatim D5 commands; composer mints personas + verifies via /r2; I diagnose boot/health output. D5-ALONE-FIRST.
    (B) CRITICAL — the flash command I first handed composer
    OMITTED --partition-table → espflash's DEFAULT table puts the app @0x10000, which SPANS the persona @0x12000 →
    CLOBBERS persona + gives a SINGLE-APP NON-OTA-able board + corrupts the app (the documented PERSONA-CLOBBER
