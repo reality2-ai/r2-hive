@@ -799,6 +799,18 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    verify/stage/confirm-boot CORE is transport-agnostic; staota binds it to STA-UDP :21043 now, phase-2 binds the
    same core to a bridge-relay+mesh path. Ties to the bridge role + on-demand mode-flip for duty-cycled targets.
    Keep the OTA receiver factored so the mesh-relay binding drops in cleanly.
+   ✅ GO EXECUTED 2026-06-30 (supervisor unblocked — proceed on the ESTABLISHED OTA-authority CMD_START_SIGNED/
+   TG_SK-direct; core's confirm is async sanity-check, core was stalled-idle). Built BOTH staota artifacts WITH
+   CREDS BAKED (sourced `set -a; . ~/.config/r2-composer/wifi.env; set +a` on Alfred — never on argv/commit),
+   BUILD_ID=staota.0630.0915, staged at /home/roycdavies/r2-staota-artifacts/{r2-dfr1195-DFR-staota.elf,
+   r2-dfr1195-XIAO-staota.elf} (Alfred-local, creds-baked → do NOT commit/relay). Handed composer the artifacts +
+   the per-board flash protocol (by-id identity-verify → espflash flash → confirm staota banner + INERT → composer
+   writes repeater persona @0x12000 → verify INERT-exit→HEALTH with the STA DHCP IP in key3 = Alfred's push
+   target). composer flashes+provisions per board (supervisor directive); I'm on standby for firmware issues +
+   offered to flash myself. NEXT: composer executes the per-board flash+provision; the live 10-node mesh + OTA come
+   up. METAL-VALIDATION OWED: channel-follow (ESP-NOW on the STA channel once associated) + the OTA round-trip +
+   the confirmed-boot/rollback. If a board's health ip stays 0 after provision = WiFi-STA not associating to
+   TheMetaverse (AP up? creds?) — flag.
 (Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-11 added 2026-06-30.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
