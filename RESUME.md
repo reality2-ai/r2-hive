@@ -1,6 +1,28 @@
 # RESUME — r2-hive (hive-worker)
 
-## ► 2026-06-30 — BENCH ZERO-TELEMETRY DIAGNOSED (my INERT halt) — fix path sent, decision pending
+## ► 2026-06-30 — INERT-LIVENESS FIX DONE+GREEN (firmware a2f1718→93453de) + latent emit_msg regression fixed
+Supervisor+composer GO'd the inert-liveness fidelity fix; LANDED at `93453de` (build-green xtensa across
+field,loraroute,multitg / field,loraroute,bridge,multitg / routetest / loraroute / nobt). r2-hive recovery patch
+refreshed (reverse-apply OK).
+- **Inert-liveness:** the §3.5 fail-closed INERT loop (main.rs ~185) now emits — every ~6s (under composer's 12s
+  grey threshold) — a HEALTH line (build_health: wire_id=mac_low3, tg=0, ip=0.0.0.0) + a `role=inert` status
+  line, + the human notice every ~30s. An unprovisioned field board now shows as a LIVE-INERT node on composer's
+  dashboard instead of being invisible. FAIL-CLOSED FULLY PRESERVED: serial-println ONLY — no radio TX, no mesh
+  Event frame, no TG adoption; tg=0/ip=0 honestly mark no-TG/no-net. composer's reader already parses HEALTH/
+  status so it "just works".
+- **Latent regression FIXED (honest self-catch):** a2f1718 (per-hop k4) had pinned emit_msg's map element-count
+  `n` to u64 via `as u64`, breaking Encoder::map(usize) in the FIELD/r2-cbor combos — which were NOT in a2f1718's
+  5-combo verify (a real gap in that verification; the field combos use r2-cbor's map(usize), the verified combos
+  either cfg'd emit_msg out or used a u64-accepting map). Restored `n` to type-inferred (mut + +=). Lesson: the
+  per-hop verify should have included a field combo; it does now.
+- **Pre-existing (NOT my regression, NOT in scope):** plain `field` (no routetest) does not compile — field/fr4
+  SCF code calls emit_msg/ROUTETEST_HASH/mesh_broadcast which are routetest-gated, so `field` has ALWAYS required
+  routetest (ships as field,loraroute,…). Noted, not "fixed" (field-alone is not a shipped combo).
+- **Bench unblock decision (Roy's call, supervisor relaying):** PROVISION the 10 boards (mint personas, one bench
+  TG = a real 10-node mesh) vs demo/bench-build reflash. The inert-liveness fix makes inert boards visible
+  REGARDLESS of that call. composer derives device→IP from r2.hb.health key3 for OTA push (see #11/#17).
+
+## ► 2026-06-30 — BENCH ZERO-TELEMETRY DIAGNOSED (my INERT halt) — fix path sent, decision pending (SUPERSEDED ↑)
 Composer's full-check: 10 ESP32 USB-powered but a 30s /r2 sample saw ZERO r2.hb.health/status/beacon/msg.*.
 ROOT CAUSE (firmware ground truth) = my own R2-PROVISION §3.5 fail-closed INERT halt (main.rs ~185):
 `#[cfg(field)] if persona.is_none() { loop { println!("§3.5 INERT…"); Timer 30s } }` runs BEFORE io_task/
