@@ -700,8 +700,7 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    role-profile→set_transport_boot_baseline. SEQUENCING: wiring re-vendors the firmware onto bf1bf3b (the new
    required ForwardRequest field forces it) = CHANGES the firmware core base. Deferred until AFTER the staota flash
    batch settles (staged staota artifacts are at the c46383e base + must stay reproducible for re-flash; staota is
-   the active priority). Then: re-vendor → thread arrival_transport + REACH surface → xtensa build-verify → report
-   core. Offered core an urgent separate-worktree build-verify if needed before staota settles.
+   the active priority). RE-VENDOR TARGET = origin/r2-core-consolidation HEAD 41a3a3f (has bf1bf3b; core confirmed). Then: re-vendor firmware onto 41a3a3f → thread arrival_transport (k4) + REACH surface + the finding#4 ingest-gate → xtensa build-verify (the meaningful remaining check — bf1bf3b was no_std-verified on riscv32imac-none, NOT xtensa) → report core. Offered core an urgent separate-worktree build-verify if needed before staota settles.
    🔑 BUILD REQUIREMENT (core-codex review of bf1bf3b, point #4, confirmed — core b2c0531 doc-note): the ingress
    half is TWO gates, not one. (a) plan_forward returns DropReason::ReachabilityOverride (core does this from
    arrival_transport). (b) MY FIRMWARE'S OWN neighbour-refresh-from-RX-frame sites (§4.3.4 TrailReinforcer
