@@ -849,7 +849,19 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    runtime-TG @0x14000 (magic R2TG) would OVERRIDE the new persona's TG (main.rs:218) → board verifies OTA/deliver
    -gate against the OLD tg_pk not the new bench TG. Also clears a stale anti-rollback floor that could block OTA.
    THEN write-bin persona(0x12000)+RPF1(0x17000)[+board-profile(0x13000) XIAO]. NO 0x9000 NVS erase (firmware reads
-   identity from raw 0x12000, NOT the esp-idf NVS partition). composer mints; supervisor runs espflash (both gated);
+   identity from raw 0x12000, NOT the esp-idf NVS partition).
+   ⚠ WRITE-RELIABILITY (D5 2026-06-30): erase succeeded but follow-on write+reset HUNG — each espflash op's default
+   --after hard-reset BOOTS staota → the app drives the USB-serial-JTAG → next op can't re-enter ROM download. FIX
+   = keep the chip in DOWNLOAD for the whole chain via NO-RESET chaining (both --before AND --after):
+     espflash erase-region --before default-reset --after no-reset -p <by-id> 0x12000 0xE000
+     espflash write-bin    --before no-reset      --after no-reset -p <by-id> 0x12000 <persona>
+     espflash write-bin    --before no-reset      --after no-reset -p <by-id> 0x17000 <rpf1>
+     # XIAO: + write-bin --before no-reset --after no-reset 0x13000 <[0x00,0x01]>
+     espflash reset -p <by-id>     # launches the app
+   LOAD-BEARING: --before no-reset on ops 2+ (a default --before pulses/reboots mid-chain → USB blip/contention).
+   Native USB-JTAG holds download across separate invocations IFF no reset happens between (no-reset both sides);
+   by-id path is stable (same USB-JTAG hw in ROM+app). Orchestrator must stay STOPPED the whole chain. Applies to
+   all 10. composer mints; supervisor runs espflash (both gated);
    I'm on standby for firmware issues +
    offered to flash myself. NEXT: composer executes the per-board flash+provision; the live 10-node mesh + OTA come
    up. METAL-VALIDATION OWED: channel-follow (ESP-NOW on the STA channel once associated) + the OTA round-trip +
