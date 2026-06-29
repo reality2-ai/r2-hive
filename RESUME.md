@@ -1,5 +1,54 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-29 — BENCH PHASE-2 TRANSPORT-DISABLE RECHECK / BLOCKED-ON-HIVE-CALLABLE CANONICAL API
+Objective: re-check the stale transport-disable hold after specs/core landed the Phase-2 policy commits, then either
+wire the smallest hive integration or record the precise blocker. Result: **NO HIVE CODE WIRING YET**; the spec is
+now ratified locally, and core has a lower-level `r2-dataplane` `PhyMask` setter, but current hive code has no
+callable canonical 7-transport policy surface without inventing a hive-local clone.
+- **Verified local ground truth:** r2-hive `platform-trait` was at `eeee933` with only this `RESUME.md` dirty;
+  r2-specifications was clean on `spec-conformance-v0.2` at `45b8a507e731aeeaae124f263f0809c4116502c5`;
+  r2-core was clean on `r2-core-consolidation` at `c5d0be8df05e99c2fa9f9540400752f29890e7f6`. The DFR firmware
+  worktree remains `dfr1195-fw` at `54973b9` with only its nested `docs/dfr1195-firstlight.patch` dirty, so do not
+  assume that worktree already tracks core `c5d0be8`.
+- **Spec surface now landed:** `d55577c` adds R2-TRANSPORT §2.3A `transport_allow_mask` over the canonical §2.2
+  7-transport bitmask (`0x7F` all-on), node-wide, egress-only, disable-only, leased/acknowledged/clearable, local
+  authority by default, and not advertised/gossiped. R2-ROUTE §5.2 now says the mask is a hard filter before
+  scoring. R2-RUNTIME §3.2.2 adds optional role-profile `transport_allow_mask`.
+- **Core surface now landed:** `4ca1364` adds `r2_dataplane::{PHY_FLRC, PHY_LORA, PHY_ALL}` and
+  `DataPlane::{egress_enabled_mask,set_egress_enabled_mask,set_egress_phy_enabled,egress_phy_enabled}`. The mask
+  is applied inside `r2-dataplane` to `handle_rx_frame` relay output and `poll_keepalive` output, and it strips
+  unknown bits. This is lower-level physical-carrier policy (`PHY_ALL == PHY_FLRC|PHY_LORA`), not the canonical
+  `Transport` `0x7F` mask by itself.
+- **Blocker verified in code:** `rg` over current core found no `transport_allow_mask`, route-engine policy setter,
+  or `select_transport`/`RouteEngine::plan_forward` parameter for the 7 canonical `Transport` bits. `r2-route`
+  still selects from `NeighbourEntry.transports`, MTU, link quality, and strategy only. Current r2-hive does not
+  depend on `r2-dataplane` in its host crates; `rg r2_dataplane` in r2-hive hits only a process-hygiene comment and
+  the firmware patch artifact. The DFR firmware source imports only `encode_dc_seq_cbor`, `frame_fingerprint`,
+  `parse_dc`, and `parse_seq` from `r2_dataplane`; it does not instantiate `DataPlane`, `handle_rx_frame`, or
+  `poll_keepalive`, so there is no existing object to call the new setter on.
+- **Why no hive patch this turn:** wiring Linux/cloud `HiveState::send_to_hive_via` or
+  `r2-hive-core::sync_host::route_inbound_sync` would require a new hive-owned 7-bit mask/lease manager and a
+  mapping to `Transport::{Ble,Wifi,Lora,Internet,Usb,EspNow,Udp}` outside core's landed API. Wiring the DFR patch
+  directly would require either migrating the firmware io loop onto `r2_dataplane::DataPlane` or fabricating a
+  local `Transport`→`PhyMask` policy adapter. Both would create semantics the user explicitly barred.
+- **Smallest unblocked path once core/supervisor picks it:** either (A) core exposes the canonical
+  `transport_allow_mask` as a shared policy type/manager and route/host filter API over `r2_route::Transport`
+  bits, then hive wires `HiveState`, `sync_host`, UDS/loopback mgmt ACKs, tests, and role-profile ingestion; or
+  (B) firmware first migrates the DFR io path to the landed `r2-dataplane` two-entry-point contract, then hive can
+  set `DataPlane::set_egress_enabled_mask()` at the physical-carrier boundary and separately reconcile the
+  spec-level `Transport` mask mapping. Until then, keep the policy local-only; mesh-received frames MUST NOT
+  mutate it.
+- **Peer/refutation:** asked core whether a host-wide `Transport` policy API exists or whether only the
+  `DataPlane` `PhyMask` setter landed; the off-thread answer was the provider spend-limit message, so no peer
+  challenge was available. Confidence is from local disk inspection only.
+- **Verification this turn:** `git status --short --branch` in specs/core/hive; `git show --stat` for
+  `d55577c`, `45b8a50`, `4ca1364`, `c5d0be8`; spec reads of R2-TRANSPORT §2.3A, R2-ROUTE §5.2, and R2-RUNTIME
+  §3.2.2; targeted `rg`/`sed` inspections of `r2-dataplane`, `r2-route`, hive `HiveState`, hive `sync_host`, and
+  the DFR firmware worktree. No cargo tests were run because this turn intentionally makes a docs/handoff-only
+  blocker update.
+- **Changed files:** `RESUME.md` only. Do not add hive-local transport-mask semantics or mesh-remote control
+  frames to bypass the missing shared API.
+
 ## ► 2026-06-28 — DFR FIRMWARE PRE-METAL HARDENING (refutation-review items, supervisor GO) — DONE+GREEN
 Worktree `dfr1195-fw` HEAD `54973b9`. Three refutation-review items implemented + build-green at `428f81c`
 (field,loraroute,multitg / nobt / radarprobe / field,loraroute,bridge,multitg), then R2/R3/R4 OTA-receiver
