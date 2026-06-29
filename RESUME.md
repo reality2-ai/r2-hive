@@ -783,6 +783,22 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    they can't hold a continuous STA but can wake->flip->OTA->flip). Land AFTER the first permanent-STA flash;
    permanent-STA (channel-follow) has NO off-mesh drop (mesh+STA same channel), mode-flip does (brief, acceptable
    via SCF/dedup).
+   PER-BOARD FLASH COMBOS — BOTH build-verified GREEN 2026-06-30: D1-D5 DFR1195 = `field,loraroute,multitg,staota`;
+   X1-X4 XIAO+Wio-SX1262 (tri-radio, HAVE LoRa) = `xiao,field,loraroute,loratcxo,multitg,staota`. The unregistered
+   1C:DB:D4 = the RADAR XIAO (MAC 1c:db:d4:5b:8a:60, esp32s3) → XIAO combo; radar/sensor role is PERSONA-only
+   (composer persona-update later), firmware = the XIAO staota combo. CREDS: build on Alfred with
+   `set -a; . /home/roycdavies/.config/r2-composer/wifi.env; set +a` before cargo (exports R2_WIFI_SSID/PASS;
+   chmod600 but roycdavies-owned = readable; never on argv/commit). HANDOFF: I build+flash by-id (MAC
+   identity-verify, confirm staota banner + INERT) → signal composer 'flashed <board>' → composer mints+writes the
+   repeater persona @0x12000 + verifies INERT-exit→HEALTH (composer does persona, I do firmware). FIRMWARE-FIRST
+   (composer holds provisioning per board). ACTIVE GATE = core's OTA-authority confirm (CMD_START_SIGNED/TG_SK-
+   direct); everything else ready (both combos green, creds path known, handoff settled).
+   MESH-OTA PHASE-2 (Roy framing, follow-on — NOT now): Alfred can't join the WiFi mesh (its 1 WiFi = Tailscale),
+   so a FIELD mesh-only target (no router) gets OTA via: Alfred→IP→a GATEWAY/BRIDGE board (on the router)→R2 mesh
+   (ESP-NOW/LoRa)→target, which runs a MESH-OTA RECEIVER (distinct transport binding). staota LEAVES ROOM: the OTA
+   verify/stage/confirm-boot CORE is transport-agnostic; staota binds it to STA-UDP :21043 now, phase-2 binds the
+   same core to a bridge-relay+mesh path. Ties to the bridge role + on-demand mode-flip for duty-cycled targets.
+   Keep the OTA receiver factored so the mesh-relay binding drops in cleanly.
 (Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-11 added 2026-06-30.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
