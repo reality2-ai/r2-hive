@@ -615,6 +615,20 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    field push CLI (emits unsigned CMD_START today). Tracked so the field OTA path isn't half-wired.
 8. **Dashboard label reconcile** (composer's, cosmetic) — orchestrator --status-port labels show the old mesh
    hives; the 3 boards re-personae'd to field identities. composer logged it; not hive's.
+9. **Faked-distance firmware enforcement** (Roy GREEN-LIT 2026-06-30; SPEC-FIRST, do NOT build yet) — virtual
+   per-(peer,transport) reachability override to test topologies on co-located boards (fake peer X out-of-range
+   on transport Y). Waiting on: specs contract (drafting) + core's dataplane/neighbour hook. FIRMWARE FEASIBILITY
+   = HIGH and the seam already exists: the firmware has a per-PEER reachability mask today — ESP-NOW `can_hear` +
+   runtime allowed-MAC list (routetest 'MASK' cmd, main.rs ~2943) and LoRa `can_hear_hive` ingress drop (~3457),
+   both at the SAME DATA_RX ingress point as the k4 transport tag. Enforcement = generalize per-(peer) → per-
+   (peer,transport) at that ingress drop (each feeder knows its carrier); no new wire surface (local drop).
+   Advised specs to key the override on (peer_id, transport_ordinal) using core's 7-bit r2_route numbering and to
+   decide symmetric-vs-receiver-side drop. When the spec+hook land: wire the override at the per-carrier ingress.
+10. **nRF54 direct telemetry console** (OFFERED, unassigned — composer/supervisor flagged) — the 2 nrf54-lr2021
+   LoRa-fast XIAO emit ONLY defmt-over-RTT (no USB-CDC/UART console), so the orchestrator's by-id serial reader
+   can't read them (CMSIS-DAP -if02, no -if00); they stay mesh-only. A direct line = a net-new USB-CDC HEALTH
+   console in the nrf54 firmware mirroring the ESP32 schema (pure observability). It's a r2-core platform; I
+   offered to scope/build if assigned. Not green-lit — no rush per supervisor.
 (Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
