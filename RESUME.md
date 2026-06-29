@@ -1,5 +1,27 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-30 — DOCTOR HYGIENE / MARKER WORDING CLEARED
+Objective: resolve fleet-doctor handoff hygiene only: inspect stale marker wording in `RESUME.md`, verify the
+old `transport_policy.rs` untracked/unwired blocker against disk, and avoid code changes. Result: **DOC HYGIENE
+ONLY** on branch `platform-trait`; pre-edit worktree was clean at `41eed45`.
+- **Transport-policy blocker status:** resolved. Ground truth: `git ls-files --stage` shows
+  `crates/r2-hive-bin/src/mgmt/transport_policy.rs`, `crates/r2-hive-bin/src/mgmt/api.rs`, and
+  `crates/r2-hive-bin/src/mgmt/mod.rs` are all tracked. `rg -n "transport_policy|TransportPolicy|transport policy" .`
+  shows `mgmt/mod.rs` exports `pub mod transport_policy;`, `mgmt/api.rs` imports it and dispatches
+  state/set/clear event classes to it, and integration tests reference the same module.
+- **Marker cleanup:** replaced remaining stale marker wording in old handoff notes with concrete
+  `follow-up`, `remains open`, or completed-task language. No active technical follow-up was removed; the FR-2
+  firmware work, AP-failover WiFi layer, and LED-init work remain recorded as open where they were already
+  described.
+- **Changed files:** `RESUME.md` only.
+- **Verification:** narrow doc checks only: `git status --short --branch`; fleet-doctor marker scan of
+  `RESUME.md`; `rg --files | rg 'transport_policy\.rs$|transport_policy'`; tracked-file check via
+  `git ls-files --stage`; wiring check via `rg -n "transport_policy|TransportPolicy|transport policy" .`. No
+  cargo tests are needed for this docs-only hygiene change.
+- **Do not assume:** this entry does not re-verify the previously green transport-policy cargo gates, metal bench,
+  or firmware patch application; it only records current tracked/wired handoff state and removes stale marker
+  wording.
+
 ## ► 2026-06-29 — BENCH PHASE-2 TRANSPORT-DISABLE WIRING / IMPLEMENTED+GREEN
 Objective: wire the now-unblocked Phase-2 node-wide egress transport software-disable policy in r2-hive without
 inventing hive-local routing semantics, then verify and push. Result: **IMPLEMENTED** against core's canonical
@@ -745,7 +767,7 @@ current, don't wait per-conjecture.
   OPEN PREREQ (asked composer, queued): how D3 reaches PI5 over WiFi in r2-hive's model — UDP broadcast on a
   shared LAN (D3 STA + PI5 on one router/AP)? D3 joins a PI5 AP? which port / the existing wifi.rs UDP path? +
   confirm PI5 runs r2-hive Linux as the wairoa routing peer. Don't build D3's WiFi carrier blind = spec-first.
-  FIRMWARE TODO (board-map-independent, do in the FR-2 build): (a) transport-tagged DATA_RX ingest — construct
+  FIRMWARE FOLLOW-UP (board-map-independent, do in the FR-2 build): (a) transport-tagged DATA_RX ingest — construct
   Observation with the REAL ingress transport (Transport::Lora vs Wifi) instead of hardcoded EspNow (main.rs
   ~954); core confirmed engine auto-populates NeighbourEntry.transports + plan_forward picks egress (dual-homed
   D3 = both bits on one entry, best_transport per-MTU). (b) msg.* telemetry over /r2 — PINNED schema (R2-CBOR,
@@ -1138,7 +1160,7 @@ current, don't wait per-conjecture.
   - **NAMED REQUIREMENTS (roadmap, careful test-pairing — NOT on the live mesh):** #23b **AP-FAILOVER** (Roy:
     "TN should renegotiate the hotspot if it goes away") — pre-designated backup (lowest AP-capable hive from
     the roster) detects disassociation → promotes STA→AP (same SSID/IP) → others re-associate; conductor-timeout
-    app-half DONE, WiFi-layer half TODO. **BLE-BEACON discovery** (R2-DISCOVERY) = the out-of-band substrate
+    app-half DONE, WiFi-layer half remains open. **BLE-BEACON discovery** (R2-DISCOVERY) = the out-of-band substrate
     that solves the no-network-to-elect chicken-and-egg (beacon presence/hive_id/TG/AP-capability/roster over
     BLE, independent of the WiFi-AP) — #23 negotiation rides it. **IDENTIFY** cmd (LED solid on /r2 identify).
     **PER-CARRIER PLATFORM BUILDS — REQUIRED (Roy, reverses the earlier deprioritization).** Next firmware
@@ -1274,7 +1296,7 @@ current, don't wait per-conjecture.
     semantic CMD_SET_STATUS{status} vocab (ok/joining/ota/error/identify/idle — meanings not blink-codes);
     descriptor kind:mono|rgb + statuses + dimmable + (rgb) colour slots; device driver maps status→rendering.
     **CRITICAL (Roy): LED INDEPENDENT of display** — firmware-direct base statuses (boot/ota/error) signal
-    when the screen is down → don't route LED via the render plugin. **Firmware TODO:** init the LED
+    when the screen is down → don't route LED via the render plugin. **Firmware follow-up:** init the LED
     before/around the display + a panic→error pattern, so a display fault never silences the LED. Sent specs.
   - **PROJECT: LoRa heartbeat-SYNC ("fireflies")** (`33eac83`, `docs/lora-heartbeat-sync-design.md`) — Roy's
     next showcase: synchronise the LED heartbeats via sentants exchanging r2.sync.fire events over LoRa
@@ -1447,7 +1469,7 @@ Gated on the convergence above + core's D3b. Sketch: `docs/esp32-hive-firmware-a
   re-pair (harmless pre-launch). eFuse-MAC comment already marked impl-defined-pending-spec (`b33547f`).
 - ~~Roy: greenlight R2-PROVISION §5.3.4~~ DONE — specs confirms COMMITTED (`4b74b20`, v0.6, Roy
   green-lit) on `spec-conformance-v0.2`. Cite by paragraph name (no §5.3.4.y sub-numbers).
-- ~~hive TODO: usb_pair.rs citation fix~~ DONE (`4c70d2c`) — usb_pair.rs §6.4.x → R2-PROVISION
+- ~~hive usb_pair.rs citation fix~~ DONE (`4c70d2c`) — usb_pair.rs §6.4.x → R2-PROVISION
   §5.3.4 (SAS verification/Link key/Reconnect/Key agreement); main.rs+usb_serial.rs "R2-USB v2" →
   "R2-USB v0.1", SYNC frame → §3.3. Doc-only; builds clean.
 - ~~OPEN: type-byte divergence + usb.rs frame-vocab mapping~~ **CLOSED — RATIFIED + VERIFIED.** specs
