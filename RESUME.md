@@ -791,8 +791,7 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    chmod600 but roycdavies-owned = readable; never on argv/commit). HANDOFF: I build+flash by-id (MAC
    identity-verify, confirm staota banner + INERT) → signal composer 'flashed <board>' → composer mints+writes the
    repeater persona @0x12000 + verifies INERT-exit→HEALTH (composer does persona, I do firmware). FIRMWARE-FIRST
-   (composer holds provisioning per board). ACTIVE GATE = core's OTA-authority confirm (CMD_START_SIGNED/TG_SK-
-   direct); everything else ready (both combos green, creds path known, handoff settled).
+   (composer holds provisioning per board). ✅ core CONFIRMED 2026-06-30 (hop6, vs r2-update src): NO shared mgmt contract (WiFi-STA+ota_task 100% hive-platform, fork nothing) + OTA-authority = CMD_START_SIGNED + verify_header issuer_pk==tg_pk = TG_SK-direct (r2-update/src/lib.rs:219 empty update_authority, NO role-0x05 cert) = exactly composer's §2.4 signer. NO core change for #17. So the design + the persona.tg_pk↔OTA-signer binding are VALIDATED; everything ready (both combos green, creds path known, handoff settled).
    MESH-OTA PHASE-2 (Roy framing, follow-on — NOT now): Alfred can't join the WiFi mesh (its 1 WiFi = Tailscale),
    so a FIELD mesh-only target (no router) gets OTA via: Alfred→IP→a GATEWAY/BRIDGE board (on the router)→R2 mesh
    (ESP-NOW/LoRa)→target, which runs a MESH-OTA RECEIVER (distinct transport binding). staota LEAVES ROOM: the OTA
