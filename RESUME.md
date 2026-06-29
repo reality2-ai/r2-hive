@@ -925,6 +925,14 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    INGRESS, so the discovered topology matches the test scenario, exactly as §2.3B gates the data-plane). core
    extends §2.3B to beacon ingress; I enforce in the beacon-RX path + regression guard. So #13 = emit (un-gate) +
    report-discovery + §2.3B-gate-RX.
+   REFINEMENT (Roy/supervisor 2026-06-30): co-located boards hear EVERYONE → faked-distance applied AT THE DEVICE
+   (receive the real beacon, DROP if the scenario gates it). The beacon §2.3B gate keys on the STABLE BLE/LINK
+   ADDRESS, NOT hive_id (the beacon's RBID rotates + is hive-anonymous; so data-plane §2.3B keys on hive_id but the
+   BEACON gate keys on link-address — core extends §2.3B accordingly). TELEMETRY = report BOTH: (a) what the radio
+   PHYSICALLY heard (all in-RF-range peers, by link-address) AND (b) what the device DISCOVERED post-gate (the test
+   topology) — so the bench shows the artifice distinctly, never conflating faked-distance with real range.
+   R2-BEACON §7 = the normative beacon-emit MUST on these boards (spec MUST, regression-guarded). Sequence after
+   the beacon-emit + bootstrap; specs pins the def + §2.3B-on-beacon scope first.
 14. **OTA-READY BOOTSTRAP — reboot-to-download + persona-over-wire (Roy PRIORITY: THE unlock)** (verified 2026-06-30).
    Remote provisioning/reflash is BLOCKED by the USB-JTAG download-mode-entry race (running firmware blocks
    espflash/esptool → 'write timeout'/'connecting' hang; hit Roy + supervisor). TWO firmware gaps, both ADDABLE:
@@ -935,9 +943,21 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    TG-KEY over serial, NOT identity, NOT mesh/mgmt). Add a firmware persona/identity receiver over console/mgmt
    that writes @0x12000 = no-download-mode provisioning (best). CHICKEN-AND-EGG: bootstrapping either onto a board
    still needs ONE reliable download entry (no-reset-chaining + connect-retry, or the physical BOOT button when
-   Roy's home). Build order proposed to supervisor: (1) reboot-to-download → (2) persona-over-wire → then #13
-   beacon; each xtensa-verified + committed + regression-guarded, per Roy's incremental directive. Asked supervisor
-   the fork: build reboot-to-download NOW vs finish staota D5/batch provisioning first.
+   Roy's home).
+   ✅ RESOLUTION 2026-06-30 (composer + hive converged): build CONSOLE-STORE-PERSONA (the persona-over-wire
+   receiver via the console the orchestrator owns) FIRST — it's the BETTER unlock: fully remote, NO download mode
+   + NO boot button (reboot-to-download still needs the gated download tool). PROVEN-FEASIBLE: the app ALREADY
+   self-writes config @0x14000 from the running firmware (write_provisioned_tg, esp_storage FlashStorage.write +
+   read-back, no download mode) → mirror it for persona@0x12000 (+RPF1@0x17000 + board-profile@0x13000), each
+   parse_persona/RPF1-magic VALIDATED + WHITELISTED offsets (NOT generic write-anywhere) + read-back. 🔴 CRITICAL
+   DESIGN: the §3.5 INERT loop does NOT run the console receiver (uart_rx_task spawns at main.rs:462, AFTER the
+   INERT halt line ~188) → a fresh/erased inert board runs NO receiver → MUST run the store-persona receiver
+   INSIDE the INERT loop too (fail-closed preserved — local console, no radio/mesh). Running boards (e.g. D5) get
+   it via uart_rx_task. FRAMING (lock with composer): persona 336B (>console line buf) → CHUNKED (PERSONA BEGIN /
+   PERSONA <chunk_hex>… / PERSONA END → 512B accum → validate → write → ACK); RPF1/BOARDPROF 1-line each; then
+   REBOOT → exits INERT. PLAN: build receiver → reflash boards w/ it (flash entry racy-but-works via no-reset-chain
+   + retry, D5 proved) → console-provision ALL forever. reboot-to-download = SECONDARY (remote firmware reflash).
+   Asked supervisor GO to build (firmware change + reflash-all implication). xtensa-verified + regression-guarded.
 (Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-14 added 2026-06-30.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
