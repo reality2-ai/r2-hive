@@ -1,5 +1,32 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-30 — PER-HOP RX TRANSPORT TELEMETRY (supervisor-elevated, core test dep) — DONE+GREEN
+Firmware `dfr1195-fw` at `a2f1718`; r2-hive recovery patch refreshed at `2108576`. Supervisor elevated per-hop
+transport-tagged telemetry from path-animation polish to a CORE TEST DEPENDENCY (the bench must visualise REAL
+link-strength-through-usage, which only real observed per-hop traffic can drive). Observability only — no spec gate.
+- **What landed (Phase A):** `msg.rx` now emits `{0:id,1:at,2:from_hop,3:origin,4:transport}`. New key `4` =
+  the `r2_route::Transport` ordinal of the carrier the frame was RECEIVED on. Numbering is the canonical 7-bit
+  space (`transport.rs`: Ble0/Wifi1/Lora2/Internet3/Usb4/EspNow5/Udp6 == `transport_allow_mask` bits), so bench
+  per-link counts map 1:1 to host mask semantics.
+- **Tap (core-confirmed):** all inbound radios coalesce through one `DATA_RX` channel — so the RX carrier was
+  being lost there. Added a 4th `MeshRxFrame` field stamped per-feeder (espnow_task=EspNow, lora_task=Lora,
+  blemesh CoC=Ble) + the io_task UDP select-arm=Udp; threaded to `emit_msg` k4. This is core's flagged
+  handle_rx/DATA_RX site. NO wire/on-air change; the tag never re-enters the air.
+- **Why rx-side is sufficient:** every received frame = one real `(from_hop, transport)` link traversal, so
+  rx counting fully measures traffic crossing each link (Roy's link-strength-through-usage signal) with no
+  multi-carrier ambiguity. `emit_msg` change is ADDITIVE (keys 0-3 unchanged) → composer's `/r2` parser keeps
+  working and adopts k4 when ready.
+- **Build-verify:** `cargo build --release` GREEN (xtensa esp32s3) across `routetest` / `loraroute` / `blemesh`
+  / `nobt` / default — covers all three feeders + both sides of the routetest gate.
+- **Caveat:** `msg.*` telemetry is `routetest`-gated (the regime composer's bench runs in). Broadening to ALL
+  traffic is a separate, more invasive scope call — flag before doing it.
+- **Phase B (scoped, NOT built):** egress-carrier tag on `msg.tx`/`msg.relay` (per-carrier emit in
+  `mesh_broadcast`, since a bridge fans out ESP-NOW+LoRa). Only needed if the bench wants the SEND-side carrier;
+  rx-side already counts every link. Also pending: composer's item (2) per-device transport-mask ENFORCEMENT hook
+  at the DATA_RX/handle_rx seam (waits on core's runtime mask shape + composer ping).
+- **Coordination:** notified supervisor (done), composer (the exact k4 shape for the /r2 parser), core (tap +
+  numbering confirm; offered BIT vs ordinal). Do not assume composer has adopted k4 yet.
+
 ## ► 2026-06-30T06:26:56+12:00 — DOCTOR-ONLY FINAL IDLE REFRESH
 Objective: doctor-only durable handoff refresh after stopped-lane fleet activity. No code/content edits; update
 `RESUME.md` only if ground truth shows stale current state, then commit/push and idle.
