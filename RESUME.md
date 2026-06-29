@@ -724,8 +724,21 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    clean on one radio → WiFi becomes STA-to-Alfred-only. DEPS: core = OTA authority (CMD_START_SIGNED/TG_SK-direct,
    ~done) + confirm no shared mgmt-plane contract (STA+OTA is hive-platform); composer = Alfred push orchestration
    (per-device STA-IP registry + signed push to :21043 + USB-fallback trigger). Coordinated all 3 (2026-06-30).
-   Subsumes the networked-OTA half of deferred-#1 + relates to bridge-WiFi-uplink #6. BUILD on supervisor GO +
-   after the WiFi-STA-to-Alfred model is confirmed with core/composer.
+   Subsumes the networked-OTA half of deferred-#1 + relates to bridge-WiFi-uplink #6.
+   ✅ SUPERVISOR GO 2026-06-30 — Roy CONFIRMS OTA needed ('testing core TN firmware, OTA needed as we tweak core
+   code') → now PRIORITY (the iterate-on-core enabler). BOARD SPECIFICS (Roy): the 2 nRF54-LR2021 = NO WiFi
+   (LoRa-only TN nodes) → OTA-over-WiFi IMPOSSIBLE, USB/SAMD11 only; one XIAO = RADAR sensor node. So the
+   WiFi-STA-OTA firmware targets the WiFi-capable ESP32/XIAO boards; the 2 nRF54 stay USB-OTA. SEQUENCING (Roy,
+   align w/ composer): USB reflash DROPS the NVS persona → FIRMWARE-FIRST order: I flash the WiFi-STA-OTA firmware
+   per board, THEN composer provisions ONCE (avoid double-provision); after that, core tweaks go OTA. TWO HARD
+   BUILD GATES REMAIN (build held until both): (1) composer confirms the sequencing + gives THE ALFRED NETWORK
+   MODEL — the SSID+pass each device's WiFi-STA joins to reach Alfred (Alfred-runs-AP vs join-lab-router) + IP mode
+   (DHCP-client vs static); I CANNOT write the STA-join without the SSID/creds (today it joins its own
+   r2-fieldlab island, not Alfred). (2) core confirms no shared mgmt-plane contract (WiFi-STA is hive-platform) +
+   OTA authority = CMD_START_SIGNED/TG_SK-direct. Coordinated both 2026-06-30; awaiting replies. composer already
+   CONFIRMED the push side (device→IP from r2.hb.health key3, OST/ODT/OCM UDP sender to :21043, USB fallback via
+   esptool) — see its hop-6 msg. BUILD SCOPE on GO: WiFi config AP-island→STA-join-Alfred (SSID/creds/IP) +
+   reconnect + OTA receiver on the STA netif (DONE, reuse) + the mask-independence invariant guard.
 (Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-11 added 2026-06-30.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
