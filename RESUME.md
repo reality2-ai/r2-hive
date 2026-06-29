@@ -666,7 +666,26 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    ESP32 by-id parity. EFFORT: nRF54 HEALTH formatter SMALL; scaffold io_task msg.* wiring MODERATE (composer-led,
    I provide pattern); path A orchestrator MODERATE+exclusivity; path B firmware SMALL but board-gated. Cross-repo
    (composer platform/USB, core driver+FLRC ordinal, Roy/board SAMD11). HOLD build until FLRC ruling + A/B pick.
-(Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration.)
+11. **OTA over real WiFi-STA-to-Alfred (#17)** (SCOPED 2026-06-30; Roy directive — OTA PRIMARY over each device's
+   real WiFi mgmt link to Alfred, USB/espflash SECONDARY fallback). KEY INVARIANT: the mgmt/OTA channel MUST stay
+   alive + reachable INDEPENDENT of transport_allow_mask + §2.3B faked-distance (those restrict only the TN MESH
+   data-plane being tested). FEASIBILITY: the independence is ALREADY BY CONSTRUCTION — ota_task (UDP :21043,
+   R2/R3/R4 + confirmed-boot, main.rs ~416) is a standalone embassy-net socket on the WiFi netif, separate from
+   io_task/RouteEngine; the mask/faked-distance gate the mesh RouteEngine (ESP-NOW/LoRa), never the WiFi netif or
+   :21043. Add an INVARIANT GUARD/comment so future mask-wiring can't gate the netif/OTA socket (SMALL). THE REAL
+   WORK = WiFi TOPOLOGY: today WiFi is a SELF-CONTAINED SOFT-AP ISLAND (one DFR=AP r2-fieldlab 192.168.4.1, others
+   =STA 192.168.4.x; NOT on Alfred's LAN = the 'bench-network-blocked' problem). Change = repurpose WiFi from
+   self-AP-island-dataplane to STA-JOIN-ALFRED management plane (data-plane moves fully to the ESP-NOW/LoRa mesh,
+   which the TN tests already use). The OTA RECEIVER ITSELF IS DONE (reuse on the STA netif). EFFORT MODERATE:
+   WiFi-STA join+reconnect+IP + always-on-device rollout; receiver DONE; mask-guard SMALL. HONEST GAPS: (a)
+   duty-cycled SENSORS (§3.2.3) can't hold a continuous STA association → OTA only in a wake window, else USB;
+   (b) nRF54 LoRa-fast has NO WiFi radio → USB-only (same nRF54 knot); (c) AP+STA-on-different-nets coex is not
+   clean on one radio → WiFi becomes STA-to-Alfred-only. DEPS: core = OTA authority (CMD_START_SIGNED/TG_SK-direct,
+   ~done) + confirm no shared mgmt-plane contract (STA+OTA is hive-platform); composer = Alfred push orchestration
+   (per-device STA-IP registry + signed push to :21043 + USB-fallback trigger). Coordinated all 3 (2026-06-30).
+   Subsumes the networked-OTA half of deferred-#1 + relates to bridge-WiFi-uplink #6. BUILD on supervisor GO +
+   after the WiFi-STA-to-Alfred model is confirmed with core/composer.
+(Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-11 added 2026-06-30.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
 - The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
