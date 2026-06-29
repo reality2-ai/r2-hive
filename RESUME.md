@@ -885,7 +885,15 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    (ota_confirm_or_rollback_on_boot) only works IF the bootloader honors otadata + PENDING_VERIFY. NOTE: this is
    the no_std esp-hal dfr1195 (esp-bootloader-esp-idf), distinct from the esp32-IDF platform's
    CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE. D5-first validation (two slots + receiver + slot-switch) before the batch.
-(Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-11 added 2026-06-30.)
+12. **RouteEngine real-weights telemetry** (Roy directive 2026-06-30; forward item — AFTER staota batch + §2.3A/B).
+   The bench must display the REAL per-link/per-neighbour weights each board's RouteEngine STORES + USES to
+   route+relay (link quality/confidence, path reinforcement, relay probability, fade) — ACTUAL values, NOT
+   simulated (same bench-fidelity principle as the k4 link-strength work). MY PART: extend the health/status
+   telemetry emission (the build_health #18 frame / status line — the vehicle k4 already rides) to emit those real
+   RouteEngine weights so composer renders the true values. CORE defines the exact weight-SET to surface
+   (RouteEngine owner — I consume/emit via the engine's accessors, core sources). Sequenced AFTER the staota flash
+   batch + the §2.3A/§2.3B firmware work. Leave room in the telemetry shape now (additive CBOR keys, like k4).
+(Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-12 added 2026-06-30.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
 - The field triplet (sensor/repeater/bridge/receiver) needs an on-metal run once Roy frees ≥2 boards:
