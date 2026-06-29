@@ -689,8 +689,19 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    keys on the immediate-sender hive at ingress, which is 0/unknown on BLE-CoC / plain-ble-non-routetest (fine on
    the bench carriers routetest/loraroute where it's resolved). SNAG: transport_id = 7-bit r2_route ordinal
    (==k4); FLRC not in the enum ⇒ faking the nRF54 loraF link is gated on the FLRC-ordinal + nRF54 command-channel
-   (same nRF54 knot as #10); ESP32/DFR fake-distance is unblocked. Spec is now normative-final (24cd98b); the
-   ONLY remaining gate is core's hook landing — then build the firmware side (scope (1)-(4) above).
+   (same nRF54 knot as #10); ESP32/DFR fake-distance is unblocked. Spec is now normative-final (24cd98b).
+   ✅ CORE HOOK LANDED 2026-06-30 (bf1bf3b): RouteEngine+DataPlane set_reachability_blocked(peer:u32,
+   transport:Transport,blocked)->bool (false=CAP=32 overflow, SURFACE IT) / is_/clear_/reachability_override_len;
+   ForwardRequest.arrival_transport:Option<Transport> (drop-(source_hop,arrival)-FIRST before dedup;
+   DropReason::ReachabilityOverride = full link-down, no neighbour refresh; FLRC=None); §2.3A
+   set_transport_boot_baseline(mask) (effective=baseline INTERSECT lease, clear→baseline). FIRMWARE SCOPE (mine):
+   thread arrival_transport from the k4 RX carrier (MeshRxFrame.3; source_hop=authenticated immediate sender) +
+   REACH lease control surface (serial inject-bridge, union leases→set_reachability_blocked, handle CAP=32) +
+   role-profile→set_transport_boot_baseline. SEQUENCING: wiring re-vendors the firmware onto bf1bf3b (the new
+   required ForwardRequest field forces it) = CHANGES the firmware core base. Deferred until AFTER the staota flash
+   batch settles (staged staota artifacts are at the c46383e base + must stay reproducible for re-flash; staota is
+   the active priority). Then: re-vendor → thread arrival_transport + REACH surface → xtensa build-verify → report
+   core. Offered core an urgent separate-worktree build-verify if needed before staota settles.
 10. **nRF54 direct telemetry** (SCOPED 2026-06-30; needs FLRC ruling + path decision before build) — the 2
    nrf54-lr2021 LoRa-fast XIAO present CMSIS-DAP -if02, no serial console, so the orchestrator's by-id reader
    can't see them; loraF (FLRC) links exist ONLY between these 2 boards (no ESP32 hears FLRC) → invisible to
