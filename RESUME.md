@@ -702,6 +702,14 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    batch settles (staged staota artifacts are at the c46383e base + must stay reproducible for re-flash; staota is
    the active priority). Then: re-vendor → thread arrival_transport + REACH surface → xtensa build-verify → report
    core. Offered core an urgent separate-worktree build-verify if needed before staota settles.
+   🔑 BUILD REQUIREMENT (core-codex review of bf1bf3b, point #4, confirmed — core b2c0531 doc-note): the ingress
+   half is TWO gates, not one. (a) plan_forward returns DropReason::ReachabilityOverride (core does this from
+   arrival_transport). (b) MY FIRMWARE'S OWN neighbour-refresh-from-RX-frame sites (§4.3.4 TrailReinforcer
+   note_forwarded/on_received + any engine ingest_observation/upsert I call with the immediate_sender from
+   DATA_RX) are NOT auto-gated by the override set (ingest_observation also serves scans/OOB liveness). So at EACH
+   such site I MUST call engine.is_reachability_blocked(immediate_sender, arrival_transport) and SKIP the
+   upsert/refresh when blocked — else a faked-distant board keeps refreshing last_seen + never fades. Both gates
+   together = complete bidirectional link-down. Do NOT forget (b) when wiring §2.3B.
 10. **nRF54 direct telemetry** (SCOPED 2026-06-30; needs FLRC ruling + path decision before build) — the 2
    nrf54-lr2021 LoRa-fast XIAO present CMSIS-DAP -if02, no serial console, so the orchestrator's by-id reader
    can't see them; loraF (FLRC) links exist ONLY between these 2 boards (no ESP32 hears FLRC) → invisible to
