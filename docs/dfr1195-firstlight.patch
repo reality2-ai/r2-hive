@@ -2754,10 +2754,10 @@ index 0000000..52b0073
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..333e2a0 100644
+index 8c49f1c..d562e76 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,4401 @@
+@@ -1,83 +1,4515 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -2911,7 +2911,10 @@ index 8c49f1c..333e2a0 100644
 +const TG_HK_DEMO: [u8; 32] = [0x5C; 32]; // shared intra-TG group HMAC key (hk)
 +/// Firmware version tag for telemetry (#18) — FNV of the build id, carried in the heartbeat.
 +const VERSION_FNV: u32 = r2_fnv::fnv1a_32(BUILD_ID.as_bytes());
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +#[esp_rtos::main]
 +// Under `radarprobe` main() spawns ONLY the probe + parks (loop diverges), so the radio/mesh region below
 +// is intentionally unreachable in that build — allow the warning ONLY there (no effect on normal builds).
@@ -2920,7 +2923,12 @@ index 8c49f1c..333e2a0 100644
 +    // 1. esp-hal init — WiFi needs >= 80 MHz; use max.
 +    let p = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::max()));
 +    esp_alloc::heap_allocator!(size: HEAP_SIZE);
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +    // 1a. OTA test (b) — otadata slot-switch validation (#17), BEFORE the radio (the
 +    //     flash op can't collide with WiFi). One-shot + safe: if a VALID image (0xE9
 +    //     magic) sits in the INACTIVE slot AND we booted from ota_0, activate it +
@@ -2928,6 +2936,11 @@ index 8c49f1c..333e2a0 100644
 +    //     BL's otadata slot-switch + activate_next_partition() are PROVEN. No flip if
 +    //     the next slot is empty (no boot-loop) — this is the receiver's COMMIT path.
 +    ota_slot_report();
++    // R2-UPDATE §5.1 confirmed-boot (items 2+3): if we just booted a freshly-OTA'd (New/PendingVerify) image,
++    // run the §5 health-gate → mark Valid + commit the staged anti-rollback floor, or roll back. Must run
++    // BEFORE the radio/persona setup (a flash op that can't collide with WiFi; an unconfirmed image should
++    // decide its fate first). No-op on a normal boot.
++    ota_confirm_or_rollback_on_boot();
 +
 +    // 1b. Read identity + the provisioned PERSONA (#20) BEFORE the radio starts, so the
 +    //     efuse/flash reads can't collide with WiFi. Real TG (hk/tg/hive) if a persona is
@@ -2953,6 +2966,18 @@ index 8c49f1c..333e2a0 100644
 +        println!("r2-dfr1195: !! UNPROVISIONED -- no NVS persona; mac_low3 fallback hive={my_hive:08x} + demo TG (bench affordance; re-provision persona.bin @0x12000)");
 +        #[cfg(feature = "field")]
 +        println!("r2-dfr1195: §3.5 UNPROVISIONED (FAIL-CLOSED, field) -- no valid persona; NO self-enrol, awaiting provisioning (persona.bin @0x12000)");
++    }
++    // R2-PROVISION §3.5 fail-closed is INERT, not advisory (refutation-review fix): under `field` with no
++    // valid persona the node MUST NOT join — it does NOT adopt the demo TG and spawns NO radio/HB/beacon/
++    // io tasks. HALT here (before any of that): the demo (hk/my_tg_hash) computed above is left UNUSED, and
++    // execution never reaches the radio/task region below. A fresh field board sits inert awaiting OOB
++    // provisioning (persona.bin @0x12000 + reboot). (Bench builds omit `field` and keep the demo fallback.)
++    #[cfg(feature = "field")]
++    if persona.is_none() {
++        loop {
++            println!("r2-dfr1195: §3.5 INERT (field, unprovisioned) — radio OFF, no TG, awaiting persona.bin @0x12000");
++            Timer::after(Duration::from_secs(30)).await;
++        }
 +    }
 +    // 2-TG (#20): a runtime-PROVISIONED key (NVS @0x14000) OVERRIDES the persona/demo TG. my_hive
 +    // (the wire id) is unchanged — provisioning swaps the TRUST GROUP, not the board identity. The
@@ -3046,10 +3071,7 @@ index 8c49f1c..333e2a0 100644
 +        if is_ap { "SOFT-AP" } else { "STA" }
 +    );
 +    println!("r2-dfr1195: carrier has_screen={has_screen} led_active_low={led_active_low}");
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +    // 4. Status LED (GPIO21) via LEDC PWM — for the organic lub-DUB heartbeat envelope.
 +    //    io_task signals the FIRE (conductor-PLL = WHEN); main renders the SHAPE below.
 +    let mut ledc = Ledc::new(p.LEDC);
@@ -3070,12 +3092,7 @@ index 8c49f1c..333e2a0 100644
 +            drive_mode: DriveMode::PushPull,
 +        })
 +        .unwrap();
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +    // ─── RADAR Modbus-RTU PROBE (radarprobe): standalone RS-485 sweep, NO radio stack ───────────────
 +    // esp_rtos is already started (drives embassy_time for the probe's deadlines). Construct UART1 +
 +    // the DE/RE Output here (real pins from Roy), spawn ONLY the probe, and PARK — the radio/mesh region
@@ -3178,7 +3195,7 @@ index 8c49f1c..333e2a0 100644
 +    // coexists with the STA/AP netif + BLE). M-ESPNOW-1: validate broadcast/recv mechanics on metal.
 +    #[cfg(all(feature = "ble", not(feature = "blemesh")))]
 +    let esp_now = interfaces.esp_now;
-+
+ 
 +    // 7. Static IPs by role (deterministic 2-node net; no DHCP server needed).
 +    let (device, ip) = if serve_ap {
 +        (interfaces.access_point, Ipv4Address::new(192, 168, 4, 1))
@@ -3365,7 +3382,9 @@ index 8c49f1c..333e2a0 100644
 +    // under loraroute so the ONLY LED activity at C is "a routed message arrived" — unambiguous for the eye.
 +    #[cfg(feature = "loraroute")]
 +    let mut recv_flash: i32 = 0;
-+    loop {
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        // ── TN-FR-1 (loraroute): LED = message RECEIPT, NOT heartbeat. Bright solid for ~400ms on each
 +        //    delivered routed Event (RECEIPT_SIGNAL fired by the deliver-gate); idle/off otherwise. ──
 +        #[cfg(feature = "loraroute")]
@@ -3636,10 +3655,8 @@ index 8c49f1c..333e2a0 100644
 +    if profile.role == Role::Receiver && profile.expected_sensor != 0 {
 +        let _ = sensor_seen.push((profile.expected_sensor, route_now_s(), false));
 +    }
- 
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++
++    loop {
 +        // 2-TG (#20): install a runtime re-PROVISION (uart_rx_task validated + persisted it to NVS).
 +        // Swap the live GroupHmac + target_group so the deliver-gate (B1) + TG-scoped sends use the new
 +        // key WITHOUT a reboot. The engine retains no key (R2-RUNTIME §13.2) — we take it from the conduit.
@@ -5066,6 +5083,62 @@ index 8c49f1c..333e2a0 100644
 +            // next == ota_1 ⇒ we're running from ota_0, and vice-versa.
 +            let slot = if next_sub == AppPartitionSubType::Ota1 { "ota_0" } else { "ota_1" };
 +            println!("r2-dfr1195: OTA slot={slot} (otadata slot-switch verified — test b PASS)");
++        }
++    }
++}
++
++/// §5 health-gate for confirmed-boot. MINIMAL: reaching this call (booted past esp-hal init + the early
++/// otadata reads) = healthy enough to confirm. A richer self-test (radio init OK, persona valid, …) is a
++/// follow-up; kept a real fn (not a const) so the rollback branch below isn't dead-code-eliminated.
++#[inline(never)]
++fn ota_health_check() -> bool {
++    true
++}
++
++/// R2-UPDATE §5.1 CONFIRMED-BOOT (mirror r2-core esp32 `confirm_or_rollback_on_boot`; items 2+3). A freshly
++/// OTA'd image boots with ota_state ∈ {New, PendingVerify} (OCM staged it `New`; a rollback-enabled
++/// bootloader transitions New→PendingVerify + arms auto-rollback). Run the §5 health-gate: PASS → mark
++/// `Valid` + COMMIT the staged (seq,floor) to the live anti-rollback floor (the AFTER-CONFIRM bump — item 3);
++/// FAIL → mark `Invalid` + roll back to the previous slot + reboot. A normal boot (Valid/Undefined) just
++/// clears any stale pending. Called once at boot, after `ota_slot_report`. (Auto-rollback of a CRASH-ON-BOOT
++/// image that never reaches this gate needs CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE in the staged bootloader.)
++fn ota_confirm_or_rollback_on_boot() {
++    use esp_bootloader_esp_idf::ota::OtaImageState;
++    use esp_bootloader_esp_idf::partitions::PARTITION_TABLE_MAX_LEN;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut tbl = [0u8; PARTITION_TABLE_MAX_LEN];
++    let mut ota = match esp_bootloader_esp_idf::ota_updater::OtaUpdater::new(&mut flash, &mut tbl) {
++        Ok(o) => o,
++        Err(_) => return,
++    };
++    match ota.current_ota_state() {
++        Ok(OtaImageState::New) | Ok(OtaImageState::PendingVerify) => {
++            if ota_health_check() {
++                if ota.set_current_ota_state(OtaImageState::Valid).is_ok() {
++                    // AFTER-CONFIRM: the live floor advances NOW (not at OCM activate).
++                    if let Some((seq, floor)) = read_ota_pending() {
++                        let (cs, cf) = read_anti_rollback();
++                        write_anti_rollback(cs.max(seq), cf.max(floor));
++                        println!("r2-dfr1195: §5.1 OTA CONFIRMED — image Valid; anti-rollback floor committed seq={seq} floor={floor}");
++                    } else {
++                        println!("r2-dfr1195: §5.1 OTA CONFIRMED — image Valid (no staged seq)");
++                    }
++                    clear_ota_pending();
++                }
++            } else {
++                // §5 health FAIL → revert. Mark Invalid + switch boot back to the previous slot + reboot.
++                let _ = ota.set_current_ota_state(OtaImageState::Invalid);
++                let _ = ota.activate_next_partition();
++                clear_ota_pending();
++                println!("r2-dfr1195: §5.1 OTA ROLLBACK — §5 health FAIL; reverting to previous slot + reboot");
++                esp_hal::system::software_reset();
++            }
++        }
++        _ => {
++            // Normal boot (Valid/Undefined/etc.): drop any stale pending so it can't mis-commit later.
++            if read_ota_pending().is_some() {
++                clear_ota_pending();
++            }
 +        }
 +    }
 +}
@@ -6526,6 +6599,40 @@ index 8c49f1c..333e2a0 100644
 +    let _ = flash.write(ANTI_ROLLBACK_OFFSET, &b); // esp-storage erases+writes the 4 KB sector
 +}
 +
++// R2-UPDATE §5.1 AFTER-CONFIRM — the (seq,floor) STAGED at OTA-commit (OCM), committed to the live
++// anti-rollback floor ONLY at confirmed-boot (items 2+3). Own 4 KB sector @0x1A000 (after the reserved
++// CCR1@0x19000, below ota_0@0x20000). Layout: [magic "OPND" u32 BE][seq u32 LE][floor u32 LE] = 12 B.
++const OTA_PENDING_OFFSET: u32 = 0x1A000;
++const OTA_PENDING_MAGIC: u32 = 0x4F504E44; // "OPND"
++fn read_ota_pending() -> Option<(u32, u32)> {
++    use embedded_storage::ReadStorage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 12];
++    flash.read(OTA_PENDING_OFFSET, &mut b).ok()?;
++    if u32::from_be_bytes([b[0], b[1], b[2], b[3]]) != OTA_PENDING_MAGIC {
++        return None; // erased/absent
++    }
++    Some((
++        u32::from_le_bytes([b[4], b[5], b[6], b[7]]),
++        u32::from_le_bytes([b[8], b[9], b[10], b[11]]),
++    ))
++}
++fn write_ota_pending(seq: u32, floor: u32) {
++    use embedded_storage::Storage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let mut b = [0u8; 12];
++    b[0..4].copy_from_slice(&OTA_PENDING_MAGIC.to_be_bytes());
++    b[4..8].copy_from_slice(&seq.to_le_bytes());
++    b[8..12].copy_from_slice(&floor.to_le_bytes());
++    let _ = flash.write(OTA_PENDING_OFFSET, &b);
++}
++fn clear_ota_pending() {
++    use embedded_storage::Storage;
++    let mut flash = esp_storage::FlashStorage::new();
++    let b = [0xFFu8; 12]; // erased magic → read_ota_pending() returns None
++    let _ = flash.write(OTA_PENDING_OFFSET, &b);
++}
++
 +/// SIGNED OTA receiver (A7/A8 contract, R2-UPDATE v0.6) — verify-BEFORE-write, byte-identical verify
 +/// path with core's linux/esp32. Frame (over the existing UDP stop-and-wait carrier): "OST" || 123-byte
 +/// UpdateHeader || 64-byte Ed25519 sig (verify_header up front) ; "ODT"<off:4><chunk> (pv.update? THEN
@@ -6654,12 +6761,19 @@ index 8c49f1c..333e2a0 100644
 +                    region = None; // drop the FlashRegion borrow before activate
 +                    // verify + payload-hash BOTH passed -> activate the inactive slot (atomic set_boot).
 +                    if ota.activate_next_partition().is_ok() {
-+                        // anti-rollback bumps ONLY on a SUCCESSFUL install — a failed install must allow a re-send
-+                        // of the same seq (else StaleSeq would block the retry).
-+                        let (cs, cf) = read_anti_rollback();
-+                        write_anti_rollback(cs.max(pend_seq), cf.max(pend_floor));
++                        // R2-UPDATE §5.1 AFTER-CONFIRM (items 2+3): STAGE, don't commit. Mark the just-
++                        // activated slot `New` (esp-idf set_boot semantics → a rollback-enabled bootloader
++                        // transitions New→PendingVerify on boot + arms auto-rollback) and persist the
++                        // (seq,floor) to the OTA-pending slot. The live anti-rollback floor is advanced ONLY
++                        // at confirmed-boot (ota_confirm_or_rollback_on_boot), after the new image boots +
++                        // passes the §5 health-gate — so a bad/failed image can't raise the floor and brick
++                        // rollback. A failed install never reaches here, so the same seq can be re-sent.
++                        let _ = ota.set_current_ota_state(
++                            esp_bootloader_esp_idf::ota::OtaImageState::New,
++                        );
++                        write_ota_pending(pend_seq, pend_floor);
 +                        let _ = socket.send_to(&[r2_update::RESP_OK], from).await;
-+                        println!("r2-dfr1195: OTA SIGNED activate ok seq={pend_seq}");
++                        println!("r2-dfr1195: OTA SIGNED staged seq={pend_seq} (New/PendingVerify; floor commits at confirmed-boot)");
 +                        Timer::after(Duration::from_millis(300)).await;
 +                        esp_hal::system::software_reset();
 +                    } else {

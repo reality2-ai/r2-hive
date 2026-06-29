@@ -1,5 +1,25 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-28 — DFR FIRMWARE PRE-METAL HARDENING (refutation-review items, supervisor GO) — DONE+GREEN
+Worktree `dfr1195-fw` HEAD `428f81c`. Three refutation-review items implemented + build-green (field,loraroute,
+multitg / nobt / radarprobe / field,loraroute,bridge,multitg); patch refreshed (`docs/dfr1195-firstlight.patch`,
+c46383e..HEAD = 15 commits). Metal validation of the OTA round-trip remains bench-network-gated.
+1. **§3.5 fail-closed is now INERT (not advisory).** Under `field` + no valid persona: HALT before any TG/
+   radio/task setup — no demo-TG adoption, no radio/HB/beacon/io spawns (was only a louder println). Bench
+   builds (no `field`) keep the demo fallback. (main.rs persona-boot block.)
+2. **OTA confirmed-boot (mirror r2-core confirm_or_rollback_on_boot).** New `ota_confirm_or_rollback_on_boot()`
+   at boot: ota_state ∈ {New,PendingVerify} → §5 health-gate → mark Valid (confirm) OR Invalid + roll back to
+   prev slot + reboot. OCM marks the activated slot `New` (esp-idf set_boot semantics). Uses esp-bootloader-
+   esp-idf 0.5.0 current_ota_state/set_current_ota_state (source-verified — 0.5.0 resolved, NOT the 0.2.0 I
+   first read). Health-check is minimal "booted past init"; richer §5 self-test = follow-up.
+3. **After-confirm seq-floor (R2-UPDATE §5.1).** Floor no longer bumped at OCM-activate — OCM STAGES (seq,
+   floor) to a new OTA-pending NVS sector @0x1A000; the live anti-rollback floor commits ONLY at confirmed-
+   boot after the §5 gate. Kills the v0.21 brick-defect (a bad image can't raise the floor) — this CLOSES the
+   FORKS.md "OTA anti-rollback floor ORDERING" fork (impl done; metal-validate when the OTA round-trip unblocks).
+NVS map now: persona@12000 / board@13000 / tg@14000 / mask@15000 / sendto@16000 / role-profile@17000 /
+anti-rollback@18000 / CCR1-reserved@19000 / ota-pending@1A000. ⚠ crash-on-boot auto-rollback still needs
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE in the composer-staged bootloader (deployment follow-up; core owns it).
+
 ## ► CURRENT 2026-06-27 — RADAR BRING-UP (Modbus-RTU PROBE, Roy chose PROBE-to-discover; ULTRACODE on)
 First REAL sensor. Build+flash a Modbus-RTU PROBE firmware to the radar XIAO to discover the radar protocol
 empirically (baud + slave-addr + register map), → then build the real radar driver + sentant on the sensor ensemble.
