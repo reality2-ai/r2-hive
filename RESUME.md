@@ -813,7 +813,15 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    the role is hive_id-derived default. The serial PROVISION (prov2.py) is NOT this — it writes @0x14000 (magic
    R2TG = the multitg #20 RUNTIME TG-KEY swap), does NOT write the persona, does NOT exit INERT (don't use it for
    field provisioning). OTA chain: persona.tg_pk MUST equal the TG that signs OTA (tg ota-sign TG_SK) — one bench
-   TG for all 10. composer flashes+provisions per board (supervisor directive); I'm on standby for firmware issues +
+   TG for all 10.
+   PER-BOARD WRITE RECIPE (verified 2026-06-30): ROLE wire byte (Role::from_wire, main.rs:1983) = 0 Repeater /
+   1 Sensor / 2 Bridge / 3 Receiver (RPF1 b[4]=role, b[5]=duty_class). DFR (D1-D5) = 2 write-bins: 0x12000 persona
+   + 0x17000 RPF1(role=repeater b[4]=0x00). XIAO (X1-X4 + radar 1C:DB) = 3 write-bins: those + 0x13000 BOARD-PROFILE
+   = TWO bytes [0x00, 0x01] (b[0]=0x00 no-screen, b[1]=0x01 active-LOW LED — read_board_profile main.rs:1889 reads
+   2 bytes; XIAO LEDs are active-LOW per Roy's ground-truth; a 1-byte [0x00] leaves b[1]=0xFF=active-HIGH =
+   INVERTED XIAO LED — caught composer's 1-byte staging). DFR leaves 0x13000 ERASED (→ has_screen + active-high,
+   both correct). The radar XIAO provisions as repeater now; role=sensor (RPF1 b[4]=0x01) via a later 0x17000
+   re-write (no re-persona). composer flashes+provisions per board (supervisor directive); I'm on standby for firmware issues +
    offered to flash myself. NEXT: composer executes the per-board flash+provision; the live 10-node mesh + OTA come
    up. METAL-VALIDATION OWED: channel-follow (ESP-NOW on the STA channel once associated) + the OTA round-trip +
    the confirmed-boot/rollback. If a board's health ip stays 0 after provision = WiFi-STA not associating to
