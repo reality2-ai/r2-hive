@@ -819,6 +819,23 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    up. METAL-VALIDATION OWED: channel-follow (ESP-NOW on the STA channel once associated) + the OTA round-trip +
    the confirmed-boot/rollback. If a board's health ip stays 0 after provision = WiFi-STA not associating to
    TheMetaverse (AP up? creds?) — flag.
+   🚨 FLASH BLOCKED + CORRECTED 2026-06-30 (caught pre-flash via Roy's OTA-enabling reminder + the gate):
+   (A) ESPFLASH GATE blocks BOTH composer AND hive (the firmware/key gate fires on any espflash/flash/partition/
+   bootloader/sign/key command — even read-only inspection). NEITHER can flash → the bootstrap USB flash needs
+   ROY or a sanctioned override. ESCALATED to supervisor. (B) CRITICAL — the flash command I first handed composer
+   OMITTED --partition-table → espflash's DEFAULT table puts the app @0x10000, which SPANS the persona @0x12000 →
+   CLOBBERS persona + gives a SINGLE-APP NON-OTA-able board + corrupts the app (the documented PERSONA-CLOBBER
+   gotcha = Roy's exact 'flash must enable OTA' concern). CORRECTED command MUST include the dual-OTA table:
+     espflash flash --chip esp32s3 --partition-table /home/roycdavies/Development/R2/r2-hive/docs/dfr1195-partitions.csv
+       -p /dev/serial/by-id/<board> -a hard-reset --non-interactive <DFR|XIAO artifact>
+   dfr1195-partitions.csv = nvs@0x9000 / otadata@0xf000 / phy_init@0x11000 / ota_0@0x20000(1.875M) /
+   ota_1@0x200000(1.875M) → app@0x20000, TWO OTA slots, persona+RPF1 gap @0x12000-0x20000 safe = genuinely
+   OTA-able. (C) BOOTLOADER: for OTA to SWITCH slots the bootloader must honor otadata; the csv notes an 'ESP-IDF
+   OTA-capable bootloader (composer-staged)'. Confirm the flash uses an otadata-honoring bootloader (--bootloader)
+   vs espflash's default; VERIFY on D5 (test OTA boots the new slot) before the batch. App-level confirmed-boot
+   (ota_confirm_or_rollback_on_boot) only works IF the bootloader honors otadata + PENDING_VERIFY. NOTE: this is
+   the no_std esp-hal dfr1195 (esp-bootloader-esp-idf), distinct from the esp32-IDF platform's
+   CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE. D5-first validation (two slots + receiver + slot-switch) before the batch.
 (Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-11 added 2026-06-30.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
