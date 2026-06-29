@@ -635,7 +635,11 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    for the egress check; the ingress drop is fully hive-side (hold the set + check (src_hive, rx_transport) at the
    rx seam, pre-engine). transport_id keyed on the §2.2 ORDINAL (Ble0..Udp6 == k4 == transport_allow_mask).
    Primitive is per-node/one-ended (bench sets BOTH mirror entries for symmetric; single-ended = a real
-   asymmetric/half-link test). SNAG: faithful-drop
+   asymmetric/half-link test). FIDELITY CONSTRAINT (Roy governing principle 2026-06-30: the bench mirrors REAL
+   board state, faked-distance is the ONLY artifice): the ingress-drop MUST emit NO telemetry for a faked-dropped
+   frame (no msg.rx, no HEALTH refresh — the board genuinely never heard it; the ABSENCE is the honest signal).
+   NEVER synthesize a "faked" event. All other emissions stay faithful to real state; real gaps (loraF/FLRC,
+   nRF54 health, egress-hop carrier) show as honest gaps, never faked. SNAG: faithful-drop
    keys on the immediate-sender hive at ingress, which is 0/unknown on BLE-CoC / plain-ble-non-routetest (fine on
    the bench carriers routetest/loraroute where it's resolved). SNAG: transport_id = 7-bit r2_route ordinal
    (==k4); FLRC not in the enum ⇒ faking the nRF54 loraF link is gated on the FLRC-ordinal + nRF54 command-channel
