@@ -624,11 +624,22 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    (peer,transport) at that ingress drop (each feeder knows its carrier); no new wire surface (local drop).
    Advised specs to key the override on (peer_id, transport_ordinal) using core's 7-bit r2_route numbering and to
    decide symmetric-vs-receiver-side drop. When the spec+hook land: wire the override at the per-carrier ingress.
-10. **nRF54 direct telemetry console** (OFFERED, unassigned — composer/supervisor flagged) — the 2 nrf54-lr2021
-   LoRa-fast XIAO emit ONLY defmt-over-RTT (no USB-CDC/UART console), so the orchestrator's by-id serial reader
-   can't read them (CMSIS-DAP -if02, no -if00); they stay mesh-only. A direct line = a net-new USB-CDC HEALTH
-   console in the nrf54 firmware mirroring the ESP32 schema (pure observability). It's a r2-core platform; I
-   offered to scope/build if assigned. Not green-lit — no rush per supervisor.
+10. **nRF54 direct telemetry** (SCOPED 2026-06-30; needs FLRC ruling + path decision before build) — the 2
+   nrf54-lr2021 LoRa-fast XIAO present CMSIS-DAP -if02, no serial console, so the orchestrator's by-id reader
+   can't see them; loraF (FLRC) links exist ONLY between these 2 boards (no ESP32 hears FLRC) → invisible to
+   the bench unless they report directly. ⚠ MY EARLIER "USB-CDC console" OFFER IS REFUTED: the nRF54L15 has NO
+   USB peripheral — board USB = the onboard SAMD11 CMSIS-DAP probe (README; embassy-nrf has no usb feature;
+   memory.x has no USB). A firmware USB-CDC console is IMPOSSIBLE. Real findings: (a) the nrf54 firmware is a
+   SCAFFOLD — emits only defmt bring-up traces, no HEALTH/msg.* yet (composer authors the platform layer, core
+   owns the driver, hive provides the io_task pattern); (b) FLRC is NOT in the canonical 7-bit r2_route::Transport
+   enum (Ble0..Udp6) → specs/core MUST first rule an FLRC ordinal (or FLRC→Lora) or k4 can't represent loraF —
+   this is the upstream blocker; (c) two off-board paths: A = plain-text RTT up-channel (ASCII HEALTH) read by a
+   probe-rs RTT reader in the orchestrator (no board change, but exclusive SWD access + per-board probe session +
+   net-new orchestrator reader), B = UART→SAMD11 CDC bridge IF the SAMD11 fw exposes a USB-CDC serial AND a
+   nRF54↔SAMD11 UART trace exists (composer to check for a CDC com port; schematic; maybe reflash SAMD11) = true
+   ESP32 by-id parity. EFFORT: nRF54 HEALTH formatter SMALL; scaffold io_task msg.* wiring MODERATE (composer-led,
+   I provide pattern); path A orchestrator MODERATE+exclusivity; path B firmware SMALL but board-gated. Cross-repo
+   (composer platform/USB, core driver+FLRC ordinal, Roy/board SAMD11). HOLD build until FLRC ruling + A/B pick.
 (Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
