@@ -1,5 +1,24 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-30 — BENCH ZERO-TELEMETRY DIAGNOSED (my INERT halt) — fix path sent, decision pending
+Composer's full-check: 10 ESP32 USB-powered but a 30s /r2 sample saw ZERO r2.hb.health/status/beacon/msg.*.
+ROOT CAUSE (firmware ground truth) = my own R2-PROVISION §3.5 fail-closed INERT halt (main.rs ~185):
+`#[cfg(field)] if persona.is_none() { loop { println!("§3.5 INERT…"); Timer 30s } }` runs BEFORE io_task/
+ota_task/render-loop are spawned, so a FIELD build + UNPROVISIONED board emits ONLY a boot banner (gone before
+the reader attaches) + one INERT line / 30s → none of the telemetry the orchestrator parses. Working as designed
+(fail-closed) but reads as a dead bench.
+- GATING FACTS (answer to composer's Q): on a NORMALLY-RUNNING board the idle heartbeat is ALREADY UNGATED —
+  status ~2s (main render loop, line 653) + HEALTH ~6s (io_task `fire_seq % 3`, line ~1111). NEITHER is
+  routetest-gated. msg.* IS routetest-gated (per-Event traffic — correct). beacon is LoRa-only (loraroute) → N/A
+  on the WiFi ESP32 boards. So idle liveness is not the problem; the INERT halt suppressing ALL tasks is.
+- FIX PATH sent to supervisor+composer (2026-06-30): (1) IMMEDIATE no-fw — PROVISION each board (persona.bin
+  @0x12000 + reboot) OR flash a NON-field bench build (demo-TG fallback emits idle telemetry out of the box,
+  fastest). (2) FIRMWARE FIDELITY FIX (build on GO) — emit a minimal idle HEALTH/status FROM the INERT loop
+  (role=inert marker; radio OFF, no TG, fail-closed FULLY preserved) so an unprovisioned board shows as a
+  live-INERT node, not invisible (Roy 'bench mirrors real state'). DECISION PENDING: are the bench boards meant
+  to be field (→provision) or bench-build (→reflash)? + do they want fw-fix (2)? Do NOT weaken fail-closed
+  (radio/TG stay off); the fix only ADDS a liveness line.
+
 ## ► 2026-06-30 — PER-HOP RX TRANSPORT TELEMETRY (supervisor-elevated, core test dep) — DONE+GREEN
 Firmware `dfr1195-fw` at `a2f1718`; r2-hive recovery patch refreshed at `2108576`. Supervisor elevated per-hop
 transport-tagged telemetry from path-animation polish to a CORE TEST DEPENDENCY (the bench must visualise REAL
