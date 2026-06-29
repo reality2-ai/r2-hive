@@ -626,12 +626,16 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    CONTROL.md → lands as R2-TRANSPORT §2.3B + R2-ROUTE §5.2/§2). Feasibility = HIGH; §3-item-3 bidirectional
    faithful-drop is METAL-PROVEN already (routetest can_hear/can_hear_hive IS a per-peer ingest-drop; §2.3B just
    generalizes it to per-(peer,transport), lease-driven). Control surface = the existing serial inject-bridge
-   (IDENTIFY/PROVISION/MASK) → a new REACH lease line; runtime-only static set, NO NVS. DIVISION OF LABOR (told
-   specs): dedup lives INSIDE core's RouteEngine::plan_forward (firmware calls it), so drop-before-dedup can't be
-   firmware-after-engine — cleanest = CORE adds `arrival_transport` to ForwardRequest + does the drop as
-   plan_forward's FIRST step + the egress filter in select_transport + a setter mirroring set_transport_allow_mask;
-   HIVE = the REACH control/lease surface + threads arrival_transport (already have it from k4) + calls the setter.
-   ⇒ MY ONLY HARD DEP = core's ForwardRequest.arrival_transport field + the override setter. SNAG: faithful-drop
+   (IDENTIFY/PROVISION/MASK) → a new REACH lease line; runtime-only static set, NO NVS. DIVISION OF LABOR
+   PINNED by specs (e669ab5): TWO seams. (a) INGRESS-DROP = HIVE at the k4-tagged DATA_RX rx seam, which runs
+   BEFORE the firmware calls plan_forward → drop-before-dedup satisfied automatically (frame never reaches the
+   engine's dedup); NO ForwardRequest.arrival_transport needed after all (my earlier suggestion is moot). (b)
+   EGRESS = CORE in select_transport (instant, no neighbour-decay wait). ⇒ MY ONLY REMAINING CORE DEP = core
+   exposing an egress override SETTER (mirror set_transport_allow_mask) so the firmware pushes the lease's set in
+   for the egress check; the ingress drop is fully hive-side (hold the set + check (src_hive, rx_transport) at the
+   rx seam, pre-engine). transport_id keyed on the §2.2 ORDINAL (Ble0..Udp6 == k4 == transport_allow_mask).
+   Primitive is per-node/one-ended (bench sets BOTH mirror entries for symmetric; single-ended = a real
+   asymmetric/half-link test). SNAG: faithful-drop
    keys on the immediate-sender hive at ingress, which is 0/unknown on BLE-CoC / plain-ble-non-routetest (fine on
    the bench carriers routetest/loraroute where it's resolved). SNAG: transport_id = 7-bit r2_route ordinal
    (==k4); FLRC not in the enum ⇒ faking the nRF54 loraF link is gated on the FLRC-ordinal + nRF54 command-channel
