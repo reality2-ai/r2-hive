@@ -2525,7 +2525,7 @@ index fadd6a4..f643430 100644
 + "syn 2.0.118",
  ]
 diff --git a/platforms/dfr1195/Cargo.toml b/platforms/dfr1195/Cargo.toml
-index 894910e..a68a7ff 100644
+index 894910e..4823185 100644
 --- a/platforms/dfr1195/Cargo.toml
 +++ b/platforms/dfr1195/Cargo.toml
 @@ -14,6 +14,19 @@ path = "src/main.rs"
@@ -2548,7 +2548,7 @@ index 894910e..a68a7ff 100644
  # r2-discovery non-alloc core types (HiveId/TransportId) — no async API at this tier.
  r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  
-@@ -21,26 +34,174 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
+@@ -21,26 +34,184 @@ r2-discovery = { path = "../../crates/r2-discovery", default-features = false }
  # VERSION PINS — hive: confirm against the installed toolchain before flashing.
  # esp-hal/esp-wifi APIs churn between minor versions; these are the shapes the
  # skeleton is written against.
@@ -2736,15 +2736,25 @@ index 894910e..a68a7ff 100644
 +# the RF switch is the SX1262's DIO2 (not a GPIO RXEN). ⚠ PENDING workshop pinout confirm + core DIO2-RF-
 +# switch driver support (r2-sx1262 has new()/new_with_rxen() but no SetDIO2AsRfSwitchCtrl — see main.rs).
 +xiao = []
++# STA-OTA management plane (#17, the iterate-on-core enabler): WiFi becomes a STA that DHCP-joins the lab WiFi
++# Alfred is on (NOT the self-AP island) = the always-real management/OTA plane, SEPARATE from the TN mesh
++# data-plane (ESP-NOW/LoRa/BLE — what transport_allow_mask + R2-TRANSPORT §2.3B faked-distance restrict). The OTA
++# receiver (:21043, signed CMD_START verify-before-write + R2/R3/R4 + confirmed-boot) binds the STA netif; its
++# DHCP IP is reported in r2.hb.health key3 so Alfred can push. Implies `ble` (the data-plane must be the ESP-NOW
++# mesh, not the WiFi-UDP island, since WiFi is repurposed to management). Lab SSID/pass inject AT FLASH via
++# build.rs env R2_WIFI_SSID/R2_WIFI_PASS (wifi_config.toml) — NEVER hardcoded. Opt-in = zero risk to existing
++# builds. Mgmt/OTA stays up independent of the mask/faked-distance BY CONSTRUCTION (ota_task is a standalone
++# netif socket, not routed through the masked RouteEngine).
++staota = ["ble"]
  
  [profile.release]
  opt-level = "s"
 diff --git a/platforms/dfr1195/build.rs b/platforms/dfr1195/build.rs
 new file mode 100644
-index 0000000..52b0073
+index 0000000..c645602
 --- /dev/null
 +++ b/platforms/dfr1195/build.rs
-@@ -0,0 +1,8 @@
+@@ -0,0 +1,37 @@
 +//! Capture a firmware BUILD ID into the binary so the LCD can show which build is
 +//! running (essential for verifying an OTA actually landed). The build command
 +//! exports `R2_BUILD_ID` (e.g. `date +%m%d.%H%M`); absent that, it reads "dev".
@@ -2752,12 +2762,41 @@ index 0000000..52b0073
 +    println!("cargo:rerun-if-env-changed=R2_BUILD_ID");
 +    let id = std::env::var("R2_BUILD_ID").unwrap_or_else(|_| "dev".into());
 +    println!("cargo:rustc-env=R2_BUILD_ID={id}");
++
++    // staota (#17) WiFi-STA-to-Alfred creds — INJECTED AT FLASH, never hardcoded. Source order: the
++    // R2_WIFI_SSID/R2_WIFI_PASS env vars (e.g. `R2_WIFI_SSID=lab R2_WIFI_PASS=… cargo build`), else
++    // wifi_config.toml (gitignored), else EMPTY (a creds-less build still COMPILES for build-verify; it just
++    // can't associate). Always emit the rustc-env so `env!("R2_WIFI_*")` resolves in every build.
++    println!("cargo:rerun-if-env-changed=R2_WIFI_SSID");
++    println!("cargo:rerun-if-env-changed=R2_WIFI_PASS");
++    println!("cargo:rerun-if-changed=wifi_config.toml");
++    let (mut ssid, mut pass) = (
++        std::env::var("R2_WIFI_SSID").unwrap_or_default(),
++        std::env::var("R2_WIFI_PASS").unwrap_or_default(),
++    );
++    if (ssid.is_empty() || pass.is_empty()) && std::path::Path::new("wifi_config.toml").exists() {
++        if let Ok(toml) = std::fs::read_to_string("wifi_config.toml") {
++            for line in toml.lines() {
++                let line = line.trim();
++                if let Some((k, v)) = line.split_once('=') {
++                    let v = v.trim().trim_matches('"');
++                    match k.trim() {
++                        "ssid" if ssid.is_empty() => ssid = v.to_string(),
++                        "password" if pass.is_empty() => pass = v.to_string(),
++                        _ => {}
++                    }
++                }
++            }
++        }
++    }
++    println!("cargo:rustc-env=R2_WIFI_SSID={ssid}");
++    println!("cargo:rustc-env=R2_WIFI_PASS={pass}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..56d5081 100644
+index 8c49f1c..fc5cbad 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,4641 @@
+@@ -1,83 +1,4676 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -2803,9 +2842,11 @@ index 8c49f1c..56d5081 100644
 +use embassy_executor::Spawner;
 +use embassy_futures::select::{select, Either};
 +use embassy_net::udp::{PacketMetadata, UdpSocket};
-+use embassy_net::{
-+    Config, IpAddress, IpEndpoint, Ipv4Address, Ipv4Cidr, Runner, StackResources, StaticConfigV4,
-+};
++use embassy_net::{Config, IpAddress, IpEndpoint, Ipv4Address, Runner, StackResources};
++// Static-IP config types — only the non-staota (self-AP-island) net_config uses them; under staota the net is
++// DHCP (Config::dhcpv4), so these are unused there.
++#[cfg(not(feature = "staota"))]
++use embassy_net::{Ipv4Cidr, StaticConfigV4};
 +use embassy_time::{Duration, Timer};
  use esp_backtrace as _;
 +use esp_hal::clock::CpuClock;
@@ -3148,9 +3189,13 @@ index 8c49f1c..56d5081 100644
 +    // (FULL fix = election-driven runtime AP-bring-up so ONLY the engine-elected provider serves — see M10.)
 +    #[cfg(feature = "ble")]
 +    let is_ap = serve_ap;
-+    #[cfg(feature = "ble")]
++    // staota (#17): join the lab WiFi Alfred is on — creds injected AT FLASH via build.rs env (NEVER hardcoded).
++    // WiFi is the management/OTA plane here; the mesh data-plane is ESP-NOW (staota implies ble).
++    #[cfg(feature = "staota")]
++    let (dp_ssid, dp_pass): (&str, &str) = (env!("R2_WIFI_SSID"), env!("R2_WIFI_PASS"));
++    #[cfg(all(feature = "ble", not(feature = "staota")))]
 +    let (dp_ssid, dp_pass): (&str, &str) = ("r2-tn-form", "r2tnform123");
-+    #[cfg(not(feature = "ble"))]
++    #[cfg(all(not(feature = "ble"), not(feature = "staota")))]
 +    let (dp_ssid, dp_pass): (&str, &str) = (FIELDLAB_SSID, FIELDLAB_PASS);
 +    let wifi_cfg = if serve_ap {
 +        WifiConfig::AccessPoint(
@@ -3191,11 +3236,17 @@ index 8c49f1c..56d5081 100644
 +        };
 +        (interfaces.station, Ipv4Address::new(192, 168, 4, host))
 +    };
++    #[cfg(not(feature = "staota"))]
 +    let net_config = Config::ipv4_static(StaticConfigV4 {
 +        address: Ipv4Cidr::new(ip, 24),
 +        gateway: Some(Ipv4Address::new(192, 168, 4, 1)),
 +        dns_servers: Default::default(),
 +    });
++    // staota (#17): DHCP-client — the lab router/AP (Alfred's net) leases a ROUTABLE IP, reported in health key3
++    // so Alfred can push OTA to :21043. Boot does NOT block on the lease (ble path skips wait_config_up); the OTA
++    // socket + io_task come up immediately and bind once the lease lands.
++    #[cfg(feature = "staota")]
++    let net_config = Config::dhcpv4(Default::default());
 +
 +    // 8. embassy-net stack.
 +    static RESOURCES: StaticCell<StackResources<4>> = StaticCell::new();
@@ -3221,6 +3272,11 @@ index 8c49f1c..56d5081 100644
 +    let mut fp_seed = [0u8; 16];
 +    esp_hal::rng::Rng::new().read(&mut fp_seed);
 +    spawner.spawn(io_task(stack, is_ap, ip, hk, my_tg_hash, my_hive, fp_seed, profile).unwrap());
++    // INVARIANT (#17 mgmt-plane independence): ota_task is a STANDALONE embassy-net socket on the WiFi netif —
++    // it is NOT routed through the RouteEngine, so transport_allow_mask + R2-TRANSPORT §2.3B faked-distance (which
++    // gate ONLY the mesh RouteEngine: ESP-NOW/LoRa/BLE peer routing) can NEVER disable the OTA/management channel.
++    // Under staota the WiFi STA is the always-real management plane to Alfred. DO NOT wire the mask/faked-distance
++    // into ota_task or the WiFi netif — a faked-out-of-range device MUST still receive OTA over its real link.
 +    spawner.spawn(ota_task(is_ap, stack).unwrap());
 +    // IDENTIFY inject-bridge: read commands off the USB-Serial-JTAG (esp-println keeps the TX FIFO
 +    // via raw regs; we take only the RX half). composer points --identify-port at the chosen board.
@@ -3921,6 +3977,14 @@ index 8c49f1c..56d5081 100644
 +                    if fire_seq % 3 == 0 {
 +                        let mut hbuf = [0u8; 96];
 +                        let synced = SYNCED.load(Ordering::Relaxed);
++                        // staota (#17): report the LIVE DHCP-leased IP (not the static placeholder) into health
++                        // key3 so Alfred's IP-from-health registry can push OTA; 0.0.0.0 until the lease lands
++                        // (honest pre-DHCP). Non-staota keeps the static my_ip param.
++                        #[cfg(feature = "staota")]
++                        let my_ip = stack
++                            .config_v4()
++                            .map(|c| c.address.address())
++                            .unwrap_or(Ipv4Address::new(0, 0, 0, 0));
 +                        if let Some(hn) = build_health(
 +                            &mut hbuf, my_hive, my_tg_hash, is_ap, false, my_ip, synced,
 +                            last_err_ms, fire_seq,
@@ -6366,11 +6430,21 @@ index 8c49f1c..56d5081 100644
 +    // channel). Every mesh node must use the same channel; ch1 is the R2 mesh default.
 +    // labrig: RF-ISOLATE the laptop rig — shift ESP-NOW to ch11 (non-overlapping with tuxedo's ch1) so the
 +    // laptop bridge+recv stop drowning in the co-located tuxedo rig's ESP-NOW crosstalk (run-1 confound).
-+    #[cfg(not(feature = "labrig"))]
++    // staota (#17 RF channel constraint — ONE radio, ONE channel): under staota the WiFi STA associates to the
++    // lab AP (Alfred's router), which DICTATES the radio channel; ESP-NOW MUST follow it (you cannot pin a
++    // different channel without breaking the STA assoc / the mesh). So do NOT set_channel here — ESP-NOW uses the
++    // STA's associated channel; all boards STA-joined to the SAME router share it → the mesh coheres on it.
++    // (METAL-VALIDATE: confirm ESP-NOW broadcast reaches peers on the STA channel once associated.)
++    #[cfg(all(not(feature = "labrig"), not(feature = "staota")))]
 +    let _ = manager.set_channel(1);
-+    #[cfg(feature = "labrig")]
++    #[cfg(all(feature = "labrig", not(feature = "staota")))]
 +    let _ = manager.set_channel(11);
++    #[cfg(feature = "staota")]
++    let _ = &manager; // channel follows the STA association (lab AP) — no pin
++    #[cfg(not(feature = "staota"))]
 +    println!("r2-dfr1195: ESP-NOW mesh up (hive {my_hive:08x}) ch1 — heartbeat over ESP-NOW broadcast");
++    #[cfg(feature = "staota")]
++    println!("r2-dfr1195: ESP-NOW mesh up (hive {my_hive:08x}) on STA channel (staota) — heartbeat over ESP-NOW broadcast");
 +    // BRIDGE: drain DATA_TX (io_task's conductor beats) → ESP-NOW broadcast; ESP-NOW recv → DATA_RX
 +    // (io_task's PROVEN conductor-PLL decodes + syncs). M-ESPNOW-2: learn peer hive↔src-MAC from the recv.
 +    let tx = async {

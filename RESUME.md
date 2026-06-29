@@ -758,9 +758,31 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
      6. mask-independence INVARIANT GUARD: comment/structural note at the ota_task spawn (~416) that the OTA
         socket is a standalone netif task, never gated by transport_allow_mask/§2.3B (mesh-RouteEngine-only).
    env!("R2_WIFI_SSID") compiles even with empty creds (build-verify works without real creds; functional flash
-   needs Roy's lab SSID/pass via wifi_config.toml/env). BUILD HELD pending: (a) supervisor/composer OK on the
-   staota shape (esp. retiring the self-AP island), (b) core's model-confirm. Then build + xtensa build-verify
-   (staota / staota,ble / staota,loraroute,multitg + a non-staota combo to prove no regression).
+   needs Roy's lab SSID/pass via wifi_config.toml/env).
+   ✅ BUILT + BUILD-VERIFIED 2026-06-30 — supervisor+composer GO'd the staota shape. dfr1195-fw `312e021`
+   (staota feature) + `19fb561` (channel-follow fix, below). GREEN xtensa: staota / staota,loraroute,multitg /
+   field,loraroute,multitg,staota (deployment) / field,loraroute,multitg (non-staota regression). Non-staota is
+   byte-identical (all cfg-gated). build.rs now injects R2_WIFI_SSID/R2_WIFI_PASS (env or wifi_config.toml) so
+   env!() resolves (empty compiles).
+   ⚠ RF CHANNEL FINDING + FIX (`19fb561`, surfaced by Roy's APSTA-concurrency Q): espnow_task hardcoded
+   set_channel(1), but staota's STA assoc to the lab AP (TheMetaverse) DICTATES the radio channel (one radio, one
+   channel). Fixed: under staota ESP-NOW FOLLOWS the STA channel (no pin) — all boards on the same router share
+   it → mesh coheres on ANY router channel. NEEDS METAL-VALIDATION (channel-follow is a metal behavior).
+   BUILD/FLASH MECHANICS (I'm on Alfred; firmware is r2-core platforms/dfr1195, NOT r2-hive): I build on Alfred
+   sourcing composer's wifi.env (creds NEVER leave Alfred / never on fleet/argv); `cargo build --release
+   --features field,loraroute,multitg,staota`; `espflash flash -p /dev/serial/by-id/<board> …r2-dfr1195` per
+   board WITH by-id identity-verify; confirm staota banner + INERT (pre-provision); signal composer 'flashed
+   <board>' → composer provisions as repeater (radar sensor-role via later persona update). FIRMWARE-FIRST
+   sequencing (composer holds provisioning per board). REMAINING GATES: (a) core's OTA-authority confirm (the
+   one build gate left), (b) composer's wifi.env path + feature-combo confirm, (c) Roy's creds (in: SSID
+   TheMetaverse). nRF54 = USB-OTA-only (no WiFi).
+   FUTURE REFINEMENT — MODE-FLIP OTA (Roy idea, advised permanent-STA-now-THEN-mode-flip): board runs mesh-only
+   normally, on a MESH-DELIVERED 'prepare for OTA' trigger flips to WiFi-STA-to-Alfred, OTAs, flips back. Effort
+   MODERATE (runtime radio reconfig mesh<->STA + the mesh-trigger Event + state machine/timeout). Benefits: frees
+   channel/airtime for pure-mesh + pure-LoRa-range tests; enables OTA for DUTY-CYCLED SENSORS (closes OTA gap #1 —
+   they can't hold a continuous STA but can wake->flip->OTA->flip). Land AFTER the first permanent-STA flash;
+   permanent-STA (channel-follow) has NO off-mesh drop (mesh+STA same channel), mode-flip does (brief, acceptable
+   via SCF/dedup).
 (Deferred list aligns with supervisor's 2026-06-27 stand-down enumeration; items 9-11 added 2026-06-30.)
 
 ### BUILD COMPLETE — all 6 steps + compile-verify GREEN. ON-METAL OWED (boards held):
