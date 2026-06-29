@@ -626,14 +626,19 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    CONTROL.md → lands as R2-TRANSPORT §2.3B + R2-ROUTE §5.2/§2). Feasibility = HIGH; §3-item-3 bidirectional
    faithful-drop is METAL-PROVEN already (routetest can_hear/can_hear_hive IS a per-peer ingest-drop; §2.3B just
    generalizes it to per-(peer,transport), lease-driven). Control surface = the existing serial inject-bridge
-   (IDENTIFY/PROVISION/MASK) → a new REACH lease line; runtime-only static set, NO NVS. DIVISION OF LABOR
-   PINNED by specs (e669ab5): TWO seams. (a) INGRESS-DROP = HIVE at the k4-tagged DATA_RX rx seam, which runs
-   BEFORE the firmware calls plan_forward → drop-before-dedup satisfied automatically (frame never reaches the
-   engine's dedup); NO ForwardRequest.arrival_transport needed after all (my earlier suggestion is moot). (b)
-   EGRESS = CORE in select_transport (instant, no neighbour-decay wait). ⇒ MY ONLY REMAINING CORE DEP = core
-   exposing an egress override SETTER (mirror set_transport_allow_mask) so the firmware pushes the lease's set in
-   for the egress check; the ingress drop is fully hive-side (hold the set + check (src_hive, rx_transport) at the
-   rx seam, pre-engine). transport_id keyed on the §2.2 ORDINAL (Ble0..Udp6 == k4 == transport_allow_mask).
+   (IDENTIFY/PROVISION/MASK) → a new REACH lease line; runtime-only static set, NO NVS. ✅ CANON LANDED
+   2026-06-30 (Roy green-lit): R2-TRANSPORT v0.6 §2.3B + R2-ROUTE v0.34 §5.2/§2 (specs 24cd98b). FINAL DIVISION
+   (per the landed canon — supersedes my earlier "arrival_transport moot" note): core does the override-DROP-
+   FIRST INSIDE plan_forward (before dedup) using a NEW ForwardRequest.arrival_transport field that HIVE threads
+   in (I already have it from k4), PLUS the egress filter in select_transport, PLUS the override SETTER. So both
+   seams live in core's engine; hive supplies arrival_transport + drives the setter. HIVE BUILD SCOPE: (1) the
+   REACH lease control surface on the serial inject-bridge (install/ack/clear, like IDENTIFY/MASK); (2) lease
+   mgmt (union-of-leases, runtime-only, NO NVS, default empty); (3) thread arrival_transport into ForwardRequest;
+   (4) call core's override setter to push the merged set in. MY ONE HARD DEP = core's side
+   (ForwardRequest.arrival_transport + drop-first-in-plan_forward + egress filter + setter) — specs pinged core to
+   confirm; CLEARED TO BUILD the firmware side ONCE core's hook lands (won't compile before then). transport_id
+   keyed on the §2.2 ORDINAL (Ble0..Udp6 == k4 == transport_allow_mask). FLRC/loraF EXPLICITLY OUT OF SCOPE
+   (Roy: separate deferred canon — do NOT build loraF fake-distance yet).
    Primitive is per-node/one-ended (bench sets BOTH mirror entries for symmetric; single-ended = a real
    asymmetric/half-link test). FIDELITY CONSTRAINT (Roy governing principle 2026-06-30: the bench mirrors REAL
    board state, faked-distance is the ONLY artifice): the ingress-drop MUST emit NO telemetry for a faked-dropped
@@ -643,7 +648,8 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    keys on the immediate-sender hive at ingress, which is 0/unknown on BLE-CoC / plain-ble-non-routetest (fine on
    the bench carriers routetest/loraroute where it's resolved). SNAG: transport_id = 7-bit r2_route ordinal
    (==k4); FLRC not in the enum ⇒ faking the nRF54 loraF link is gated on the FLRC-ordinal + nRF54 command-channel
-   (same nRF54 knot as #10); ESP32/DFR fake-distance is unblocked. Build held till spec normative-final + core hook.
+   (same nRF54 knot as #10); ESP32/DFR fake-distance is unblocked. Spec is now normative-final (24cd98b); the
+   ONLY remaining gate is core's hook landing — then build the firmware side (scope (1)-(4) above).
 10. **nRF54 direct telemetry** (SCOPED 2026-06-30; needs FLRC ruling + path decision before build) — the 2
    nrf54-lr2021 LoRa-fast XIAO present CMSIS-DAP -if02, no serial console, so the orchestrator's by-id reader
    can't see them; loraF (FLRC) links exist ONLY between these 2 boards (no ESP32 hears FLRC) → invisible to
