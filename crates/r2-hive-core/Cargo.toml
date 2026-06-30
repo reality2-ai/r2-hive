@@ -18,6 +18,10 @@ r2-route = { path = "../../../r2-core/crates/r2-route" }
 # Sentant/plugin runtime (EventBus) — the basic ensemble the hive runs on EVERY
 # platform (wasm/Linux/ESP32). no_std + alloc, so it stays in the shared core.
 r2-engine = { path = "../../../r2-core/crates/r2-engine", default-features = false, features = ["alloc"] }
+# R2-UPDATE OTA verify (verify_header/PayloadVerifier/Ed25519, 4-gate/anti-rollback)
+# — the OTA plugin reuses these VERBATIM so the OTA flow is the real flow on every
+# platform; bearer (CoC / virtual-mesh / UDP) is the only thing that varies.
+r2-update = { path = "../../../r2-core/crates/r2-update" }
 # Boxes async-trait futures for the transport seam (no_std-compatible).
 async-trait = "0.1"
 # Identity crypto (no_std): HKDF-SHA256 derivation + Ed25519 keypair, secret

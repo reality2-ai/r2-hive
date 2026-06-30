@@ -25,7 +25,9 @@ use wasm_bindgen::prelude::*;
 
 use r2_engine::queue::QueuedEvent;
 use r2_engine::EventBus;
-use r2_hive_core::ensemble::{HbSentant, TICK_HASH};
+use r2_hive_core::ensemble::{
+    HbSentant, MemSink, OtaConfig, OtaPlugin, OtaSentant, OCM_HASH, ODT_HASH, OST_HASH, TICK_HASH,
+};
 use r2_hive_core::sync_host::{
     provisional_hive_id, route_inbound_sync, InboundFrame, SyncRouteOutcome, SyncTransport,
     TransportAddr,
@@ -103,6 +105,38 @@ impl WasmHive {
     pub fn new(self_hive_id: u32) -> WasmHive {
         let mut bus = EventBus::new();
         bus.register_sentant(Box::new(HbSentant::new(self_hive_id)));
+        bus.init_all();
+        WasmHive {
+            engine: RouteEngine::new(),
+            bus,
+            self_hive_id,
+        }
+    }
+
+    /// New OTA-CAPABLE node: the basic ensemble PLUS the OTA plugin+sentant (the pure
+    /// increment-3 form), so this node can RECEIVE a signed image over the mesh and
+    /// run the real R2-UPDATE verify-before-write. `tg_pk` = the 32-byte trust-group
+    /// public key it accepts updates signed by (TG_SK-direct). Use this for receiver
+    /// nodes in the OTA demo; the updater can be a plain `new()` node (it just builds
+    /// frames via `start_ota`). FlashSink = in-memory (no flash in the browser).
+    #[wasm_bindgen(js_name = withOta)]
+    pub fn with_ota(self_hive_id: u32, tg_pk: &[u8]) -> WasmHive {
+        let mut bus = EventBus::new();
+        bus.register_sentant(Box::new(HbSentant::new(self_hive_id)));
+        let mut pk = [0u8; 32];
+        let n = tg_pk.len().min(32);
+        pk[..n].copy_from_slice(&tg_pk[..n]);
+        let cfg = OtaConfig {
+            class_hash: 0,   // target_class 0 in the demo packages = any
+            carrier_hash: 0, // target_carrier 0 = any
+            tg_prefix: [0u8; 8],
+            device_id_prefix: [0u8; 8],
+            current_seq: 0,
+            battery_pct: 100,
+            tg_pk: pk,
+        };
+        let pid = bus.register_plugin(Box::new(OtaPlugin::new(cfg, MemSink::new())));
+        bus.register_sentant(Box::new(OtaSentant::new(pid)));
         bus.init_all();
         WasmHive {
             engine: RouteEngine::new(),
@@ -217,18 +251,26 @@ impl WasmHive {
         )
     }
 
-    /// Drive the basic ensemble one TICK: inject a host tick → run the EventBus →
-    /// return the frames the node's sentants want to BROADCAST, each a built R2-WIRE
-    /// frame (hex). The sim floods these to neighbours (their `deliver_event` +
-    /// `route_frame`) — so a wasm node originates its heartbeat via the SAME sentant
-    /// the firmware runs. Returns JSON `{"frames":["<hex>",…]}`.
-    #[wasm_bindgen]
-    pub fn tick(&mut self, seq: u32) -> String {
-        self.bus
-            .enqueue(QueuedEvent::new(TICK_HASH, 0xFF, false, seq as u16, &[]));
+    /// Run the EventBus one full cycle and return the frames the node's sentants want
+    /// to BROADCAST, each a built R2-WIRE frame (hex). Two tick passes around
+    /// poll_plugins so a plugin's progress (e.g. OTA) surfaces as an outbound event
+    /// in the same call. Returns JSON `{"frames":["<hex>",…]}`.
+    fn run_bus_cycle(&mut self) -> String {
+        let mut outbound: Vec<QueuedEvent> = Vec::new();
         self.bus.tick();
-        self.bus.poll_plugins();
-        let outbound = self.bus.drain_outbound();
+        outbound.extend(self.bus.drain_outbound());
+        // A plugin may buffer several progress events per step (OCM → VERIFIED then
+        // APPLIED); poll_plugins drains ONE per call, so loop until nothing new
+        // surfaces (bounded — at most a few per step).
+        for _ in 0..8 {
+            self.bus.poll_plugins();
+            self.bus.tick();
+            let out = self.bus.drain_outbound();
+            if out.is_empty() {
+                break;
+            }
+            outbound.extend(out);
+        }
         let mut frames = String::new();
         let mut first = true;
         for ev in &outbound {
@@ -255,27 +297,82 @@ impl WasmHive {
         format!("{{\"frames\":[{frames}]}}")
     }
 
-    /// Deliver an inbound R2-WIRE frame to this node's ENSEMBLE (decode → bus event)
-    /// so its sentants observe peers' heartbeats/events. This is the application
-    /// layer; `route_frame` is the relay/transport layer. Returns the delivered
-    /// event_hash (0 if the frame didn't decode).
+    /// Drive the basic ensemble one TICK: inject a host tick → run the EventBus →
+    /// return the frames the node's sentants want to BROADCAST. The HB sentant emits
+    /// one heartbeat per tick (a wasm node originates its HB via the SAME sentant the
+    /// firmware runs). The sim floods these to neighbours (`deliver_event`).
     #[wasm_bindgen]
-    pub fn deliver_event(&mut self, frame: &[u8]) -> u32 {
-        match r2_wire::extended::decode_extended(frame) {
-            Ok(m) => {
-                let h = m.header.event_hash;
-                self.bus.enqueue(QueuedEvent::new(
-                    h,
-                    0xFF,
-                    true,
-                    m.header.msg_id as u16,
-                    m.payload,
-                ));
-                self.bus.tick();
-                h
-            }
-            Err(_) => 0,
+    pub fn tick(&mut self, seq: u32) -> String {
+        self.bus
+            .enqueue(QueuedEvent::new(TICK_HASH, 0xFF, false, seq as u16, &[]));
+        self.run_bus_cycle()
+    }
+
+    /// Deliver an inbound R2-WIRE frame to this node's ENSEMBLE (decode → bus event)
+    /// so its sentants observe peers' heartbeats and (if OTA-capable) verify an
+    /// incoming OST/ODT/OCM step. This is the application layer; `route_frame` is the
+    /// relay/transport layer. Returns JSON `{"frames":[…]}` = any frames this node
+    /// then broadcasts (notably the OTA `r2.update.progress` events the bench renders).
+    #[wasm_bindgen]
+    pub fn deliver_event(&mut self, frame: &[u8]) -> String {
+        if let Ok(m) = r2_wire::extended::decode_extended(frame) {
+            self.bus.enqueue(QueuedEvent::new(
+                m.header.event_hash,
+                0xFF,
+                true,
+                m.header.msg_id as u16,
+                m.payload,
+            ));
         }
+        self.run_bus_cycle()
+    }
+
+    /// UPDATER side: turn a signed R2-UPDATE package into the OST→ODT*→OCM frame
+    /// sequence addressed to `target_hive`, ready to flood over the mesh. `pkg` =
+    /// header(123) ++ payload ++ sig(64) (the R2-UPDATE package layout). Returns JSON
+    /// `{"frames":["<hex>",…]}`. The receiver's `deliver_event` verifies each step;
+    /// a bad image never `applies` (verify-before-write). chunk size 200 (= the
+    /// push_ota_l2cap DEFAULT_CHUNK).
+    #[wasm_bindgen(js_name = startOta)]
+    pub fn start_ota(&self, target_hive: u32, pkg: &[u8]) -> String {
+        use r2_update::{HEADER_LEN, SIG_LEN};
+        if pkg.len() < HEADER_LEN + SIG_LEN {
+            return String::from("{\"frames\":[]}");
+        }
+        let header = &pkg[..HEADER_LEN];
+        let sig = &pkg[pkg.len() - SIG_LEN..];
+        let payload = &pkg[HEADER_LEN..pkg.len() - SIG_LEN];
+
+        let me = self.self_hive_id;
+        let mut frames: Vec<String> = Vec::new();
+        let mut push = |hash: u32, sdu: &[u8], seq: u32| {
+            let f = encode_frame(
+                me,
+                target_hive,
+                0,
+                r2_wire::MsgType::Event,
+                hash,
+                sdu,
+                8,
+                1,
+                seq,
+            );
+            if !f.is_empty() {
+                frames.push(format!("\"{}\"", hex(&f)));
+            }
+        };
+        // OST = header ++ sig (187B)
+        let mut ost = Vec::with_capacity(HEADER_LEN + SIG_LEN);
+        ost.extend_from_slice(header);
+        ost.extend_from_slice(sig);
+        push(OST_HASH, &ost, 0);
+        // ODT = payload chunks
+        for (i, chunk) in payload.chunks(200).enumerate() {
+            push(ODT_HASH, chunk, (i as u32) + 1);
+        }
+        // OCM = commit marker
+        push(OCM_HASH, &[], 0xFFFF_FFFF);
+        format!("{{\"frames\":[{}]}}", frames.join(","))
     }
 }
 
@@ -396,10 +493,71 @@ mod tests {
         let bytes: Vec<u8> = (0..hexframe.len() / 2)
             .map(|i| u8::from_str_radix(&hexframe[i * 2..i * 2 + 2], 16).unwrap())
             .collect();
-        // Node B's ENSEMBLE receives A's heartbeat (decode → bus event).
+        // A's tick frame is a real heartbeat (event_hash = HEARTBEAT_HASH).
+        let m = r2_wire::extended::decode_extended(&bytes).expect("A's HB decodes");
+        assert_eq!(m.header.event_hash, r2_hive_core::ensemble::HEARTBEAT_HASH);
+        // Node B's ENSEMBLE accepts A's heartbeat without panic (returns valid JSON).
         let mut b = WasmHive::new(0x0000_00BB);
-        let h = b.deliver_event(&bytes);
-        assert_eq!(h, r2_hive_core::ensemble::HEARTBEAT_HASH, "B got A's HB");
+        let out = b.deliver_event(&bytes);
+        assert!(out.starts_with("{\"frames\":["), "valid JSON: {out}");
+    }
+
+    #[test]
+    fn ota_over_wasm_mesh_e2e() {
+        use ed25519_dalek::{Signer, SigningKey};
+        use sha2::{Digest, Sha256};
+        // Mint a signed R2-UPDATE package (header ++ payload ++ sig).
+        let sk = SigningKey::from_bytes(&[0xF0; 32]);
+        let tg_pk = sk.verifying_key().to_bytes();
+        let payload = b"WASM-OTA-IMAGE-v2".repeat(20);
+        let mut hh = Sha256::new();
+        hh.update(&payload);
+        let phash: [u8; 32] = hh.finalize().into();
+        let mut header = [0u8; 123];
+        header[0] = 2; // PACKAGE_VERSION
+        header[41] = 0x01; // firmware-full
+        header[42..46].copy_from_slice(&(payload.len() as u32).to_be_bytes());
+        header[46..78].copy_from_slice(&phash);
+        header[78..82].copy_from_slice(&1u32.to_be_bytes()); // seq 1 > current 0
+        header[90..122].copy_from_slice(&tg_pk);
+        let sig = sk.sign(&header).to_bytes();
+        let mut pkg = Vec::from(&header[..]);
+        pkg.extend_from_slice(&payload);
+        pkg.extend_from_slice(&sig);
+
+        // Extract the hex frames from a {"frames":["..",..]} JSON string.
+        fn frames_of(json: &str) -> Vec<Vec<u8>> {
+            json.split('"')
+                .filter(|s| s.len() >= 2 && s.len() % 2 == 0 && s.bytes().all(|b| b.is_ascii_hexdigit()))
+                .map(|h| {
+                    (0..h.len() / 2)
+                        .map(|i| u8::from_str_radix(&h[i * 2..i * 2 + 2], 16).unwrap())
+                        .collect()
+                })
+                .collect()
+        }
+
+        // Updater builds the OST/ODT/OCM frames; receiver (OTA-capable) verifies them.
+        let updater = WasmHive::new(0x0000_00AA);
+        let ota_frames = frames_of(&updater.start_ota(0x0000_00BB, &pkg));
+        assert!(ota_frames.len() >= 3, "OST+ODT+OCM: {}", ota_frames.len());
+
+        let mut rx = WasmHive::with_ota(0x0000_00BB, &tg_pk);
+        let mut applied = false;
+        let ph_applied = r2_hive_core::ensemble::PH_APPLIED;
+        let progress_hash = r2_hive_core::ensemble::PROGRESS_HASH;
+        for f in &ota_frames {
+            for pf in frames_of(&rx.deliver_event(f)) {
+                if let Ok(m) = r2_wire::extended::decode_extended(&pf) {
+                    if m.header.event_hash == progress_hash
+                        && m.payload.first() == Some(&ph_applied)
+                    {
+                        applied = true;
+                    }
+                }
+            }
+        }
+        assert!(applied, "receiver must reach APPLIED over the wasm mesh");
     }
 
     #[test]

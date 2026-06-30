@@ -1,6 +1,6 @@
 [package]
 name = "r2-hive-wasm"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "wasm platform layer for r2-hive — exposes the REAL current-TN sync routing core (r2-hive-core route_inbound_sync over r2-route/r2-wire) to a browser/JS bench sim. R2-HIVE north-star wasm tier; one-codebase hive logic, thin per-platform host. Workspace-EXCLUDED (wasm-only, std/wasm-bindgen) so host CI is untouched."
@@ -26,6 +26,12 @@ r2-update = { path = "../../../r2-core/crates/r2-update" }
 # its OWN frames — same encoder the firmware uses. no_std/alloc, wasm-clean.
 r2-wire = { path = "../../../r2-core/crates/r2-wire", default-features = false, features = ["alloc"] }
 wasm-bindgen = "0.2"
+
+[dev-dependencies]
+# Host-only OTA e2e test: mint a signed package (sign-side; the wasm runtime is
+# verify-only). default-features=false keeps it off getrandom for from_bytes/sign.
+ed25519-dalek = { version = "=2.1.1", default-features = false }
+sha2 = { version = "0.10", default-features = false }
 
 [profile.release]
 # Small wasm: the sim ships this to a browser.
