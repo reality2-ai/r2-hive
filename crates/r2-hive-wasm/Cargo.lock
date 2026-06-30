@@ -207,6 +207,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "r2-cbor"
+version = "0.1.0"
+
+[[package]]
 name = "r2-fnv"
 version = "0.1.0"
 
@@ -246,6 +250,10 @@ dependencies = [
 [[package]]
 name = "r2-wire"
 version = "0.1.0"
+dependencies = [
+ "r2-cbor",
+ "r2-fnv",
+]
 
 [[package]]
 name = "rustc_version"
