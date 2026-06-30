@@ -5,14 +5,20 @@
 staota.0630.1659, §7 BLE BEACON adv up, LoRa SF7/916.8 up. My INERT-revert diagnosis held; the provisioned path
 works. blank-INERT was benign (confirmed). Remaining provisioned-board issue: D3's LCD DARK even when alive (see
 dark-LCD below).
-**Two fixes committed on `dfr1195-fw` (xtensa-green, DESK-VALIDATION-REQUIRED, NOT staged to artifacts — .1408
-lesson: build-green ≠ boot-green for this region):**
+**Three fixes committed on `dfr1195-fw` (xtensa-green, DESK-VALIDATION-REQUIRED, NOT staged to artifacts — .1408
+lesson: build-green ≠ boot-green for this region). They form a coherent next rev; STAGING DECISION is with
+supervisor (keep .1659 as known-good baseline vs stage a new rev for desk-validation):**
 - `bf205d5` — moved `esp_rtos::start` ABOVE the §3.5 INERT block. Fixes the INERT liveness DEADLOCK (Timer::after
   ran before the embassy time-driver was registered → one boot burst then hang). Verified staota-DFR + bench +
   staota-XIAO. Also gives INERT post-init context to RE-ADD the in-INERT console receiver later (deferred).
 - `ca24915` — clear `force_download_boot` at app boot. Core-confirmed: that RTC bit is STICKY by design (ROM never
   auto-clears) → after one reboot_to_download, ANY later reset (console-open chip-reset/brownout/WDT) re-enters
   ROM download FOREVER. Clear-at-boot makes it one-shot. Highest-value half of the USB-JTAG finding.
+- `6323f29` — B5 §7 BLE beacon class_hash = role device-class hash BIG-ENDIAN (was my_tg_hash.to_le_bytes() — a
+  clear-text TG-identity leak + wrong byte order; specs ruling R2-BEACON v0.12 §7.4.0/§7.4.1). Widened
+  role_class_hash/fnv1a32 cfg lora→any(lora,ble); pass class_hash:u32 into ble_task. Per-role wire values:
+  repeater C60DD3A9, sensor 991DB9AF, bridge D81020E4, receiver A5A3980C (all big-endian). Flagged composer to
+  update verify-board.py to the spec value. LoRa beacon was already correct.
 **USB-JTAG console-open reset (supervisor's big finding) — joint answer w/ core:** console-open → 'rst:0x15
 USB_UART_CHIP_RESET → boot DOWNLOAD' = ESP32-S3 ROM host DTR/RTS download trigger + (on boards that ran
 reboot_to_download) the sticky force_download_boot bit. NOT my app code. Core: no esp-hal disable for the host
@@ -26,10 +32,11 @@ init would've panicked if it failed → most coherent cause for a code-unchanged
 re-provisioning" = board-profile byte has_screen@0x13000 flipped to 0x00 (→ display=None → dark). Asked composer
 what .1659 provisioning wrote to 0x13000 + for the boot-banner `has_screen=` value (line 315) — that datum splits
 board-profile (H1) vs panel-power/backlight (H2). AWAITING composer.
-**NEXT (unblocked, post-beacon-test): re-vendor onto consolidation tip + beacon hardening** — #9 arrival_transport
-=Some(rx_via), #12 telemetry consume, #13 §2.3A beacon_emit_transports mask-gating, B5 class_hash fix (BLE beacon
-uses my_tg_hash.to_le_bytes() — specs ruled MUST be role_class_hash + BIG-ENDIAN; LoRa already correct), B2
-non-connectable beacon. B5 is small + standalone (doesn't need the re-vendor); the rest need the core base bump.
+**NEXT (the remaining big item): re-vendor onto core consolidation tip (0d1f308)** — #9 arrival_transport
+=Some(rx_via), #12 telemetry consume (neighbour_score/neighbour_fade_remaining), #13 §2.3A beacon_emit_transports
+mask-gating, B2 non-connectable beacon. (B5 class_hash = DONE standalone, 6323f29.) Do this as a SEPARATE focused
+pass AFTER the 3-fix batch is desk-validated — do NOT bump the core base on top of un-validated changes; the
+re-vendor changes the validated artifact base + needs core's consolidation tip confirmed.
 
 ## ⚠️ 2026-06-30 — INCIDENT (RESOLVED): .1408 BOOT-FAILED on D5 (INERT path) — FIX = staota.0630.1659 (VALIDATED above)
 **FIX SHIPPED (`dc78b90`, staota.0630.1659, SUPERSEDES .1408):** reverted the in-INERT console-receiver to the
