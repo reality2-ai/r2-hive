@@ -84,6 +84,20 @@ Net: F1+F2+F3 closed structurally in core + the buffer guard hive-side. 7 ensemb
 composer has all 4 demo arms (APPLIED + tampered/unsigned/wrong-TYPE reject). SignedOtaApply codex refute (core)
 gates METAL.
 
+### refuter RE-VERDICT (a56c1bc) + follow-ups @83f2b91 — F1+F2 GENUINELY closed; board-brick contract documented
+Claude OTA refuter re-ran: F1+F2 genuinely closed for host/wasm (no TOCTOU, OOM-bounded-before-growth, the 3 tests
+exercise REAL exploits: capture-replay / signed-downgrade / flood / type-confusion). ONE new BOARD-ONLY finding
+(gates METAL): my F1 commits the floor at apply-time = correct for SIM, but the BOARD ImageSink::activate MUST
+DEFER the NVS floor commit to BOOT-CONFIRM (stage pending+(seq,hash); bump persisted floor only after confirmed
+boot + §5 health check; cf. linux ota_tcp_recv.rs:606-613) — immediate persist strands a failed-boot image below
+the floor = remote BRICK. FIXED: corrected the MemSink::activate contract comment (sim=immediate-RAM right; board
+MUST boot-confirm) so the firmware (a)-refactor doesn't inherit the brick reading. MINOR done: 2 tests now assert
+reject-REASON bytes (StaleSeq 6 / LengthMismatch 2); noted 4MB=sim ceiling, board=~1.5MB ota_1 slot.
+**OTA-in-wasm FULLY CLOSED.** The board OTA (a)-refactor (port ota_receive_over_coc → this ensemble OtaApplier +
+a boot-confirm-staging FirmwareSink→ImageSink) is owed when firmware OTA is built; contract baked into the comment.
+**NEXT: #26** full-real-stack wasm hive — real r2-trust (TG/GroupHmac/deliver-gate, no-RNG verify paths first;
+key-minting needs injected RNG) + WS + UDP transports + the carrier multi-transport gateway (tier-fusion).
+
 ### convergence-v1 @1a8f7a9 — applied core's OTA-plugin ruling (OTA_PLUGIN_SHAPE.md a53a07b) [SUPERSEDED by v2]
 core RULED the canonical OTA-plugin shape; supervisor CORRECTED the doc (IGNORE the experimental
 `r2-update::SignedOtaApply`/`ImageSink` orphan — it breaks r2-update's verify-only layering; r2-update stays
