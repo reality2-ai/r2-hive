@@ -65,14 +65,16 @@ signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2;
   4-gate Ed25519, R2-UPDATE v0.6) EXISTS but on TCP :21043 over the INFRA WiFi netif (old permanent-STA). NET-NEW
   = the BLE-negotiate (#ota_* frames) + transient-SoftAP-on-#wifi_req + L2CAP-0x00D3 wrapper. Signed core reusable.
   [task #19; align #ota_* frame bytes w/ composer's pusher; ref r2-workshop.]
-- **★ THROUGHPUT BENCH [task #18, GREENLIT, BUILD FIRST]:** re-test the BlueZ-falsified L2CAP throughput on
-  ESP↔ESP. Bench firmware mode reusing serve_data_coc (split→tx.send/rx.receive) on PSM 0x00D3: two S3, pusher
-  L2capChannel::create pushes ~1.3MB, receiver accept-drains+counts, embassy Instant → KB/s. Sweep 2M PHY/DLE/
-  conn-interval/MTU-MPS/credits; coex BLE-only vs BLE+WiFi-up. v1 = default-config KB/s (the decisive number).
-  I BUILD (build-verify) → needs METAL (two S3) to RUN → report KB/s to supervisor. Gates the Roy data-plane call
-  (L2CAP-bulk vs SoftAP vs ESP-NOW) which shapes the OTA bulk path → bench BEFORE the OTA wrapper. Don't rewrite
-  §3.1.3 until the number lands (C/R). My read (BlueZ-confound=Linux host stack not BLE physics; ESP-NOW better
-  general data plane) noted to supervisor but UNPROVEN until the metal number. **SUPERVISOR
+- **★ THROUGHPUT BENCH [task #18, GREENLIT] — BUILD DONE (0efe84c), RUN needs metal.** `cocbench` feature
+  (xtensa-green: minimal `cocbench` + `staota,cocbench`): reuses the ble connect plumbing, cfg-swaps served fn
+  (serve_coc→coc_bench_*) + PSM (0x00D2→0x00D3). provider(M7_PROVIDER_HIVE)=coc_bench_drain RECEIVER; joiner=
+  coc_bench_push PUSHER (1.3MB / 240B chunks / Instant→KB/s). v1=default L2capChannelConfig. RUN (procedure sent
+  supervisor+composer): two S3, ONE = M7_PROVIDER_HIVE, flash `--features cocbench`, BLE-connect→push→console
+  'COCBENCH … = N KB/s' (console-open resets once→reboots→reruns→prints). composer holds ttys → metal run pending.
+  Sweep 2M PHY/DLE/conn-interval/MTU-MPS/credits + BLE-only-vs-coex arm = follow-up. Gates the Roy data-plane call
+  (L2CAP-bulk vs SoftAP vs ESP-NOW) → bench BEFORE the OTA wrapper. Don't rewrite §3.1.3 until the number lands
+  (C/R). My read (BlueZ-confound=Linux host not BLE physics; ESP-NOW better general data plane) UNPROVEN until the
+  metal number. v2 idea: render KB/s on the LCD (no console-reset to read). **SUPERVISOR
 DECISION: HOLD .1659, DON'T stage —
 deliver the FULL bundle via OTA, not a piecemeal desk session.** Rationale: OTA not ready (composer design-only)
 → shipping 6 now = a desk session + the 2 fast-follow = a 2nd session = more desk work for no urgency (bench
