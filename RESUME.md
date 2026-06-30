@@ -81,6 +81,9 @@ Composer's carrier-as-bridge weave Qs (via supervisor), both verified in r2-hive
   STDIN 'RX <hex>' → router relay (participate-gated via router_reader); 'TX <hex>' → verbatim 'INJECT <hex>' to
   serial (participate-gated). JSON {kind:control,verb,hex,routed/sent}. py_compile clean. Composer told → wires its
   client→server WS to the bridge stdin. Activation still gated on Roy's persona hk + the REAL-vs-DEMO serve branch.
+  **DEPLOY-SYNC 2026-07-01:** Alfred runs the bridge from alfred:~/carrier-bridge/ (a SEPARATE copy, not a checkout).
+  composer found it STALE (pre---control) + refreshed from repo; I verified BYTE-IDENTICAL after (sha256 match both
+  files). Re-scp+sha-verify on every bridge change — I own Alfred deploy-sync. See [[carrier-bridge-alfred-deploy]].
 - **#26 STATUS UPDATE:** the 'real r2-trust (TG/GroupHmac/deliver-gate)' portion of #26 is ALREADY DONE in wasm
   (real r2_trust::GroupHmac + sign_extended outbound + verify_extended inbound, exported + tested). **#26 remaining
   = WS + UDP transports ONLY.**
