@@ -1,6 +1,6 @@
 # RESUME — r2-hive (hive-worker)
 
-## ► 2026-06-30 — REBOOT-TO-DOWNLOAD (field re-flash recovery) DONE+GREEN — NEW REV staota.0630.1404 (D5's desk image)
+## ► 2026-06-30 — REBOOT-TO-DOWNLOAD (field re-flash recovery) DONE+GREEN — NEW REV staota.0630.1408 (D5's desk image)
 Supervisor bumped this to FIELD-CRITICAL (Roy: no BOOT button in the field; D5's stuck flash proves it). ROOT
 CAUSE: the running app — incl. the §3.5 INERT/console-liveness loop — HOLDS the USB-Serial-JTAG, so a host
 download-reset can't get through → remote re-flash futile without a BOOT press.
@@ -10,13 +10,19 @@ download-reset can't get through → remote re-flash futile without a BOOT press
   `software_reset()` → ROM enters download mode, taking over the USB-JTAG the app held → remote espflash re-flash.
   Form (ii) per supervisor: deterministic (board self-enters download; the reset stops the app = solves the hold
   root cause), NOT (i) release-only. Build-verify GREEN: field,loraroute,multitg,staota / staota / nobt.
-- **NEW ARTIFACTS staota.0630.1404 (REPLACE .1200)** at `/home/roycdavies/r2-staota-artifacts/` (DFR + XIAO,
+  **Self-review fix `f8425ee` (in .1408, not .1404):** the uart_rx_task `is_persona` dispatch guard matched
+  REBOOT but not plain DOWNLOAD → reboot-to-download via the `DOWNLOAD` token worked in the INERT loop (calls
+  handle_persona_cmd unconditionally) but was IGNORED on a running/provisioned board (only `REBOOT-DOWNLOAD`
+  worked there). Added DOWNLOAD to the guard → both tokens work in both contexts (matters for field re-flash of
+  PROVISIONED boards). supervisor confirmed form (ii) + the sequencing where the one desk flash both bootstraps
+  D5 and validates reboot-to-download in a single visit.
+- **NEW ARTIFACTS staota.0630.1408 (REPLACE .1200)** at `/home/roycdavies/r2-staota-artifacts/` (DFR + XIAO,
   creds baked, ~1330792B). Content = console-receiver + un-gated beacon + reboot-to-download. THIS is D5's
   desk-flash image → the desk BOOT-press becomes the LAST physical touch (future re-flash/OTA-recovery = send
   `DOWNLOAD` remotely). Beacon test UNAFFECTED (reboot-to-download dormant unless commanded). Per-carrier flash
-  cmd unchanged (point at the .1404 elf).
+  cmd unchanged (point at the .1408 elf).
 - **DESK-VALIDATE before field reliance (HONEST caveat — the one path I can't metal-test: espflash gate + remote
-  boards):** at D5's desk visit, after flashing .1404, send `DOWNLOAD` and confirm espflash reaches the
+  boards):** at D5's desk visit, after flashing .1408, send `DOWNLOAD` and confirm espflash reaches the
   sw-triggered download mode OVER USB-JTAG; BOOT-button fallback if S3 force_download_boot lands UART-only.
 - Reported supervisor + composer (console-provision.py UNCHANGED — DOWNLOAD is separate from REBOOT). Beacon-
   hardening (B2/B5/§2.3A) + re-vendor (#9/#12) still POST-beacon-test.
