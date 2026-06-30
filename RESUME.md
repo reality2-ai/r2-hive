@@ -27,6 +27,20 @@ all unprovisioned (demo-TG via mac_low3 fallback) + Alfred uses the demo GroupHm
 host bridge = read tty `R2RX <hex>` → `WasmHive.route_frame` → `sends[]` → `INJECT <hex>` to tty = the TCP↔radio
 gateway uniting THIS turn's two deliverables (wasm-hive + carrier). Held pending the ownership answer to avoid
 duplicate work with composer's sim. Task #23 = DONE (pending Roy-flash + host-bridge wiring).
+**REMOTE-FLASH UNLOCK (Roy is AWAY from the bench — no physical access, no power-cycle, no BOOT button):**
+- (a) AUTO-RESET FLASH = **YES, no button**. ESP32-S3 native USB-Serial-JTAG enters ROM download via the host's
+  USB-CDC DTR/RTS sequence = exactly espflash's default reset. PROOF on these boards: task-#14 = a console-OPEN
+  alone already drops a running board into download (rst:0x15 via DTR/RTS), so the full espflash sequence flashes
+  remotely with certainty. Roy SSH→Alfred: `espflash flash --monitor --chip esp32s3 r2-dfr1195-carrier.elf`.
+  Self-healing: `--after hard-reset` boots the new app; the carrier image carries the ca24915 clear-at-boot.
+  ⇒ real-HW unblocks TODAY if Roy can reach Alfred. (ELF is on TUXEDO — needs scp→Alfred.)
+- (b) EXISTING SERIAL TELEMETRY = **YES** (interim signal, no flash): running boards println! 'ESP-NOW peer MAPPED
+  hive=.. mac=..' (= real over-the-air HB reception) + health-hex + liveness. ⚠ But opening the tty asserts
+  DTR/RTS on most tools → the SAME task-#14 path drops the (older, pre-ca24915) board into download = silent, and
+  Roy can't power-cycle. So reads MUST de-assert DTR+RTS before open. **Wrote a safe reader**
+  `scratchpad/r2-mesh-read.py` (pyserial, dtr=False/rts=False-before-open, tags peer-MAPPED, decodes R2RX/health
+  hex) — handed to composer (who holds the ttys). Offered to scp it.
+- (c) carrier = built+staged (above).
 
 
 ## ✅ 2026-07-01 — current-TN WASM-HIVE delivered (crates/r2-hive-wasm) for composer's EOD bench sim
