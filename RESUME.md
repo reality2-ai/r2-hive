@@ -30,9 +30,24 @@ procedure decision is composer/supervisor's. Observe beacons by BLE scan, NOT co
 **DARK-LCD on provisioned D3 (task #13): RESOLVED = NON-BUG.** Roy clarified D3's screen shows content; the "dark"
 was only while D3 sat in the BOOTLOADER (no app running). Provisioned app renders fine. Firmware confirms: 0xFF
 (erased, what a DFR's 0x13000 has) → `b[0] != 0x00` → has_screen=TRUE → display inits. NOT board-profile. Do NOT
-add a DFR 0x13000 write. Task #13 REFRAMED → the actual ask: LCD 'TN READY' status-screen content REDESIGN
-(provisioned+beaconing+ready at-a-glance). Proposed 6-line layout sent to supervisor (L1 'R2 TN READY' / L2 hive /
-L3 ROLE+fw / L4 'BLE+ LoRa+ TG+' / L5 'nbrs:N ADV+' / L6 sync). Implement on supervisor OK; refine wording w/ Roy.
+add a DFR 0x13000 write. Task #13 REFRAMED → LCD 'TN READY' status-screen redesign. **DONE (64bc0be):** 6-line
+render — L1 'R2 TN READY' / L2 'hive <id>' / L3 '<role> fw<rev>' / L4 'BLE+ LoRa+ TG+' (new BLE_UP/LORA_UP
+atomics) / L5 'nbrs:N ADV+' / L6 sync. Human label 'D3' on L2 = pending composer NVS-write coordination
+(proposed 0x18000 [magic LBL1][len][utf8≤15]); Roy's display-form pref (D3 vs D3+hex) pending. Ships bundle-only.
+
+**NEXT-REV BUNDLE (ONE OTA rev, supervisor-sequenced; .1659 held as baseline tonight) — readiness tracker:**
+| piece | state |
+|---|---|
+| INERT esp_rtos reorder | ✅ bf205d5 |
+| clear force_download_boot | ✅ ca24915 |
+| class_hash structure (role-class, BE) | ✅ 6323f29 (strings WRONG — see below) |
+| class_hash v0.15 reverse-DNS strings | ⏳ blocked on specs (canonical strings+vectors) [#15] |
+| LCD TN-READY render | ✅ 64bc0be (human-label NVS pending composer) |
+| Company-ID 0xFFFF prepend | ⏸ HELD pending Roy a/b (specs; rec=0xFFFF) [#17] |
+| BLE address opacity | ⏳ sequenced w/ composer RBID-resolution [#16] |
+Delivery = OTA (Roy's USB WiFi); validating the rev via OTA also validates the OTA path. Desk fallback if OTA
+not ready. Re-vendor onto 0d1f308 = SEPARATE pass AFTER this rev validated. composer's Q1 console-open re-test
+gates whether the PAC register-disable joins this rev or a later one.
 
 **BEACON CONFORMANCE-HARDENING (post-validation, multi-item — composer on-air decode + specs v0.15/R2-BLE v0.12):**
 D3's .1659 beacon had 3 AD issues, all now understood:
