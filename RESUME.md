@@ -28,9 +28,10 @@ ONLY if it still resets. **RE-IMAGE ESCAPE GAP (answered to composer):** depends
 PRIMARY path (esptool DTR/RTS auto-reset enters download — works remotely, = the console-open-reset behavior):
 force_download_boot NOT set → `--after hard-reset` boots app → clear-at-boot fires → NO gap, no tool change.
 reboot_to_download path (bit SET): EN-toggle hard-reset preserves the always-on RTC bit → re-enters download;
-escape via (i) POWER-CYCLE (clears always-on RTC; recommended) or (ii) tool register-clear RTC_CNTL_OPTION1_REG
-≈0x6000_8128 bit0 (CONFIRM vs S3 TRM before hardcoding). So the gap is reboot_to_download-only; composer owns
-flash-board.sh's choice. Observe beacons by BLE scan, NOT console-open (still resets).
+escape via (i) POWER-CYCLE (clears always-on RTC; recommended) or (ii) tool register-clear (read-modify-write)
+RTC_CNTL_OPTION1 @0x6000_8128, force_download_boot = bit0 — CONFIRMED vs esp32s3-0.30.0 PAC (base 0x6000_8000 +
+offset 0x128; SVD-derived). So the gap is reboot_to_download-only; composer owns flash-board.sh's choice
+(documenting power-cycle as default). Observe beacons by BLE scan, NOT console-open (still resets).
 **DARK-LCD on provisioned D3 (task #13): RESOLVED = NON-BUG.** Roy clarified D3's screen shows content; the "dark"
 was only while D3 sat in the BOOTLOADER (no app running). Provisioned app renders fine. Firmware confirms: 0xFF
 (erased, what a DFR's 0x13000 has) → `b[0] != 0x00` → has_screen=TRUE → display inits. NOT board-profile. Do NOT
