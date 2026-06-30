@@ -1,5 +1,25 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-30 — r2-hive DEPLOYABLE NODE was BROKEN vs r2-core-consolidation — FIXED + GREEN (task #4 closed)
+Verify-don't-assume paid off: actually built+tested the deployable node (not assumed) and found it did NOT
+compile against the current local r2-core (branch `r2-core-consolidation` @ 5450cdc — which r2-hive's path-deps
+build against; NOTE origin/main does NOT yet have this change). Core's §2.3B work (`bf1bf3b`) added a REQUIRED
+field `arrival_transport: Option<Transport>` to `ForwardRequest`, silently breaking BOTH downstream constructors:
+- `crates/r2-hive-core/src/sync_host.rs:198` (host sync-tier forward)
+- `crates/r2-hive-bin/src/router.rs:254` (host router forward)
+- **FIX (`dcb1f10`):** both set `arrival_transport: None` = BEHAVIOUR-PRESERVING (engine.rs:492 skips the §2.3B
+  arrival-reachability drop when None). NOT a silent faked-distance enablement on the host tier. sync_host has the
+  arrival `transport` in scope, so the host COULD enable §2.3B by passing Some(transport) — left None as a
+  deliberate decision FLAGGED FOR CORE (asked: should the host sync/router tier enforce §2.3B, or is faked-distance
+  mesh/firmware-only?).
+- **NOW GREEN:** `cargo test --workspace` (stable toolchain, default features) = ~200 tests pass, 0 failed, incl.
+  the relay-handshake v0.2 challenge-response conformance. (ble/lora features need host bluetooth libs — not built.)
+- **SAME break as the firmware** re-vendor onto 0d1f308 (identical None fix queued there). Reported to supervisor
+  (task #4 closed) + FYI'd core (a required-field addition breaks all downstream ForwardRequest constructors;
+  suggested #[non_exhaustive]+Default for future additive-non-breaking changes; flagged the consolidation→main
+  merge will need this fix). DO-NOT-ASSUME: r2-hive currently builds ONLY against the consolidation branch (which
+  has arrival_transport); it would FAIL against origin/main (no such field) until consolidation merges.
+
 ## ► 2026-06-30 — ADVERSARIAL REFUTATION of the receiver-staota work (peer-refuted; 2 fixed, 2 batched, 1 escalated)
 Closed the doctrine's "peer-refuted before done" gap on 30e0ff5 (console-receiver) + aa9088f (beacon un-gate):
 ran an INDEPENDENT read-only adversarial reviewer (fresh agent, tasked to BREAK them; not opposite-provider — a
