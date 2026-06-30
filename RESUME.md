@@ -77,6 +77,10 @@ Composer's carrier-as-bridge weave Qs (via supervisor), both verified in r2-hive
   INJECT (signed if keyed) = host-originated-arbitrary. path-2 (VERBATIM external browser bytes relayed as-is) =
   ~10-line bridge control-input add (parent stdin/FIFO/socket → 'INJECT <hex>' straight to serial), on request.
   Firmware INJECT = uart_rx_task parse_inject_hex → DATA_TX → ESP-NOW egress.
+  **UPDATE 2026-07-01:** path-2 ALREADY SHIPPED (--control channel, control_reader). Re-verified functional:
+  STDIN 'RX <hex>' → router relay (participate-gated via router_reader); 'TX <hex>' → verbatim 'INJECT <hex>' to
+  serial (participate-gated). JSON {kind:control,verb,hex,routed/sent}. py_compile clean. Composer told → wires its
+  client→server WS to the bridge stdin. Activation still gated on Roy's persona hk + the REAL-vs-DEMO serve branch.
 - **#26 STATUS UPDATE:** the 'real r2-trust (TG/GroupHmac/deliver-gate)' portion of #26 is ALREADY DONE in wasm
   (real r2_trust::GroupHmac + sign_extended outbound + verify_extended inbound, exported + tested). **#26 remaining
   = WS + UDP transports ONLY.**
