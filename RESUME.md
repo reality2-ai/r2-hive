@@ -929,15 +929,23 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    RouteEngine weights so composer renders the true values. CORE defines the exact weight-SET to surface
    (RouteEngine owner — I consume/emit via the engine's accessors, core sources). Sequenced AFTER the staota flash
    batch + the §2.3A/§2.3B firmware work. Leave room in the telemetry shape now (additive CBOR keys, like k4).
-   ✅ ACCESSOR SHAPE DECIDED (a) 2026-06-30 (core proposing, builds whenever — read-only, won't touch staota base,
-   I consume post-staota): core lands 2 DERIVED accessors — neighbour_score(hive,T)->Option<f32> = THE
-   select_transport per-link weight (link_quality[T]*strategy.transport_weight(T)/power_cost(T), single-sourced in
-   core so the bench can't drift; §2.3A/2.3B/MTU deliberately NOT folded in = selectability I read separately via
-   transport_allowed + is_reachability_blocked) + neighbour_fade_remaining(hive,now)->Option<f32> = live
-   time-to-fade. I iterate neighbours()/paths()/strategy() for the stored fields (confidence, link_quality[7],
-   rssi[7], relay_probability, path.confidence+next_hop, K, forwarding_threshold, duty_class, last_seen) + emit a
-   TIGHT per-(neighbour,transport) CBOR SUBSET (chose (a) over (b)-bundled-snapshot because the #18 frame is
-   ~96B-constrained → emit only rendered values, not a 21-field snapshot; Rust path-dep = no real FFI-hop cost).
+   ✅ ACCESSORS LANDED + CI-GREEN (core `0d1f308`, shape (a), 2026-06-30) — UNBLOCKED, consume now (post-staota).
+   FINAL signatures on RouteEngine (+ delegated on DataPlane), single-sourced via core's strategy::transport_score
+   so the bench score CANNOT drift from the engine's routing math; 3 guard tests + workspace green + no_std verified:
+     • `neighbour_score(hive_id: u32, transport: Transport) -> Option<f32>` = the SAME select_transport weight;
+       None if untracked OR that transport unobserved; EXCLUDES §2.3A mask / §2.3B override / MTU — I multiply
+       SELECTABILITY in myself via `transport_allowed` + `is_reachability_blocked`.
+     • `neighbour_fade_remaining(hive_id: u32) -> Option<f32>` = live seconds-to-floor = ln(conf/floor)/λ(last_seen
+       _transport); 0.0 at/below floor; None untracked. NOTE: core DROPPED the vestigial `now` arg (pure fn of
+       stored confidence) — so it is NOT (hive,now), it is (hive) only. Update any consumer that assumed `now`.
+   The rest I read off `neighbours()` / `paths()` / `strategy()` directly (confidence, link_quality[7], rssi[7],
+   relay_probability, path.confidence+next_hop, K, forwarding_threshold, duty_class, last_seen).
+   MY CONSUMPTION (firmware plug-in points located): (i) replace the PLACEHOLDER uniform `let w: f32 = 1.0` at
+   main.rs:1401 (per-neighbour ESP-NOW link weight) with the real `engine.neighbour_score(hive, transport)`; (ii)
+   extend the `NBR-TBL count=…` per-neighbour emit (main.rs:1114-1115, iterates `engine.neighbours()`) with real
+   score + fade_remaining as a TIGHT per-(neighbour,transport) CBOR SUBSET (chose (a) over (b)-bundled-snapshot:
+   the #18 frame is ~96B-constrained → emit only rendered values, additive keys like k4; multiply selectability via
+   transport_allowed + is_reachability_blocked at emit). xtensa-verify + guard + commit when I pick this up.
 13. **BLE-BEACON GAP — every board must advertise (Roy: fundamental R2 mesh; spec-first)** (verified 2026-06-30).
    The firmware HAS the R2-BEACON advert codec (ble_task main.rs:2487, r2_discovery::beacon byte-exact:
    derive_beacon_session_key + compute_rbid + encode_advert, manufacturer-AD 0xFF) — BUT the peripheral.advertise
