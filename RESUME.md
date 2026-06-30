@@ -95,7 +95,12 @@ signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2;
   ~/r2-staota-artifacts/r2-dfr1195-DFR-otal2cap-e2e.elf (conformance §7 + OTA). E2E (Roy AM): flash → PROVISION
   (verify_header needs tg_pk) → composer push_ota_l2cap (signed, matching TG key) per-SDU OST/ODT/OCM over 0x00D3 →
   verify-before-write→activate→reboot→confirmed-boot commit. ⚠ **NEEDS-REFUTATION** (opposite-provider review of
-  ota_receive_over_coc + metal e2e) before production/done. (a)-refactor = engine-host it (increment 1 #34fd380
+  ota_receive_over_coc + metal e2e) before production/done. R4-binding PRE-REFUTATION (supervisor's concern: 2nd-CoC
+  hijack?): structurally PREVENTED — HostResources<_,1,1> = max 1 BLE connection (2nd central can't establish) +
+  the provider loop is serial (accept→ota_receive_over_coc-blocks-till-close→loop) → never a concurrent CoC; the
+  single peer = the session. Refute fires after core's immune-monitor review (~midday). e2e MTU≈245 (pool251−6,
+  default cfg) → composer ODT chunk ≤200 v1; signing = composer provisions the receiver TG + signs with that key.
+  (a)-refactor = engine-host it (increment 1 #34fd380
   proved r2-engine on-device, no re-vendor). WIRE NOTE (specs 27b7dec): #wifi_offer→#wifi_ack (0x98465EE1, schema
   {0:ip,1:port,2:already_connected}) — NO firmware impact (the L2CAP-direct receiver has no #wifi_* frames); applies
   only to the FUTURE #ota_*/#wifi_* SoftAP-escalation layer (if built). GOTCHA: event-name hashing is NOT bare FNV
