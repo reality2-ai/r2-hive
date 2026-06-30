@@ -37,6 +37,23 @@ BOTH the alignment command AND the key-serve path. Coordinate composer on key-se
 bridge's WasmHive.setGroupHmac gets the SAME hk the nodes use). Standing: keep peer-refuting the deliver-gate.
 
 
+## ⏳ 2026-07-01 — #26 FRONT HALF: wasm TG-member group-hmac + bridge control channel [hive @47590b1 + @3a3af06]
+Composer (carrier-as-bridge weave) asked for 2 mechanisms to weave browser/IP wasm hives into the boards' ONE TG mesh:
+**(2) wasm TG join [r2-hive-wasm v0.4.6 @47590b1]:** `WasmHive.withGroupHmac(id,hk,tgHash)` ctor + `setGroupHmac(hk,tgHash)`
+runtime join/leave + `verifyFrame(frame)->{keyed,tg_ok,hmac_ok,deliver}` = the REAL deliver-gate (firmware main.rs:1751-2:
+tg_ok=target_group==tg_hash||0, hmac_ok=verify_extended). build_frame/build_heartbeat/start_ota/ensemble frames SIGN
+(sign_extended, firmware :1011-13) + stamp target_group=tgHash when a member. hk = persona's 32B SYMMETRIC GroupHmac key
+(NOT withOta's Ed25519 tg_pk — TWO keys). No key = legacy TG-agnostic sim (unchanged). Real r2-trust dep (default-features
+=false = member-only, no keyholder/getrandom). **wasm32-unknown-unknown RELEASE build GREEN** (r2-trust wasm-clean). Test
+`group_hmac_frame_crossing_same_key_delivers_wrong_key_rejects`: same hk->deliver; same tg+wrong hk->tg_ok:true hmac_ok:
+false deliver:false (= live carrier symptom); join/leave flips. ⚠ deliver-gate SECURITY-CRITICAL -> **peer-refute OWED**
+before #26 'done' (API shape stable, only hardening). hk VALUE pending Roy's persona dump (value-independent API). Ties to
+the SECURITY BRANCH above: the bridge's setGroupHmac gets the SAME hk the nodes use (demo=web-serveable, real=out-of-band).
+**(1) bridge --control [@3a3af06]:** closes the gap (--participate only ingested from serial). `--control` reads bridge
+STDIN: `RX <hex>`->carrier hive router (relay/dedup/re-flood, repeater) ; `TX <hex>`->INJECT verbatim to serial
+(transparent egress, honors --participate). Functional-tested (RX/TX/read-only-gate/bad-verb). README control table added.
+Notified composer with exact signatures. REMAINING #26: WS + UDP transports + carrier multi-transport gateway.
+
 ## ✅ 2026-07-01 — THEATER ORACLE: neighbour/path classifier getters [hive @664e8b3, r2-hive-wasm v0.4.5]
 composer's next theater arm (conj 100/103 mobile-vs-infra classify + evict-at-floor/rediscovery; 200/204 used-path-
 wins/idle-decays). Read-only over EXISTING r2-route state — no engine change. New WasmHive methods:
