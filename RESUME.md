@@ -86,6 +86,19 @@ signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2;
   the re-vendor (separate). EventBus API (base): register_sentant/register_plugin(Box<dyn>), tick, poll_plugins,
   drain_outbound→Vec<QueuedEvent>; Plugin::execute(cmd,&[u8])->PluginResult + poll; Sentant::handle_event(&Event,
   &mut ActionBuf). Ref: crates/r2-engine/src/conformance.rs.
+- **INCREMENT 2 SCOPED (OTA PLUGIN) — security-critical, NOT rushed.** Port ota_receiver's verify-before-write
+  state machine (main.rs:4344) into `impl Plugin for OtaPlugin`: execute(cmd,data) dispatch — START(cmd, data=
+  123B header+64B sig) → build DeviceContext (read_persona tg_pk + read_anti_rollback seq/floor) → r2_update::
+  verify_header → PayloadVerifier::new; CHUNK(data=off+payload) → pv.update THEN sector-buffered write to the
+  inactive slot; COMMIT → pv.finish (BEFORE activate) → OtaUpdater activate + write_anti_rollback (monotonic);
+  ABORT/timeout → reset. Reuse r2_update crypto (verify_header/PayloadVerifier) — DO NOT rewrite. CHALLENGES: (a)
+  OtaUpdater borrows &mut flash + &mut tbl — the plugin must OWN flash+tbl+the in-flight region/pv/secbuf(4KB)/
+  written/payload_size/session-owner across execute() calls (the streaming locals → struct fields); (b) keep R3
+  (every chunk within declared total; commit only when written==total) + R4 (session bound to one owner) gates;
+  (c) verify-before-write invariant (no byte boots until finish() Ok). **DOCTRINE: peer-refute before 'done'** —
+  this is security-critical (Ed25519 verify, anti-rollback, slot activate); NOT rushing it at the tail of the
+  overnight marathon without a refutation pass. RECOMMEND a focused/peer-refuted build (flagged to supervisor).
+  Then INCREMENT 3 = OTA SENTANT (thin #ota_* control → PluginCall) + 4 = network/bus bridge + L2CAP-0x00D3 feed.
 - **★ THROUGHPUT BENCH [task #18] — v1 RAN: 11 KB/s; TUNED build staged (faf7213), awaiting re-run.**
   Roy ran the corrected bench (D1=RECEIVER/D3=PUSHER, read off LCD): **11 KB/s** default config. ROOT CAUSE
   (verified): trouble_host DEFAULT 80ms conn interval (connection.rs:208) — interval-starved, not a deeper bug.
