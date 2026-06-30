@@ -56,6 +56,24 @@ so an open-time reset recovers to the app, never sticky download).
 inject, so an unattended run never spams the mesh. Flip it on once you want the
 host to actively relay.
 
+### `--control` (host injects frames LIVE — weave in the browser/IP hives)
+
+```sh
+./run-bridge.sh --port <dev> --hive a1f5ed00 --participate --control
+```
+
+With `--control` the bridge reads its **stdin** for host-injected frames — the path
+that crosses a browser/IP wasm hive's outbound frame onto the radio via the carrier:
+
+| line        | effect                                                                       |
+|-------------|------------------------------------------------------------------------------|
+| `RX <hex>`  | feed to the carrier hive (**relay** path — routed/deduped/re-flooded as the hive decides; the carrier acts as a repeater). Use for normal TG traffic. No-op under `--no-route`. |
+| `TX <hex>`  | write `INJECT <hex>` to serial **verbatim** (transparent egress, bypasses routing). Use when the frame is already fully addressed. Honors `--participate`. |
+
+For a *TG-member* browser hive, sign its frame with `WasmHive.withGroupHmac(hk,tgHash)`
+first so it `verifyFrame()`s on the real boards — then `RX` it for repeater relay, or
+`TX` it for a dumb pipe. EOF on stdin just ends the channel; the bridge keeps running.
+
 ### `--json` (dashboard ingest)
 With `--json`, **stdout is pure JSON-lines** (human diagnostics → stderr), one
 object per event:

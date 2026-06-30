@@ -26,7 +26,17 @@ Usage (on Alfred, with vendored pyserial on PYTHONPATH — see run-bridge.sh):
       --hive a1f5ed00                 # VISIBILITY + route (logs would-be INJECTs)
   ... add --participate               # actually write INJECT to the mesh
   ... --no-route                      # visibility only (no node child)
+  ... --control                       # read this process's STDIN for host-injected frames
   python3 r2-carrier-bridge.py --selftest   # exercise the routing wiring, no serial
+
+HOST CONTROL CHANNEL (--control): the host (e.g. composer's adapter weaving the
+browser/IP wasm hives into the mesh) writes lines to this bridge's STDIN:
+    RX <hex>   feed the frame to the carrier hive (RELAY path — routed/deduped,
+               re-flooded as the hive decides). Use for normal TG traffic so the
+               carrier acts as a repeater. (No-op under --no-route.)
+    TX <hex>   write `INJECT <hex>` to serial VERBATIM (transparent egress, bypasses
+               routing). Use when the frame is already fully addressed. Honors
+               --participate (no serial write in read-only mode).
 """
 import argparse
 import json
@@ -157,6 +167,45 @@ def router_reader(router, ser, participate):
             log(f"[router] {line}")
 
 
+def control_reader(router, ser, participate):
+    """Host control channel (this bridge's STDIN) — inject frames LIVE.
+
+    `RX <hex>` → carrier hive router (relay/dedup/re-flood as the hive decides).
+    `TX <hex>` → `INJECT <hex>` straight to serial, verbatim (transparent egress).
+    This is how the browser/IP wasm hives cross frames onto the radio via the carrier.
+    EOF (host closes stdin) just ends the thread; the bridge keeps running.
+    """
+    for raw in sys.stdin:
+        line = raw.strip()
+        if not line:
+            continue
+        parts = line.split(None, 1)
+        verb = parts[0].upper()
+        hexstr = parts[1].strip() if len(parts) > 1 else ""
+        if verb == "RX":
+            if router:
+                router.stdin.write(hexstr + "\n")
+                router.stdin.flush()
+                if JSON_MODE:
+                    jline(kind="control", verb="RX", hex=hexstr, routed=True)
+                else:
+                    log(f"CTRL RX  {hexstr[:24]}… -> carrier hive (relay)")
+            elif not JSON_MODE:
+                log("# control RX ignored (--no-route: no hive to relay through)")
+        elif verb == "TX":
+            sent = bool(participate and ser)
+            if sent:
+                ser.write(("INJECT " + hexstr + "\n").encode())
+            if JSON_MODE:
+                jline(kind="control", verb="TX", hex=hexstr, sent=sent)
+            elif sent:
+                log(f"CTRL TX> {hexstr[:24]}… (verbatim -> mesh)")
+            else:
+                log(f"CTRL TX  {hexstr[:24]}… (read-only; --participate to send)")
+        elif not JSON_MODE:
+            log(f"# control: unknown verb {verb!r} (use 'RX <hex>' | 'TX <hex>')")
+
+
 def run_live(args):
     ser = open_safe(args.port, args.baud)
     router = None
@@ -167,6 +216,10 @@ def run_live(args):
         log(f"# routing ON (participate={args.participate})")
     else:
         log("# routing OFF (visibility only)")
+    if args.control:
+        threading.Thread(target=control_reader,
+                         args=(router, ser, args.participate), daemon=True).start()
+        log("# host control channel ON (stdin: 'RX <hex>' relay | 'TX <hex>' verbatim)")
     log("# bridge live. Ctrl-C to stop (board left RUNNING).")
     try:
         while True:
@@ -216,6 +269,8 @@ def main():
     ap.add_argument("--participate", action="store_true",
                     help="actually write INJECT frames to the mesh (default: read-only)")
     ap.add_argument("--no-route", action="store_true", help="visibility only, no router")
+    ap.add_argument("--control", action="store_true",
+                    help="read STDIN for host-injected frames ('RX <hex>' relay | 'TX <hex>' verbatim)")
     ap.add_argument("--selftest", action="store_true", help="exercise routing, no serial")
     ap.add_argument("--json", action="store_true",
                     help="emit JSON-lines (dashboard ingest) instead of human log lines")
