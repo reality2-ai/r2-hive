@@ -44,7 +44,7 @@ atomics) / L5 'nbrs:N ADV+' / L6 sync. Human label 'D3' on L2 = pending composer
 | class_hash canonical strings (v0.16 §4.1) | ✅ 765c948 (ai.reality2.device.*; repeater 00FC1F17 / sensor 43895E89 / bridge B52C9F26 / receiver 17F3554A BE) |
 | LCD TN-READY render | ✅ 64bc0be (human-label NVS pending composer) |
 | Company-ID 0xFFFF prepend | ⏸ HELD pending Roy a/b (specs; rec=0xFFFF) [#17] |
-| BLE address opacity | ⏳ sequenced w/ composer RBID-resolution [#16] |
+| BLE address opacity | ⏳ sent composer the canonical RBID-derivation algo (HKDF-Expand→session_key, HMAC→rbid[0:8], epoch=0, shared hk+hive_id); flip address (random NVS-persisted) once their resolver matches D3's rbid + acks [#16] |
 Delivery = OTA (Roy's USB WiFi); validating the rev via OTA also validates the OTA path. Desk fallback if OTA
 not ready. Re-vendor onto 0d1f308 = SEPARATE pass AFTER this rev validated. composer's Q1 console-open re-test
 gates whether the PAC register-disable joins this rev or a later one.
