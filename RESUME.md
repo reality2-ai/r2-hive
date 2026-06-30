@@ -1,5 +1,17 @@
 # RESUME — r2-hive (hive-worker)
 
+## ⏳ 2026-07-01 — FORMATION-DECOUPLE firmware task (supervisor GO; core-blocked) [task #28]
+Firmware path of the carrier nbrs=0 root cause + specs/core H9-preserving ruling. CURRENT (main.rs:1411-1433):
+under `multitg` the neighbour feed is verify-gated — `couple_ok = verify_extended(&m,&group_hmac)`; the ONLY
+table feed `engine.accept_keepalive(obs,boot_epoch,hb_seq,false)` (+set_neighbour_duty_class) sits INSIDE
+`if couple_ok` → unverified HB forms NO neighbour → nbrs=0. WANT: form/refresh from ANY decoded HB (nbrs>0,
+topology); GroupHmac gates ONLY liveness/duty/deliver. Guard: unverified-HB→nbrs>0 but no liveness/duty/deliver.
+**BLOCKED on core** (asked, →inbox): the canonical r2-route API split — observe/form primitive vs accept_keepalive
+(liveness), + whether plan_forward already excludes a formed-but-not-kept-alive nbr (auto-guard). HOLD firmware
+edit until core specifies fn signatures (core-first for the dataplane; no fork). Wire plan: form-on-any-HB OUTSIDE
+couple_ok; accept_keepalive+duty+deliver INSIDE. Peer-refute before done (trust/topology boundary). GO-GATE for the
+prep run is GREEN (composer confirmed distinct master_secret); supervisor assembling Roy's flash run-sheet.
+
 ## ⚠ 2026-07-01 — CARRIER FLASHED + LIVE on Alfred; R2RX works, PARTICIPATION blocked (TG-key mismatch) — diagnosed
 Carrier flashed (role=STA fw=leaderless-0.4). R2RX reception WORKS (real over-the-air frames). But can't verify/
 deliver: nbrs=0 dlv=0 blk=43+ synced=false, DROP NoViableNeighbour, DELIVER-BLOCKED tg_ok=TRUE hmac_ok=FALSE.
