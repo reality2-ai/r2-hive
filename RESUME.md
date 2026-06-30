@@ -40,8 +40,8 @@ atomics) / L5 'nbrs:N ADV+' / L6 sync. Human label 'D3' on L2 = pending composer
 |---|---|
 | INERT esp_rtos reorder | ✅ bf205d5 |
 | clear force_download_boot | ✅ ca24915 |
-| class_hash structure (role-class, BE) | ✅ 6323f29 (strings WRONG — see below) |
-| class_hash v0.15 reverse-DNS strings | ⏳ blocked on specs (canonical strings+vectors) [#15] |
+| class_hash structure (role-class, BE) | ✅ 6323f29 |
+| class_hash canonical strings (v0.16 §4.1) | ✅ 765c948 (ai.reality2.device.*; repeater 00FC1F17 / sensor 43895E89 / bridge B52C9F26 / receiver 17F3554A BE) |
 | LCD TN-READY render | ✅ 64bc0be (human-label NVS pending composer) |
 | Company-ID 0xFFFF prepend | ⏸ HELD pending Roy a/b (specs; rec=0xFFFF) [#17] |
 | BLE address opacity | ⏳ sequenced w/ composer RBID-resolution [#16] |
