@@ -167,6 +167,83 @@ impl WasmHive {
 
         format!("{{\"outcome\":\"{tag}\",\"sent\":{sent},\"sends\":[{sends}]}}")
     }
+
+    /// Build a Heartbeat frame ORIGINATED by this node — origin = self in the route
+    /// stack, payload = self hive_id (BE32, the firmware HB wire form). `seq` is the
+    /// msg_id (dedup discriminator; pass a per-node counter or the sim tick). The sim
+    /// feeds these bytes to neighbours' `route_frame` so each node floods its OWN HB
+    /// (realistic per-node origin), not a fixed fixture. Returns raw R2-WIRE bytes.
+    #[wasm_bindgen]
+    pub fn build_heartbeat(&self, seq: u32) -> Vec<u8> {
+        encode_frame(
+            self.self_hive_id,
+            0, // target_hive 0 = broadcast
+            0, // target_group 0 = no TG gate in the sim
+            r2_wire::MsgType::Heartbeat,
+            0, // event_hash: HB carries none
+            &self.self_hive_id.to_be_bytes(),
+            8, // ttl
+            3, // k (flood fan-out)
+            seq,
+        )
+    }
+
+    /// Build a generic Event frame from this node to `target_hive` (0 = broadcast),
+    /// carrying `payload`, discriminated by `event_hash`. `seq` = msg_id. Origin =
+    /// self in the route stack. Returns raw R2-WIRE bytes (empty on encode error).
+    #[wasm_bindgen]
+    pub fn build_frame(&self, target_hive: u32, event_hash: u32, payload: &[u8], seq: u32) -> Vec<u8> {
+        encode_frame(
+            self.self_hive_id,
+            target_hive,
+            0,
+            r2_wire::MsgType::Event,
+            event_hash,
+            payload,
+            8,
+            3,
+            seq,
+        )
+    }
+}
+
+/// Encode one R2-WIRE extended frame (origin in the route stack) — the same
+/// `encode_extended` the firmware uses, so sim traffic is wire-identical.
+#[allow(clippy::too_many_arguments)]
+fn encode_frame(
+    origin: u32,
+    target_hive: u32,
+    target_group: u32,
+    msg_type: r2_wire::MsgType,
+    event_hash: u32,
+    payload: &[u8],
+    ttl: u8,
+    k: u8,
+    msg_id: u32,
+) -> Vec<u8> {
+    use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, ExtendedRouteStack, Flags};
+    let msg = ExtendedMessage {
+        header: ExtendedHeader {
+            version: 0,
+            msg_type,
+            flags: Flags { has_route: true, ..Flags::default() },
+            ttl,
+            k,
+            msg_id,
+            event_hash,
+            payload_len: payload.len() as u32,
+            target_group,
+            target_hive,
+        },
+        route: Some(ExtendedRouteStack::with_origin(origin)),
+        payload,
+        hmac_tag: None,
+    };
+    let mut buf = [0u8; 512];
+    match encode_extended(&msg, &mut buf) {
+        Ok(n) => buf[..n].to_vec(),
+        Err(_) => Vec::new(),
+    }
 }
 
 /// Provisional hive id (FNV-1a of canonical transport address) for an unknown
@@ -218,6 +295,22 @@ mod tests {
         let n = encode_extended(&msg, &mut buf).expect("encode");
         buf.truncate(n);
         buf
+    }
+
+    #[test]
+    fn encode_helpers_roundtrip() {
+        let a = WasmHive::new(0x0000_00AA);
+        let hb = a.build_heartbeat(0x10);
+        assert!(!hb.is_empty(), "heartbeat encoded");
+        // A different node routes A's HB — must parse as R2-WIRE (not NotR2Wire).
+        let mut b = WasmHive::new(0x0000_00BB);
+        let out = b.route_frame(0, 5, &hb, 1, 0.5);
+        assert!(!out.contains("NotR2Wire"), "HB must parse: {out}");
+        // Generic Event frame to a target also parses.
+        let ev = a.build_frame(0x0000_00CC, 0xAABB_CCDD, b"hi", 0x11);
+        assert!(!ev.is_empty(), "event encoded");
+        let out2 = b.route_frame(0, 5, &ev, 2, 0.5);
+        assert!(!out2.contains("NotR2Wire"), "event must parse: {out2}");
     }
 
     #[test]
