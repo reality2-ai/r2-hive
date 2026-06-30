@@ -29,7 +29,9 @@ Usage (on Alfred, with vendored pyserial on PYTHONPATH — see run-bridge.sh):
   python3 r2-carrier-bridge.py --selftest   # exercise the routing wiring, no serial
 """
 import argparse
+import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -37,9 +39,24 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+# Set by main(): when True, every event is emitted as one JSON line (dashboard
+# ingest) instead of the human log line. The shape composer asked for:
+#   {"t":<epoch>, "kind":"peer_mapped"|"frame"|"route"|"inject", hive?, mac?,
+#    "bytes"?, "outcome"?, "sends"?, "hex"?}
+JSON_MODE = False
+_PEER_RE = re.compile(r"hive=([0-9a-fA-F]+).*mac=([0-9a-fA-F:]+)")
+
 
 def log(msg):
-    print(f"{time.strftime('%H:%M:%S')} {msg}", flush=True)
+    # In JSON mode keep stdout PURE JSON: human diagnostics go to stderr.
+    stream = sys.stderr if JSON_MODE else sys.stdout
+    print(f"{time.strftime('%H:%M:%S')} {msg}", file=stream, flush=True)
+
+
+def jline(**fields):
+    """Emit one machine-readable JSON line (stdout). t = epoch seconds."""
+    fields.setdefault("t", round(time.time(), 3))
+    print(json.dumps(fields, separators=(",", ":")), flush=True)
 
 
 def open_safe(port, baud=115200):
@@ -92,13 +109,22 @@ def _pump_stderr(p):
 
 
 def render_rx(line):
-    """Heartbeat-VISIBILITY: tag the carrier's own telemetry lines for a human."""
+    """Surface the carrier's telemetry — heartbeat-VISIBILITY + raw frames."""
     if "peer MAPPED" in line:
-        log(f"OTA-RX  {line}   <- heard a peer's heartbeat over the air")
+        if JSON_MODE:
+            m = _PEER_RE.search(line)
+            jline(kind="peer_mapped",
+                  hive=(m.group(1) if m else None),
+                  mac=(m.group(2) if m else None))
+        else:
+            log(f"OTA-RX  {line}   <- heard a peer's heartbeat over the air")
     elif line.startswith("R2RX "):
-        n = (len(line) - 5) // 2
-        log(f"FRAME   {n}B over-the-air R2-WIRE frame")
-    else:
+        hexstr = line[5:].strip()
+        if JSON_MODE:
+            jline(kind="frame", bytes=len(hexstr) // 2, hex=hexstr)
+        else:
+            log(f"FRAME   {len(hexstr) // 2}B over-the-air R2-WIRE frame")
+    elif not JSON_MODE:
         log(line)
 
 
@@ -109,12 +135,25 @@ def router_reader(router, ser, participate):
         if not line:
             continue
         if line.startswith("INJECT "):
-            if participate:
+            hexstr = line[7:].strip()
+            sent = bool(participate and ser)
+            if sent:
                 ser.write((line + "\n").encode())
-                log(f"INJECT> {line[7:][:24]}… (sent to mesh)")
+            if JSON_MODE:
+                jline(kind="inject", hex=hexstr, sent=sent)
+            elif sent:
+                log(f"INJECT> {hexstr[:24]}… (sent to mesh)")
             else:
-                log(f"would-INJECT (read-only; --participate to send): {line[7:][:24]}…")
-        else:  # `# route …` diagnostics
+                log(f"would-INJECT (read-only; --participate to send): {hexstr[:24]}…")
+        elif line.startswith("# route "):
+            if JSON_MODE:
+                parts = line.split()  # ['#','route','<Outcome>','sends=N']
+                outcome = parts[2] if len(parts) > 2 else None
+                sends = int(parts[3].split("=")[1]) if len(parts) > 3 and "=" in parts[3] else 0
+                jline(kind="route", outcome=outcome, sends=sends)
+            else:
+                log(f"[router] {line}")
+        elif not JSON_MODE:  # other diagnostics
             log(f"[router] {line}")
 
 
@@ -178,7 +217,11 @@ def main():
                     help="actually write INJECT frames to the mesh (default: read-only)")
     ap.add_argument("--no-route", action="store_true", help="visibility only, no router")
     ap.add_argument("--selftest", action="store_true", help="exercise routing, no serial")
+    ap.add_argument("--json", action="store_true",
+                    help="emit JSON-lines (dashboard ingest) instead of human log lines")
     args = ap.parse_args()
+    global JSON_MODE
+    JSON_MODE = args.json
     if args.selftest:
         run_selftest(args)
     elif args.port:

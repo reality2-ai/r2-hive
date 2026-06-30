@@ -56,6 +56,18 @@ so an open-time reset recovers to the app, never sticky download).
 inject, so an unattended run never spams the mesh. Flip it on once you want the
 host to actively relay.
 
+### `--json` (dashboard ingest)
+With `--json`, **stdout is pure JSON-lines** (human diagnostics → stderr), one
+object per event:
+```
+{"t":<epoch>,"kind":"peer_mapped","hive":"502698aa","mac":"f4:12:fa:50:26:98"}
+{"t":<epoch>,"kind":"frame","bytes":10,"hex":"045300001000aabbccdd"}
+{"t":<epoch>,"kind":"route","outcome":"Flooded","sends":1}
+{"t":<epoch>,"kind":"inject","hex":"0441…","sent":false}
+```
+So an adapter can `for line in proc.stdout: ev = json.loads(line)` without
+regex-parsing the human view. Combine with `--participate` to set `inject.sent`.
+
 ## Test vector (proves the full R2RX→route→INJECT loop)
 Feed these two `R2RX` frames in order; the second relays to the learned neighbour:
 ```
