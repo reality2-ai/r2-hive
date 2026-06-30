@@ -1,5 +1,39 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-30 — RECEIVER-STAOTA DELIVERED: console-persona-receiver (#14) + un-gated §7 BLE beacon (#13) — DONE+GREEN, ARTIFACTS STAGED
+Supervisor+composer GO (the gating deliverable for Roy's BLE-beacon test). Both features built, xtensa-green,
+committed, pushed on `dfr1195-fw`; both staota artifacts rebuilt with creds and staged on Alfred. ONE bootstrap
+full-flash per board now delivers BOTH the beacon (to test) AND remote-provisioning-forever (no more download mode).
+- **Firmware HEAD (`dfr1195-fw`, base r2-core c46383e):**
+  - `30e0ff5` console-persona-receiver (#14) — `handle_persona_cmd` (PERSONA BEGIN / PERSONA <128hex>×N / PERSONA END
+    → parse_persona-validate → store@0x12000 → read-back → ACK `PERSONA OK <hive>`; RPF1 <96hex>→@0x17000;
+    BOARDPROF <4hex>→@0x13000; REBOOT→software_reset). WHITELISTED offsets, each VALIDATED. Wired into BOTH
+    `uart_rx_task` (running boards) AND the §3.5 INERT loop (fresh boards — usb_rx constructed in the diverging
+    branch, no double-take). uart_rx_task line buffer 128→160B. Fail-closed preserved (local USB only, validate-
+    before-write). Framing locked with composer's console-provision.py 311866c.
+  - `aa9088f` un-gated §7 BLE beacon (#13 emit) — EVERY board advertises encode_advert (was am_provider==
+    M7_PROVIDER_HIVE only). `advertise_beacon=true` for all non-blemesh ble builds; blemesh keeps the data-CoC
+    provider/joiner split. REGRESSION-GUARD: debug_assert the advert is a built R2-BEACON AD + every board logs
+    `BEACON adv up (§7, hive .. rbid ..)`. BINDS core's r2_discovery::beacon (no reimplement).
+- **Build-verify GREEN (xtensa):** #14 across field,loraroute,multitg,staota / field,loraroute,multitg / staota /
+  nobt. #13 across field,loraroute,multitg,staota / xiao,field,loraroute,loratcxo,multitg,staota / blemesh / staota.
+- **ARTIFACTS (staged, BUILD_ID `staota.0630.1200`, creds baked from ~/.config/r2-composer/wifi.env):**
+  `/home/roycdavies/r2-staota-artifacts/r2-dfr1195-DFR-staota.elf` + `…-XIAO-staota.elf` (~1330KB each, NOW-stamped;
+  NOTE: `cp` is aliased `-i` — staged with `\cp -f`). Partition table: `docs/dfr1195-partitions.csv`.
+- **PER-CARRIER FULL-FLASH CMD (supervisor/Roy runs it — espflash gate blocks hive+composer; VERIFY board identity
+  from boot banner / by-id MAC FIRST). Chained no-reset so the old app never boots mid-sequence (no write-bin hang);
+  erase clears STALE config (persona/runtime-TG@0x14000) → clean console-provision:**
+  `espflash erase-region --port $PORT --before default-reset --after no-reset 0x12000 0xE000`
+  `espflash flash --port $PORT --before no-reset --after hard-reset --partition-table docs/dfr1195-partitions.csv <DFR|XIAO .elf>`
+- **CRITICAL TEST ORDERING (verified: main.rs:187 INERT halt diverges, ble_task spawns at :505):** an UNPROVISIONED
+  board boots INERT and does NOT spawn ble_task → does NOT advertise the beacon (no identity to beacon = correct R2).
+  Sequence: erase+flash → INERT (receiver live) → composer console-provision.py installs persona → REBOOT →
+  provisioned → ble_task → `BEACON adv up` → BLE-scan sees it. So flash → provision → THEN scan.
+- **Follow-ons (NOT in this deliverable):** #13 §2.3B-on-beacon RX-gate (link-address keyed, R2-BEACON v0.9 — needs
+  core's beacon-ingress hook); reboot-to-download (secondary); #9 faked-distance re-vendor; #12 RouteEngine real-
+  weights telemetry. DO-NOT-ASSUME: the §2.3A per-available-transport mask-gating of the beacon EMIT still layers in
+  with transport_allow_mask (right now the beacon advertises whenever `ble` is up, not yet mask-gated).
+
 ## ► 2026-06-30 — INERT-LIVENESS FIX DONE+GREEN (firmware a2f1718→93453de) + latent emit_msg regression fixed
 Supervisor+composer GO'd the inert-liveness fidelity fix; LANDED at `93453de` (build-green xtensa across
 field,loraroute,multitg / field,loraroute,bridge,multitg / routetest / loraroute / nobt). r2-hive recovery patch

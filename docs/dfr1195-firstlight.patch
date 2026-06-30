@@ -2793,10 +2793,10 @@ index 0000000..c645602
 +    println!("cargo:rustc-env=R2_WIFI_PASS={pass}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..fc5cbad 100644
+index 8c49f1c..90cc9a6 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,4676 @@
+@@ -1,83 +1,4825 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -3014,27 +3014,54 @@ index 8c49f1c..fc5cbad 100644
 +        // This is serial-ONLY — build_health/log_health just format+print a buffer; we deliberately do NOT send
 +        // the mesh Event frame the live HEALTH path would, and tg=0 + ip=0.0.0.0 honestly mark "no trust group /
 +        // no network". Fail-closed is FULLY preserved (no radio, no TG adoption, no mesh participation).
++        // #14 REMOTE PROVISIONING: run the console PERSONA-RECEIVER in the INERT loop so a fresh/erased board
++        // can be provisioned over the console — NO download mode, NO boot button. Fail-closed PRESERVED: the
++        // console is local USB only (no radio/mesh), and handle_persona_cmd parse_persona-VALIDATES +
++        // whitelist-offset-checks before any flash write. Constructing usb_rx HERE is safe: this branch diverges
++        // (loop never returns), so the non-inert path's usb_rx at ~line 461 is mutually exclusive (no double-take).
++        let (mut usb_rx, _usb_tx) = UsbSerialJtag::new(p.USB_DEVICE).split();
 +        let mut inert_seq: u32 = 0;
 +        let mut hbuf = [0u8; 96];
++        let mut line = [0u8; 160];
++        let mut n = 0usize;
++        let mut paccum = [0u8; 512];
++        let mut paccum_len = 0usize;
++        let mut idle_ticks: u32 = 300; // emit the first liveness promptly on the first idle poll
 +        loop {
-+            // wire_id = mac_low3 (the board's real pre-persona identity) so the dashboard can identify the board;
-+            // it switches to the persona hive_id once provisioned (an honest inert→provisioned transition).
-+            if let Some(hn) = build_health(
-+                &mut hbuf, my_hive, 0, false, false,
-+                Ipv4Address::new(0, 0, 0, 0), false, 0, inert_seq,
-+            ) {
-+                log_health(&hbuf[..hn]);
++            // Drain the console first: PERSONA/RPF1/BOARDPROF/REBOOT (#14). Byte-flowing → loop immediately
++            // (drain fast); on REBOOT after a stored persona → reset → read_persona@0x12000 → exits INERT.
++            if let Ok(c) = usb_rx.read_byte() {
++                if c == b'\n' || c == b'\r' {
++                    if n > 0 && handle_persona_cmd(&line[..n], &mut paccum, &mut paccum_len) {
++                        esp_hal::system::software_reset();
++                    }
++                    n = 0;
++                } else if n < line.len() {
++                    line[n] = c;
++                    n += 1;
++                }
++                continue;
 +            }
-+            // role=inert status line (composer parses status for role) — explicit unprovisioned marker.
-+            println!(
-+                "r2-dfr1195: status beats=0 dlv=0 blk=0 synced=false nbrs=0 cond=000000 spread_ms=0 fw={FW_VERSION} role=inert"
-+            );
-+            // operator-readable notice ~every 30s (5 × 6s).
-+            if inert_seq % 5 == 0 {
-+                println!("r2-dfr1195: §3.5 INERT (field, unprovisioned) — radio OFF, no TG, awaiting persona.bin @0x12000");
++            // Console idle — emit the inert-liveness ~every 6s (≈300 × 20ms idle ticks; under composer's 12s
++            // grey threshold). wire_id = mac_low3 (pre-persona id); tg=0 + ip=0 = honest no-TG/no-net.
++            idle_ticks += 1;
++            if idle_ticks >= 300 {
++                idle_ticks = 0;
++                if let Some(hn) = build_health(
++                    &mut hbuf, my_hive, 0, false, false,
++                    Ipv4Address::new(0, 0, 0, 0), false, 0, inert_seq,
++                ) {
++                    log_health(&hbuf[..hn]);
++                }
++                println!(
++                    "r2-dfr1195: status beats=0 dlv=0 blk=0 synced=false nbrs=0 cond=000000 spread_ms=0 fw={FW_VERSION} role=inert"
++                );
++                if inert_seq % 5 == 0 {
++                    println!("r2-dfr1195: §3.5 INERT (field, unprovisioned) — radio OFF, no TG, awaiting persona over console (PERSONA/RPF1/BOARDPROF/REBOOT) or persona.bin @0x12000");
++                }
++                inert_seq = inert_seq.wrapping_add(1);
 +            }
-+            inert_seq = inert_seq.wrapping_add(1);
-+            Timer::after(Duration::from_secs(6)).await;
++            Timer::after(Duration::from_millis(20)).await;
 +        }
 +    }
 +    // 2-TG (#20): a runtime-PROVISIONED key (NVS @0x14000) OVERRIDES the persona/demo TG. my_hive
@@ -3121,7 +3148,10 @@ index 8c49f1c..fc5cbad 100644
 +    let timg0 = TimerGroup::new(p.TIMG0);
 +    let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
 +    esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +    println!("r2-dfr1195: PHASE 1a — esp-rtos/embassy + esp-radio (build {BUILD_ID})");
 +    println!(
 +        "r2-dfr1195: DEV {mac_low3:06x} hive={my_hive:08x} TG={tg_label} (persona={}) role={}",
@@ -3129,7 +3159,12 @@ index 8c49f1c..fc5cbad 100644
 +        if is_ap { "SOFT-AP" } else { "STA" }
 +    );
 +    println!("r2-dfr1195: carrier has_screen={has_screen} led_active_low={led_active_low}");
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +    // 4. Status LED (GPIO21) via LEDC PWM — for the organic lub-DUB heartbeat envelope.
 +    //    io_task signals the FIRE (conductor-PLL = WHEN); main renders the SHAPE below.
 +    let mut ledc = Ledc::new(p.LEDC);
@@ -3156,7 +3191,41 @@ index 8c49f1c..fc5cbad 100644
 +    // the DE/RE Output here (real pins from Roy), spawn ONLY the probe, and PARK — the radio/mesh region
 +    // below is never reached. Build: cargo build --release --features radarprobe. Pins: see RADAR_* consts.
 +    #[cfg(feature = "radarprobe")]
-+    {
+     {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +        use radarprobe::{radar_cfg, radar_probe_task, RADAR_BAUDS, RADAR_DE_RE, RADAR_PARITIES, RADAR_UART_RX, RADAR_UART_TX};
 +        use esp_hal::uart::Uart;
 +        println!("r2-dfr1195: RADARPROBE — radio stack OFF; UART1 RS-485 Modbus sweep (TX=GPIO{} RX=GPIO{} DE/RE=GPIO{})",
@@ -3692,8 +3761,10 @@ index 8c49f1c..fc5cbad 100644
 +    if profile.role == Role::Receiver && profile.expected_sensor != 0 {
 +        let _ = sensor_seen.push((profile.expected_sensor, route_now_s(), false));
 +    }
-+
-+    loop {
+ 
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        // 2-TG (#20): install a runtime re-PROVISION (uart_rx_task validated + persisted it to NVS).
 +        // Swap the live GroupHmac + target_group so the deliver-gate (B1) + TG-scoped sends use the new
 +        // key WITHOUT a reboot. The engine retains no key (R2-RUNTIME §13.2) — we take it from the conduit.
@@ -4781,6 +4852,103 @@ index 8c49f1c..fc5cbad 100644
 +    }
 +}
 +
++// ─── Console persona-receiver (#14, REMOTE provisioning over the console — NO download mode) ───────────
++// Mirrors write_provisioned_tg's self-write-from-the-running-app path, but writes the IDENTITY records the
++// §3.5 boot reads: persona @0x12000 (exits INERT), RPF1 role-profile @0x17000, board-profile @0x13000.
++// WHITELISTED offsets only, each VALIDATED before commit (persona via r2_trust::parse_persona, RPF1 via the
++// RPF1 magic) — NEVER a generic write-anywhere. Used by BOTH uart_rx_task AND the §3.5 INERT loop (a fresh
++// inert board must accept its persona before it spawns any other task). The app runs from ota_0@0x20000, so
++// writing the 0x12000-0x17000 config gap is a different flash region (safe), same as write_provisioned_tg.
++fn hex_nib(c: u8) -> Option<u8> {
++    match c {
++        b'0'..=b'9' => Some(c - b'0'),
++        b'a'..=b'f' => Some(c - b'a' + 10),
++        b'A'..=b'F' => Some(c - b'A' + 10),
++        _ => None,
++    }
++}
++/// Decode hex into a fixed buffer; returns byte count or Err on bad hex / overflow.
++fn decode_hex_into(hex: &[u8], out: &mut [u8]) -> Result<usize, ()> {
++    if hex.len() % 2 != 0 || hex.len() / 2 > out.len() {
++        return Err(());
++    }
++    for (i, pair) in hex.chunks_exact(2).enumerate() {
++        out[i] = (hex_nib(pair[0]).ok_or(())? << 4) | hex_nib(pair[1]).ok_or(())?;
++    }
++    Ok(hex.len() / 2)
++}
++/// Raw-flash store + read-back verify (mirrors write_provisioned_tg) for a whitelisted config offset.
++fn store_blob_verify(offset: u32, bytes: &[u8]) -> bool {
++    use embedded_storage::{ReadStorage, Storage};
++    let mut flash = esp_storage::FlashStorage::new();
++    if bytes.len() > 512 || flash.write(offset, bytes).is_err() {
++        return false;
++    }
++    let mut rb = [0u8; 512];
++    if flash.read(offset, &mut rb[..bytes.len()]).is_err() {
++        return false;
++    }
++    rb[..bytes.len()] == *bytes
++}
++/// Handle ONE console persona-provision command line. Accumulates the chunked PERSONA, validates + stores the
++/// records to whitelisted offsets, ACKs on serial (composer's streamer waits for these exact strings). Returns
++/// true iff REBOOT was requested (caller resets → read_persona@0x12000 → exits INERT). NOT cfg-gated — used by
++/// uart_rx_task (running boards) + the §3.5 INERT loop (fresh boards).
++fn handle_persona_cmd(line: &[u8], accum: &mut [u8; 512], accum_len: &mut usize) -> bool {
++    if line == b"PERSONA BEGIN" {
++        *accum_len = 0;
++    } else if line == b"PERSONA END" {
++        match r2_trust::parse_persona(&accum[..*accum_len]) {
++            Some(p) => {
++                if store_blob_verify(PERSONA_OFFSET, &accum[..*accum_len]) {
++                    println!("r2-dfr1195: PERSONA OK {:08x}", p.hive_id);
++                } else {
++                    println!("r2-dfr1195: PERSONA ERR verify");
++                }
++            }
++            None => println!("r2-dfr1195: PERSONA ERR parse"),
++        }
++    } else if let Some(hex) = line.strip_prefix(b"PERSONA ") {
++        let nbytes = hex.len() / 2;
++        if hex.len() % 2 != 0 || *accum_len + nbytes > accum.len() {
++            println!("r2-dfr1195: PERSONA ERR len");
++        } else if decode_hex_into(hex, &mut accum[*accum_len..*accum_len + nbytes]).is_ok() {
++            *accum_len += nbytes;
++        } else {
++            println!("r2-dfr1195: PERSONA ERR hex");
++        }
++    } else if let Some(hex) = line.strip_prefix(b"RPF1 ") {
++        let mut b = [0u8; 48];
++        match decode_hex_into(hex, &mut b) {
++            Ok(48) if u32::from_be_bytes([b[0], b[1], b[2], b[3]]) == ROLE_PROFILE_MAGIC => {
++                if store_blob_verify(ROLE_PROFILE_OFFSET, &b) {
++                    println!("r2-dfr1195: RPF1 OK");
++                } else {
++                    println!("r2-dfr1195: RPF1 ERR verify");
++                }
++            }
++            Ok(48) => println!("r2-dfr1195: RPF1 ERR magic"),
++            _ => println!("r2-dfr1195: RPF1 ERR hex"),
++        }
++    } else if let Some(hex) = line.strip_prefix(b"BOARDPROF ") {
++        let mut b = [0u8; 2];
++        match decode_hex_into(hex, &mut b) {
++            Ok(2) => {
++                if store_blob_verify(BOARD_PROFILE_OFFSET, &b) {
++                    println!("r2-dfr1195: BOARDPROF OK");
++                } else {
++                    println!("r2-dfr1195: BOARDPROF ERR verify");
++                }
++            }
++            _ => println!("r2-dfr1195: BOARDPROF ERR hex"),
++        }
++    } else if line == b"REBOOT" {
++        println!("r2-dfr1195: REBOOT (console-provision) — restarting");
++        return true;
++    }
++    false
++}
++
 +// ─── R2-RUNTIME §3.2 — device role as an ensemble PROFILE (one signed image, config-activated) ───
 +// Roy's keystone (re-orient 2026-06-26): ONE no_std image; the ENSEMBLE differentiates, NOT the firmware
 +// and NOT a compile-time-baked role. The four canonical profiles (§3.2.1) — sensor / repeater / bridge /
@@ -5369,7 +5537,21 @@ index 8c49f1c..fc5cbad 100644
 +    let am_provider = my_hive == M7_PROVIDER_HIVE;
 +    let peer_hive: u32 = if am_provider { 0x2cab_5f69 } else { M7_PROVIDER_HIVE };
 +    push_scan_obs(peer_hive, true, 0); // inject the peer (provider_capable, power Normal) so the engine sees it
-+    if am_provider {
++    // §7 BLE-BEACON spec MUST (UN-GATE, was: only am_provider==M7_PROVIDER_HIVE — a 2-board M8b scaffold that
++    // left every field board silent): EVERY board advertises its encode_advert §7 beacon so a scanner discovers
++    // every R2 board. The advert is connectable+scannable so it ALSO serves the CoC. Driven by BLE-transport
++    // availability (this task runs only when `ble` is up; the §2.3A per-available-transport mask-gating layers
++    // in with transport_allow_mask). blemesh keeps the data-CoC provider/joiner split (beacon-on-both =
++    // follow-on); every other ble build advertises on every board.
++    // REGRESSION-GUARD: the advert MUST be a built R2-BEACON AD (manufacturer 0xFF + non-empty payload) — assert
++    // it so a refactor that drops encode_advert fails loudly (paired with core's r2_discovery codec round-trip
++    // test + a bench BLE-scan integration check that every board's beacon is visible).
++    debug_assert!(alen > 5 && adv[4] == 0xFF, "R2-BEACON §7 advert not built");
++    #[cfg(not(feature = "blemesh"))]
++    let advertise_beacon = true;
++    #[cfg(feature = "blemesh")]
++    let advertise_beacon = am_provider;
++    if advertise_beacon {
 +        let work = async {
 +            loop {
 +                let advertiser = match peripheral
@@ -5386,7 +5568,7 @@ index 8c49f1c..fc5cbad 100644
 +                        continue;
 +                    }
 +                };
-+                println!("r2-dfr1195: NEG provider connectable-adv (hive {my_hive:08x})");
++                println!("r2-dfr1195: BEACON adv up (§7, hive {my_hive:08x} rbid {:02x}{:02x}{:02x}..) — every-board un-gated", rbid[0], rbid[1], rbid[2]);
 +                let conn = match advertiser.accept().await {
 +                    Ok(c) => c,
 +                    Err(_) => continue,
@@ -6001,10 +6183,7 @@ index 8c49f1c..fc5cbad 100644
 +    Output<'static>,
 +    Delay,
 +>;
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +#[cfg(feature = "lora")]
 +// ─── R2-BEACON §8.1 — the LoRa discovery beacon (RBID, NO hive_id, NO counter) ──────────────────────
 +// The km-range active-discovery signpost (§8.1). Replaces the interim `[hive_id_be32 | seq]` 8-byte beacon
@@ -6020,12 +6199,7 @@ index 8c49f1c..fc5cbad 100644
 +const LORA_BEACON_CORE_LEN: usize = 15;
 +#[cfg(feature = "lora")]
 +const LORA_BEACON_T_ROTATE_S: u64 = 3600; // §8.1.3 LoRa T_rotate = 1 h (sparse/airtime-bounded cadence)
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +/// FNV-1a-32 of the class string (§4) → the beacon `class_hash`.
 +#[cfg(feature = "lora")]
 +fn fnv1a32(s: &[u8]) -> u32 {
@@ -6100,41 +6274,7 @@ index 8c49f1c..fc5cbad 100644
 +    if (p.len() != LORA_BEACON_CORE_LEN && p.len() != LORA_BEACON_CORE_LEN + 1)
 +        || p[0] != R2_BEACON_MAGIC
 +        || p[1] != BEACON_VERSION
-     {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
--    }
--
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++    {
 +        return None;
 +    }
 +    let mut rbid = [0u8; 8];
@@ -6143,7 +6283,7 @@ index 8c49f1c..fc5cbad 100644
 +    let tx_power = if p.len() == LORA_BEACON_CORE_LEN + 1 { Some(p[15] as i8) } else { None };
 +    Some((rbid, class_hash, tx_power))
 +}
- 
++
 +#[cfg(feature = "lora")]
 +#[embassy_executor::task]
 +async fn lora_task(
@@ -6172,9 +6312,7 @@ index 8c49f1c..fc5cbad 100644
 +    }
 +    rxen.set_high();
 +    let _ = radio.listen();
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++    loop {
 +        // listen ~3s
 +        for _ in 0..30 {
 +            match radio.poll() {
@@ -6513,8 +6651,10 @@ index 8c49f1c..fc5cbad 100644
 +    let bcast = IpEndpoint::new(IpAddress::Ipv4(Ipv4Address::new(192, 168, 4, 255)), R2_UDP_PORT);
 +    // 128 B: an IDENTIFY line is short, but a PROVISION line is ~94 B ("PROVISION " + 8-hex wire +
 +    // decimal tg_id + 64-hex key) — a 64 B buffer truncated the key → BadKeyLength (metal-found).
-+    let mut line = [0u8; 128];
++    let mut line = [0u8; 160]; // 160B: holds the longest persona-receiver line 'PERSONA <128hex>' (136 chars)
 +    let mut n = 0usize;
++    let mut paccum = [0u8; 512]; // #14 console-persona accumulator (chunked PERSONA → ≤512B record)
++    let mut paccum_len = 0usize;
 +    loop {
 +        if let Ok(c) = usb_rx.read_byte() {
 +            if c == b'\n' || c == b'\r' {
@@ -6588,7 +6728,16 @@ index 8c49f1c..fc5cbad 100644
 +                            }
 +                        }
 +                    }
-+                    if !is_provision && !is_mask && !is_sendto {
++                    // Console persona-receiver (#14): PERSONA/RPF1/BOARDPROF/REBOOT = REMOTE provisioning, NO
++                    // download mode. handle_persona_cmd validates + stores to the whitelisted offsets + ACKs.
++                    let is_persona = line[..n].starts_with(b"PERSONA")
++                        || line[..n].starts_with(b"RPF1 ")
++                        || line[..n].starts_with(b"BOARDPROF ")
++                        || line[..n].starts_with(b"REBOOT");
++                    if is_persona && handle_persona_cmd(&line[..n], &mut paccum, &mut paccum_len) {
++                        esp_hal::system::software_reset();
++                    }
++                    if !is_provision && !is_mask && !is_sendto && !is_persona {
 +                    if let Some((target, on)) = parse_identify(&line[..n]) {
 +                        let payload = [u8::from(on)];
 +                        let hdr = ExtendedHeader {
