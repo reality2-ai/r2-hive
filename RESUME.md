@@ -8,6 +8,25 @@ board's INERT path is now IDENTICAL to the pre-.1408 staota that DID boot on D5 
 desk re-test (load .1659 → INERT-liveness → download-mode-provision 89e83d99 → provisioned → beacon → scan).
 DEFERRED: in-INERT REMOTE provisioning (console-store on a fresh board) — re-add AFTER esp_rtos::start (post-init
 context) + desk-validate. Fresh boards provision via download-mode meanwhile.
+
+### 2026-06-30 — D3/.1659 METAL READ (supervisor): blank-INERT is EXPECTED, NOT a fault + NEW DEFECT found
+Supervisor flashed D3 (B6:0A:A0) with .1659 --flash-only (unprovisioned): enumerates on USB (CPU stage running),
+but BLANK LCD + NO LED + console SILENT (0 bytes/35s incl. RST taps), and — crucially — STABLE on USB / NOT
+boot-looping (unlike .1408). My read (verified vs source + the artifact's compiled `field` strings):
+- **BLANK LCD + NO LED = EXPECTED for field-INERT, not a red flag.** INERT halts at main.rs:187-223; LCD init
+  (read_board_profile L234) + LED config (LEDC/GPIO21 L319) both run AFTER it → an unprovisioned field board never
+  reaches them.
+- **NEW DEFECT (root of the silence, structurally confirmed):** the INERT loop awaits `Timer::after(6s)` at L221,
+  but `esp_rtos::start()` (registers the embassy time driver) is at L307 — AFTER the loop. So a field-INERT board
+  prints ONE boot burst (ota_slot_report + §3.5 UNPROVISIONED-FAIL-CLOSED + first INERT beat) then DEADLOCKS on a
+  timer that never fires. Liveness is a single boot burst, NOT a repeating 6s stream → composer greys it after 12s.
+  This MATCHES D3's signature (stable USB, not looping, silent+dark = parked in the deadlock). Does NOT match a
+  boot failure. So .1659 is very likely booting D3 correctly into INERT.
+- **DECISIVE TEST (supervisor running):** provision D3 --in-download. Expect LCD+beacon → .1659 good. If still dark
+  → deeper bug, escalate.
+- **FIX (converges with the deferred in-INERT-receiver re-add): move `esp_rtos::start` ABOVE the INERT block** so
+  embassy_time is driven inside INERT (repeating liveness works) AND the post-init context lets the in-INERT
+  console-receiver be safely re-added. Single reorder fixes both. Pending .1659 confirmation + desk-validate.
 **DO NOT flash .1408 to a FRESH/unprovisioned board (use .1659).** Metal result (supervisor): D5 (the only board imaged with
 .1408) boot-loops/goes silent — drops USB-JTAG + stays absent, 0 passive console bytes, no BLE beacon. The other 9
 (older firmware) are stably present (clean differential = firmware regression in .1408).
