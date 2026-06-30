@@ -24,9 +24,13 @@ USB_UART_CHIP_RESET → boot DOWNLOAD' = ESP32-S3 ROM host DTR/RTS download trig
 reboot_to_download) the sticky force_download_boot bit. NOT my app code. Core: no esp-hal disable for the host
 trigger (raw PAC write only; it disables over-USB auto-reset, reboot_to_download replaces it); eFuses off-limits
 (permanent). PLAN (core's order): clear-at-boot DONE → composer re-tests console-open → add PAC register-disable
-ONLY if it still resets. **FLAG (re-image escape gap):** a board PARKED in download never runs the app, so
-clear-at-boot can't free it → remote re-image still needs a power-cycle or tool-side bit-clear; field-recovery
-procedure decision is composer/supervisor's. Observe beacons by BLE scan, NOT console-open (still resets).
+ONLY if it still resets. **RE-IMAGE ESCAPE GAP (answered to composer):** depends how the board entered download.
+PRIMARY path (esptool DTR/RTS auto-reset enters download — works remotely, = the console-open-reset behavior):
+force_download_boot NOT set → `--after hard-reset` boots app → clear-at-boot fires → NO gap, no tool change.
+reboot_to_download path (bit SET): EN-toggle hard-reset preserves the always-on RTC bit → re-enters download;
+escape via (i) POWER-CYCLE (clears always-on RTC; recommended) or (ii) tool register-clear RTC_CNTL_OPTION1_REG
+≈0x6000_8128 bit0 (CONFIRM vs S3 TRM before hardcoding). So the gap is reboot_to_download-only; composer owns
+flash-board.sh's choice. Observe beacons by BLE scan, NOT console-open (still resets).
 **DARK-LCD on provisioned D3 (task #13): RESOLVED = NON-BUG.** Roy clarified D3's screen shows content; the "dark"
 was only while D3 sat in the BOOTLOADER (no app running). Provisioned app renders fine. Firmware confirms: 0xFF
 (erased, what a DFR's 0x13000 has) → `b[0] != 0x00` → has_screen=TRUE → display inits. NOT board-profile. Do NOT
@@ -42,11 +46,11 @@ atomics) / L5 'nbrs:N ADV+' / L6 sync. Human label 'D3' on L2 = pending composer
 | clear force_download_boot | ✅ ca24915 |
 | class_hash structure (role-class, BE) | ✅ 6323f29 |
 | class_hash canonical strings (v0.16 §4.1) | ✅ 765c948 (ai.reality2.device.*; repeater 00FC1F17 / sensor 43895E89 / bridge B52C9F26 / receiver 17F3554A BE) |
-| LCD TN-READY render | ✅ 64bc0be (human-label NVS pending composer) |
+| LCD TN-READY + human-label | ✅ 64bc0be render + 712fc34 NVS-label read (composer confirmed + writes 'D3' @0x18000 [LBL1][len][utf8]; L2 hex-fallback) |
 | Company-ID 0xFFFF prepend | ✅ 5e57aeb (was THE beacon-regression root cause: omitted prepend → 0x01B2 off-by-2; now §7.3 [FF FF][magic 0xB2 @ AD-off 4]) |
 | BLE address opacity | ⏳ sent composer the canonical RBID-derivation algo (HKDF-Expand→session_key, HMAC→rbid[0:8], epoch=0, shared hk+hive_id); flip address (random NVS-persisted) once their resolver matches D3's rbid + acks [#16] |
-**STATE: 6/8 done — §7-FUNCTIONALLY complete + discoverable.** Remaining 2 composer-gated: address-opacity
-(composer RBID-resolver) + human-label (composer NVS write). **SUPERVISOR DECISION: HOLD .1659, DON'T stage —
+**STATE: 7/8 done — §7-FUNCTIONALLY complete + discoverable + human-legible.** Only BLE address-opacity remains
+(gated on composer's RBID-resolver). **SUPERVISOR DECISION: HOLD .1659, DON'T stage —
 deliver the FULL bundle via OTA, not a piecemeal desk session.** Rationale: OTA not ready (composer design-only)
 → shipping 6 now = a desk session + the 2 fast-follow = a 2nd session = more desk work for no urgency (bench
 works fine on .1659; observer tolerates both company-id forms; download landmine not triggered). composer is
