@@ -1,5 +1,30 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — OTA-IN-WASM: pure OTA plugin+sentant (increment-3) + wasm nodes OTA each other [task #25 DONE]
+**Directive:** wasm hives ACT LIKE REAL HW incl OTA; the wasm OTA-as-plugin+sentant IS the increment-3 PURE OTA form
+(one piece of work advances both). core CONFIRMED the OTA stack runs wasm32 (r2-update verify-only, no getrandom) +
+flagged the combined-graph build-verify (DONE @77c8621). TEST/validation — NOT a substitute for the held codex
+refute of `ota_receive_over_coc`.
+**DELIVERED @f7a0f0d (r2-hive-wasm v0.4.0):**
+- `r2-hive-core::ensemble` (shared): `FlashSink` trait (the ONLY per-platform seam) + `MemSink` (wasm in-mem
+  image). `OtaPlugin<S:FlashSink>` impl `r2_engine::Plugin` — OST→`verify_header`, ODT→`pv.update`+`sink.write`,
+  OCM→`pv.finish`+`finalize`, reusing r2_update verify_header/PayloadVerifier/Ed25519/4-gate/anti-rollback
+  VERBATIM (verify-before-write: a bad image never finalizes). Buffers `r2.update.progress`, drained via `poll()`.
+  `OtaSentant` (control): OST/ODT/OCM→PluginCall, re-broadcast PROGRESS. Event hashes: OST=0xe9444700
+  ODT=0xeb1afc1f OCM=0xe21d2c8b PROGRESS=0x7b241625 (HB=0x67ec1945). progress payload=[phase][done BE32][total
+  BE32][reason]; phase 0=START_OK 1=DATA 2=VERIFIED 3=APPLIED 0xFF=REJECT.
+- `r2-hive-wasm` v0.4.0: `WasmHive::withOta(hive_id, tg_pk)` (OTA-capable receiver), `startOta(target, pkg)`
+  (updater → OST/ODT*/OCM frames, chunk 200), `deliver_event` now runs the full bus cycle (loops poll_plugins+tick
+  so multi-progress OCM=VERIFIED+APPLIED both surface) → returns `{frames:[…]}` incl progress.
+- **VERIFIED:** ota_plugin_verifies_and_applies (real signed pkg → APPLIED + image written) + rejects_tampered +
+  rejects_replayed_seq + **ota_over_wasm_mesh_e2e** (updater.startOta→receiver.withOta.deliver_event→APPLIED).
+  wasm32 + host workspace clean; startOta/withOta in web .d.ts. composer has the live API + hashes + progress shape.
+**NEXT PHASE [task #26]:** full-real-stack production no-radio hive (web/WS + UDP) + refutation instrument — real
+r2-trust in wasm (TG/GroupHmac, derive_peering_keys, deliver-gate, L5) + real WS + UDP transports (coordinate
+core's udp). Radio-less tier (MCU=radio / host+browser=IP), reaching radio hives via the Alfred carrier.
+**OTA codex refute (ota_receive_over_coc) STILL HELD — separate from this wasm validation.**
+
+
 ## ✅ 2026-07-01 — UNIFIED ENSEMBLE increment-1: HB sentant on the EventBus (shared core + wasm) [task #25]
 **Directive (Roy/supervisor):** make wasm-sim hives run the SAME basic ensemble as the DFR1195 (sentants/plugins on
 the r2_engine EventBus — HB + provisioning/TG + OTA plugin+sentant), over the wasm virtual-mesh bearer. The wasm
