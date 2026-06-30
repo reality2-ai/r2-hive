@@ -24,6 +24,18 @@ r2-trust in wasm (TG/GroupHmac, derive_peering_keys, deliver-gate, L5) + real WS
 core's udp). Radio-less tier (MCU=radio / host+browser=IP), reaching radio hives via the Alfred carrier.
 **OTA codex refute (ota_receive_over_coc) STILL HELD — separate from this wasm validation.**
 
+### convergence @1a8f7a9 — applied core's OTA-plugin ruling (OTA_PLUGIN_SHAPE.md a53a07b)
+core RULED the canonical OTA-plugin shape; supervisor CORRECTED the doc (IGNORE the experimental
+`r2-update::SignedOtaApply`/`ImageSink` orphan — it breaks r2-update's verify-only layering; r2-update stays
+VERIFY-ONLY; the EXISTING `r2-hive-core::ota::FirmwareSink` is the one canonical seam). Converged: dropped the
+ad-hoc `FlashSink` I'd introduced → `OtaPlugin<S: ota::FirmwareSink>` (slot_capacity/begin/write_chunk/finalize/
+abort); MemSink impls FirmwareSink (wasm RAM); board esp_ota_* impl = the firmware (a)-refactor later (one plugin,
+sink swaps). Sequence per doc §2: verify_header → TOO_BIG precheck → begin → per-chunk{PayloadVerifier::update THEN
+write_chunk} → finish → finalize; `sink.abort()` on EVERY reject. NO wire/API change → composer's OTA UX (ecbad9f)
+stays live (OST/ODT/OCM = CMD_START_SIGNED datagram-framed; verify contract = r2-update verbatim). RNG note (core):
+verify/deliver-gate/membership = no RNG (my OTA path is verify-only); in-wasm key-MINTING (provisioning/TG-join)
+needs caller-injected RNG (getrandom-js browser / seeded ChaCha for deterministic refutation runs) → lands in #26.
+
 
 ## ✅ 2026-07-01 — UNIFIED ENSEMBLE increment-1: HB sentant on the EventBus (shared core + wasm) [task #25]
 **Directive (Roy/supervisor):** make wasm-sim hives run the SAME basic ensemble as the DFR1195 (sentants/plugins on
