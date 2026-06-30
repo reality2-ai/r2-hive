@@ -1,5 +1,18 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — r2-hive-wasm v0.2.0: in-wasm R2-WIRE encode helpers (composer's bench-sim ask)
+composer's browser wasm-SIM (de95e1e, webapp/bench-sim.html) is FUNCTIONING on r2-hive-wasm @71b2b32 — N WasmHive
+nodes flood real frames over a virtual mesh, headless-verified (floods=5, real loop-prevention). They asked for
+per-node frame origination (so each node floods its OWN HB with proper origin, not the fixed aa→bb test vector).
+**SHIPPED `6f3b96a` (v0.2.0):** `WasmHive.build_heartbeat(seq)->Uint8Array` (origin=self in route stack, payload=
+self hive_id BE32 = firmware HB wire form) + `build_frame(target_hive,event_hash,payload,seq)->Uint8Array` (generic
+Event). Both use the SAME `r2_wire::encode_extended` the firmware uses ⇒ sim traffic WIRE-IDENTICAL to real-HW (sim
++ carrier tier speak the same bytes). r2-wire promoted dev-dep→dep. version()→"0.2.0". Verified: `encode_helpers_
+roundtrip` (A's HB/Event parse+route on node B) + wasm32 green + API in web .d.ts. Notified composer; offered
+build_reply / TG-tagged HB variants. composer also wiring the carrier-bridge (R2RX→wasm→INJECT) host-reader into
+the same bench view = real-HW carrier tier + wasm-sim rendering together.
+
+
 ## ✅ 2026-07-01 — host CARRIER-BRIDGE: DFR1195 carrier ↔ wasm-hive ↔ R2 mesh (loop CLOSED, staged on Alfred)
 **Supervisor DO:** (i) scp carrier ELF→Alfred, (iii) write the host-bridge (R2RX→wasm-hive route→INJECT) with the
 DTR hazard "impossible to get wrong"; + confirm the running boards already ESP-NOW-mesh+HB (→ carrier flash alone
