@@ -162,9 +162,15 @@ pub struct OtaConfig {
     pub carrier_hash: u32,
     pub tg_prefix: [u8; 8],
     pub device_id_prefix: [u8; 8],
+    /// Anti-rollback replay floor (R2-UPDATE §10.1#3): an update with seq <= this is
+    /// rejected. ADVANCED after each successful apply (F1 fix). The board persists this
+    /// to NVS; the wasm sim holds it in RAM (the node-session floor).
     pub current_seq: u32,
     pub battery_pct: u8,
     pub tg_pk: [u8; 32],
+    /// OTA-authority epoch floor (§9.4a anti-rollback backstop). Bumped to the accepted
+    /// authority_epoch on a cert-signed apply.
+    pub authority_epoch_floor: u32,
 }
 impl OtaConfig {
     fn ctx(&self) -> DeviceContext<'_> {
@@ -178,10 +184,15 @@ impl OtaConfig {
             tg_pk: self.tg_pk,
             update_authority_certs: &[],
             revocation_gset: &[],
-            authority_epoch_floor: 0,
+            authority_epoch_floor: self.authority_epoch_floor,
         }
     }
 }
+
+/// Hard cap on a single OTA image (F2): reject an absurd signed `payload_len` BEFORE
+/// buffering, and bound the ODT buffer to it. A real board uses its actual inactive-
+/// slot capacity; the wasm sim uses this fixed ceiling.
+const OTA_MAX_IMAGE: u32 = 4 * 1024 * 1024;
 
 fn progress(phase: u8, done: u32, total: u32, reason: u8) -> [u8; 10] {
     let mut p = [0u8; 10];
@@ -219,15 +230,24 @@ impl<S: ImageSink> OtaApplier<S> {
     pub fn sink(&self) -> &S {
         &self.sink
     }
+    /// This node's current anti-rollback floor (advanced after each apply — F1).
+    pub fn current_seq(&self) -> u32 {
+        self.cfg.current_seq
+    }
+    /// Clear per-transfer state (after commit/reject) so a stale OST/ODT/OCM-replay
+    /// can't re-drive the buffered image (F1).
+    fn reset(&mut self) {
+        self.ost.clear();
+        self.buf.clear();
+        self.header_ok = false;
+        self.total = 0;
+    }
 
     /// OST: stash header‖sig + an EARLY `verify_header` for fast reject feedback (the
     /// authoritative verify+apply runs on commit via `SignedOtaApply`). Returns a
     /// progress record.
     pub fn on_ost(&mut self, data: &[u8]) -> [u8; 10] {
-        self.ost.clear();
-        self.buf.clear();
-        self.header_ok = false;
-        self.total = 0;
+        self.reset();
         if data.len() < HEADER_LEN + SIG_LEN {
             return progress(PH_REJECT, 0, 0, 0);
         }
@@ -236,14 +256,20 @@ impl<S: ImageSink> OtaApplier<S> {
         let sig = &self.ost[HEADER_LEN..HEADER_LEN + SIG_LEN];
         match verify_header(header, sig, &self.cfg.ctx()) {
             Ok(vh) => {
+                let plen = vh.payload_len as u32;
                 // A7/A8 type-confusion gate: a validly-SIGNED DIFF(0x02)/RECOVERY(0x0B)
                 // must NOT install as a FULL image. verify_header does NOT gate
                 // payload_type (r2-update lib.rs:127 — the receiver MUST). Reject early
                 // here; SignedOtaApply re-enforces it at commit (gate can't be omitted).
                 if vh.payload_type != PT_FIRMWARE_FULL {
-                    return progress(PH_REJECT, 0, vh.payload_len as u32, reject_reason(VerifyError::BadHeader));
+                    return progress(PH_REJECT, 0, plen, reject_reason(VerifyError::BadHeader));
                 }
-                self.total = vh.payload_len as u32;
+                // F2: TOO_BIG precheck — reject an absurd signed payload_len BEFORE any
+                // buffering (bounds the ODT buffer below; anti-OOM).
+                if plen > OTA_MAX_IMAGE {
+                    return progress(PH_REJECT, 0, plen, 0x70); // sink-reason space (TOO_BIG)
+                }
+                self.total = plen;
                 self.header_ok = true;
                 progress(PH_START_OK, 0, self.total, 0)
             }
@@ -252,39 +278,61 @@ impl<S: ImageSink> OtaApplier<S> {
     }
 
     /// ODT: buffer one payload chunk (unverified — verification happens on commit).
+    /// F2: bound the buffer to the signed `payload_len` — an ODT that overruns it
+    /// (replay-OST-then-flood) is rejected + closes the transfer (anti-OOM).
     pub fn on_odt(&mut self, chunk: &[u8]) -> [u8; 10] {
-        if self.header_ok {
-            self.buf.extend_from_slice(chunk);
+        if !self.header_ok {
+            return progress(PH_DATA, self.buf.len() as u32, self.total, 0);
         }
+        if self.buf.len() + chunk.len() > self.total as usize {
+            self.reset();
+            return progress(PH_REJECT, 0, 0, reject_reason(VerifyError::LengthMismatch));
+        }
+        self.buf.extend_from_slice(chunk);
         progress(PH_DATA, self.buf.len() as u32, self.total, 0)
     }
 
     /// OCM: run core's canonical verify-before-write apply over the buffered stream:
     /// `start` (verify_header 4-gate/Ed25519/anti-rollback + type-gate + sink.begin) →
     /// `feed` (verify-then-write per chunk) → `finish` (hash-confirm THEN sink.activate).
-    /// A bad image never activates. Returns the progress sequence (VERIFIED+APPLIED or
-    /// a single REJECT).
+    /// A bad image never activates. On success ADVANCES the anti-rollback floor (F1)
+    /// BEFORE reporting APPLIED. Returns the progress sequence (VERIFIED+APPLIED or a
+    /// single REJECT); always resets per-transfer state.
     pub fn on_ocm(&mut self) -> Vec<[u8; 10]> {
         let d = self.buf.len() as u32;
+        let t = self.total;
         if !self.header_ok || self.ost.len() < HEADER_LEN + SIG_LEN {
-            return alloc::vec![progress(PH_REJECT, d, self.total, 0)];
+            self.reset();
+            return alloc::vec![progress(PH_REJECT, d, t, 0)];
         }
-        let ctx = self.cfg.ctx();
-        let header = &self.ost[..HEADER_LEN];
-        let sig = &self.ost[HEADER_LEN..HEADER_LEN + SIG_LEN];
-        let apply = SignedOtaApply::start(header, sig, &ctx, PT_FIRMWARE_FULL, &mut self.sink);
-        let mut apply = match apply {
-            Ok(a) => a,
-            Err(e) => return alloc::vec![progress(PH_REJECT, 0, self.total, apply_reason(&e))],
+        // Scoped so the ctx/header/sig/apply borrows end before we mutate self.cfg.
+        let result = {
+            let ctx = self.cfg.ctx();
+            let header = &self.ost[..HEADER_LEN];
+            let sig = &self.ost[HEADER_LEN..HEADER_LEN + SIG_LEN];
+            match SignedOtaApply::start(header, sig, &ctx, PT_FIRMWARE_FULL, &mut self.sink) {
+                Err(e) => Err(apply_reason(&e)),
+                Ok(mut apply) => match apply.feed(&self.buf) {
+                    Err(e) => Err(apply_reason(&e)),
+                    Ok(()) => apply.finish().map_err(|e| apply_reason(&e)),
+                },
+            }
         };
-        if let Err(e) = apply.feed(&self.buf) {
-            // sink.begin ran but we never activate → staged bytes are discardable.
-            return alloc::vec![progress(PH_REJECT, d, self.total, apply_reason(&e))];
-        }
-        match apply.finish() {
-            Ok(_) => alloc::vec![progress(PH_VERIFIED, d, self.total, 0), progress(PH_APPLIED, d, self.total, 0)],
-            Err(e) => alloc::vec![progress(PH_REJECT, d, self.total, apply_reason(&e))],
-        }
+        let out = match result {
+            Ok(applied) => {
+                // F1: ADVANCE the floors BEFORE reporting APPLIED → a replay (same seq)
+                // or downgrade (older signed seq) now fails StaleSeq next time. (The
+                // board persists these to NVS; the sim holds them in cfg = node floor.)
+                self.cfg.current_seq = applied.seq;
+                if let Some(ep) = applied.authority_epoch {
+                    self.cfg.authority_epoch_floor = self.cfg.authority_epoch_floor.max(ep);
+                }
+                alloc::vec![progress(PH_VERIFIED, d, t, 0), progress(PH_APPLIED, d, t, 0)]
+            }
+            Err(reason) => alloc::vec![progress(PH_REJECT, d, t, reason)],
+        };
+        self.reset();
+        out
     }
 }
 
@@ -397,6 +445,7 @@ mod tests {
             current_seq: 0,
             battery_pct: 100,
             tg_pk,
+            authority_epoch_floor: 0,
         }
     }
 
@@ -448,6 +497,51 @@ mod tests {
         assert!(!phases.contains(&PH_APPLIED), "must NOT apply: {phases:?}");
         // verify-before-write: a rejected image is never activated.
         assert!(!a.sink().activated(), "bad image must not activate");
+    }
+
+    #[test]
+    fn ota_advances_floor_blocks_replay_and_downgrade() {
+        // F1: after a successful apply, replay (same seq) + downgrade (older seq) reject.
+        let sk = SigningKey::from_bytes(&[0xF0; 32]);
+        let tg_pk = sk.verifying_key().to_bytes();
+        let mut a = OtaApplier::new(ota_cfg(tg_pk), MemSink::new());
+
+        let p2 = b"image-seq-2".repeat(10);
+        let h2 = mint(&p2, 2, tg_pk);
+        let s2 = sk.sign(&h2).to_bytes();
+        let ph = run_apply(&mut a, &h2, &s2, &p2);
+        assert!(ph.contains(&PH_APPLIED), "seq 2 applies: {ph:?}");
+        assert_eq!(a.current_seq(), 2, "floor advanced to 2");
+
+        // REPLAY the exact seq-2 package → StaleSeq (2 <= floor 2).
+        let ph_replay = run_apply(&mut a, &h2, &s2, &p2);
+        assert!(!ph_replay.contains(&PH_APPLIED), "replay must NOT re-apply: {ph_replay:?}");
+
+        // DOWNGRADE to a validly-signed seq-1 → StaleSeq.
+        let p1 = b"old-seq-1".repeat(10);
+        let h1 = mint(&p1, 1, tg_pk);
+        let s1 = sk.sign(&h1).to_bytes();
+        let ph_down = run_apply(&mut a, &h1, &s1, &p1);
+        assert!(!ph_down.contains(&PH_APPLIED), "downgrade must NOT apply: {ph_down:?}");
+        assert_eq!(a.current_seq(), 2, "floor NOT lowered by a downgrade");
+    }
+
+    #[test]
+    fn ota_bounds_odt_buffer() {
+        // F2: an ODT that overruns the signed payload_len is rejected (anti-OOM flood).
+        let sk = SigningKey::from_bytes(&[0xF0; 32]);
+        let tg_pk = sk.verifying_key().to_bytes();
+        let payload = b"small".repeat(4); // 20 bytes declared
+        let header = mint(&payload, 1, tg_pk);
+        let sig = sk.sign(&header).to_bytes();
+        let mut a = OtaApplier::new(ota_cfg(tg_pk), MemSink::new());
+        let mut ost = Vec::from(&header[..]);
+        ost.extend_from_slice(&sig);
+        assert_eq!(a.on_ost(&ost)[0], PH_START_OK);
+        // Flood far past the 20-byte declared payload_len → REJECT.
+        let flood = alloc::vec![0u8; 10_000];
+        let p = a.on_odt(&flood);
+        assert_eq!(p[0], PH_REJECT, "over-length ODT must reject (anti-OOM)");
     }
 
     #[test]

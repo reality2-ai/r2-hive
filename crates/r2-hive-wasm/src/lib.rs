@@ -135,6 +135,7 @@ impl WasmHive {
             current_seq: 0,
             battery_pct: 100,
             tg_pk: pk,
+            authority_epoch_floor: 0,
         };
         bus.register_sentant(Box::new(OtaSentant::new(cfg, MemSink::new())));
         bus.init_all();
