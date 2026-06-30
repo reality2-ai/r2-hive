@@ -50,8 +50,29 @@ atomics) / L5 'nbrs:N ADV+' / L6 sync. Human label 'D3' on L2 = pending composer
 | LCD TN-READY + human-label | ✅ 64bc0be render + 712fc34 NVS-label read (composer confirmed + writes 'D3' @0x18000 [LBL1][len][utf8]; L2 hex-fallback) |
 | Company-ID 0xFFFF prepend | ✅ 5e57aeb (was THE beacon-regression root cause: omitted prepend → 0x01B2 off-by-2; now §7.3 [FF FF][magic 0xB2 @ AD-off 4]) |
 | BLE address opacity | ✅ 11d99bc (opaque per-boot HWRNG random, static-random type, NOT wire_id-derived; composer's RBID-resolver VERIFIED 2 ways → bench ID survives) |
-**STATE: 8/8 COMPLETE — fully §7-conformant + robust + human-legible.** All firmware work done (tip 11d99bc),
-xtensa-green. READY to stage the DFR+XIAO rev the instant supervisor gives the OTA-or-desk word. **SUPERVISOR
+**STATE: 8/8 COMPLETE + SHIP-GATE CLOSED.** All firmware done (tip 11d99bc), xtensa-green. Resolver gate
+SATISFIED: composer's rbid-resolver is live+verified (D3+D5 resolve via rbid, address-independent, webapp-side)
+AND the firmware rbid EPOCH IS PINNED AT 0 (hardcoded `let epoch: u64 = 0`, no rotation) so composer's static
+epoch-0 table holds → clear to ship. SSID-rebuild = DROPPED (OTA rides BLE→transient-SoftAP, not permanent-STA).
+READY to stage DFR+XIAO the instant supervisor gives the OTA-or-desk word.
+
+## ► 2026-06-30 — NEXT PHASE: OTA DELIVERY (BLE-negotiate → transient SoftAP) + L2CAP throughput bench
+**OTA model (supervisor, spec-grounded — R2-UPDATE / R2-BLE / R2-WIFI §3.3):** NOT permanent-STA. Flow = BLE
+discovery+negotiate (#ota_query/#ota_info, RBID-lower-initiates §4.3) → firmware >1KB escalates #wifi_req→
+#wifi_offer{ssid,psk,ip,port,ttl}→ RECEIVER brings up a TRANSIENT ad-hoc SoftAP (R2-WIFI §3.3, 120s TTL) → push
+signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2; 0x00D3 OTA reserved/fallback.
+- **Firmware OTA state (grounded):** signed CORE `ota_recv_signed` (CMD_START_SIGNED 0x03, verify-before-write,
+  4-gate Ed25519, R2-UPDATE v0.6) EXISTS but on TCP :21043 over the INFRA WiFi netif (old permanent-STA). NET-NEW
+  = the BLE-negotiate (#ota_* frames) + transient-SoftAP-on-#wifi_req + L2CAP-0x00D3 wrapper. Signed core reusable.
+  [task #19; align #ota_* frame bytes w/ composer's pusher; ref r2-workshop.]
+- **★ THROUGHPUT BENCH [task #18, GREENLIT, BUILD FIRST]:** re-test the BlueZ-falsified L2CAP throughput on
+  ESP↔ESP. Bench firmware mode reusing serve_data_coc (split→tx.send/rx.receive) on PSM 0x00D3: two S3, pusher
+  L2capChannel::create pushes ~1.3MB, receiver accept-drains+counts, embassy Instant → KB/s. Sweep 2M PHY/DLE/
+  conn-interval/MTU-MPS/credits; coex BLE-only vs BLE+WiFi-up. v1 = default-config KB/s (the decisive number).
+  I BUILD (build-verify) → needs METAL (two S3) to RUN → report KB/s to supervisor. Gates the Roy data-plane call
+  (L2CAP-bulk vs SoftAP vs ESP-NOW) which shapes the OTA bulk path → bench BEFORE the OTA wrapper. Don't rewrite
+  §3.1.3 until the number lands (C/R). My read (BlueZ-confound=Linux host stack not BLE physics; ESP-NOW better
+  general data plane) noted to supervisor but UNPROVEN until the metal number. **SUPERVISOR
 DECISION: HOLD .1659, DON'T stage —
 deliver the FULL bundle via OTA, not a piecemeal desk session.** Rationale: OTA not ready (composer design-only)
 → shipping 6 now = a desk session + the 2 fast-follow = a 2nd session = more desk work for no urgency (bench
