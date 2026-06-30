@@ -502,6 +502,43 @@ mod tests {
         assert!(out.starts_with("{\"frames\":["), "valid JSON: {out}");
     }
 
+    /// On-demand: mint a signed R2-UPDATE test package + tg_pk for composer's live
+    /// OTA demo. Run: `cargo test mint_ota_artifacts -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn mint_ota_artifacts() {
+        use ed25519_dalek::{Signer, SigningKey};
+        use sha2::{Digest, Sha256};
+        use std::io::Write;
+        let sk = SigningKey::from_bytes(&[0xF0; 32]);
+        let tg_pk = sk.verifying_key().to_bytes();
+        let payload = b"R2-OTA-DEMO-IMAGE v2.0.0 ".repeat(40); // ~1000B
+        let mut hh = Sha256::new();
+        hh.update(&payload);
+        let phash: [u8; 32] = hh.finalize().into();
+        let mut header = [0u8; 123];
+        header[0] = 2; // PACKAGE_VERSION
+        header[41] = 0x01; // PT_FIRMWARE_FULL
+        header[42..46].copy_from_slice(&(payload.len() as u32).to_be_bytes());
+        header[46..78].copy_from_slice(&phash);
+        header[78..82].copy_from_slice(&1u32.to_be_bytes()); // seq 1
+        header[90..122].copy_from_slice(&tg_pk);
+        let sig = sk.sign(&header).to_bytes();
+        let mut pkg = Vec::from(&header[..]);
+        pkg.extend_from_slice(&payload); // header ++ payload ++ sig
+        pkg.extend_from_slice(&sig);
+
+        let dir = format!("{}/r2-staota-artifacts", std::env::var("HOME").unwrap());
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::File::create(format!("{dir}/ota-test-pkg.bin"))
+            .unwrap()
+            .write_all(&pkg)
+            .unwrap();
+        let tg_hex: String = tg_pk.iter().map(|b| format!("{b:02x}")).collect();
+        std::fs::write(format!("{dir}/ota-test-pkg.tg_pk.hex"), &tg_hex).unwrap();
+        println!("MINTED pkg={} bytes payload={} tg_pk={}", pkg.len(), payload.len(), tg_hex);
+    }
+
     #[test]
     fn ota_over_wasm_mesh_e2e() {
         use ed25519_dalek::{Signer, SigningKey};
