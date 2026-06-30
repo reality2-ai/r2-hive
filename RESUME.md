@@ -1,5 +1,34 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — CARRIER firmware (Roy's all-radio-via-MCU bench): transparent serial↔ESP-NOW radio-modem
+**Supervisor/Roy ask:** designate ONE DFR1195 as Alfred's MCU CARRIER (serial↔mesh bridge) so Alfred JOINS the R2
+mesh as a real node (not a passive BLE scanner). The concrete enabler for real-HW heartbeat-visibility AND the
+TCP↔radio gateway the wasm-hives need. Scope-then-build; Roy flashes (Roy-only).
+**SCOPE finding:** no MK-DONGLE / R2-USB-relay-node crate exists, but the gap was SMALL — the ESP-NOW mesh+relay
+(`espnow_task` + `io_task` RouteEngine) is built + metal-proven; the serial command bridge (`uart_rx_task`:
+IDENTIFY/PROVISION/MASK/SENDTO) exists; hex-frame-over-serial egress is already a codebase convention (health
+telemetry consumed by composer's serial-reader). Carrier = those + two thin legs.
+**BUILT — `carrier` feature, r2-core branch `dfr1195-fw` @`d332251` (pushed). Transparent radio MODEM** (Roy's
+exact model: carrier = Alfred's radio; ALFRED's hive does the routing/dedup; the DFR is the antenna):
+- EGRESS (`espnow_task`): every received over-the-air R2-WIRE frame → host as `R2RX <hex>` line, emitted BEFORE
+  local routing (`emit_carrier_rx`, one atomic println). `can_hear` still gates (a bench mask, if any, shapes it).
+- INJECT (`uart_rx_task`): `INJECT <wire_hex>` → decode (`parse_inject_hex`) → `DATA_TX.try_send` → `espnow_task`
+  ESP-NOW-broadcasts VERBATIM. ACK `INJECT-OK len=N` / NAK `INJECT-ERR bad-hex|queue-full`. line buf 160→600B
+  under carrier (full 256B frame = "INJECT "+512hex). ch1 default (no `staota` ⇒ no lab-WiFi dependency).
+- **VERIFIED:** `cargo build --release --features carrier` xtensa-GREEN (only pre-existing dead-code warnings);
+  default `--release` still GREEN = **NO regression**. ELF staged `~/r2-staota-artifacts/r2-dfr1195-carrier.elf`
+  (1.3 MB). EOD-flashable.
+**4 NODE-BOARDS (the over-the-air mesh):** run the EXISTING heartbeat mesh build — NO new firmware. Flash
+`--features ble` (ESP-NOW mesh + lub-dub HB; add `benchkeepalive` for watchable 8s keepalive). ALL 5 boards on
+ch1. Do NOT USB-multiplex them (fakes the mesh). HEARTBEAT-VISIBILITY works EGRESS-ONLY (Alfred decodes R2RX, no
+key). For Alfred to PARTICIPATE (inject HBs the nodes' deliver-gate accepts) all 5 must share the TG — simplest =
+all unprovisioned (demo-TG via mac_low3 fallback) + Alfred uses the demo GroupHmac key.
+**LOOP-CLOSER (asked supervisor whose it is — composer owns Alfred-side host, but the wasm-hive is mine):** a tiny
+host bridge = read tty `R2RX <hex>` → `WasmHive.route_frame` → `sends[]` → `INJECT <hex>` to tty = the TCP↔radio
+gateway uniting THIS turn's two deliverables (wasm-hive + carrier). Held pending the ownership answer to avoid
+duplicate work with composer's sim. Task #23 = DONE (pending Roy-flash + host-bridge wiring).
+
+
 ## ✅ 2026-07-01 — current-TN WASM-HIVE delivered (crates/r2-hive-wasm) for composer's EOD bench sim
 **Supervisor EOD ask:** composer is adapting workshop's wasm-hive (simpler TN) for a v1 sim today; the UPGRADE =
 my one-codebase no_std hive → wasm on CURRENT TN crates, so the sim can run REAL current-TN. "produce/point-to a
