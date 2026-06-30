@@ -43,6 +43,17 @@ verify-before-write RCE-guard ordering is SHARED in core, NOT re-implemented per
 --ignored` in crates/r2-hive-wasm. composer's from-source wasm build FIXED (FlashSink removed).
 **SignedOtaApply codex refute (core-side) + ota_receive_over_coc refute (hive-side) gate METAL separately.**
 
+### A7/A8 type-confusion fix + composer finishers @11c5156 (v0.4.1)
+core (verify-don't-assume) found my v1 OtaPlugin OST omitted the payload_type gate (a signed DIFF/RECOVERY would
+install as FULL = RCE-class). RECONCILE: the LIVE path is already v2 (SignedOtaApply), whose `start()` gates
+`payload_type != PT_FIRMWARE_FULL` BY CONSTRUCTION (apply.rs:99) — so 'ruling B' was already satisfied; v1 inline
+is gone. Added belt-and-braces: `OtaApplier::on_ost` rejects DIFF/RECOVERY EARLY + regression test
+`ota_rejects_type_confusion` (signed DIFF → REJECT, never activated). Gate now at BOTH early-OST + commit-time
+SignedOtaApply. The CLAUDE/codex OTA refute should target the SignedOtaApply path (e9e2775+), not the v1 orphan.
+**composer finishers DONE:** (1) `deliver_event` returns STRUCTURED progress —
+`{"frames":[…],"progress":[{phase,bytes_done,bytes_total,reason},…]}` (fixes composer's all-0 compact-frame
+decode). (2) signed test pkg staged (above). composer can now render APPLIED + REJECT(tampered/unsigned/DIFF).
+
 ### convergence-v1 @1a8f7a9 — applied core's OTA-plugin ruling (OTA_PLUGIN_SHAPE.md a53a07b) [SUPERSEDED by v2]
 core RULED the canonical OTA-plugin shape; supervisor CORRECTED the doc (IGNORE the experimental
 `r2-update::SignedOtaApply`/`ImageSink` orphan — it breaks r2-update's verify-only layering; r2-update stays
