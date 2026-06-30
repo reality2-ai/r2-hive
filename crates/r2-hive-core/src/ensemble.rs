@@ -80,6 +80,7 @@ impl Sentant for HbSentant {
 // the firmware's `ota_receive_over_coc`.)
 
 use alloc::vec::Vec;
+use crate::ota::{FirmwareSink, OtaError};
 use r2_engine::plugin::{PluginResponse, PluginResult};
 use r2_engine::{Plugin, PluginCommand, PluginId};
 use r2_update::{reject_reason, verify_header, DeviceContext, PayloadVerifier, HEADER_LEN, SIG_LEN};
@@ -102,22 +103,17 @@ const OTA_CMD_OST: PluginCommand = 1;
 const OTA_CMD_ODT: PluginCommand = 2;
 const OTA_CMD_OCM: PluginCommand = 3;
 
-/// The inactive-slot write seam — the ONE thing that differs per platform: real
-/// flash on the DFR1195, an in-memory buffer in wasm / a file on a host. Keeps the
-/// OTA plugin itself identical everywhere.
-pub trait FlashSink {
-    /// Begin a new image of `total` bytes (erase/prepare the inactive slot).
-    fn begin(&mut self, total: usize) -> Result<(), ()>;
-    /// Write `data` at `offset` into the inactive slot.
-    fn write(&mut self, offset: usize, data: &[u8]) -> Result<(), ()>;
-    /// Commit (activate-next-partition / mark pending). Called only AFTER verify.
-    fn finalize(&mut self) -> Result<(), ()>;
-}
+/// The inactive-slot write seam is the canonical [`crate::ota::FirmwareSink`]
+/// (slot_capacity/begin/write_chunk/finalize/abort) — the ONE platform seam per
+/// core's OTA ruling: real `esp_ota_*` flash on the DFR1195, an in-memory buffer in
+/// wasm. One OTA plugin, the sink swaps.
 
-/// In-memory FlashSink — the wasm/host platform sink (no real flash). Holds the
-/// written image so a sim/test can prove what was installed.
+/// In-memory `FirmwareSink` — the wasm/host platform sink (no real flash). Holds the
+/// written image so a sim/test can prove what was installed. (Board impl wraps
+/// esp_ota_* in the firmware.)
 pub struct MemSink {
     image: Vec<u8>,
+    cap: u32,
     finalized: bool,
 }
 impl Default for MemSink {
@@ -127,9 +123,9 @@ impl Default for MemSink {
 }
 impl MemSink {
     pub fn new() -> Self {
-        Self { image: Vec::new(), finalized: false }
+        Self { image: Vec::new(), cap: 4 * 1024 * 1024, finalized: false }
     }
-    /// The image written so far (the installed bytes after a successful OCM).
+    /// The image written so far (the installed bytes after a successful finalize).
     pub fn image(&self) -> &[u8] {
         &self.image
     }
@@ -137,24 +133,33 @@ impl MemSink {
         self.finalized
     }
 }
-impl FlashSink for MemSink {
-    fn begin(&mut self, total: usize) -> Result<(), ()> {
-        self.image = alloc::vec![0u8; total];
+impl FirmwareSink for MemSink {
+    fn slot_capacity(&self) -> u32 {
+        self.cap
+    }
+    fn begin(&mut self, _image_len: u32) -> Result<(), OtaError> {
+        self.image.clear();
         self.finalized = false;
         Ok(())
     }
-    fn write(&mut self, offset: usize, data: &[u8]) -> Result<(), ()> {
-        let end = offset.checked_add(data.len()).ok_or(())?;
-        if end > self.image.len() {
-            return Err(());
-        }
-        self.image[offset..end].copy_from_slice(data);
+    fn write_chunk(&mut self, chunk: &[u8]) -> Result<(), OtaError> {
+        self.image.extend_from_slice(chunk);
         Ok(())
     }
-    fn finalize(&mut self) -> Result<(), ()> {
+    fn finalize(&mut self) -> Result<(), OtaError> {
         self.finalized = true;
         Ok(())
     }
+    fn abort(&mut self) {
+        self.image.clear();
+        self.finalized = false;
+    }
+}
+
+/// Map a sink error to a progress `reason` byte (kept distinct from the
+/// VerifyError `reject_reason` space, which is 1..=12).
+fn sink_reason(_e: OtaError) -> u8 {
+    0x70 // SINK_FAIL
 }
 
 /// Owned device-side OTA gate inputs — built into a [`DeviceContext`] per verify.
@@ -195,9 +200,12 @@ fn progress(phase: u8, done: u32, total: u32, reason: u8) -> [u8; 10] {
     p
 }
 
-/// OTA receiver PLUGIN — verify-before-write over OST/ODT/OCM commands. Reuses the
-/// r2-update verify primitives verbatim; a bad image never reaches `finalize()`.
-pub struct OtaPlugin<S: FlashSink> {
+/// OTA receiver PLUGIN — verify-before-write over OST/ODT/OCM commands (the mesh
+/// framing of R2-UPDATE §3.1.2.3 CMD_START_SIGNED: OST = header(123)‖sig(64), ODT =
+/// payload stream, OCM = close/commit). Reuses the r2-update verify primitives
+/// verbatim (core ruling: r2-update stays verify-only) + the canonical
+/// [`crate::ota::FirmwareSink`] seam; a bad image never reaches `finalize()`.
+pub struct OtaPlugin<S: FirmwareSink> {
     cfg: OtaConfig,
     sink: S,
     pv: Option<PayloadVerifier>,
@@ -206,7 +214,7 @@ pub struct OtaPlugin<S: FlashSink> {
     queue: Vec<[u8; 10]>, // progress events drained by poll()
     last: [u8; 10],
 }
-impl<S: FlashSink> OtaPlugin<S> {
+impl<S: FirmwareSink> OtaPlugin<S> {
     pub fn new(cfg: OtaConfig, sink: S) -> Self {
         Self { cfg, sink, pv: None, total: 0, done: 0, queue: Vec::new(), last: [0u8; 10] }
     }
@@ -218,39 +226,56 @@ impl<S: FlashSink> OtaPlugin<S> {
         self.queue.push(p);
     }
 }
-impl<S: FlashSink> Plugin for OtaPlugin<S> {
+impl<S: FirmwareSink> Plugin for OtaPlugin<S> {
     fn execute(&mut self, command: PluginCommand, data: &[u8]) -> PluginResult {
         match command {
             OTA_CMD_OST => {
                 self.pv = None;
                 self.done = 0;
+                self.sink.abort(); // discard any half-staged prior attempt
                 if data.len() < HEADER_LEN + SIG_LEN {
                     self.push(progress(PH_REJECT, 0, 0, 0));
                     return PluginResult::Ok(PluginResponse::empty());
                 }
                 let header = &data[..HEADER_LEN];
                 let sig = &data[HEADER_LEN..HEADER_LEN + SIG_LEN];
+                // verify_header (4-gate/Ed25519/anti-rollback) BEFORE any sink.begin.
                 match verify_header(header, sig, &self.cfg.ctx()) {
                     Ok(vh) => {
                         self.total = vh.payload_len as u32;
-                        let _ = self.sink.begin(vh.payload_len);
-                        self.pv = Some(PayloadVerifier::new(&vh));
-                        self.push(progress(PH_START_OK, 0, self.total, 0));
+                        // slot_capacity TOO_BIG precheck, then begin (only after verify Ok).
+                        if self.total > self.sink.slot_capacity() {
+                            self.push(progress(PH_REJECT, 0, self.total, sink_reason(OtaError::TooBig)));
+                        } else if let Err(e) = self.sink.begin(self.total) {
+                            self.push(progress(PH_REJECT, 0, self.total, sink_reason(e)));
+                        } else {
+                            self.pv = Some(PayloadVerifier::new(&vh));
+                            self.push(progress(PH_START_OK, 0, self.total, 0));
+                        }
                     }
                     Err(e) => self.push(progress(PH_REJECT, 0, 0, reject_reason(e))),
                 }
             }
             OTA_CMD_ODT => {
                 if let Some(pv) = self.pv.as_mut() {
+                    // verify chunk (running hash, length-bounded) FIRST, then write.
                     match pv.update(data) {
-                        Ok(()) => {
-                            let _ = self.sink.write(self.done as usize, data);
-                            self.done += data.len() as u32;
-                            let (d, t) = (self.done, self.total);
-                            self.push(progress(PH_DATA, d, t, 0));
-                        }
+                        Ok(()) => match self.sink.write_chunk(data) {
+                            Ok(()) => {
+                                self.done += data.len() as u32;
+                                let (d, t) = (self.done, self.total);
+                                self.push(progress(PH_DATA, d, t, 0));
+                            }
+                            Err(e) => {
+                                self.pv = None;
+                                self.sink.abort();
+                                let (d, t) = (self.done, self.total);
+                                self.push(progress(PH_REJECT, d, t, sink_reason(e)));
+                            }
+                        },
                         Err(e) => {
                             self.pv = None;
+                            self.sink.abort();
                             let r = reject_reason(e);
                             let (d, t) = (self.done, self.total);
                             self.push(progress(PH_REJECT, d, t, r));
@@ -264,12 +289,19 @@ impl<S: FlashSink> Plugin for OtaPlugin<S> {
                     match pv.finish() {
                         Ok(()) => {
                             self.push(progress(PH_VERIFIED, d, t, 0));
+                            // hash-confirmed → activate. Else nothing is activated.
                             match self.sink.finalize() {
                                 Ok(()) => self.push(progress(PH_APPLIED, d, t, 0)),
-                                Err(()) => self.push(progress(PH_REJECT, d, t, 0)),
+                                Err(e) => {
+                                    self.sink.abort();
+                                    self.push(progress(PH_REJECT, d, t, sink_reason(e)));
+                                }
                             }
                         }
-                        Err(e) => self.push(progress(PH_REJECT, d, t, reject_reason(e))),
+                        Err(e) => {
+                            self.sink.abort();
+                            self.push(progress(PH_REJECT, d, t, reject_reason(e)));
+                        }
                     }
                 }
             }
@@ -401,7 +433,7 @@ mod tests {
         }
     }
 
-    fn drain_progress<S: FlashSink>(p: &mut OtaPlugin<S>) -> Vec<[u8; 10]> {
+    fn drain_progress<S: FirmwareSink>(p: &mut OtaPlugin<S>) -> Vec<[u8; 10]> {
         let mut v = Vec::new();
         while let Some((h, pl)) = p.poll() {
             assert_eq!(h, PROGRESS_HASH);
