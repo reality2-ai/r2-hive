@@ -1,5 +1,27 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — UNIFIED ENSEMBLE increment-1: HB sentant on the EventBus (shared core + wasm) [task #25]
+**Directive (Roy/supervisor):** make wasm-sim hives run the SAME basic ensemble as the DFR1195 (sentants/plugins on
+the r2_engine EventBus — HB + provisioning/TG + OTA plugin+sentant), over the wasm virtual-mesh bearer. The wasm
+OTA-as-plugin+sentant IS the pure increment-3 OTA form (one piece of work advances both). Coordinate core (OTA
+mechanics) + composer (UX). NOT a substitute for the held codex refute of ota_receive_over_coc.
+**FEASIBILITY PROVEN:** r2-engine (EventBus) + r2-update (OTA verify) BOTH build wasm32-clean.
+**INCREMENT-1 DONE (@693853e):**
+- `r2-hive-core::ensemble` (NEW, shared across wasm/Linux/ESP32) — `HbSentant` impl `r2_engine::Sentant`: on a host
+  `TICK` it broadcasts a heartbeat (payload = hive_id BE32 = firmware HB wire form). `TICK_HASH`/`HEARTBEAT_HASH`.
+  r2-engine added as a no_std+alloc dep of r2-hive-core. Test `hb_sentant_emits_on_tick`.
+- `r2-hive-wasm` v0.3.0 — `WasmHive` now hosts an `EventBus` with the HbSentant = UNIFIED node (routing via
+  `route_frame` + ensemble via `tick(seq)->{frames:[hex]}` / `deliver_event(frame)->event_hash`). So a wasm node
+  ORIGINATES its HB via the same sentant the board runs. Test `ensemble_tick_emits_heartbeat_to_peer` (A.tick→HB
+  frame→B's ensemble sees HEARTBEAT_HASH). Host workspace no-regression; new API in web .d.ts. composer notified.
+**NEXT — OTA plugin+sentant (increment-2/3, the pure OTA form):** ASKED CORE (fleet ask, reply→inbox): canonical
+OTA plugin shape? where does the shared OTA plugin live (r2-hive-core::ensemble vs r2-update helper)? **FlashSink
+trait seam** so ONE OtaPlugin drives real-flash on the board + a memsink in wasm (I lean yes). Build after core's
+ruling: OtaPlugin (verify_header/PayloadVerifier/Ed25519, OST/ODT/OCM, 4-gate/anti-rollback) + OtaSentant in
+r2-hive-core::ensemble → wasm nodes OTA each other (software e2e) → same plugin compiles into firmware = the #19
+(a)-refactor. HELD on core's answer + the ota_receive_over_coc refute (this is TEST/validation only).
+
+
 ## ✅ 2026-07-01 — r2-hive-wasm v0.2.0: in-wasm R2-WIRE encode helpers (composer's bench-sim ask)
 composer's browser wasm-SIM (de95e1e, webapp/bench-sim.html) is FUNCTIONING on r2-hive-wasm @71b2b32 — N WasmHive
 nodes flood real frames over a virtual mesh, headless-verified (floods=5, real loop-prevention). They asked for
