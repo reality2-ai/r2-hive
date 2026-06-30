@@ -1,0 +1,29 @@
+[package]
+name = "r2-hive-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "wasm platform layer for r2-hive — exposes the REAL current-TN sync routing core (r2-hive-core route_inbound_sync over r2-route/r2-wire) to a browser/JS bench sim. R2-HIVE north-star wasm tier; one-codebase hive logic, thin per-platform host. Workspace-EXCLUDED (wasm-only, std/wasm-bindgen) so host CI is untouched."
+repository = "https://github.com/reality2-ai/r2-hive"
+
+[lib]
+name = "r2_hive_wasm"
+# cdylib = the .wasm artifact (wasm-bindgen glue); rlib = host-testable.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Same current-TN crates the rest of the hive uses (path during dev). The wasm
+# tier runs the IDENTICAL routing core as Linux/ESP32 — no fork.
+r2-hive-core = { path = "../r2-hive-core" }
+r2-route = { path = "../../../r2-core/crates/r2-route" }
+wasm-bindgen = "0.2"
+
+[dev-dependencies]
+# Host-side test only: build real R2-WIRE frames to drive route_frame's positive
+# (Flood/Directed) path + sends-JSON. Not in the wasm artifact.
+r2-wire = { path = "../../../r2-core/crates/r2-wire", default-features = false, features = ["alloc"] }
+
+[profile.release]
+# Small wasm: the sim ships this to a browser.
+opt-level = "s"
+lto = true

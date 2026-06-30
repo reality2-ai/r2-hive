@@ -5,6 +5,13 @@ members = [
     "crates/r2-hive-bin",
     "crates/r2hive-cli",
 ]
+# r2-hive-wasm is the wasm/browser platform layer (std + wasm-bindgen, cdylib).
+# Excluded from the default workspace so the host build/CI never compiles it for
+# a non-wasm target. Build explicitly: cargo build -p r2-hive-wasm --target
+# wasm32-unknown-unknown --release  (see crates/r2-hive-wasm/src/lib.rs).
+exclude = [
+    "crates/r2-hive-wasm",
+]
 
 [workspace.package]
 edition = "2021"
