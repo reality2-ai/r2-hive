@@ -1,7 +1,14 @@
 # RESUME — r2-hive (hive-worker)
 
-## ⚠️ 2026-06-30 — ACTIVE INCIDENT: .1408 BOOT-FAILS on D5 metal (INERT path) — root-caused, workaround sent, fix pending
-**DO NOT flash .1408 to a FRESH/unprovisioned board.** Metal result (supervisor): D5 (the only board imaged with
+## ⚠️ 2026-06-30 — INCIDENT: .1408 BOOT-FAILED on D5 (INERT path) — FIX SHIPPED = staota.0630.1659 (awaiting metal re-test)
+**FIX SHIPPED (`dc78b90`, staota.0630.1659, SUPERSEDES .1408):** reverted the in-INERT console-receiver to the
+proven liveness-only INERT (removes the early `UsbSerialJtag::new` — the boot bug). Kept the un-gated §7 beacon,
+A4/B3, and reboot-to-download (command-only, now reachable only via uart_rx_task = post-init = safe). A FRESH
+board's INERT path is now IDENTICAL to the pre-.1408 staota that DID boot on D5 → high confidence. Awaiting Roy's
+desk re-test (load .1659 → INERT-liveness → download-mode-provision 89e83d99 → provisioned → beacon → scan).
+DEFERRED: in-INERT REMOTE provisioning (console-store on a fresh board) — re-add AFTER esp_rtos::start (post-init
+context) + desk-validate. Fresh boards provision via download-mode meanwhile.
+**DO NOT flash .1408 to a FRESH/unprovisioned board (use .1659).** Metal result (supervisor): D5 (the only board imaged with
 .1408) boot-loops/goes silent — drops USB-JTAG + stays absent, 0 passive console bytes, no BLE beacon. The other 9
 (older firmware) are stably present (clean differential = firmware regression in .1408).
 - **ROOT CAUSE (high confidence, structural — NOT yet metal-confirmed):** the firmware is `#[esp_rtos::main]` and
