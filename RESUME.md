@@ -66,6 +66,31 @@ wins/idle-decays). Read-only over EXISTING r2-route state — no engine change. 
 - directed_via/flooded oracle = ALREADY in route_frame return (outcome=Directed+send target / outcome=Flooded). No new getter.
 Test neighbour_oracle_learns_then_fades_below_floor (learn→viable→decay→evicted). wasm32 + 7 host tests green.
 
+## ✅ 2026-07-01 — HW CLEAN-RESET PREP RECIPE (Roy KARAWHIUA / aggressive reset) — build-verified
+**Deliverable:** exact Roy run-sheet to reset all DFR1195 dev boards to one image + one fresh throwaway TG.
+**Q1 build-verify (on alfred, NOT asserted):** combined image FAILED first build — fr4 role/SCF telemetry
+(msg.scffwd/silence/hold) calls `emit_msg` which was `routetest`-gated; every metal fr4 build pulled routetest
+transitively so field/fr4-standalone was never built. **FIXED durably** (dfr1195-fw `4771e94`: emit_msg now
+`any(routetest,fr4)`). RECIPE IMAGE = `carrier,multitg,field,routetest` → CLEAN, 1.32MB ELF, staged
+`alfred:~/r2-dfr1195-weave.elf`.
+**PATH = PERSONA bundles, NOT serial-PROVISION** (caught via composer): PROVISION@0x14000 sets target_group=RAW
+tg_id (no FNV); composer wasm+tooling use tg_hash=FNV-1a-32(tg_id); PERSONA sets board tg_hash=FNV(tg_id) → MATCHES.
+composer's `gen-persona --emit-weave-key` builds persona-<mac>.bin@0x12000 + weave-hk (wasm serve), e2e-verified.
+field OK (persona present → not INERT). routetest = composer's live msg.* route-walk telemetry.
+**ROY RUN-SHEET (per board, by-id; all espflash=Roy) — CORRECTED for the persona-clobber trap:** 0. composer
+gen-persona → persona-<mac>.bin+weave-hk. 1. `espflash erase-flash`. 2. `espflash flash --chip esp32s3
+--partition-table ~/dfr1195-partitions.csv ~/r2-dfr1195-weave.elf` ← **--partition-table MANDATORY** (else app→
+0x10000 spans+clobbers persona@0x12000 + won't boot; app must be ota_0@0x20000). 3. `espflash write-bin 0x12000
+persona-<mac>.bin`. 4. (opt) `write-bin 0x17000 role.bin` (RPF1 48B: 0=Repeater 1=Sensor 2=Bridge 3=Receiver;
+omit→Repeater). 5. composer serves weave-hk→wasm setGroupHmac + bridge --participate. CSV staged alfred:~/dfr1195-
+partitions.csv. erase-flash wipes bootloader too; step2 rewrites bootloader+parttable+app (self-contained).
+**BLOCKING (asked composer):** per-mac personas MUST share {tg_id,hk,tg_pk} + DISTINCT master_secret → distinct
+hive_id (hive_id=FNV(master_secret,tg_id); shared master_secret=identical hive_id=routing collapse). GO on confirm.
+**ALFRED BUILD CAPABILITY (new):** rsync worktree → alfred:~/dfr1195-fw-build/ ; `source ~/Development/homelab/
+export-esp.sh && cd platforms/dfr1195 && cargo +esp build --release --no-default-features --features <set>`. esp
+toolchain + espflash + 4 boards on alfred. Can now build-verify firmware combos remotely (not just static analysis).
+4 board ports: 50:23:E4, 50:26:98, 52:99:28, B6:0A:A0(carrier). See [[dfr1195-firmware-bench-workflow]].
+
 ## ✅ 2026-07-01 — WEAVE Qs answered + #26 r2-trust portion found DONE
 Composer's carrier-as-bridge weave Qs (via supervisor), both verified in r2-hive-wasm src + 6 host tests green:
 - **(b) GroupHmac/TG-key API ALREADY EXISTS** (no new code): `WasmHive.withGroupHmac(hive_id,hk,tg_hash)` /
