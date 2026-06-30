@@ -1,5 +1,36 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — current-TN WASM-HIVE delivered (crates/r2-hive-wasm) for composer's EOD bench sim
+**Supervisor EOD ask:** composer is adapting workshop's wasm-hive (simpler TN) for a v1 sim today; the UPGRADE =
+my one-codebase no_std hive → wasm on CURRENT TN crates, so the sim can run REAL current-TN. "produce/point-to a
+current-TN wasm-hive build … but DON'T block composer's v1 on it." Prioritised BEHIND OTA-refute-response (which
+is gated — no findings landed yet).
+**DELIVERED — new crate `crates/r2-hive-wasm` (committed `71b2b32`, pushed platform-trait):**
+- Thin wasm-bindgen browser host over the SAME `r2_hive_core::sync_host::route_inbound_sync` core the Linux host +
+  ESP32-S3 firmware run (r2-route/r2-wire). NO fork — identical current-TN routing.
+- API: `new WasmHive(hive_id)`; `hive.route_frame(source_hive, kind, frameBytes, now, dice) -> JSON
+  {outcome, sent, sends:[{kind,target,frame(hex)}]}`. kind = R2-TRANSPORT §2.2 id (0=Ble 1=Wifi 2=Lora 3=Internet
+  4=Usb 5=EspNow 6=Udp). Plus `provisional_id_mac(mac)` + `version()`. CaptureTransport (mirror of sync_host test
+  StubTransport) records the engine's would-send frames; the sim IS the network (moves `sends` between nodes).
+  Topology is LEARNED: route a frame FROM a node (immediate_source observation) before addressing TO it.
+- **Workspace-EXCLUDED** (root Cargo.toml `exclude=["crates/r2-hive-wasm"]`) — std + wasm-bindgen, wasm-only — so
+  host build/CI never compiles it for a non-wasm target. Confirmed via `cargo metadata` (not a member). ZERO
+  host-CI impact. pkg/ + target/ gitignored (only source committed: Cargo.toml/lock, src/lib.rs, .gitignore).
+- **VERIFIED (conjecture→refutation):** (1) `cargo build -p r2-hive-wasm --target wasm32-unknown-unknown --release`
+  green; `wasm-pack build --target web` → 33KB wasm + JS glue. (2) node smoke (nodejs target, scratchpad): wasm
+  loads; `provisional_id_mac` == a JS FNV-1a reference of the canonical addr ⇒ r2-route/r2-fnv id-core executes
+  CORRECTLY in wasm; garbage→`NotR2Wire` JSON, no panic; WasmHive lifecycle ok. (3) host `cargo test` (rlib;
+  wasm-bindgen attrs inert off-wasm): positive relay → Directed/Flooded with `sends` JSON populated (target +
+  non-empty hex). Build command in the crate's lib.rs doc header.
+- **Honest gap:** positive Flood/Directed is proven on HOST (route_frame wrapper) + the engine-runs-in-wasm is
+  proven via FNV; I did NOT hand-craft a valid R2-WIRE frame to drive a positive case THROUGH wasm (composer's sim
+  will). Residual wasm-only risk ≈ nil (same compiled core; boundary marshalling proven). Open offer to composer:
+  add in-wasm R2-WIRE frame ENCODE helpers so the sim needn't hand-craft bytes.
+- Sent composer (artifact+API+build cmd) and supervisor (delivery+CI note). Task #22 = DONE.
+- **CI note:** `.github/workflows/ci.yml` triggers only on push:main / PR→main, so NO hosted run fires for
+  platform-trait by design (the known CI-gap = a morning item, NOT introduced here). Local verification stands.
+
+
 ## ✅ 2026-06-30 — staota.0630.1659 VALIDATED on metal + 2 post-validation fixes committed (NOT yet staged)
 **.1659 VALIDATED (supervisor + composer):** D3 provisioned is ALIVE + BEACONING — wire 46dbf1ae, fw
 staota.0630.1659, §7 BLE BEACON adv up, LoRa SF7/916.8 up. My INERT-revert diagnosis held; the provisioned path
