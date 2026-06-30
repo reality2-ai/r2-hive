@@ -95,6 +95,21 @@ MUST boot-confirm) so the firmware (a)-refactor doesn't inherit the brick readin
 reject-REASON bytes (StaleSeq 6 / LengthMismatch 2); noted 4MB=sim ceiling, board=~1.5MB ota_1 slot.
 **OTA-in-wasm FULLY CLOSED.** The board OTA (a)-refactor (port ota_receive_over_coc → this ensemble OtaApplier +
 a boot-confirm-staging FirmwareSink→ImageSink) is owed when firmware OTA is built; contract baked into the comment.
+### .progress reason-byte fix @41ae9e4 (v0.4.4) + core boot-confirm contract ACK (fdb9d74)
+composer (5-arm falsification theater on the real wasm receiver — full/tampered/wrong-key/DIFF/replay all probe-
+verified) found the structured `.progress` reason read 0 for the 3 OST-TIME rejects (only OCM-time tampered=5
+surfaced). Root cause: after an OST reject (header_ok=false), trailing ODT/OCM frames emitted reason 0 → the
+bench's LAST .progress entry overwrote the correct reason. FIXED: sticky `last_reason` re-emitted on every trailing
+frame of a dead transfer (cleared at next OST); reset→clear_transfer + a reject() helper. Now all 5 arms surface
+the reason: tampered=5(hash) / wrong-key=3-4(sig/signer) / DIFF=1(BadHeader A7-A8) / replay=6(StaleSeq) / full=
+APPLIED. Test `ota_reject_reason_propagates_to_trailing_frames`. 8 ensemble tests + wasm e2e green.
+core ACK (fdb9d74): the boot-confirm contract = exactly what I'd documented (sim immediate, board stage-pending+
+confirm-on-boot, authority_epoch immediate, current_seq_floor returns CONFIRMED). No sim change. Board contract
+baked in the comment for the (a)-refactor.
+
+### OTA-in-wasm: COMPLETE (v0.4.4). Canonical SignedOtaApply; A7/A8 + F1/F2/F3 + reason-display all closed;
+### 8 ensemble tests + wasm e2e; composer's 5-arm theater green. Board OTA (a)-refactor owed when firmware OTA built.
+
 **NEXT: #26** full-real-stack wasm hive — real r2-trust (TG/GroupHmac/deliver-gate, no-RNG verify paths first;
 key-minting needs injected RNG) + WS + UDP transports + the carrier multi-transport gateway (tier-fusion).
 
