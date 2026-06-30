@@ -222,10 +222,19 @@ pub struct OtaApplier<S: ImageSink> {
     buf: Vec<u8>, // payload stream
     total: u32,
     header_ok: bool,
+    last_reason: u8, // sticky reject reason for the current transfer (composer .progress)
 }
 impl<S: ImageSink> OtaApplier<S> {
     pub fn new(cfg: OtaConfig, sink: S) -> Self {
-        Self { cfg, sink, ost: Vec::new(), buf: Vec::new(), total: 0, header_ok: false }
+        Self {
+            cfg,
+            sink,
+            ost: Vec::new(),
+            buf: Vec::new(),
+            total: 0,
+            header_ok: false,
+            last_reason: 0,
+        }
     }
     /// The platform sink (read the installed image from a MemSink after APPLIED).
     pub fn sink(&self) -> &S {
@@ -254,22 +263,33 @@ impl<S: ImageSink> OtaApplier<S> {
             authority_epoch_floor: 0,
         }
     }
-    /// Clear per-transfer state (after commit/reject) so a stale OST/ODT/OCM-replay
-    /// can't re-drive the buffered image.
-    fn reset(&mut self) {
+    /// Clear per-transfer BUFFERS (after commit/reject) so a stale OST/ODT/OCM-replay
+    /// can't re-drive the buffered image. Keeps `last_reason` (re-emitted on the trailing
+    /// frames of a rejected transfer so the bench .progress shows WHY) — it's cleared at
+    /// the START of the next transfer (on_ost).
+    fn clear_transfer(&mut self) {
         self.ost.clear();
         self.buf.clear();
         self.header_ok = false;
         self.total = 0;
     }
 
+    /// Produce a REJECT progress record AND remember its reason, so subsequent ODT/OCM
+    /// frames of this (now-dead) transfer re-emit the SAME reason instead of 0 — fixes
+    /// the bench reading reason 0 for OST-time rejects (wrong-key/DIFF/replay).
+    fn reject(&mut self, done: u32, total: u32, reason: u8) -> [u8; 10] {
+        self.last_reason = reason;
+        progress(PH_REJECT, done, total, reason)
+    }
+
     /// OST: stash header‖sig + an EARLY `verify_header` for fast reject feedback (the
     /// authoritative verify+apply runs on commit via `SignedOtaApply`). Returns a
     /// progress record.
     pub fn on_ost(&mut self, data: &[u8]) -> [u8; 10] {
-        self.reset();
+        self.clear_transfer();
+        self.last_reason = 0; // new transfer
         if data.len() < HEADER_LEN + SIG_LEN {
-            return progress(PH_REJECT, 0, 0, 0);
+            return self.reject(0, 0, 0);
         }
         self.ost.extend_from_slice(&data[..HEADER_LEN + SIG_LEN]);
         let header = &self.ost[..HEADER_LEN];
@@ -282,32 +302,34 @@ impl<S: ImageSink> OtaApplier<S> {
                 // must NOT install as a FULL image (the orchestrator re-enforces it at
                 // commit; this is the early reject for honest UX).
                 if vh.payload_type != PT_FIRMWARE_FULL {
-                    return progress(PH_REJECT, 0, plen, reject_reason(VerifyError::BadHeader));
+                    return self.reject(0, plen, reject_reason(VerifyError::BadHeader));
                 }
                 // F2: bound the RAM buffer before staging — reject a signed payload_len
                 // larger than the sink's capacity BEFORE buffering (the orchestrator also
                 // capacity-checks at commit, but our pre-start buffer needs this guard).
                 if plen as usize > cap {
-                    return progress(PH_REJECT, 0, plen, 0x70); // CapacityExceeded reason
+                    return self.reject(0, plen, 0x70); // CapacityExceeded reason
                 }
                 self.total = plen;
                 self.header_ok = true;
                 progress(PH_START_OK, 0, self.total, 0)
             }
-            Err(e) => progress(PH_REJECT, 0, 0, reject_reason(e)),
+            Err(e) => self.reject(0, 0, reject_reason(e)),
         }
     }
 
     /// ODT: buffer one payload chunk (unverified — verification happens on commit).
     /// F2: bound the buffer to the signed `payload_len` — an ODT that overruns it
-    /// (replay-OST-then-flood) is rejected + closes the transfer (anti-OOM).
+    /// (replay-OST-then-flood) is rejected + closes the transfer (anti-OOM). After an
+    /// OST-time reject (header_ok false), re-emit the sticky reject reason.
     pub fn on_odt(&mut self, chunk: &[u8]) -> [u8; 10] {
         if !self.header_ok {
-            return progress(PH_DATA, self.buf.len() as u32, self.total, 0);
+            // dead transfer (OST rejected, or none) — re-surface WHY, not a blank DATA.
+            return self.reject(0, self.total, self.last_reason);
         }
         if self.buf.len() + chunk.len() > self.total as usize {
-            self.reset();
-            return progress(PH_REJECT, 0, 0, reject_reason(VerifyError::LengthMismatch));
+            self.clear_transfer();
+            return self.reject(0, 0, reject_reason(VerifyError::LengthMismatch));
         }
         self.buf.extend_from_slice(chunk);
         progress(PH_DATA, self.buf.len() as u32, self.total, 0)
@@ -325,8 +347,10 @@ impl<S: ImageSink> OtaApplier<S> {
         let d = self.buf.len() as u32;
         let t = self.total;
         if !self.header_ok || self.ost.len() < HEADER_LEN + SIG_LEN {
-            self.reset();
-            return alloc::vec![progress(PH_REJECT, d, t, 0)];
+            // dead transfer (OST rejected, or never started) — re-surface the reason.
+            let r = self.last_reason;
+            self.clear_transfer();
+            return alloc::vec![self.reject(d, t, r)];
         }
         let result = {
             let ctx = self.ctx();
@@ -344,9 +368,9 @@ impl<S: ImageSink> OtaApplier<S> {
             // The sink persisted the anti-rollback floor in activate() (F1) — nothing for
             // the adapter to bump.
             Ok(()) => alloc::vec![progress(PH_VERIFIED, d, t, 0), progress(PH_APPLIED, d, t, 0)],
-            Err(reason) => alloc::vec![progress(PH_REJECT, d, t, reason)],
+            Err(reason) => alloc::vec![self.reject(d, t, reason)],
         };
-        self.reset();
+        self.clear_transfer();
         out
     }
 }
@@ -579,6 +603,26 @@ mod tests {
         assert_eq!(phases[0], PH_REJECT, "signed DIFF must reject at OST: {phases:?}");
         assert!(!phases.contains(&PH_APPLIED), "DIFF must NOT apply: {phases:?}");
         assert!(!a.sink().activated(), "DIFF must NOT activate (type-confusion blocked)");
+    }
+
+    #[test]
+    fn ota_reject_reason_propagates_to_trailing_frames() {
+        // composer bug: an OST-time reject (DIFF/wrong-key/replay) must carry its reason
+        // on EVERY trailing ODT/OCM frame, so the bench's last .progress shows WHY (not 0).
+        let sk = SigningKey::from_bytes(&[0xF0; 32]);
+        let tg_pk = sk.verifying_key().to_bytes();
+        let payload = b"DIFF".repeat(50);
+        let mut header = mint(&payload, 1, tg_pk);
+        header[41] = 0x02; // DIFF → BadHeader (A7/A8)
+        let sig = sk.sign(&header).to_bytes();
+        let want = reject_reason(VerifyError::BadHeader); // 1
+        let mut a = OtaApplier::new(ota_cfg(tg_pk), MemSink::new());
+        let mut ost = Vec::from(&header[..]);
+        ost.extend_from_slice(&sig);
+        assert_eq!(a.on_ost(&ost)[9], want, "OST reject carries reason");
+        assert_eq!(a.on_odt(&payload)[9], want, "trailing ODT re-emits reason (not 0)");
+        let ocm = a.on_ocm();
+        assert_eq!(ocm.last().unwrap()[9], want, "trailing OCM re-emits reason (composer's last-read)");
     }
 
     #[test]
