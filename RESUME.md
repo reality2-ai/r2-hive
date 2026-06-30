@@ -27,11 +27,24 @@ trigger (raw PAC write only; it disables over-USB auto-reset, reboot_to_download
 ONLY if it still resets. **FLAG (re-image escape gap):** a board PARKED in download never runs the app, so
 clear-at-boot can't free it → remote re-image still needs a power-cycle or tool-side bit-clear; field-recovery
 procedure decision is composer/supervisor's. Observe beacons by BLE scan, NOT console-open (still resets).
-**DARK-LCD on provisioned D3 (task #13):** LCD code UNCHANGED (ebfa5c86), main loop runs (prints status line),
-init would've panicked if it failed → most coherent cause for a code-unchanged "regression back after
-re-provisioning" = board-profile byte has_screen@0x13000 flipped to 0x00 (→ display=None → dark). Asked composer
-what .1659 provisioning wrote to 0x13000 + for the boot-banner `has_screen=` value (line 315) — that datum splits
-board-profile (H1) vs panel-power/backlight (H2). AWAITING composer.
+**DARK-LCD on provisioned D3 (task #13): RESOLVED = NON-BUG.** Roy clarified D3's screen shows content; the "dark"
+was only while D3 sat in the BOOTLOADER (no app running). Provisioned app renders fine. Firmware confirms: 0xFF
+(erased, what a DFR's 0x13000 has) → `b[0] != 0x00` → has_screen=TRUE → display inits. NOT board-profile. Do NOT
+add a DFR 0x13000 write. Task #13 REFRAMED → the actual ask: LCD 'TN READY' status-screen content REDESIGN
+(provisioned+beaconing+ready at-a-glance). Proposed 6-line layout sent to supervisor (L1 'R2 TN READY' / L2 hive /
+L3 ROLE+fw / L4 'BLE+ LoRa+ TG+' / L5 'nbrs:N ADV+' / L6 sync). Implement on supervisor OK; refine wording w/ Roy.
+
+**BEACON CONFORMANCE-HARDENING (post-validation, multi-item — composer on-air decode + specs v0.15/R2-BLE v0.12):**
+D3's .1659 beacon had 3 AD issues, all now understood:
+- class_hash value+endianness — B5 (6323f29) fixes the STRUCTURE (role-class, big-endian). BUT specs v0.15 says the
+  class STRING must be reverse-DNS `ai.reality2.device.*`, so my `r2.*` strings are WRONG → asked specs for the
+  authoritative set+vectors → will recommit role_class_hash (fixes BOTH §7 BLE + §8.1 LoRa). [task #15, blocked specs]
+- Company-ID 0x01B2 (magic 0xB2 + ver 0x01 packed in the company-id slot) omits §7.3's 0xFFFF — observers key on
+  0xFFFF → LIKELY the ORIGINAL beacon-'regression' root cause. Fix = prepend 0xFFFF. HELD pending Roy's a/b (specs).
+  composer tolerates both forms meanwhile. [task #17, held Roy]
+- BLE address opacity — specs v0.15 §7.4.0 inv.4: address MUST be identity-independent. ble_task builds it from
+  my_hive (low 4 = wire_id) → leaks stable id, defeats RBID rotation. Fix = random opaque address. SEQUENCED with
+  composer (their bench reads wire_id from the address → they add RBID-resolution first). [task #16, seq composer]
 **NEXT (the remaining big item): re-vendor onto core consolidation tip (0d1f308)** — #9 arrival_transport
 =Some(rx_via), #12 telemetry consume (neighbour_score/neighbour_fade_remaining), #13 §2.3A beacon_emit_transports
 mask-gating, B2 non-connectable beacon. (B5 class_hash = DONE standalone, 6323f29.) Do this as a SEPARATE focused
