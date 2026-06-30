@@ -43,6 +43,21 @@ wins/idle-decays). Read-only over EXISTING r2-route state — no engine change. 
 - directed_via/flooded oracle = ALREADY in route_frame return (outcome=Directed+send target / outcome=Flooded). No new getter.
 Test neighbour_oracle_learns_then_fades_below_floor (learn→viable→decay→evicted). wasm32 + 7 host tests green.
 
+## ✅ 2026-07-01 — WEAVE Qs answered + #26 r2-trust portion found DONE
+Composer's carrier-as-bridge weave Qs (via supervisor), both verified in r2-hive-wasm src + 6 host tests green:
+- **(b) GroupHmac/TG-key API ALREADY EXISTS** (no new code): `WasmHive.withGroupHmac(hive_id,hk,tg_hash)` /
+  `setGroupHmac(hk,tg_hash)`. hk = persona's 32B group HMAC key (≠ withOta's Ed25519 tg_pk). Set → build_frame/
+  build_heartbeat/ensemble SIGN via `sign_extended` (wire-identical to fw main.rs:1011) + stamp target_group →
+  DFR nodes verify. Inbound: `verify_frame()` runs real `verify_extended` deliver-gate → {keyed,tg_ok,hmac_ok,
+  deliver}. WEAVE needs setGroupHmac(nodes_hk,…) = the SAME hk as the carrier hk-alignment in flight.
+- **(a) Arbitrary inject:** path-1 WORKS NOW — router calls `hive.build_frame(target,event_hash,payload,seq)` →
+  INJECT (signed if keyed) = host-originated-arbitrary. path-2 (VERBATIM external browser bytes relayed as-is) =
+  ~10-line bridge control-input add (parent stdin/FIFO/socket → 'INJECT <hex>' straight to serial), on request.
+  Firmware INJECT = uart_rx_task parse_inject_hex → DATA_TX → ESP-NOW egress.
+- **#26 STATUS UPDATE:** the 'real r2-trust (TG/GroupHmac/deliver-gate)' portion of #26 is ALREADY DONE in wasm
+  (real r2_trust::GroupHmac + sign_extended outbound + verify_extended inbound, exported + tested). **#26 remaining
+  = WS + UDP transports ONLY.**
+
 ## 📋 2026-07-01 — LoRa-into-bench SCOPE (Roy multi-transport direction; READ-ONLY, #16/#22)
 **KEY FINDING: board-side LoRa is ALREADY BUILT + METAL-PROVEN — integration, not net-new dev.**
 - (1) SX1262 driver/wiring DONE: core r2-sx1262 (impl LoRaRadio) present+current on dfr1195-fw (595ea65 RXEN,
