@@ -43,6 +43,23 @@ wins/idle-decays). Read-only over EXISTING r2-route state — no engine change. 
 - directed_via/flooded oracle = ALREADY in route_frame return (outcome=Directed+send target / outcome=Flooded). No new getter.
 Test neighbour_oracle_learns_then_fades_below_floor (learn→viable→decay→evicted). wasm32 + 7 host tests green.
 
+## 📋 2026-07-01 — LoRa-into-bench SCOPE (Roy multi-transport direction; READ-ONLY, #16/#22)
+**KEY FINDING: board-side LoRa is ALREADY BUILT + METAL-PROVEN — integration, not net-new dev.**
+- (1) SX1262 driver/wiring DONE: core r2-sx1262 (impl LoRaRadio) present+current on dfr1195-fw (595ea65 RXEN,
+  0cb30b2 AS923). DFR1195 integrated SX1262 pins CONFIRMED: SPI3 SCK7/MISO5/MOSI6 NSS10 BUSY40 RST41 RXEN(GPIO42
+  host RF-switch) DIO1=4; 8MHz Mode0; wairoa_as923_nz 916.8MHz. RxenRadio newtype = thin RF-switch seam. XIAO+Wio
+  variant (DIO2 RF-switch) also wired (main.rs:565-616).
+- (2) LoRa+ESP-NOW dual-radio + R2-ROUTE auto-bridge DONE = 'bridge' feature (TN-FR-2). Per-transport TX chans
+  (DATA_TX_LORA vs DATA_TX); engine auto-bridges (best_transport→Hop{nbr,transport}, no bridge code); transport-
+  agnostic dedup → exactly-once crossing. Data-plane = LoRaTransport::service() (lora_transport.rs+lora_airtime.rs).
+- (3) FLAG not net-new: loraroute (=lora+routetest+r2-transport/alloc) + bridge (un-gates ESP-NOW). METAL 2026-06-23:
+  FR-1 PASS, FR-2 PASS (12 events crossed exactly-once), FR-4 SURVIVED-METAL (see [[lora-message-passing-metal]]).
+**REMAINING COST = integration:** xtensa build on alfred only (no local build-verify); multitg required for LoRa
+routing (TG key NVS@0x14000); RIG-PINNING — bench-default consts hardcode tuxedo D1-D4 hive_ids (remap+rebuild for
+alfred X1-X4, OR use 'field' role-profile@0x17000); live = a bench-cycle (flash+prov2+run), gated composer bench-ssh.
+**#26 tie-in:** wasm SIM heterogeneous bench would tag Transport (r2-route enum exists) to SHOW LoRa-vs-ESPNOW links.
+**STATUS:** scope sent supervisor; asked core re LoRaTransport/Sx1262 API drift vs HEAD (re-vendor risk) → inbox.
+
 ## ✅ 2026-07-01 — CORE-SYNC §5.5 inv-5 (reject-while-pending) [hive @c7978c5]
 Core type-enforced §5.5 invariant-5 (r2-core e921622): `ImageSink::pending_seq()->Option<u32>` (default None) +
 `ApplyError::PendingUpdate{pending_seq,this_seq}` — `SignedOtaApply::start()` rejects unless new seq STRICTLY > staged
