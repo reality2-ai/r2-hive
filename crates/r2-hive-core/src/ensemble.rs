@@ -169,12 +169,17 @@ impl ImageSink for MemSink {
 }
 
 /// Map an apply error to a progress `reason` byte: a VerifyError via `reject_reason`
-/// (1..=12), a capacity/sink error to 0x70.
+/// (1..=12), a capacity/sink error to 0x70, a §5.5 reject-while-pending to 0x71
+/// (retry-after-reboot — a strictly-newer seq must supersede the staged image).
 fn apply_reason<E>(e: &ApplyError<E>) -> u8 {
     match e {
         ApplyError::Verify(v) => reject_reason(*v),
         ApplyError::Sink(_) => 0x70,
         ApplyError::CapacityExceeded { .. } => 0x70,
+        // §5.5 invariant-5: an image is staged-pending and this seq does not
+        // supersede it. Sim MemSink never hits this (pending_seq()=None), but the
+        // arm is required for the board FirmwareSink path + an exhaustive match.
+        ApplyError::PendingUpdate { .. } => 0x71,
     }
 }
 
