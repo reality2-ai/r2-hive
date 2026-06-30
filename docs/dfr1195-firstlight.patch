@@ -2793,10 +2793,10 @@ index 0000000..c645602
 +    println!("cargo:rustc-env=R2_WIFI_PASS={pass}");
 +}
 diff --git a/platforms/dfr1195/src/main.rs b/platforms/dfr1195/src/main.rs
-index 8c49f1c..90cc9a6 100644
+index 8c49f1c..4367a1a 100644
 --- a/platforms/dfr1195/src/main.rs
 +++ b/platforms/dfr1195/src/main.rs
-@@ -1,83 +1,4825 @@
+@@ -1,83 +1,4871 @@
 -//! r2-dfr1195 — Path B no_std firmware entry (esp-hal/embassy) for the
 -//! DFRobot DFR1195 (FireBeetle 2 ESP32-S3) + SX1262 LoRa.
 +//! r2-dfr1195 — Path B no_std firmware (esp-rtos/embassy) for the DFRobot DFR1195
@@ -3026,13 +3026,14 @@ index 8c49f1c..90cc9a6 100644
 +        let mut n = 0usize;
 +        let mut paccum = [0u8; 512];
 +        let mut paccum_len = 0usize;
++        let mut paccum_begin = false; // A4: BEGIN-seen guard
 +        let mut idle_ticks: u32 = 300; // emit the first liveness promptly on the first idle poll
 +        loop {
 +            // Drain the console first: PERSONA/RPF1/BOARDPROF/REBOOT (#14). Byte-flowing → loop immediately
 +            // (drain fast); on REBOOT after a stored persona → reset → read_persona@0x12000 → exits INERT.
 +            if let Ok(c) = usb_rx.read_byte() {
 +                if c == b'\n' || c == b'\r' {
-+                    if n > 0 && handle_persona_cmd(&line[..n], &mut paccum, &mut paccum_len) {
++                    if n > 0 && handle_persona_cmd(&line[..n], &mut paccum, &mut paccum_len, &mut paccum_begin) {
 +                        esp_hal::system::software_reset();
 +                    }
 +                    n = 0;
@@ -3148,10 +3149,7 @@ index 8c49f1c..90cc9a6 100644
 +    let timg0 = TimerGroup::new(p.TIMG0);
 +    let sw_int = SoftwareInterruptControl::new(p.SW_INTERRUPT);
 +    esp_rtos::start(timg0.timer0, sw_int.software_interrupt0);
- 
--/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
--/// S3's RAM; HIVE: tune against the real footprint.
--const HEAP_SIZE: usize = 72 * 1024;
++
 +    println!("r2-dfr1195: PHASE 1a — esp-rtos/embassy + esp-radio (build {BUILD_ID})");
 +    println!(
 +        "r2-dfr1195: DEV {mac_low3:06x} hive={my_hive:08x} TG={tg_label} (persona={}) role={}",
@@ -3159,12 +3157,7 @@ index 8c49f1c..90cc9a6 100644
 +        if is_ap { "SOFT-AP" } else { "STA" }
 +    );
 +    println!("r2-dfr1195: carrier has_screen={has_screen} led_active_low={led_active_low}");
- 
--#[esp_hal_embassy::main]
--async fn main(_spawner: embassy_executor::Spawner) {
--    // ── Chip + heap + embassy time ──────────────────────────────────────────
--    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
--    let _peripherals = esp_hal::init(esp_hal::Config::default());
++
 +    // 4. Status LED (GPIO21) via LEDC PWM — for the organic lub-DUB heartbeat envelope.
 +    //    io_task signals the FIRE (conductor-PLL = WHEN); main renders the SHAPE below.
 +    let mut ledc = Ledc::new(p.LEDC);
@@ -3191,41 +3184,7 @@ index 8c49f1c..90cc9a6 100644
 +    // the DE/RE Output here (real pins from Roy), spawn ONLY the probe, and PARK — the radio/mesh region
 +    // below is never reached. Build: cargo build --release --features radarprobe. Pins: see RADAR_* consts.
 +    #[cfg(feature = "radarprobe")]
-     {
--        use core::mem::MaybeUninit;
--        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
--        #[allow(static_mut_refs)]
--        unsafe {
--            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
--                HEAP.as_mut_ptr() as *mut u8,
--                HEAP_SIZE,
--                esp_alloc::MemoryCapability::Internal.into(),
--            ));
--        }
--    }
--
--    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
--
--    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
--    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
--    // construction go here (version-specific). Then:
--    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
--    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
--    //
--    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
--    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
--    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
--    // feed discovered hives into the peer maps.
--    //
--    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
--    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
--    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
--    // and drive its TX/RX embassy tasks.
--    //
--    // ── Route engine ──────────────────────────────────────────────────────────
--    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
--    // resolves hive ids per medium. The route logic is fully validated in the
--    // r2-harness sim — this firmware only supplies the real radios.
++    {
 +        use radarprobe::{radar_cfg, radar_probe_task, RADAR_BAUDS, RADAR_DE_RE, RADAR_PARITIES, RADAR_UART_RX, RADAR_UART_TX};
 +        use esp_hal::uart::Uart;
 +        println!("r2-dfr1195: RADARPROBE — radio stack OFF; UART1 RS-485 Modbus sweep (TX=GPIO{} RX=GPIO{} DE/RE=GPIO{})",
@@ -3761,10 +3720,8 @@ index 8c49f1c..90cc9a6 100644
 +    if profile.role == Role::Receiver && profile.expected_sensor != 0 {
 +        let _ = sensor_seen.push((profile.expected_sensor, route_now_s(), false));
 +    }
- 
-     loop {
--        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
--        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
++
++    loop {
 +        // 2-TG (#20): install a runtime re-PROVISION (uart_rx_task validated + persisted it to NVS).
 +        // Swap the live GroupHmac + target_group so the deliver-gate (B1) + TG-scoped sends use the new
 +        // key WITHOUT a reboot. The engine retains no key (R2-RUNTIME §13.2) — we take it from the conduit.
@@ -4894,23 +4851,39 @@ index 8c49f1c..90cc9a6 100644
 +/// records to whitelisted offsets, ACKs on serial (composer's streamer waits for these exact strings). Returns
 +/// true iff REBOOT was requested (caller resets → read_persona@0x12000 → exits INERT). NOT cfg-gated — used by
 +/// uart_rx_task (running boards) + the §3.5 INERT loop (fresh boards).
-+fn handle_persona_cmd(line: &[u8], accum: &mut [u8; 512], accum_len: &mut usize) -> bool {
++fn handle_persona_cmd(
++    line: &[u8],
++    accum: &mut [u8; 512],
++    accum_len: &mut usize,
++    begin_seen: &mut bool,
++) -> bool {
 +    if line == b"PERSONA BEGIN" {
 +        *accum_len = 0;
++        *begin_seen = true; // A4 (adversarial-review): require BEGIN before any chunk/END
 +    } else if line == b"PERSONA END" {
-+        match r2_trust::parse_persona(&accum[..*accum_len]) {
-+            Some(p) => {
-+                if store_blob_verify(PERSONA_OFFSET, &accum[..*accum_len]) {
-+                    println!("r2-dfr1195: PERSONA OK {:08x}", p.hive_id);
-+                } else {
-+                    println!("r2-dfr1195: PERSONA ERR verify");
++        if !*begin_seen {
++            // A4: a stray END (no BEGIN) must NOT re-parse stale accumulator contents.
++            println!("r2-dfr1195: PERSONA ERR no-begin");
++        } else {
++            match r2_trust::parse_persona(&accum[..*accum_len]) {
++                Some(p) => {
++                    if store_blob_verify(PERSONA_OFFSET, &accum[..*accum_len]) {
++                        println!("r2-dfr1195: PERSONA OK {:08x}", p.hive_id);
++                    } else {
++                        println!("r2-dfr1195: PERSONA ERR verify");
++                    }
 +                }
++                None => println!("r2-dfr1195: PERSONA ERR parse"),
 +            }
-+            None => println!("r2-dfr1195: PERSONA ERR parse"),
 +        }
++        // A4: reset after END (ok OR err) so the next record starts clean — no stale-accum carryover.
++        *accum_len = 0;
++        *begin_seen = false;
 +    } else if let Some(hex) = line.strip_prefix(b"PERSONA ") {
 +        let nbytes = hex.len() / 2;
-+        if hex.len() % 2 != 0 || *accum_len + nbytes > accum.len() {
++        if !*begin_seen {
++            println!("r2-dfr1195: PERSONA ERR no-begin"); // A4: chunks only after BEGIN
++        } else if hex.len() % 2 != 0 || *accum_len + nbytes > accum.len() {
 +            println!("r2-dfr1195: PERSONA ERR len");
 +        } else if decode_hex_into(hex, &mut accum[*accum_len..*accum_len + nbytes]).is_ok() {
 +            *accum_len += nbytes;
@@ -4945,8 +4918,28 @@ index 8c49f1c..90cc9a6 100644
 +    } else if line == b"REBOOT" {
 +        println!("r2-dfr1195: REBOOT (console-provision) — restarting");
 +        return true;
++    } else if line == b"DOWNLOAD" || line == b"REBOOT-DOWNLOAD" {
++        // FIELD-CRITICAL (#3 reboot-to-download): the running app (incl. the §3.5 INERT/console loop) HOLDS the
++        // USB-Serial-JTAG, so a host download-reset can't get through → remote re-flash is futile without a BOOT
++        // press. This makes the BOOT press the LAST physical touch: set the ROM force-download-boot flag + reset;
++        // the reset STOPS the app (frees the USB-JTAG) and the ROM comes up in download mode (USB-JTAG-reachable,
++        // the state the first flash used) so espflash can re-flash REMOTELY. Diverges (never returns).
++        reboot_to_download();
 +    }
 +    false
++}
++
++/// FIELD-CRITICAL recovery (#3): enter ROM serial-download mode by software, so a remote espflash can re-flash
++/// without a physical BOOT button. Sets RTC_CNTL(LPWR).OPTION1.force_download_boot (survives the reset via the
++/// RTC domain) then software_reset → the ROM bootloader reads the flag and enters download mode, taking over the
++/// USB-Serial-JTAG the app was holding. DESK-VALIDATE before field reliance: confirm espflash reaches the
++/// sw-triggered download mode over USB-JTAG (BOOT-button fallback if S3 force_download_boot lands in UART-only).
++fn reboot_to_download() -> ! {
++    println!("r2-dfr1195: REBOOT-TO-DOWNLOAD — force_download_boot + reset (ROM takes the USB-JTAG; flash remotely now)");
++    esp_hal::peripherals::LPWR::regs()
++        .option1()
++        .modify(|_, w| w.force_download_boot().set_bit());
++    esp_hal::system::software_reset();
 +}
 +
 +// ─── R2-RUNTIME §3.2 — device role as an ensemble PROFILE (one signed image, config-activated) ───
@@ -5546,7 +5539,14 @@ index 8c49f1c..90cc9a6 100644
 +    // REGRESSION-GUARD: the advert MUST be a built R2-BEACON AD (manufacturer 0xFF + non-empty payload) — assert
 +    // it so a refactor that drops encode_advert fails loudly (paired with core's r2_discovery codec round-trip
 +    // test + a bench BLE-scan integration check that every board's beacon is visible).
-+    debug_assert!(alen > 5 && adv[4] == 0xFF, "R2-BEACON §7 advert not built");
++    // REGRESSION-GUARD (B3, runtime + release-EFFECTIVE — a debug_assert is a no-op in --release, the shipped
++    // artifact, and adv[4]==0xFF is tautological since it was just assigned): the §7 advert MUST carry a
++    // non-empty encode_advert payload. Logged (serial/CI-observable) so a broken encode_advert is caught at the
++    // emit point. The codec round-trip itself is core's r2_discovery test; the per-board 'BEACON adv up' log
++    // below is the wiring signal.
++    if plen == 0 {
++        println!("r2-dfr1195: BEACON-GUARD FAIL — empty §7 advert payload (encode_advert regression)");
++    }
 +    #[cfg(not(feature = "blemesh"))]
 +    let advertise_beacon = true;
 +    #[cfg(feature = "blemesh")]
@@ -5892,7 +5892,10 @@ index 8c49f1c..90cc9a6 100644
 +    CriticalSectionRawMutex,
 +    core::cell::RefCell<heapless::Vec<(u32, [u8; 6]), 16>>,
 +> = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(heapless::Vec::new()));
-+
+ 
+-/// Heap for esp-wifi (it requires an allocator). Sized conservatively for the
+-/// S3's RAM; HIVE: tune against the real footprint.
+-const HEAP_SIZE: usize = 72 * 1024;
 +/// M-ESPNOW-3b BENCH multi-hop allow-list (core's technique): a per-board can-hear MAC set, applied at
 +/// the ESP-NOW recv BEFORE r2-route, so A→B→C relay is exercised on a bench (all 1-hop in-range) without
 +/// physical separation. Topology: A(0dcadbf8)={B}, B(2cab5f69)={A,C}, C(f91c8911)={B} → A↔C NOT direct →
@@ -6234,7 +6237,12 @@ index 8c49f1c..90cc9a6 100644
 +    let _ = LORA_BEACON_T_ROTATE_S;
 +    0
 +}
-+
+ 
+-#[esp_hal_embassy::main]
+-async fn main(_spawner: embassy_executor::Spawner) {
+-    // ── Chip + heap + embassy time ──────────────────────────────────────────
+-    // HIVE: esp-hal 0.23 init shape; confirm against the installed version.
+-    let _peripherals = esp_hal::init(esp_hal::Config::default());
 +/// Build this node's §8.1 LoRa beacon into `buf`; returns the byte length (15, or 16 with tx_power).
 +#[cfg(feature = "lora")]
 +fn build_lora_beacon(
@@ -6274,7 +6282,41 @@ index 8c49f1c..90cc9a6 100644
 +    if (p.len() != LORA_BEACON_CORE_LEN && p.len() != LORA_BEACON_CORE_LEN + 1)
 +        || p[0] != R2_BEACON_MAGIC
 +        || p[1] != BEACON_VERSION
-+    {
+     {
+-        use core::mem::MaybeUninit;
+-        static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+-        #[allow(static_mut_refs)]
+-        unsafe {
+-            esp_alloc::HEAP.add_region(esp_alloc::HeapRegion::new(
+-                HEAP.as_mut_ptr() as *mut u8,
+-                HEAP_SIZE,
+-                esp_alloc::MemoryCapability::Internal.into(),
+-            ));
+-        }
+-    }
+-
+-    esp_println::println!("r2-dfr1195: boot (Path B no_std esp-hal/embassy)");
+-
+-    // ── WiFi STA + embassy-net + R2 UDP transport ─────────────────────────────
+-    // HIVE: esp-wifi controller init + WiFi STA association + embassy-net Stack
+-    // construction go here (version-specific). Then:
+-    //   spawner.spawn(wifi::udp_writer_task(stack, &TX_CHANNEL)).ok();
+-    // and build the WifiTransport over the shared PeerTable + TxChannel sender.
+-    //
+-    // ── BLE (R2-BEACON discovery + R2-BLE frame transport) ────────────────────
+-    // HIVE: bring up the esp-wifi BLE controller + trouble-host; advertise the
+-    // RBID beacon (import the canonical beacon encode from r2-core), scan, and
+-    // feed discovered hives into the peer maps.
+-    //
+-    // ── LoRa (R2-LORA over SX1262, generic over composer's radio trait) ───────
+-    // HIVE: construct the concrete radio (SX1262 driver impl of composer's
+-    // `Radio` trait) over the SPI pins in README.md, wrap in LoRaTransport,
+-    // and drive its TX/RX embassy tasks.
+-    //
+-    // ── Route engine ──────────────────────────────────────────────────────────
+-    // HIVE: run r2_route over the [Wifi, Ble, LoRa] Transport set; the host map
+-    // resolves hive ids per medium. The route logic is fully validated in the
+-    // r2-harness sim — this firmware only supplies the real radios.
 +        return None;
 +    }
 +    let mut rbid = [0u8; 8];
@@ -6554,7 +6596,7 @@ index 8c49f1c..90cc9a6 100644
 +        embassy_time::Timer::after(embassy_time::Duration::from_millis(5)).await;
 +    }
 +}
-+
+ 
 +/// ESP-NOW true-mesh data plane (Mode 2) — M-ESPNOW-1: validate broadcast/recv on metal. Every device
 +/// peers connectionlessly (no AP); the src MAC on each frame learns the hive_id↔MAC map (core's design).
 +/// Broadcasts an R2M probe + logs observed peers. Next: feed r2-route + heartbeat-over-broadcast + unicast.
@@ -6655,7 +6697,10 @@ index 8c49f1c..90cc9a6 100644
 +    let mut n = 0usize;
 +    let mut paccum = [0u8; 512]; // #14 console-persona accumulator (chunked PERSONA → ≤512B record)
 +    let mut paccum_len = 0usize;
-+    loop {
++    let mut paccum_begin = false; // A4: BEGIN-seen guard
+     loop {
+-        embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+-        esp_println::println!("r2-dfr1195: alive (transports: skeleton)");
 +        if let Ok(c) = usb_rx.read_byte() {
 +            if c == b'\n' || c == b'\r' {
 +                if n > 0 {
@@ -6733,8 +6778,9 @@ index 8c49f1c..90cc9a6 100644
 +                    let is_persona = line[..n].starts_with(b"PERSONA")
 +                        || line[..n].starts_with(b"RPF1 ")
 +                        || line[..n].starts_with(b"BOARDPROF ")
-+                        || line[..n].starts_with(b"REBOOT");
-+                    if is_persona && handle_persona_cmd(&line[..n], &mut paccum, &mut paccum_len) {
++                        || line[..n].starts_with(b"REBOOT")
++                        || line[..n].starts_with(b"DOWNLOAD"); // reboot-to-download (REBOOT-DOWNLOAD already via REBOOT)
++                    if is_persona && handle_persona_cmd(&line[..n], &mut paccum, &mut paccum_len, &mut paccum_begin) {
 +                        esp_hal::system::software_reset();
 +                    }
 +                    if !is_provision && !is_mask && !is_sendto && !is_persona {
