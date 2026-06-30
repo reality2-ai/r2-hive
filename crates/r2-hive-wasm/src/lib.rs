@@ -132,10 +132,8 @@ impl WasmHive {
             carrier_hash: 0, // target_carrier 0 = any
             tg_prefix: [0u8; 8],
             device_id_prefix: [0u8; 8],
-            current_seq: 0,
             battery_pct: 100,
             tg_pk: pk,
-            authority_epoch_floor: 0,
         };
         bus.register_sentant(Box::new(OtaSentant::new(cfg, MemSink::new())));
         bus.init_all();
@@ -556,6 +554,20 @@ mod tests {
         let tg_hex: String = tg_pk.iter().map(|b| format!("{b:02x}")).collect();
         std::fs::write(format!("{dir}/ota-test-pkg.tg_pk.hex"), &tg_hex).unwrap();
         println!("MINTED pkg={} bytes payload={} tg_pk={}", pkg.len(), payload.len(), tg_hex);
+
+        // 3rd reject-demo arm: a validly-SIGNED but WRONG-TYPE (DIFF 0x02) package —
+        // must hit the A7/A8 type-confusion REJECT, never APPLIED. Same tg_pk.
+        let mut dheader = header;
+        dheader[41] = 0x02; // PT_FIRMWARE_DIFF (not FULL)
+        let dsig = sk.sign(&dheader).to_bytes();
+        let mut dpkg = Vec::from(&dheader[..]);
+        dpkg.extend_from_slice(&payload);
+        dpkg.extend_from_slice(&dsig);
+        std::fs::File::create(format!("{dir}/ota-test-pkg-diff.bin"))
+            .unwrap()
+            .write_all(&dpkg)
+            .unwrap();
+        println!("MINTED diff pkg={} bytes (payload_type=0x02 → expect A7/A8 REJECT)", dpkg.len());
     }
 
     #[test]

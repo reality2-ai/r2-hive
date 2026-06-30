@@ -84,7 +84,7 @@ use alloc::vec::Vec;
 // + the platform sink trait. Per core's OTA ruling (OTA_PLUGIN_SHAPE.md, STATE B): the
 // ORDERING is shared in core (SignedOtaApply), hive impls ImageSink per platform + the
 // OtaSentant control surface. r2-update stays the verify primitive owner.
-use r2_update::apply::{ApplyError, ImageSink, SignedOtaApply};
+use r2_update::apply::{AppliedUpdate, ApplyError, ImageSink, SignedOtaApply};
 use r2_update::{
     reject_reason, verify_header, DeviceContext, VerifyError, HEADER_LEN, PT_FIRMWARE_FULL, SIG_LEN,
 };
@@ -109,6 +109,8 @@ pub const PH_REJECT: u8 = 0xFF;
 pub struct MemSink {
     staged: Vec<u8>,
     activated: bool,
+    cap: usize,
+    seq_floor: u32, // durably-persisted anti-rollback floor (the board uses NVS; F1)
 }
 impl Default for MemSink {
     fn default() -> Self {
@@ -117,7 +119,7 @@ impl Default for MemSink {
 }
 impl MemSink {
     pub fn new() -> Self {
-        Self { staged: Vec::new(), activated: false }
+        Self { staged: Vec::new(), activated: false, cap: 4 * 1024 * 1024, seq_floor: 0 }
     }
     /// The activated image (the installed bytes after a successful `activate`).
     pub fn image(&self) -> &[u8] {
@@ -130,6 +132,12 @@ impl MemSink {
 }
 impl ImageSink for MemSink {
     type Error = ();
+    fn capacity(&self) -> usize {
+        self.cap
+    }
+    fn current_seq_floor(&self) -> u32 {
+        self.seq_floor
+    }
     fn begin(&mut self, total_len: usize) -> Result<(), ()> {
         self.staged = Vec::with_capacity(total_len);
         self.activated = false;
@@ -139,18 +147,26 @@ impl ImageSink for MemSink {
         self.staged.extend_from_slice(chunk);
         Ok(())
     }
-    fn activate(&mut self, _seq: u32, _payload_hash: &[u8; 32]) -> Result<(), ()> {
+    fn activate(&mut self, applied: &AppliedUpdate) -> Result<(), ()> {
+        // Persist the anti-rollback floor BEFORE reporting success (F1) — the board
+        // writes NVS here; the sim holds it in RAM.
+        self.seq_floor = applied.seq;
         self.activated = true;
         Ok(())
+    }
+    fn abort(&mut self) {
+        self.staged.clear();
+        self.activated = false;
     }
 }
 
 /// Map an apply error to a progress `reason` byte: a VerifyError via `reject_reason`
-/// (1..=12), a sink error to 0x70.
+/// (1..=12), a capacity/sink error to 0x70.
 fn apply_reason<E>(e: &ApplyError<E>) -> u8 {
     match e {
         ApplyError::Verify(v) => reject_reason(*v),
         ApplyError::Sink(_) => 0x70,
+        ApplyError::CapacityExceeded { .. } => 0x70,
     }
 }
 
@@ -162,37 +178,14 @@ pub struct OtaConfig {
     pub carrier_hash: u32,
     pub tg_prefix: [u8; 8],
     pub device_id_prefix: [u8; 8],
-    /// Anti-rollback replay floor (R2-UPDATE §10.1#3): an update with seq <= this is
-    /// rejected. ADVANCED after each successful apply (F1 fix). The board persists this
-    /// to NVS; the wasm sim holds it in RAM (the node-session floor).
-    pub current_seq: u32,
     pub battery_pct: u8,
     pub tg_pk: [u8; 32],
-    /// OTA-authority epoch floor (§9.4a anti-rollback backstop). Bumped to the accepted
-    /// authority_epoch on a cert-signed apply.
-    pub authority_epoch_floor: u32,
 }
-impl OtaConfig {
-    fn ctx(&self) -> DeviceContext<'_> {
-        DeviceContext {
-            class_hash: self.class_hash,
-            carrier_hash: self.carrier_hash,
-            tg_prefix: self.tg_prefix,
-            device_id_prefix: self.device_id_prefix,
-            current_seq: self.current_seq,
-            battery_pct: self.battery_pct,
-            tg_pk: self.tg_pk,
-            update_authority_certs: &[],
-            revocation_gset: &[],
-            authority_epoch_floor: self.authority_epoch_floor,
-        }
-    }
-}
-
-/// Hard cap on a single OTA image (F2): reject an absurd signed `payload_len` BEFORE
-/// buffering, and bound the ODT buffer to it. A real board uses its actual inactive-
-/// slot capacity; the wasm sim uses this fixed ceiling.
-const OTA_MAX_IMAGE: u32 = 4 * 1024 * 1024;
+// The anti-rollback floor now lives in the SINK (ImageSink::current_seq_floor — F1) and
+// is advanced by ImageSink::activate; the orchestrator does the commit-time re-check.
+// OtaApplier::ctx() reads the floor from the sink so ctx.current_seq == the persisted
+// floor (the trait's invariant). Demo packages are TG_SK-direct → no update_authority
+// certs / revocation, authority_epoch_floor 0.
 
 fn progress(phase: u8, done: u32, total: u32, reason: u8) -> [u8; 10] {
     let mut p = [0u8; 10];
@@ -230,12 +223,31 @@ impl<S: ImageSink> OtaApplier<S> {
     pub fn sink(&self) -> &S {
         &self.sink
     }
-    /// This node's current anti-rollback floor (advanced after each apply — F1).
+    /// This node's current anti-rollback floor — read from the SINK (F1: the floor is
+    /// persisted by ImageSink::activate, not held in the adapter).
     pub fn current_seq(&self) -> u32 {
-        self.cfg.current_seq
+        self.sink.current_seq_floor()
+    }
+    /// Build the DeviceContext — current_seq is read from the sink's persisted floor so
+    /// it equals what activate last wrote (the ImageSink invariant). Returns a `'static`
+    /// context (cert/revocation slices are empty) so it doesn't borrow `self` — lets the
+    /// caller pass `&mut self.sink` to the orchestrator alongside it.
+    fn ctx(&self) -> DeviceContext<'static> {
+        DeviceContext {
+            class_hash: self.cfg.class_hash,
+            carrier_hash: self.cfg.carrier_hash,
+            tg_prefix: self.cfg.tg_prefix,
+            device_id_prefix: self.cfg.device_id_prefix,
+            current_seq: self.sink.current_seq_floor(),
+            battery_pct: self.cfg.battery_pct,
+            tg_pk: self.cfg.tg_pk,
+            update_authority_certs: &[],
+            revocation_gset: &[],
+            authority_epoch_floor: 0,
+        }
     }
     /// Clear per-transfer state (after commit/reject) so a stale OST/ODT/OCM-replay
-    /// can't re-drive the buffered image (F1).
+    /// can't re-drive the buffered image.
     fn reset(&mut self) {
         self.ost.clear();
         self.buf.clear();
@@ -254,20 +266,21 @@ impl<S: ImageSink> OtaApplier<S> {
         self.ost.extend_from_slice(&data[..HEADER_LEN + SIG_LEN]);
         let header = &self.ost[..HEADER_LEN];
         let sig = &self.ost[HEADER_LEN..HEADER_LEN + SIG_LEN];
-        match verify_header(header, sig, &self.cfg.ctx()) {
+        let cap = self.sink.capacity();
+        match verify_header(header, sig, &self.ctx()) {
             Ok(vh) => {
                 let plen = vh.payload_len as u32;
                 // A7/A8 type-confusion gate: a validly-SIGNED DIFF(0x02)/RECOVERY(0x0B)
-                // must NOT install as a FULL image. verify_header does NOT gate
-                // payload_type (r2-update lib.rs:127 — the receiver MUST). Reject early
-                // here; SignedOtaApply re-enforces it at commit (gate can't be omitted).
+                // must NOT install as a FULL image (the orchestrator re-enforces it at
+                // commit; this is the early reject for honest UX).
                 if vh.payload_type != PT_FIRMWARE_FULL {
                     return progress(PH_REJECT, 0, plen, reject_reason(VerifyError::BadHeader));
                 }
-                // F2: TOO_BIG precheck — reject an absurd signed payload_len BEFORE any
-                // buffering (bounds the ODT buffer below; anti-OOM).
-                if plen > OTA_MAX_IMAGE {
-                    return progress(PH_REJECT, 0, plen, 0x70); // sink-reason space (TOO_BIG)
+                // F2: bound the RAM buffer before staging — reject a signed payload_len
+                // larger than the sink's capacity BEFORE buffering (the orchestrator also
+                // capacity-checks at commit, but our pre-start buffer needs this guard).
+                if plen as usize > cap {
+                    return progress(PH_REJECT, 0, plen, 0x70); // CapacityExceeded reason
                 }
                 self.total = plen;
                 self.header_ok = true;
@@ -292,12 +305,14 @@ impl<S: ImageSink> OtaApplier<S> {
         progress(PH_DATA, self.buf.len() as u32, self.total, 0)
     }
 
-    /// OCM: run core's canonical verify-before-write apply over the buffered stream:
-    /// `start` (verify_header 4-gate/Ed25519/anti-rollback + type-gate + sink.begin) →
-    /// `feed` (verify-then-write per chunk) → `finish` (hash-confirm THEN sink.activate).
-    /// A bad image never activates. On success ADVANCES the anti-rollback floor (F1)
-    /// BEFORE reporting APPLIED. Returns the progress sequence (VERIFIED+APPLIED or a
-    /// single REJECT); always resets per-transfer state.
+    /// OCM: run core's canonical verify-before-write apply over the buffered stream.
+    /// The orchestrator enforces the full RCE-guard ordering BY CONSTRUCTION: capacity
+    /// (F2) → start (verify_header 4-gate/Ed25519/anti-rollback + type-gate, sink.begin
+    /// only after Ok) → feed (verify-then-write per chunk) → finish (hash-confirm +
+    /// commit-time anti-rollback re-check, then sink.activate which PERSISTS the floor —
+    /// F1); sink.abort on ANY post-begin failure (F3). The adapter just feeds buffered
+    /// bytes + maps the result to progress. Returns VERIFIED+APPLIED or a single REJECT;
+    /// always resets per-transfer state.
     pub fn on_ocm(&mut self) -> Vec<[u8; 10]> {
         let d = self.buf.len() as u32;
         let t = self.total;
@@ -305,30 +320,22 @@ impl<S: ImageSink> OtaApplier<S> {
             self.reset();
             return alloc::vec![progress(PH_REJECT, d, t, 0)];
         }
-        // Scoped so the ctx/header/sig/apply borrows end before we mutate self.cfg.
         let result = {
-            let ctx = self.cfg.ctx();
+            let ctx = self.ctx();
             let header = &self.ost[..HEADER_LEN];
             let sig = &self.ost[HEADER_LEN..HEADER_LEN + SIG_LEN];
             match SignedOtaApply::start(header, sig, &ctx, PT_FIRMWARE_FULL, &mut self.sink) {
                 Err(e) => Err(apply_reason(&e)),
                 Ok(mut apply) => match apply.feed(&self.buf) {
                     Err(e) => Err(apply_reason(&e)),
-                    Ok(()) => apply.finish().map_err(|e| apply_reason(&e)),
+                    Ok(()) => apply.finish().map(|_| ()).map_err(|e| apply_reason(&e)),
                 },
             }
         };
         let out = match result {
-            Ok(applied) => {
-                // F1: ADVANCE the floors BEFORE reporting APPLIED → a replay (same seq)
-                // or downgrade (older signed seq) now fails StaleSeq next time. (The
-                // board persists these to NVS; the sim holds them in cfg = node floor.)
-                self.cfg.current_seq = applied.seq;
-                if let Some(ep) = applied.authority_epoch {
-                    self.cfg.authority_epoch_floor = self.cfg.authority_epoch_floor.max(ep);
-                }
-                alloc::vec![progress(PH_VERIFIED, d, t, 0), progress(PH_APPLIED, d, t, 0)]
-            }
+            // The sink persisted the anti-rollback floor in activate() (F1) — nothing for
+            // the adapter to bump.
+            Ok(()) => alloc::vec![progress(PH_VERIFIED, d, t, 0), progress(PH_APPLIED, d, t, 0)],
             Err(reason) => alloc::vec![progress(PH_REJECT, d, t, reason)],
         };
         self.reset();
@@ -442,10 +449,8 @@ mod tests {
             carrier_hash: 0xCA44_1E20,
             tg_prefix: [0x11; 8],
             device_id_prefix: [0x22; 8],
-            current_seq: 0,
             battery_pct: 100,
             tg_pk,
-            authority_epoch_floor: 0,
         }
     }
 
