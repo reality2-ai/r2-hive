@@ -30,6 +30,21 @@ is gated — no findings landed yet).
 - **CI note:** `.github/workflows/ci.yml` triggers only on push:main / PR→main, so NO hosted run fires for
   platform-trait by design (the known CI-gap = a morning item, NOT introduced here). Local verification stands.
 
+## ✅ 2026-07-01 — owed task-#4 cleared: r2-hive build+test GREEN vs consolidated r2-core; relay-v0.2 confirmed done
+**Build/test (tip a038435):** `cargo build --workspace` clean; `cargo test --workspace` = ~200 passed / 0 failed /
+3 pre-existing ignores (r2_hive lib 105, r2-hive-core 26, + 12 integration suites). All 5 vendored r2-core crates
+(def/ensemble/dispatch/transport/discovery) resolve from ../r2-core/crates; r2-discovery stubbed transports compile
+(runtime-noop as flagged by core). My wasm-crate exclude introduced ZERO regression (workspace unaffected). Result
+reported to supervisor (the owed task-#4 build/test result).
+**Relay v0.2 — already DONE (verify-then-record via git, NOT re-done):** R2-TRANSPORT-RELAY v0.2 device-side
+challenge-response landed in `40eaf0e` (feat(compat): v0.2 device-first relay handshake) + `04d19cc` (nonce CSPRNG
+routed through Platform seam) + `c5aec3e` (recv loops survive transient errors). handshake.rs reads inbound
+{type:challenge,nonce}, echoes it, signs Ed25519 over `<nonce>:<trust_group>:<device_id>:<timestamp>` (4-field),
+stateless ±60s timestamp fast-reject retained. specs ruled the Ed25519 primitive CORRECT (the §3.2 'HMAC' wording
+was the spec defect, fixed in v0.2). So relay-handshake conformance = settled PASS, no further hive change.
+**Net OPEN items (unchanged):** OTA-refute (#19, gated — no findings landed yet; triage+respond on arrival) +
+metal e2e (Roy-flash-gated). §2.6 ESP-NOW bearer (#20, re-vendor-gated). Everything else this turn = delivered.
+
 
 ## ✅ 2026-06-30 — staota.0630.1659 VALIDATED on metal + 2 post-validation fixes committed (NOT yet staged)
 **.1659 VALIDATED (supervisor + composer):** D3 provisioned is ALIVE + BEACONING — wire 46dbf1ae, fw
