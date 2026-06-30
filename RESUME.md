@@ -34,6 +34,33 @@ full-flash per board now delivers BOTH the beacon (to test) AND remote-provision
   weights telemetry. DO-NOT-ASSUME: the §2.3A per-available-transport mask-gating of the beacon EMIT still layers in
   with transport_allow_mask (right now the beacon advertises whenever `ble` is up, not yet mask-gated).
 
+## ► 2026-06-30 — RE-VENDOR onto 0d1f308 DE-RISKED (trial worktree, isolated — dfr1195-fw + staged artifacts UNTOUCHED)
+Autonomous de-risk of the post-staota core-dependent work block (#9 faked-distance + #12 telemetry + #13 RX-gate).
+Done in a THROWAWAY worktree so the in-flight beacon flash (dfr1195-fw @ aa9088f, c46383e-based artifacts) is not
+disturbed. Result: the re-vendor is a KNOWN, PROVEN-CLEAN one-shot — no ambiguity, no surprises left.
+- **TARGET UNAMBIGUOUS = `0d1f308`** (tip of `origin/r2-core-consolidation`). Verified ancestry: `bf1bf3b` (#9
+  §2.3A boot-baseline + §2.3B virtual-reachability), `41a3a3f`, AND `c46383e` (current firmware base) are ALL
+  ancestors of 0d1f308; and 0d1f308 holds both the #12 accessors and the faked-distance hooks. So ONE re-vendor
+  enables #9 + #12 + (check) #13 together. RESOLVES the old #9 "re-vendor onto 41a3a3f vs 0d1f308" ambiguity →
+  use 0d1f308 (it subsumes 41a3a3f).
+- **REBASE PROVEN CLEAN:** `git rebase --onto 0d1f308 c46383e` over the firmware branch = 22 commits replayed,
+  ZERO conflicts.
+- **ONE BUILD FIXUP (caught now, not as a post-test surprise):** 0d1f308's `ForwardRequest` gained
+  `arrival_transport: Option<Transport>` (core bf1bf3b §2.3B). Firmware construction at `main.rs:~1551` must add
+  `arrival_transport: None` = BEHAVIOUR-PRESERVING (engine.rs:492 `if let Some(arrival)` → None skips the §2.3B
+  drop; the re-vendor itself must NOT change runtime behaviour). With that line = **build GREEN**
+  (field,loraroute,multitg,staota, 19 warnings = same as current). RECIPE: rebase --onto 0d1f308 + that one line.
+- **#12 accessor signatures CONFIRMED in 0d1f308** (match core's message byte-for-byte): `neighbour_score(&self,
+  hive_id:u32, transport:Transport)->Option<f32>` (engine.rs:361), `neighbour_fade_remaining(&self,
+  hive_id:u32)->Option<f32>` (engine.rs:379, NO `now` arg), + 3 guard tests (tests.rs:800/821/837).
+- **SEQUENCING (do NOT re-vendor yet):** re-vendor changes the artifact base → keep dfr1195-fw stable at aa9088f
+  until the beacon flash/test CONFIRMS the c46383e-based artifacts on metal. THEN: re-vendor (recipe above) →
+  enable #9 (set `arrival_transport: Some(rx_via)` from the got.3 RX carrier + reachability-lease surface +
+  two-gate ingress incl. neighbour-refresh ingest-gate + boot-baseline + CAP=32) → #12 (consume neighbour_score
+  at the placeholder `w=1.0` main.rs:~1401 + extend the NBR-TBL emit main.rs:~1114) → #13 §2.3B-on-beacon RX-gate.
+- **Trial worktree removed after recording; nothing committed to a real branch.** DO-NOT-ASSUME: line numbers
+  (1551/1401/1114) are pre-re-vendor; re-confirm after the rebase replays.
+
 ## ► 2026-06-30 — INERT-LIVENESS FIX DONE+GREEN (firmware a2f1718→93453de) + latent emit_msg regression fixed
 Supervisor+composer GO'd the inert-liveness fidelity fix; LANDED at `93453de` (build-green xtensa across
 field,loraroute,multitg / field,loraroute,bridge,multitg / routetest / loraroute / nobt). r2-hive recovery patch
