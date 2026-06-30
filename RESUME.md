@@ -43,11 +43,14 @@ atomics) / L5 'nbrs:N ADV+' / L6 sync. Human label 'D3' on L2 = pending composer
 | class_hash structure (role-class, BE) | ✅ 6323f29 |
 | class_hash canonical strings (v0.16 §4.1) | ✅ 765c948 (ai.reality2.device.*; repeater 00FC1F17 / sensor 43895E89 / bridge B52C9F26 / receiver 17F3554A BE) |
 | LCD TN-READY render | ✅ 64bc0be (human-label NVS pending composer) |
-| Company-ID 0xFFFF prepend | ⏸ HELD pending Roy a/b (specs; rec=0xFFFF) [#17] |
+| Company-ID 0xFFFF prepend | ✅ 5e57aeb (was THE beacon-regression root cause: omitted prepend → 0x01B2 off-by-2; now §7.3 [FF FF][magic 0xB2 @ AD-off 4]) |
 | BLE address opacity | ⏳ sent composer the canonical RBID-derivation algo (HKDF-Expand→session_key, HMAC→rbid[0:8], epoch=0, shared hk+hive_id); flip address (random NVS-persisted) once their resolver matches D3's rbid + acks [#16] |
-Delivery = OTA (Roy's USB WiFi); validating the rev via OTA also validates the OTA path. Desk fallback if OTA
-not ready. Re-vendor onto 0d1f308 = SEPARATE pass AFTER this rev validated. composer's Q1 console-open re-test
-gates whether the PAC register-disable joins this rev or a later one.
+**STATE: 6/8 done — §7-FUNCTIONALLY complete + discoverable.** Remaining 2 are composer-gated: address-opacity
+(composer RBID-resolver) + human-label (composer NVS write). Posed supervisor a FORK: (a) ship the 6-piece now,
+fast-follow the 2; or (b) hold for the full 8. My lean = (a). AWAITING supervisor's (a)/(b) + stage-now.
+Delivery = OTA (Roy's USB WiFi); validating via OTA also validates the OTA path. Desk fallback if OTA not ready
+(composer's OTA = design-only 487e5d0 so far). Re-vendor onto 0d1f308 = SEPARATE pass AFTER this rev validated.
+composer's Q1 console-open re-test gates whether the PAC register-disable joins this rev or a later one.
 
 **BEACON CONFORMANCE-HARDENING (post-validation, multi-item — composer on-air decode + specs v0.15/R2-BLE v0.12):**
 D3's .1659 beacon had 3 AD issues, all now understood:
