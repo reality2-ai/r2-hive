@@ -61,10 +61,18 @@ READY to stage DFR+XIAO the instant supervisor gives the OTA-or-desk word.
 discovery+negotiate (#ota_query/#ota_info, RBID-lower-initiates §4.3) → firmware >1KB escalates #wifi_req→
 #wifi_offer{ssid,psk,ip,port,ttl}→ RECEIVER brings up a TRANSIENT ad-hoc SoftAP (R2-WIFI §3.3, 120s TTL) → push
 signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2; 0x00D3 OTA reserved/fallback.
-- **Firmware OTA state (grounded):** signed CORE `ota_recv_signed` (CMD_START_SIGNED 0x03, verify-before-write,
-  4-gate Ed25519, R2-UPDATE v0.6) EXISTS but on TCP :21043 over the INFRA WiFi netif (old permanent-STA). NET-NEW
-  = the BLE-negotiate (#ota_* frames) + transient-SoftAP-on-#wifi_req + L2CAP-0x00D3 wrapper. Signed core reusable.
-  [task #19; align #ota_* frame bytes w/ composer's pusher; ref r2-workshop.]
+- **OTA MODEL PIVOTED → single-canonical BLE-L2CAP (ADR-BLE-006), NOT WiFi-STA/transient-SoftAP.** The bench
+  proved ESP↔ESP L2CAP works → OTA rides the 0x00D3 CoC: reuse `ota_recv_signed` (CMD_START_SIGNED, verify-before
+  -write, 4-gate, Ed25519, R2-UPDATE v0.6) OVER the CoC. Signed core reusable; adapt TCP→CoC [len BE] §3.1.2.3.
+- **★ ROY: OTA = PLUGIN + SENTANT in the BASIC ENSEMBLE (boundary rule: everything is plugin+sentant EXCEPT the
+  core network stack). RUNTIME GAP CONFIRMED [#19/#21]:** the firmware is a MONOLITHIC EMBASSY APP — has core's
+  network stack (RouteEngine/r2_route + r2_dataplane + r2_wire + r2_trust + r2_transport + r2_discovery) but NO
+  sentant/plugin runtime (no r2_engine EventBus / sentant host / plugin registration / basic ensemble). OTA today
+  = a standalone embassy task. **FORK posed to supervisor:** (a) PURE = build on-device sentant/plugin runtime +
+  basic ensemble FIRST (large, core-gated — asked core if r2_engine is no_std-capable [#21]), then OTA plugin+
+  sentant; (b) INTERIM (my rec) = BLE-L2CAP OTA receiver NOW as an embassy task (ota_recv_signed over 0x00D3 +
+  #ota_* + composer's push_ota_l2cap) = 'OTA from now on' fast, refactor to plugin+sentant later. Complex work
+  identical; only the control wrapper differs. AWAITING supervisor/Roy path pick + core's no_std read.
 - **★ THROUGHPUT BENCH [task #18] — v1 RAN: 11 KB/s; TUNED build staged (faf7213), awaiting re-run.**
   Roy ran the corrected bench (D1=RECEIVER/D3=PUSHER, read off LCD): **11 KB/s** default config. ROOT CAUSE
   (verified): trouble_host DEFAULT 80ms conn interval (connection.rs:208) — interval-starved, not a deeper bug.
