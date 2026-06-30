@@ -1,5 +1,28 @@
 # RESUME — r2-hive (hive-worker)
 
+## ⚠ 2026-07-01 — CARRIER FLASHED + LIVE on Alfred; R2RX works, PARTICIPATION blocked (TG-key mismatch) — diagnosed
+Carrier flashed (role=STA fw=leaderless-0.4). R2RX reception WORKS (real over-the-air frames). But can't verify/
+deliver: nbrs=0 dlv=0 blk=43+ synced=false, DROP NoViableNeighbour, DELIVER-BLOCKED tg_ok=TRUE hmac_ok=FALSE.
+**DIAGNOSIS (file:line):**
+- **"in-TG" is NOT a TG-id** — it's the demo Event PAYLOAD (`main.rs:1301 payload=b"in-TG"`, 696e2d5447=ASCII).
+  The frames are the demo ORIGINATOR Events.
+- **Q3 (own events alternate hmac BAD/good) = DELIBERATE, not a bug:** `main.rs:1300 good = ev_seq%2==0` + `:1325
+  signer = if good {group_hmac} else {bad_hmac}` (bad_hmac=`[0xFF;32]`, :823) = a deliver-gate PROOF feature. Nodes
+  run the same fw → ~50% of their Events are deliberately bad → correctly blocked (most of blk=43).
+- **Q1 real blocker:** dlv=0 ⇒ even the GOOD-key (even-seq) Events fail → carrier group-hmac key ≠ nodes' good hk.
+  tg_ok=TRUE (`deliver-gate :1751 target_group==my_tg_hash`) = SAME tg_hash but DIFFERENT hk = provisioning/key
+  mismatch. (demo-fallback = shared `TG_HK_DEMO=[0x5C;32]`+`MY_TG_HASH`, :134/180 — only if ALL unprovisioned.)
+- **Q2 (nbrs=0) = downstream:** under `multitg` the HB is HMAC-signed (`:1011`) → carrier HB-verify fails on the
+  nodes' HBs (key mismatch) → no neighbour coupled → nbrs=0 → DROP NoViableNeighbour. Single root cause.
+**SHIPPED (r2-core dfr1195-fw @55a8a45):** carrier now ALWAYS signs with the real TG key (force `good=true` under
+`carrier`; default keeps the alternating proof). Stops the carrier emitting 50% bad frames + cleans Q3. xtensa-
+green (carrier+default); ELF re-staged ~/r2-dfr1195-carrier.elf (tuxedo+Alfred). NECESSARY-not-sufficient.
+**STILL NEEDED (asked supervisor):** the hk MISMATCH fix — need the fact: nodes UNPROVISIONED (demo) or
+PROVISIONED (persona)? → either erase 0x12000 on all (shared demo [0x5C;32]) OR provision/serial-PROVISION the
+carrier with the nodes' hk (serial PROVISION cmd @0x14000 needs `multitg` in the carrier build). Nodes likely also
+need alternating-hmac-off for full participation (re-flash) — confirm acceptable. VISIBILITY (R2RX) works now.
+
+
 ## ✅ 2026-07-01 — OTA-IN-WASM: pure OTA plugin+sentant (increment-3) + wasm nodes OTA each other [task #25 DONE]
 **Directive:** wasm hives ACT LIKE REAL HW incl OTA; the wasm OTA-as-plugin+sentant IS the increment-3 PURE OTA form
 (one piece of work advances both). core CONFIRMED the OTA stack runs wasm32 (r2-update verify-only, no getrandom) +
