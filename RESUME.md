@@ -60,6 +60,13 @@ artifacts (aa9088f) are UNTOUCHED — fixes are committed but not rebuilt; they 
     access to a deployed node can re-home its identity unauthenticated. This is the INTENDED v0.1 model (console =
     local-trust management plane) AND composer REQUIRES the running-board path (re-provision deployed boards). The
     real gap = the documented cert-sig verify follow-up; until then console==full-trust. FYI'd composer.
+    **RESOLVED by composer's decision (2026-06-30):** console==full-trust CONSCIOUSLY ACCEPTED for the bench
+    (console is LOCAL to Alfred, same local-trust as prov2.py's group-key, never over-air). Do NOT gate INERT-only
+    — the running-board re-provision path is a WANTED FEATURE (re-home deployed boards). The required hardening =
+    the cert-validation follow-up (parse_persona must verify cert key-4 vs tg_pk) — CORE-OWNED (r2-trust). FLEET
+    FLAG: cert-validation MUST land before console-store is relied on in ANY untrusted-physical-access (field)
+    setting (momentary USB = re-home = the risk). Bench (Alfred-local) proceeds as-is. FYI'd core (owns the fix).
+    No firmware change needed from hive.
 - **ATTACKED, NO DEFECT (verified):** A1 (no write-anywhere — offset is always a compile-time constant, never
   console-derived), A3 (all buffers bounds-checked before indexing — no OOB/panic), A5 (fail-closed intact — no
   radio/mesh before a validated persona), A6 (no p.USB_DEVICE double-take — diverging branch), B1 (advert built
