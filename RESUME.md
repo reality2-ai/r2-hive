@@ -29,6 +29,12 @@ INTERPRET: all-0xFF/00 ⇒ demo-unprovisioned [0x5C;32]; CBOR map byte + ascii t
 or STALE if hk≠nodes'). AWAITING the `xxd` dump → then I give the exact ONE-command alignment (provision-carrier-to-
 match / erase-all-to-demo / serial-PROVISION). Supervisor expects a REAL persona (fresh-demo carrier couldn't verify
 their good-key frames at all) — dump disambiguates real-vs-stale.
+**SECURITY BRANCH on the dump (supervisor + composer's flag — apply when it lands):** extract the 32B hk + classify.
+DEMO (all-0xFF/00 / no persona ⇒ [0x5C;32]) = THROWAWAY key → MAY be web-served (composer can hand it to the wasm
+bridge's setGroupHmac over the wire). REAL (CBOR persona hk) = a LIVE GroupHmac secret → MUST NOT be web-served;
+deliver it to the bridge out-of-band (local file / env), never over composer's web channel. The classification picks
+BOTH the alignment command AND the key-serve path. Coordinate composer on key-serve + the carrier hk-alignment (the
+bridge's WasmHive.setGroupHmac gets the SAME hk the nodes use). Standing: keep peer-refuting the deliver-gate.
 
 
 ## ✅ 2026-07-01 — THEATER ORACLE: neighbour/path classifier getters [hive @664e8b3, r2-hive-wasm v0.4.5]
