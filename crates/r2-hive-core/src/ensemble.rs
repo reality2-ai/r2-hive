@@ -85,7 +85,9 @@ use alloc::vec::Vec;
 // ORDERING is shared in core (SignedOtaApply), hive impls ImageSink per platform + the
 // OtaSentant control surface. r2-update stays the verify primitive owner.
 use r2_update::apply::{ApplyError, ImageSink, SignedOtaApply};
-use r2_update::{reject_reason, verify_header, DeviceContext, HEADER_LEN, PT_FIRMWARE_FULL, SIG_LEN};
+use r2_update::{
+    reject_reason, verify_header, DeviceContext, VerifyError, HEADER_LEN, PT_FIRMWARE_FULL, SIG_LEN,
+};
 
 /// OTA wire steps (event_hash discriminators on the mesh; SDU 3-byte tags on a CoC).
 pub const OST_HASH: u32 = r2_fnv::fnv1a_32(b"r2.update.ost"); // start: header(123)+sig(64)
@@ -234,6 +236,13 @@ impl<S: ImageSink> OtaApplier<S> {
         let sig = &self.ost[HEADER_LEN..HEADER_LEN + SIG_LEN];
         match verify_header(header, sig, &self.cfg.ctx()) {
             Ok(vh) => {
+                // A7/A8 type-confusion gate: a validly-SIGNED DIFF(0x02)/RECOVERY(0x0B)
+                // must NOT install as a FULL image. verify_header does NOT gate
+                // payload_type (r2-update lib.rs:127 — the receiver MUST). Reject early
+                // here; SignedOtaApply re-enforces it at commit (gate can't be omitted).
+                if vh.payload_type != PT_FIRMWARE_FULL {
+                    return progress(PH_REJECT, 0, vh.payload_len as u32, reject_reason(VerifyError::BadHeader));
+                }
                 self.total = vh.payload_len as u32;
                 self.header_ok = true;
                 progress(PH_START_OK, 0, self.total, 0)
@@ -439,6 +448,23 @@ mod tests {
         assert!(!phases.contains(&PH_APPLIED), "must NOT apply: {phases:?}");
         // verify-before-write: a rejected image is never activated.
         assert!(!a.sink().activated(), "bad image must not activate");
+    }
+
+    #[test]
+    fn ota_rejects_type_confusion() {
+        // A7/A8: a validly-SIGNED DIFF must NOT install as a full image (RCE-class).
+        let sk = SigningKey::from_bytes(&[0xF0; 32]);
+        let tg_pk = sk.verifying_key().to_bytes();
+        let payload = b"DIFF-IMAGE".repeat(12);
+        let mut header = mint(&payload, 1, tg_pk);
+        header[41] = 0x02; // PT_FIRMWARE_DIFF (not FULL)
+        let sig = sk.sign(&header).to_bytes();
+
+        let mut a = OtaApplier::new(ota_cfg(tg_pk), MemSink::new());
+        let phases = run_apply(&mut a, &header, &sig, &payload);
+        assert_eq!(phases[0], PH_REJECT, "signed DIFF must reject at OST: {phases:?}");
+        assert!(!phases.contains(&PH_APPLIED), "DIFF must NOT apply: {phases:?}");
+        assert!(!a.sink().activated(), "DIFF must NOT activate (type-confusion blocked)");
     }
 
     #[test]

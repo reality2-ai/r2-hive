@@ -26,7 +26,8 @@ use wasm_bindgen::prelude::*;
 use r2_engine::queue::QueuedEvent;
 use r2_engine::EventBus;
 use r2_hive_core::ensemble::{
-    HbSentant, MemSink, OtaConfig, OtaSentant, OCM_HASH, ODT_HASH, OST_HASH, TICK_HASH,
+    HbSentant, MemSink, OtaConfig, OtaSentant, OCM_HASH, ODT_HASH, OST_HASH, PROGRESS_HASH,
+    TICK_HASH,
 };
 use r2_hive_core::sync_host::{
     provisional_hive_id, route_inbound_sync, InboundFrame, SyncRouteOutcome, SyncTransport,
@@ -272,6 +273,10 @@ impl WasmHive {
         }
         let mut frames = String::new();
         let mut first = true;
+        // STRUCTURED progress (composer renders this directly — no compact-frame parsing):
+        // every r2.update.progress event decoded to {phase,bytes_done,bytes_total,reason}.
+        let mut progs = String::new();
+        let mut pfirst = true;
         for ev in &outbound {
             let frame = encode_frame(
                 self.self_hive_id,
@@ -284,16 +289,30 @@ impl WasmHive {
                 3,
                 ev.msg_id as u32,
             );
-            if frame.is_empty() {
-                continue;
+            if !frame.is_empty() {
+                if !first {
+                    frames.push(',');
+                }
+                first = false;
+                frames.push_str(&format!("\"{}\"", hex(&frame)));
             }
-            if !first {
-                frames.push(',');
+            if ev.hash == PROGRESS_HASH {
+                let p = ev.payload();
+                if p.len() >= 10 {
+                    let done = u32::from_be_bytes([p[1], p[2], p[3], p[4]]);
+                    let total = u32::from_be_bytes([p[5], p[6], p[7], p[8]]);
+                    if !pfirst {
+                        progs.push(',');
+                    }
+                    pfirst = false;
+                    progs.push_str(&format!(
+                        "{{\"phase\":{},\"bytes_done\":{},\"bytes_total\":{},\"reason\":{}}}",
+                        p[0], done, total, p[9]
+                    ));
+                }
             }
-            first = false;
-            frames.push_str(&format!("\"{}\"", hex(&frame)));
         }
-        format!("{{\"frames\":[{frames}]}}")
+        format!("{{\"frames\":[{frames}],\"progress\":[{progs}]}}")
     }
 
     /// Drive the basic ensemble one TICK: inject a host tick → run the EventBus →
