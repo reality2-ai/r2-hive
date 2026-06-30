@@ -1,5 +1,26 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-30 — REBOOT-TO-DOWNLOAD (field re-flash recovery) DONE+GREEN — NEW REV staota.0630.1404 (D5's desk image)
+Supervisor bumped this to FIELD-CRITICAL (Roy: no BOOT button in the field; D5's stuck flash proves it). ROOT
+CAUSE: the running app — incl. the §3.5 INERT/console-liveness loop — HOLDS the USB-Serial-JTAG, so a host
+download-reset can't get through → remote re-flash futile without a BOOT press.
+- **Firmware `7f079bd` (dfr1195-fw):** new console command `DOWNLOAD` (alias `REBOOT-DOWNLOAD`), handled in BOTH
+  uart_rx_task AND the §3.5 INERT loop (D5 is stuck in INERT — must work there). `reboot_to_download()` sets
+  `esp_hal::peripherals::LPWR::regs().option1().force_download_boot()` (RTC-domain, survives reset) +
+  `software_reset()` → ROM enters download mode, taking over the USB-JTAG the app held → remote espflash re-flash.
+  Form (ii) per supervisor: deterministic (board self-enters download; the reset stops the app = solves the hold
+  root cause), NOT (i) release-only. Build-verify GREEN: field,loraroute,multitg,staota / staota / nobt.
+- **NEW ARTIFACTS staota.0630.1404 (REPLACE .1200)** at `/home/roycdavies/r2-staota-artifacts/` (DFR + XIAO,
+  creds baked, ~1330792B). Content = console-receiver + un-gated beacon + reboot-to-download. THIS is D5's
+  desk-flash image → the desk BOOT-press becomes the LAST physical touch (future re-flash/OTA-recovery = send
+  `DOWNLOAD` remotely). Beacon test UNAFFECTED (reboot-to-download dormant unless commanded). Per-carrier flash
+  cmd unchanged (point at the .1404 elf).
+- **DESK-VALIDATE before field reliance (HONEST caveat — the one path I can't metal-test: espflash gate + remote
+  boards):** at D5's desk visit, after flashing .1404, send `DOWNLOAD` and confirm espflash reaches the
+  sw-triggered download mode OVER USB-JTAG; BOOT-button fallback if S3 force_download_boot lands UART-only.
+- Reported supervisor + composer (console-provision.py UNCHANGED — DOWNLOAD is separate from REBOOT). Beacon-
+  hardening (B2/B5/§2.3A) + re-vendor (#9/#12) still POST-beacon-test.
+
 ## ► 2026-06-30 — r2-hive DEPLOYABLE NODE was BROKEN vs r2-core-consolidation — FIXED + GREEN (task #4 closed)
 Verify-don't-assume paid off: actually built+tested the deployable node (not assumed) and found it did NOT
 compile against the current local r2-core (branch `r2-core-consolidation` @ 5450cdc — which r2-hive's path-deps
