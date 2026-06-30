@@ -21,6 +21,14 @@ green (carrier+default); ELF re-staged ~/r2-dfr1195-carrier.elf (tuxedo+Alfred).
 PROVISIONED (persona)? → either erase 0x12000 on all (shared demo [0x5C;32]) OR provision/serial-PROVISION the
 carrier with the nodes' hk (serial PROVISION cmd @0x14000 needs `multitg` in the carrier build). Nodes likely also
 need alternating-hmac-off for full participation (re-flash) — confirm acceptable. VISIBILITY (R2RX) works now.
+**2026-07-01 NEXT-STEP DISPATCHED:** Roy picked 'have hive check'. Gave supervisor the non-destructive read cmd
+(relay→Roy): `espflash read-flash 0x12000 0x200 node-persona.bin --port <NODE …F4:12:FA:52:99:28-if00>` (NOT the
+B6:0A:A0 carrier — composer holds it). 0x200 = EXACTLY the firmware's read window (read_persona reads 512B @0x12000,
+main.rs:1923/1943; persona CBOR ~336B + trailing 0xFF). read-flash is READ-ONLY (resets node→ROM briefly, rejoins).
+INTERPRET: all-0xFF/00 ⇒ demo-unprovisioned [0x5C;32]; CBOR map byte + ascii tg_id ⇒ REAL persona (= hk source /
+or STALE if hk≠nodes'). AWAITING the `xxd` dump → then I give the exact ONE-command alignment (provision-carrier-to-
+match / erase-all-to-demo / serial-PROVISION). Supervisor expects a REAL persona (fresh-demo carrier couldn't verify
+their good-key frames at all) — dump disambiguates real-vs-stale.
 
 
 ## ✅ 2026-07-01 — OTA-IN-WASM: pure OTA plugin+sentant (increment-3) + wasm nodes OTA each other [task #25 DONE]
