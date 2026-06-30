@@ -1,6 +1,6 @@
 [package]
 name = "r2-hive-wasm"
-version = "0.4.5"
+version = "0.4.6"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "wasm platform layer for r2-hive — exposes the REAL current-TN sync routing core (r2-hive-core route_inbound_sync over r2-route/r2-wire) to a browser/JS bench sim. R2-HIVE north-star wasm tier; one-codebase hive logic, thin per-platform host. Workspace-EXCLUDED (wasm-only, std/wasm-bindgen) so host CI is untouched."
@@ -25,6 +25,12 @@ r2-update = { path = "../../../r2-core/crates/r2-update" }
 # In-wasm R2-WIRE ENCODE (build_heartbeat/build_frame) so each sim node originates
 # its OWN frames — same encoder the firmware uses. no_std/alloc, wasm-clean.
 r2-wire = { path = "../../../r2-core/crates/r2-wire", default-features = false, features = ["alloc"] }
+# Real TG GroupHmac (the SAME HMAC-SHA256 the firmware signs/verifies with) so a
+# browser hive can JOIN the boards' trust group: sign its egress + run the real
+# deliver-gate (tg_ok+hmac_ok) on ingress. default-features=false = member-only
+# primitives (GroupHmac/derive_*/parse_persona), no keyholder/getrandom → wasm-clean
+# (the firmware's exact no_std dep). #26 real-r2-trust-in-wasm front half.
+r2-trust = { path = "../../../r2-core/crates/r2-trust", default-features = false }
 wasm-bindgen = "0.2"
 
 [dev-dependencies]

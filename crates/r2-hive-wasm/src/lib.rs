@@ -96,6 +96,15 @@ pub struct WasmHive {
     engine: RouteEngine<64, 64, 64>,
     bus: EventBus,
     self_hive_id: u32,
+    /// The trust-group symmetric HMAC key (hk) — the SAME `r2_trust::GroupHmac` the
+    /// firmware signs/verifies with. `Some` = this hive is a TG MEMBER: it signs its
+    /// egress (`build_*`/ensemble frames) and runs the real deliver-gate in
+    /// `verify_frame`. `None` = the legacy TG-agnostic sim (no gate, frames unsigned,
+    /// `target_group = 0`) so the pure-routing bench is unchanged.
+    group_hmac: Option<r2_trust::GroupHmac>,
+    /// The TG hash (firmware `my_tg_hash`) this member stamps into `target_group` and
+    /// gates inbound `target_group` against. Meaningful only when `group_hmac` is set.
+    tg_hash: u32,
 }
 
 #[wasm_bindgen]
@@ -111,7 +120,42 @@ impl WasmHive {
             engine: RouteEngine::new(),
             bus,
             self_hive_id,
+            group_hmac: None,
+            tg_hash: 0,
         }
+    }
+
+    /// New TG-MEMBER node: the basic ensemble PLUS a trust-group identity (the SAME
+    /// `GroupHmac` the DFR1195 boards run). `hk` = the 32-byte group HMAC key (the
+    /// persona's `hk` — NOT `withOta`'s Ed25519 `tg_pk`; two distinct keys from one
+    /// persona). `tg_hash` = the firmware `my_tg_hash` (FNV of the TG uuid). Once set,
+    /// `build_*`/ensemble frames are SIGNED + stamped `target_group = tg_hash`, and
+    /// `verify_frame` runs the real deliver-gate — so a browser hive's frame verifies
+    /// on the real boards and theirs verify in-browser. This is the frame-crossing
+    /// join. (A plain `new()` hive stays TG-agnostic.)
+    #[wasm_bindgen(js_name = withGroupHmac)]
+    pub fn with_group_hmac(self_hive_id: u32, hk: &[u8], tg_hash: u32) -> WasmHive {
+        let mut h = WasmHive::new(self_hive_id);
+        h.set_group_hmac(hk, tg_hash);
+        h
+    }
+
+    /// Join (or re-key) this hive into a trust group at runtime — same effect as
+    /// `withGroupHmac` but on an existing node (e.g. once the persona `hk` arrives from
+    /// the bridge). `hk` shorter than 32B is zero-padded; 0 bytes is treated as
+    /// "leave" (clears the key → back to TG-agnostic).
+    #[wasm_bindgen(js_name = setGroupHmac)]
+    pub fn set_group_hmac(&mut self, hk: &[u8], tg_hash: u32) {
+        if hk.is_empty() {
+            self.group_hmac = None;
+            self.tg_hash = 0;
+            return;
+        }
+        let mut key = [0u8; 32];
+        let n = hk.len().min(32);
+        key[..n].copy_from_slice(&hk[..n]);
+        self.group_hmac = Some(r2_trust::GroupHmac::new(key));
+        self.tg_hash = tg_hash;
     }
 
     /// New OTA-CAPABLE node: the basic ensemble PLUS the OTA plugin+sentant (the pure
@@ -141,6 +185,8 @@ impl WasmHive {
             engine: RouteEngine::new(),
             bus,
             self_hive_id,
+            group_hmac: None,
+            tg_hash: 0,
         }
     }
 
@@ -212,6 +258,41 @@ impl WasmHive {
         format!("{{\"outcome\":\"{tag}\",\"sent\":{sent},\"sends\":[{sends}]}}")
     }
 
+    /// Run the REAL TG deliver-gate on an inbound frame — the firmware's exact check
+    /// (main.rs:1751-1752): `tg_ok = target_group == my_tg_hash || target_group == 0`
+    /// AND `hmac_ok = verify_extended(frame, group_hmac)`. Returns JSON
+    /// `{"keyed":bool,"tg_ok":bool,"hmac_ok":bool,"deliver":bool}`. A non-member hive
+    /// (no group key) is TG-agnostic → `{"keyed":false,…,"deliver":true}` (legacy sim).
+    /// This is the acceptance test a browser hive applies to board frames — and the
+    /// board applies the IDENTICAL code to a browser hive's frames. Same hk → both
+    /// deliver; wrong hk → `tg_ok:true hmac_ok:false deliver:false` (the live carrier's
+    /// exact symptom). Routing (`route_frame`) is unchanged; this gates DELIVERY, the
+    /// way the firmware gates in `io_task` AFTER the flood decision.
+    #[wasm_bindgen(js_name = verifyFrame)]
+    pub fn verify_frame(&self, frame: &[u8]) -> String {
+        use r2_wire::{decode_extended, verify_extended};
+        let m = match decode_extended(frame) {
+            Ok(m) => m,
+            Err(_) => {
+                return String::from(
+                    "{\"keyed\":false,\"tg_ok\":false,\"hmac_ok\":false,\"deliver\":false,\"error\":\"decode\"}",
+                )
+            }
+        };
+        match &self.group_hmac {
+            None => String::from("{\"keyed\":false,\"tg_ok\":true,\"hmac_ok\":false,\"deliver\":true}"),
+            Some(hmac) => {
+                let tg = m.header.target_group;
+                let tg_ok = tg == self.tg_hash || tg == 0;
+                let hmac_ok = verify_extended(&m, hmac);
+                let deliver = tg_ok && hmac_ok;
+                format!(
+                    "{{\"keyed\":true,\"tg_ok\":{tg_ok},\"hmac_ok\":{hmac_ok},\"deliver\":{deliver}}}"
+                )
+            }
+        }
+    }
+
     /// Build a Heartbeat frame ORIGINATED by this node — origin = self in the route
     /// stack, payload = self hive_id (BE32, the firmware HB wire form). `seq` is the
     /// msg_id (dedup discriminator; pass a per-node counter or the sim tick). The sim
@@ -221,14 +302,15 @@ impl WasmHive {
     pub fn build_heartbeat(&self, seq: u32) -> Vec<u8> {
         encode_frame(
             self.self_hive_id,
-            0, // target_hive 0 = broadcast
-            0, // target_group 0 = no TG gate in the sim
+            0,            // target_hive 0 = broadcast
+            self.tg_hash, // target_group: TG hash when a member, else 0 (no gate)
             r2_wire::MsgType::Heartbeat,
             0, // event_hash: HB carries none
             &self.self_hive_id.to_be_bytes(),
             8, // ttl
             3, // k (flood fan-out)
             seq,
+            self.group_hmac.as_ref(), // sign when a TG member (firmware multitg HB form)
         )
     }
 
@@ -240,13 +322,14 @@ impl WasmHive {
         encode_frame(
             self.self_hive_id,
             target_hive,
-            0,
+            self.tg_hash,
             r2_wire::MsgType::Event,
             event_hash,
             payload,
             8,
             3,
             seq,
+            self.group_hmac.as_ref(),
         )
     }
 
@@ -280,13 +363,14 @@ impl WasmHive {
             let frame = encode_frame(
                 self.self_hive_id,
                 0, // broadcast
-                0,
+                self.tg_hash,
                 r2_wire::MsgType::Event,
                 ev.hash,
                 ev.payload(),
                 8,
                 3,
                 ev.msg_id as u32,
+                self.group_hmac.as_ref(),
             );
             if !frame.is_empty() {
                 if !first {
@@ -361,18 +445,21 @@ impl WasmHive {
         let payload = &pkg[HEADER_LEN..pkg.len() - SIG_LEN];
 
         let me = self.self_hive_id;
+        let tg = self.tg_hash;
+        let signer = self.group_hmac.as_ref();
         let mut frames: Vec<String> = Vec::new();
         let mut push = |hash: u32, sdu: &[u8], seq: u32| {
             let f = encode_frame(
                 me,
                 target_hive,
-                0,
+                tg,
                 r2_wire::MsgType::Event,
                 hash,
                 sdu,
                 8,
                 1,
                 seq,
+                signer,
             );
             if !f.is_empty() {
                 frames.push(format!("\"{}\"", hex(&f)));
@@ -492,9 +579,15 @@ fn encode_frame(
     ttl: u8,
     k: u8,
     msg_id: u32,
+    // TG signer: `Some` → stamp `has_hmac` + attach the 32B extended tag (the SAME
+    // `sign_extended` path the firmware uses at main.rs:1011-1013), so the frame
+    // verifies on real boards. `None` → unsigned (legacy TG-agnostic sim).
+    signer: Option<&r2_trust::GroupHmac>,
 ) -> Vec<u8> {
-    use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, ExtendedRouteStack, Flags};
-    let msg = ExtendedMessage {
+    use r2_wire::{
+        encode_extended, sign_extended, ExtendedHeader, ExtendedMessage, ExtendedRouteStack, Flags,
+    };
+    let mut msg = ExtendedMessage {
         header: ExtendedHeader {
             version: 0,
             msg_type,
@@ -511,6 +604,13 @@ fn encode_frame(
         payload,
         hmac_tag: None,
     };
+    if let Some(hmac) = signer {
+        // route is self-stamped (with_origin) so the span builder has a canonical
+        // origin — ROUTE-ORIGIN-1 satisfied; a route-less sign would zero-tag + drop.
+        let (flags, tag) = sign_extended(&msg, hmac);
+        msg.header.flags = flags;
+        msg.hmac_tag = Some(tag);
+    }
     let mut buf = [0u8; 512];
     match encode_extended(&msg, &mut buf) {
         Ok(n) => buf[..n].to_vec(),
@@ -567,6 +667,51 @@ mod tests {
         let n = encode_extended(&msg, &mut buf).expect("encode");
         buf.truncate(n);
         buf
+    }
+
+    #[test]
+    fn group_hmac_frame_crossing_same_key_delivers_wrong_key_rejects() {
+        // The frame-crossing claim: a TG member's signed frame must DELIVER on another
+        // member with the SAME hk, and REJECT (hmac_ok=false) on a hive with the same
+        // tg_hash but a DIFFERENT hk — the live carrier's exact symptom.
+        let hk = [0x42u8; 32];
+        let tg = 0xABCD_1234u32;
+        let a = WasmHive::with_group_hmac(0x0000_00A1, &hk, tg);
+        let b = WasmHive::with_group_hmac(0x0000_00B2, &hk, tg);
+        let frame = a.build_frame(0, 0x1111_2222, b"in-TG", 7);
+        assert!(!frame.is_empty(), "signed frame encoded");
+
+        // same hk → tg_ok + hmac_ok + deliver
+        let v = b.verify_frame(&frame);
+        assert!(v.contains("\"keyed\":true"), "{v}");
+        assert!(v.contains("\"hmac_ok\":true"), "same-key verify: {v}");
+        assert!(v.contains("\"deliver\":true"), "same-key deliver: {v}");
+
+        // same tg_hash, WRONG hk → tg_ok TRUE but hmac_ok FALSE → no deliver
+        let c = WasmHive::with_group_hmac(0x0000_00C3, &[0x99u8; 32], tg);
+        let v2 = c.verify_frame(&frame);
+        assert!(v2.contains("\"tg_ok\":true"), "wrong-key tg still matches: {v2}");
+        assert!(v2.contains("\"hmac_ok\":false"), "wrong-key reject: {v2}");
+        assert!(v2.contains("\"deliver\":false"), "wrong-key no-deliver: {v2}");
+
+        // a NON-member (TG-agnostic) hive applies no gate → legacy deliver
+        let d = WasmHive::new(0x0000_00D4);
+        assert!(
+            d.verify_frame(&frame).contains("\"keyed\":false"),
+            "unkeyed = TG-agnostic"
+        );
+        assert!(d.verify_frame(&frame).contains("\"deliver\":true"));
+
+        // set_group_hmac at runtime = join → d now verifies like a member
+        let mut d2 = WasmHive::new(0x0000_00D5);
+        d2.set_group_hmac(&hk, tg);
+        assert!(
+            d2.verify_frame(&frame).contains("\"hmac_ok\":true"),
+            "runtime join verifies"
+        );
+        // empty hk = leave → back to TG-agnostic
+        d2.set_group_hmac(&[], 0);
+        assert!(d2.verify_frame(&frame).contains("\"keyed\":false"), "leave");
     }
 
     #[test]
