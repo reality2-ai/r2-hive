@@ -65,7 +65,17 @@ signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2;
   4-gate Ed25519, R2-UPDATE v0.6) EXISTS but on TCP :21043 over the INFRA WiFi netif (old permanent-STA). NET-NEW
   = the BLE-negotiate (#ota_* frames) + transient-SoftAP-on-#wifi_req + L2CAP-0x00D3 wrapper. Signed core reusable.
   [task #19; align #ota_* frame bytes w/ composer's pusher; ref r2-workshop.]
-- **★ THROUGHPUT BENCH [task #18, GREENLIT] — BUILD CORRECTED + STAGED (24a35f8), awaiting Roy's metal run.**
+- **★ THROUGHPUT BENCH [task #18] — v1 RAN: 11 KB/s; TUNED build staged (faf7213), awaiting re-run.**
+  Roy ran the corrected bench (D1=RECEIVER/D3=PUSHER, read off LCD): **11 KB/s** default config. ROOT CAUSE
+  (verified): trouble_host DEFAULT 80ms conn interval (connection.rs:208) — interval-starved, not a deeper bug.
+  TUNED build (faf7213): interval 80ms→7.5ms (~10x), 2M PHY (set_phy Le2M), DLE 251 (update_data_length), L2CAP
+  credits 32 + eager-return. Staged ~/r2-staota-artifacts/r2-dfr1195-cocbench-tuned-{RECEIVER,PUSHER}.elf; flash
+  D1=RECEIVER/D3=PUSHER; read 'COCBENCH N KB/s' off LCD. EXPECT 100s of KB/s if interval-dominated (my conjecture);
+  <30 → deeper cap (pool/credit or stop-and-wait push needs pipelining). The OTA-carrier (single-canonical L2CAP)
+  call HINGES on the tuned number. Don't rewrite §3.1.3 until it lands (C/R). NOTE (data plane = ESP-NOW; L2CAP is
+  the OTA/control carrier — this informs OTA speed only). **CI: firmware is xtensa no_std = NOT hosted-CI-covered;
+  verified LOCAL-xtensa-green all combos. r2-hive platform-trait not CI-triggered; old main failures pre-date me.**
+  --- earlier (superseded): BUILD CORRECTED + STAGED (24a35f8) ---
   First cocbench (0efe84c) couldn't run (un-gate→both boards drain/none push; opaque broke connect). FIX: manual
   role flag `cocbench_provider`=RECEIVER (advertise@BENCH_ADDR+drain) vs plain `cocbench`=PUSHER (connect@BENCH_ADDR
   +push); fixed BENCH_ADDR (no provisioning); LCD L1 shows 'COCBENCH N KB/s' (read off-screen, no console-reset).
