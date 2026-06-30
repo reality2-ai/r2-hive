@@ -68,6 +68,22 @@ the 3 findings were all in MY hive OtaApplier ADAPTER seam (gaps the orchestrato
 OtaConfig gained `authority_epoch_floor`. 7 ensemble tests + wasm e2e green; wasm32+host clean. These GATE METAL
 (Roy-gated) — closed except F3-pending-core. Refuter should re-run on a56c1bc.
 
+### convergence-v3 @fc291da (v0.4.3) — core folded F1/F2/F3 INTO the orchestrator (un-skippable)
+core updated `r2_update::apply::ImageSink`: `capacity()` (F2 → orchestrator rejects oversized before begin,
+`ApplyError::CapacityExceeded`), `current_seq_floor()` + `activate(&AppliedUpdate)` that MUST persist the floor
+(F1 → orchestrator does the commit-time anti-rollback re-check, the SINK persists), `abort()` on every post-begin
+failure (F3). All 3 are now STRUCTURAL in core. Converged hive:
+- MemSink impls the new trait; the anti-rollback floor LIVES IN THE SINK (current_seq_floor/activate-persists),
+  not my adapter. Dropped OtaConfig.current_seq + my manual on_ocm floor-bump + manual abort (orchestrator+sink
+  do them). `OtaApplier::ctx()` reads current_seq from sink (the trait invariant) + returns `DeviceContext<'static>`.
+- KEPT hive-side: the pre-start buffer bound (payload_len > sink.capacity() at OST + buf>total at ODT) — my
+  event-driven adapter buffers in RAM BEFORE OCM, so the orchestrator's commit-time capacity check is too late to
+  stop the buffer OOM; the early bound guards the RAM buffer. (Flagged this to core.)
+- 3rd reject arm minted: `ota-test-pkg-diff.bin` (signed payload_type=0x02 → A7/A8 REJECT), tuxedo+Alfred.
+Net: F1+F2+F3 closed structurally in core + the buffer guard hive-side. 7 ensemble tests + wasm e2e green.
+composer has all 4 demo arms (APPLIED + tampered/unsigned/wrong-TYPE reject). SignedOtaApply codex refute (core)
+gates METAL.
+
 ### convergence-v1 @1a8f7a9 — applied core's OTA-plugin ruling (OTA_PLUGIN_SHAPE.md a53a07b) [SUPERSEDED by v2]
 core RULED the canonical OTA-plugin shape; supervisor CORRECTED the doc (IGNORE the experimental
 `r2-update::SignedOtaApply`/`ImageSink` orphan — it breaks r2-update's verify-only layering; r2-update stays
