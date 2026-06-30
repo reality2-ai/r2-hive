@@ -18,6 +18,10 @@ r2-hive-core = { path = "../r2-hive-core" }
 r2-route = { path = "../../../r2-core/crates/r2-route" }
 # EventBus = the basic-ensemble runtime (HB sentant now; OTA plugin+sentant next).
 r2-engine = { path = "../../../r2-core/crates/r2-engine", default-features = false, features = ["alloc"] }
+# R2-UPDATE OTA verify (verify_header/PayloadVerifier/Ed25519, 4-gate/anti-rollback)
+# — pure no_std verify-only (no getrandom trap, core-confirmed wasm32-clean). The
+# OTA plugin reuses these so the wasm OTA FLOW is the REAL flow (refutable).
+r2-update = { path = "../../../r2-core/crates/r2-update" }
 # In-wasm R2-WIRE ENCODE (build_heartbeat/build_frame) so each sim node originates
 # its OWN frames — same encoder the firmware uses. no_std/alloc, wasm-clean.
 r2-wire = { path = "../../../r2-core/crates/r2-wire", default-features = false, features = ["alloc"] }

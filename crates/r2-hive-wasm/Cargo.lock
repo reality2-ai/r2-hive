@@ -245,6 +245,7 @@ dependencies = [
  "r2-engine",
  "r2-hive-core",
  "r2-route",
+ "r2-update",
  "r2-wire",
  "wasm-bindgen",
 ]
@@ -256,6 +257,14 @@ dependencies = [
  "heapless",
  "libm",
  "r2-wire",
+]
+
+[[package]]
+name = "r2-update"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "sha2",
 ]
 
 [[package]]
