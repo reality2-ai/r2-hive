@@ -197,6 +197,13 @@ pub fn route_inbound_sync(
 
     let advice = engine.plan_forward(ForwardRequest {
         now,
+        // §2.3B (r2-core consolidation bf1bf3b): ForwardRequest gained arrival_transport: Option<Transport>.
+        // None = BEHAVIOUR-PRESERVING (engine skips the §2.3B arrival-reachability drop, engine.rs:492) — this is
+        // a build-compat fix for the core API change, NOT a silent enablement of faked-distance on the host sync
+        // tier. The arrival `transport` IS in scope here (see the Observation ingest above); whether the sync
+        // tier should apply §2.3B virtual-reachability = a deliberate semantic decision (FLAG FOR CORE, like the
+        // A1 `authenticated` note below), not a build-fix. Left None until that's ruled.
+        arrival_transport: None,
         msg_id: header.msg_id, // full 32-bit dedup id (F3)
         // R2-WIRE v0.4 dedup origin (originator hive) — sync_host has the real originator, so per-origin
         // multi-hop dedup works across paths (unlike the MCU firmware's route:None=0 placeholder).

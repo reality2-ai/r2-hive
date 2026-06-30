@@ -253,6 +253,10 @@ pub async fn route_frame(
 
     let req = ForwardRequest {
         now: now_secs,
+        // §2.3B (r2-core consolidation bf1bf3b): ForwardRequest gained arrival_transport. None = behaviour-
+        // preserving (engine skips the §2.3B arrival-reachability drop) — build-compat for the core API change,
+        // not a silent faked-distance enablement on the host router. §2.3B-on-host = a deliberate decision later.
+        arrival_transport: None,
         msg_id: header.msg_id, // full 32-bit dedup id (F3: u16 made (origin,msg_id) collisions cheap)
         origin: originator,
         source_hop: immediate_source, // the IMMEDIATE sender, to exclude the inbound peer (F2)
