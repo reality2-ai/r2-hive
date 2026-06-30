@@ -31,6 +31,15 @@ match / erase-all-to-demo / serial-PROVISION). Supervisor expects a REAL persona
 their good-key frames at all) — dump disambiguates real-vs-stale.
 
 
+## ✅ 2026-07-01 — CORE-SYNC §5.5 inv-5 (reject-while-pending) [hive @c7978c5]
+Core type-enforced §5.5 invariant-5 (r2-core e921622): `ImageSink::pending_seq()->Option<u32>` (default None) +
+`ApplyError::PendingUpdate{pending_seq,this_seq}` — `SignedOtaApply::start()` rejects unless new seq STRICTLY > staged
+pending seq. NON-BREAKING for sim: MemSink keeps default `pending_seq()=None` (no pending window, exempt). Only hive
+adaptation: `apply_reason()` match is exhaustive (no wildcard) → added arm `PendingUpdate => 0x71` (retry-after-reboot,
+distinct from sink/capacity 0x70). r2-hive-core (8) + r2-hive-wasm (5) tests green. ACKed core.
+**OWED on board FirmwareSink:** override `pending_seq()` → staged-but-unconfirmed seq (anti_rollback::load_pending
+equiv) so `start()` enforces inv-5 for the board automatically; `apply_reason` already maps it. No separate begin-gate.
+
 ## ✅ 2026-07-01 — OTA-IN-WASM: pure OTA plugin+sentant (increment-3) + wasm nodes OTA each other [task #25 DONE]
 **Directive:** wasm hives ACT LIKE REAL HW incl OTA; the wasm OTA-as-plugin+sentant IS the increment-3 PURE OTA form
 (one piece of work advances both). core CONFIRMED the OTA stack runs wasm32 (r2-update verify-only, no getrandom) +
