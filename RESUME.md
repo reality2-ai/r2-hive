@@ -1,5 +1,34 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — host CARRIER-BRIDGE: DFR1195 carrier ↔ wasm-hive ↔ R2 mesh (loop CLOSED, staged on Alfred)
+**Supervisor DO:** (i) scp carrier ELF→Alfred, (iii) write the host-bridge (R2RX→wasm-hive route→INJECT) with the
+DTR hazard "impossible to get wrong"; + confirm the running boards already ESP-NOW-mesh+HB (→ carrier flash alone
+= heartbeat-visibility).
+**(i) DONE:** `r2-dfr1195-carrier.elf` scp'd → `Alfred:~/` (verified). Alfred has espflash+node+python3, and 4
+Espressif USB-JTAG boards (50:23:E4 / 50:26:98 / 52:99:28 / B6:0A:A0) + 1 Arduino Leonardo.
+**MINIMAL-PATH = YES:** deployed firmware DOES ESP-NOW-mesh + emit lub-dub HBs (`espnow_task`+`io_task`). So ONE
+Roy cmd gives real-HW heartbeat-VISIBILITY, no node reflash: `espflash flash --monitor --chip esp32s3
+~/r2-dfr1195-carrier.elf` streams `R2RX`+`ESP-NOW peer MAPPED` live. (Assumes running boards = default ch1 mesh,
+not staota — SELF-CONFIRMS on flash. Did NOT pre-open any running board = the un-recoverable bricking risk, and
+pointless since flash self-confirms.)
+**(iii) BRIDGE DONE — committed r2-hive `010aa0d` (`crates/r2-hive-wasm/carrier-bridge/`), staged
+`Alfred:~/carrier-bridge/`.** Architecture chosen FOR the DTR mandate: **Python parent OWNS the serial port
+DTR/RTS-safe** (pyserial `dtr=False`/`rts=False` set BEFORE open, never toggled, ABORTS if it can't) = the ONLY
+thing touching the port; **Node child = pure wasm-hive router, NO serial access → physically cannot brick**. Loop:
+`R2RX <hex>` → `router.js` (wasm-hive `route_frame`) → `INJECT <hex>`. `--participate` OFF by default (logs
+would-be injects; safe unattended). Vendored pyserial (pure-python, no pip/sudo) + wasmhive-node pkg shipped in
+the bundle (gitignored in-repo; recreate per README — both on Alfred).
+- **VERIFIED on Alfred:** `--selftest` runs there (node + vendored pyserial OK); positive loop proven with a REAL
+  R2-WIRE frame pair → `Flooded sends=1` + `INJECT 0441…bba1f5ed00` (host hive `a1f5ed00` appended to route stack
+  = it relayed). Test vector in the bridge README.
+- **render handoff:** sent composer the stdout line format (OTA-RX peer-MAPPED / FRAME / [router] route / INJECT)
+  + offered a JSON-lines mode. Earlier `scratchpad/r2-mesh-read.py` = the standalone DTR-safe reader (visibility
+  only); the bridge supersedes it for the full loop.
+**NET EOD:** heartbeat-visibility = Roy's ONE flash command; full participation = + the bridge. Everything staged
+on Alfred for Roy's remote session. Carrier flash is remote-viable (no BOOT button — task-#14 proof). Task #23 +
+the bridge = DONE pending Roy's flash. OTA-refute still HELD (no findings).
+
+
 ## ✅ 2026-07-01 — CARRIER firmware (Roy's all-radio-via-MCU bench): transparent serial↔ESP-NOW radio-modem
 **Supervisor/Roy ask:** designate ONE DFR1195 as Alfred's MCU CARRIER (serial↔mesh bridge) so Alfred JOINS the R2
 mesh as a real node (not a passive BLE scanner). The concrete enabler for real-HW heartbeat-visibility AND the
