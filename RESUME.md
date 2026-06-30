@@ -60,6 +60,16 @@ disturbed. Result: the re-vendor is a KNOWN, PROVEN-CLEAN one-shot — no ambigu
   at the placeholder `w=1.0` main.rs:~1401 + extend the NBR-TBL emit main.rs:~1114) → #13 §2.3B-on-beacon RX-gate.
 - **Trial worktree removed after recording; nothing committed to a real branch.** DO-NOT-ASSUME: line numbers
   (1551/1401/1114) are pre-re-vendor; re-confirm after the rebase replays.
+- **REBOOT-TO-DOWNLOAD (follow-on) — feasibility researched, deliberately NOT implemented (well-justified defer):**
+  MECHANISM (esp-hal 1.1.1, no high-level API): raw PAC write `RTC_CNTL.option1().modify(|_,w|
+  w.force_download_boot().set_bit())` ("force chip entry download boot by sw") then `esp_hal::system::
+  software_reset()`. WHY DEFERRED (not laziness): (1) UNVERIFIABLE by me — espflash/download gate blocks hive, and
+  the boards are ~30km remote; (2) HIGH RISK if wrong — a board sent to a download mode that espflash-over-SSH
+  CANNOT reach (the original contention problem that birthed console-provision) is STRANDED with no app running =
+  worse than INERT, needs physical access (Roy is 30km away). MUST be metal-validated on a physically-accessible
+  board (confirm espflash can reach the sw-triggered USB-JTAG download mode over the link) BEFORE any remote use.
+  The console-persona-receiver already covers the immediate need; reboot-to-download is the riskier last-resort
+  recovery path. Matches supervisor's "secondary later / FOLLOW-ON".
 
 ## ► 2026-06-30 — INERT-LIVENESS FIX DONE+GREEN (firmware a2f1718→93453de) + latent emit_msg regression fixed
 Supervisor+composer GO'd the inert-liveness fidelity fix; LANDED at `93453de` (build-green xtensa across
