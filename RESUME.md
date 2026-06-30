@@ -96,7 +96,11 @@ signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2;
   (verify_header needs tg_pk) → composer push_ota_l2cap (signed, matching TG key) per-SDU OST/ODT/OCM over 0x00D3 →
   verify-before-write→activate→reboot→confirmed-boot commit. ⚠ **NEEDS-REFUTATION** (opposite-provider review of
   ota_receive_over_coc + metal e2e) before production/done. (a)-refactor = engine-host it (increment 1 #34fd380
-  proved r2-engine on-device, no re-vendor). ── superseded scoping (the Plugin-struct port; supervisor chose the
+  proved r2-engine on-device, no re-vendor). WIRE NOTE (specs 27b7dec): #wifi_offer→#wifi_ack (0x98465EE1, schema
+  {0:ip,1:port,2:already_connected}) — NO firmware impact (the L2CAP-direct receiver has no #wifi_* frames); applies
+  only to the FUTURE #ota_*/#wifi_* SoftAP-escalation layer (if built). GOTCHA: event-name hashing is NOT bare FNV
+  (FNV('wifi_ack')=0xF78B4D12 ≠ 0x98465EE1) → use the canonical r2_engine/r2_wire event-hash helper + specs' values.
+  ── superseded scoping (the Plugin-struct port; supervisor chose the
   cleaner module form above): impl Plugin for OtaPlugin: execute(cmd,data) dispatch — START(cmd, data=
   123B header+64B sig) → build DeviceContext (read_persona tg_pk + read_anti_rollback seq/floor) → r2_update::
   verify_header → PayloadVerifier::new; CHUNK(data=off+payload) → pv.update THEN sector-buffered write to the
