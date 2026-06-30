@@ -26,7 +26,7 @@ use wasm_bindgen::prelude::*;
 use r2_engine::queue::QueuedEvent;
 use r2_engine::EventBus;
 use r2_hive_core::ensemble::{
-    HbSentant, MemSink, OtaConfig, OtaPlugin, OtaSentant, OCM_HASH, ODT_HASH, OST_HASH, TICK_HASH,
+    HbSentant, MemSink, OtaConfig, OtaSentant, OCM_HASH, ODT_HASH, OST_HASH, TICK_HASH,
 };
 use r2_hive_core::sync_host::{
     provisional_hive_id, route_inbound_sync, InboundFrame, SyncRouteOutcome, SyncTransport,
@@ -135,8 +135,7 @@ impl WasmHive {
             battery_pct: 100,
             tg_pk: pk,
         };
-        let pid = bus.register_plugin(Box::new(OtaPlugin::new(cfg, MemSink::new())));
-        bus.register_sentant(Box::new(OtaSentant::new(pid)));
+        bus.register_sentant(Box::new(OtaSentant::new(cfg, MemSink::new())));
         bus.init_all();
         WasmHive {
             engine: RouteEngine::new(),

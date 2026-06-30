@@ -80,10 +80,12 @@ impl Sentant for HbSentant {
 // the firmware's `ota_receive_over_coc`.)
 
 use alloc::vec::Vec;
-use crate::ota::{FirmwareSink, OtaError};
-use r2_engine::plugin::{PluginResponse, PluginResult};
-use r2_engine::{Plugin, PluginCommand, PluginId};
-use r2_update::{reject_reason, verify_header, DeviceContext, PayloadVerifier, HEADER_LEN, SIG_LEN};
+// Core's canonical OTA orchestrator (the shared verify-before-write RCE-guard ordering)
+// + the platform sink trait. Per core's OTA ruling (OTA_PLUGIN_SHAPE.md, STATE B): the
+// ORDERING is shared in core (SignedOtaApply), hive impls ImageSink per platform + the
+// OtaSentant control surface. r2-update stays the verify primitive owner.
+use r2_update::apply::{ApplyError, ImageSink, SignedOtaApply};
+use r2_update::{reject_reason, verify_header, DeviceContext, HEADER_LEN, PT_FIRMWARE_FULL, SIG_LEN};
 
 /// OTA wire steps (event_hash discriminators on the mesh; SDU 3-byte tags on a CoC).
 pub const OST_HASH: u32 = r2_fnv::fnv1a_32(b"r2.update.ost"); // start: header(123)+sig(64)
@@ -99,22 +101,12 @@ pub const PH_VERIFIED: u8 = 2;
 pub const PH_APPLIED: u8 = 3;
 pub const PH_REJECT: u8 = 0xFF;
 
-const OTA_CMD_OST: PluginCommand = 1;
-const OTA_CMD_ODT: PluginCommand = 2;
-const OTA_CMD_OCM: PluginCommand = 3;
-
-/// The inactive-slot write seam is the canonical [`crate::ota::FirmwareSink`]
-/// (slot_capacity/begin/write_chunk/finalize/abort) — the ONE platform seam per
-/// core's OTA ruling: real `esp_ota_*` flash on the DFR1195, an in-memory buffer in
-/// wasm. One OTA plugin, the sink swaps.
-
-/// In-memory `FirmwareSink` — the wasm/host platform sink (no real flash). Holds the
-/// written image so a sim/test can prove what was installed. (Board impl wraps
-/// esp_ota_* in the firmware.)
+/// In-memory [`ImageSink`] — the wasm/host platform sink (no real flash). Stages the
+/// VERIFIED image so a sim/test can prove what was installed. (Board impl wraps
+/// `esp_ota_begin/write/end` + `set_boot_partition` in the firmware — same trait.)
 pub struct MemSink {
-    image: Vec<u8>,
-    cap: u32,
-    finalized: bool,
+    staged: Vec<u8>,
+    activated: bool,
 }
 impl Default for MemSink {
     fn default() -> Self {
@@ -123,43 +115,41 @@ impl Default for MemSink {
 }
 impl MemSink {
     pub fn new() -> Self {
-        Self { image: Vec::new(), cap: 4 * 1024 * 1024, finalized: false }
+        Self { staged: Vec::new(), activated: false }
     }
-    /// The image written so far (the installed bytes after a successful finalize).
+    /// The activated image (the installed bytes after a successful `activate`).
     pub fn image(&self) -> &[u8] {
-        &self.image
+        &self.staged
     }
-    pub fn finalized(&self) -> bool {
-        self.finalized
+    /// Whether `activate` ran (the verified image is now pending-boot).
+    pub fn activated(&self) -> bool {
+        self.activated
     }
 }
-impl FirmwareSink for MemSink {
-    fn slot_capacity(&self) -> u32 {
-        self.cap
-    }
-    fn begin(&mut self, _image_len: u32) -> Result<(), OtaError> {
-        self.image.clear();
-        self.finalized = false;
+impl ImageSink for MemSink {
+    type Error = ();
+    fn begin(&mut self, total_len: usize) -> Result<(), ()> {
+        self.staged = Vec::with_capacity(total_len);
+        self.activated = false;
         Ok(())
     }
-    fn write_chunk(&mut self, chunk: &[u8]) -> Result<(), OtaError> {
-        self.image.extend_from_slice(chunk);
+    fn write(&mut self, chunk: &[u8]) -> Result<(), ()> {
+        self.staged.extend_from_slice(chunk);
         Ok(())
     }
-    fn finalize(&mut self) -> Result<(), OtaError> {
-        self.finalized = true;
+    fn activate(&mut self, _seq: u32, _payload_hash: &[u8; 32]) -> Result<(), ()> {
+        self.activated = true;
         Ok(())
-    }
-    fn abort(&mut self) {
-        self.image.clear();
-        self.finalized = false;
     }
 }
 
-/// Map a sink error to a progress `reason` byte (kept distinct from the
-/// VerifyError `reject_reason` space, which is 1..=12).
-fn sink_reason(_e: OtaError) -> u8 {
-    0x70 // SINK_FAIL
+/// Map an apply error to a progress `reason` byte: a VerifyError via `reject_reason`
+/// (1..=12), a sink error to 0x70.
+fn apply_reason<E>(e: &ApplyError<E>) -> u8 {
+    match e {
+        ApplyError::Verify(v) => reject_reason(*v),
+        ApplyError::Sink(_) => 0x70,
+    }
 }
 
 /// Owned device-side OTA gate inputs — built into a [`DeviceContext`] per verify.
@@ -200,165 +190,133 @@ fn progress(phase: u8, done: u32, total: u32, reason: u8) -> [u8; 10] {
     p
 }
 
-/// OTA receiver PLUGIN — verify-before-write over OST/ODT/OCM commands (the mesh
-/// framing of R2-UPDATE §3.1.2.3 CMD_START_SIGNED: OST = header(123)‖sig(64), ODT =
-/// payload stream, OCM = close/commit). Reuses the r2-update verify primitives
-/// verbatim (core ruling: r2-update stays verify-only) + the canonical
-/// [`crate::ota::FirmwareSink`] seam; a bad image never reaches `finalize()`.
-pub struct OtaPlugin<S: FirmwareSink> {
+/// OTA receiver applier — buffers the OST/ODT/OCM mesh framing of R2-UPDATE §3.1.2.3
+/// CMD_START_SIGNED (OST = header(123)‖sig(64), ODT = payload stream, OCM = commit) and
+/// runs core's canonical [`SignedOtaApply`] orchestrator on commit (the shared
+/// verify-before-write RCE-guard ordering — NOT re-implemented here). The unverified
+/// payload sits in a RAM buffer; only VERIFIED chunks are written to the `ImageSink`,
+/// and the sink is activated ONLY after the full hash confirms. Bearer-agnostic.
+///
+/// (Buffer-then-apply-on-commit is the event-model realization: `SignedOtaApply`
+/// borrows the sink for its lifetime + `finish` consumes it, so it cannot persist
+/// across discrete OST/ODT/OCM events — the MCU streaming receiver drives the SAME
+/// orchestrator in a single streaming loop instead. Same shared ordering, both.)
+pub struct OtaApplier<S: ImageSink> {
     cfg: OtaConfig,
     sink: S,
-    pv: Option<PayloadVerifier>,
+    ost: Vec<u8>, // header(123) ‖ sig(64)
+    buf: Vec<u8>, // payload stream
     total: u32,
-    done: u32,
-    queue: Vec<[u8; 10]>, // progress events drained by poll()
-    last: [u8; 10],
+    header_ok: bool,
 }
-impl<S: FirmwareSink> OtaPlugin<S> {
+impl<S: ImageSink> OtaApplier<S> {
     pub fn new(cfg: OtaConfig, sink: S) -> Self {
-        Self { cfg, sink, pv: None, total: 0, done: 0, queue: Vec::new(), last: [0u8; 10] }
+        Self { cfg, sink, ost: Vec::new(), buf: Vec::new(), total: 0, header_ok: false }
     }
-    /// The platform sink (e.g. read the installed image from a MemSink after APPLIED).
+    /// The platform sink (read the installed image from a MemSink after APPLIED).
     pub fn sink(&self) -> &S {
         &self.sink
     }
-    fn push(&mut self, p: [u8; 10]) {
-        self.queue.push(p);
-    }
-}
-impl<S: FirmwareSink> Plugin for OtaPlugin<S> {
-    fn execute(&mut self, command: PluginCommand, data: &[u8]) -> PluginResult {
-        match command {
-            OTA_CMD_OST => {
-                self.pv = None;
-                self.done = 0;
-                self.sink.abort(); // discard any half-staged prior attempt
-                if data.len() < HEADER_LEN + SIG_LEN {
-                    self.push(progress(PH_REJECT, 0, 0, 0));
-                    return PluginResult::Ok(PluginResponse::empty());
-                }
-                let header = &data[..HEADER_LEN];
-                let sig = &data[HEADER_LEN..HEADER_LEN + SIG_LEN];
-                // verify_header (4-gate/Ed25519/anti-rollback) BEFORE any sink.begin.
-                match verify_header(header, sig, &self.cfg.ctx()) {
-                    Ok(vh) => {
-                        self.total = vh.payload_len as u32;
-                        // slot_capacity TOO_BIG precheck, then begin (only after verify Ok).
-                        if self.total > self.sink.slot_capacity() {
-                            self.push(progress(PH_REJECT, 0, self.total, sink_reason(OtaError::TooBig)));
-                        } else if let Err(e) = self.sink.begin(self.total) {
-                            self.push(progress(PH_REJECT, 0, self.total, sink_reason(e)));
-                        } else {
-                            self.pv = Some(PayloadVerifier::new(&vh));
-                            self.push(progress(PH_START_OK, 0, self.total, 0));
-                        }
-                    }
-                    Err(e) => self.push(progress(PH_REJECT, 0, 0, reject_reason(e))),
-                }
-            }
-            OTA_CMD_ODT => {
-                if let Some(pv) = self.pv.as_mut() {
-                    // verify chunk (running hash, length-bounded) FIRST, then write.
-                    match pv.update(data) {
-                        Ok(()) => match self.sink.write_chunk(data) {
-                            Ok(()) => {
-                                self.done += data.len() as u32;
-                                let (d, t) = (self.done, self.total);
-                                self.push(progress(PH_DATA, d, t, 0));
-                            }
-                            Err(e) => {
-                                self.pv = None;
-                                self.sink.abort();
-                                let (d, t) = (self.done, self.total);
-                                self.push(progress(PH_REJECT, d, t, sink_reason(e)));
-                            }
-                        },
-                        Err(e) => {
-                            self.pv = None;
-                            self.sink.abort();
-                            let r = reject_reason(e);
-                            let (d, t) = (self.done, self.total);
-                            self.push(progress(PH_REJECT, d, t, r));
-                        }
-                    }
-                }
-            }
-            OTA_CMD_OCM => {
-                if let Some(pv) = self.pv.take() {
-                    let (d, t) = (self.done, self.total);
-                    match pv.finish() {
-                        Ok(()) => {
-                            self.push(progress(PH_VERIFIED, d, t, 0));
-                            // hash-confirmed → activate. Else nothing is activated.
-                            match self.sink.finalize() {
-                                Ok(()) => self.push(progress(PH_APPLIED, d, t, 0)),
-                                Err(e) => {
-                                    self.sink.abort();
-                                    self.push(progress(PH_REJECT, d, t, sink_reason(e)));
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            self.sink.abort();
-                            self.push(progress(PH_REJECT, d, t, reject_reason(e)));
-                        }
-                    }
-                }
-            }
-            _ => {}
+
+    /// OST: stash header‖sig + an EARLY `verify_header` for fast reject feedback (the
+    /// authoritative verify+apply runs on commit via `SignedOtaApply`). Returns a
+    /// progress record.
+    pub fn on_ost(&mut self, data: &[u8]) -> [u8; 10] {
+        self.ost.clear();
+        self.buf.clear();
+        self.header_ok = false;
+        self.total = 0;
+        if data.len() < HEADER_LEN + SIG_LEN {
+            return progress(PH_REJECT, 0, 0, 0);
         }
-        PluginResult::Ok(PluginResponse::empty())
-    }
-    fn name(&self) -> &str {
-        "ota"
-    }
-    fn id(&self) -> PluginId {
-        0
-    }
-    fn poll(&mut self) -> Option<(u32, &[u8])> {
-        if self.queue.is_empty() {
-            return None;
+        self.ost.extend_from_slice(&data[..HEADER_LEN + SIG_LEN]);
+        let header = &self.ost[..HEADER_LEN];
+        let sig = &self.ost[HEADER_LEN..HEADER_LEN + SIG_LEN];
+        match verify_header(header, sig, &self.cfg.ctx()) {
+            Ok(vh) => {
+                self.total = vh.payload_len as u32;
+                self.header_ok = true;
+                progress(PH_START_OK, 0, self.total, 0)
+            }
+            Err(e) => progress(PH_REJECT, 0, 0, reject_reason(e)),
         }
-        self.last = self.queue.remove(0);
-        Some((PROGRESS_HASH, &self.last))
+    }
+
+    /// ODT: buffer one payload chunk (unverified — verification happens on commit).
+    pub fn on_odt(&mut self, chunk: &[u8]) -> [u8; 10] {
+        if self.header_ok {
+            self.buf.extend_from_slice(chunk);
+        }
+        progress(PH_DATA, self.buf.len() as u32, self.total, 0)
+    }
+
+    /// OCM: run core's canonical verify-before-write apply over the buffered stream:
+    /// `start` (verify_header 4-gate/Ed25519/anti-rollback + type-gate + sink.begin) →
+    /// `feed` (verify-then-write per chunk) → `finish` (hash-confirm THEN sink.activate).
+    /// A bad image never activates. Returns the progress sequence (VERIFIED+APPLIED or
+    /// a single REJECT).
+    pub fn on_ocm(&mut self) -> Vec<[u8; 10]> {
+        let d = self.buf.len() as u32;
+        if !self.header_ok || self.ost.len() < HEADER_LEN + SIG_LEN {
+            return alloc::vec![progress(PH_REJECT, d, self.total, 0)];
+        }
+        let ctx = self.cfg.ctx();
+        let header = &self.ost[..HEADER_LEN];
+        let sig = &self.ost[HEADER_LEN..HEADER_LEN + SIG_LEN];
+        let apply = SignedOtaApply::start(header, sig, &ctx, PT_FIRMWARE_FULL, &mut self.sink);
+        let mut apply = match apply {
+            Ok(a) => a,
+            Err(e) => return alloc::vec![progress(PH_REJECT, 0, self.total, apply_reason(&e))],
+        };
+        if let Err(e) = apply.feed(&self.buf) {
+            // sink.begin ran but we never activate → staged bytes are discardable.
+            return alloc::vec![progress(PH_REJECT, d, self.total, apply_reason(&e))];
+        }
+        match apply.finish() {
+            Ok(_) => alloc::vec![progress(PH_VERIFIED, d, self.total, 0), progress(PH_APPLIED, d, self.total, 0)],
+            Err(e) => alloc::vec![progress(PH_REJECT, d, self.total, apply_reason(&e))],
+        }
     }
 }
 
 const OTA_CLASS: u32 = r2_fnv::fnv1a_32(b"ai.reality2.sentant.ota");
-const OTA_SUBS: [u32; 4] = [OST_HASH, ODT_HASH, OCM_HASH, PROGRESS_HASH];
+const OTA_SUBS: [u32; 3] = [OST_HASH, ODT_HASH, OCM_HASH];
 
-/// OTA control SENTANT — routes OST/ODT/OCM events to the OTA plugin, and
-/// re-broadcasts the plugin's PROGRESS so peers / the bench observe the transfer.
-pub struct OtaSentant {
-    ota_plugin: PluginId,
+/// OTA control SENTANT (the EventBus surface) — owns the platform [`ImageSink`] via an
+/// [`OtaApplier`], drives the canonical apply on OST/ODT/OCM events, and BROADCASTS the
+/// `r2.update.progress` so peers / the bench observe the transfer. "Complex work in the
+/// (core) driver, control via sentant+events."
+pub struct OtaSentant<S: ImageSink> {
+    applier: OtaApplier<S>,
 }
-impl OtaSentant {
-    pub fn new(ota_plugin: PluginId) -> Self {
-        Self { ota_plugin }
+impl<S: ImageSink> OtaSentant<S> {
+    pub fn new(cfg: OtaConfig, sink: S) -> Self {
+        Self { applier: OtaApplier::new(cfg, sink) }
+    }
+    /// The platform sink (test/inspection).
+    pub fn sink(&self) -> &S {
+        self.applier.sink()
+    }
+    fn emit(actions: &mut ActionBuf, p: [u8; 10]) {
+        actions.push(Action::Send {
+            target: Target::Broadcast,
+            event_hash: PROGRESS_HASH,
+            payload: PayloadBuf::from_slice(&p),
+        });
     }
 }
-impl Sentant for OtaSentant {
+impl<S: ImageSink> Sentant for OtaSentant<S> {
     fn handle_event(&mut self, event: &Event, actions: &mut ActionBuf) {
-        let cmd = match event.hash {
-            h if h == OST_HASH => OTA_CMD_OST,
-            h if h == ODT_HASH => OTA_CMD_ODT,
-            h if h == OCM_HASH => OTA_CMD_OCM,
-            h if h == PROGRESS_HASH => {
-                // The plugin produced progress (via poll → local event); broadcast it.
-                actions.push(Action::Send {
-                    target: Target::Broadcast,
-                    event_hash: PROGRESS_HASH,
-                    payload: PayloadBuf::from_slice(event.payload),
-                });
-                return;
+        match event.hash {
+            h if h == OST_HASH => Self::emit(actions, self.applier.on_ost(event.payload)),
+            h if h == ODT_HASH => Self::emit(actions, self.applier.on_odt(event.payload)),
+            h if h == OCM_HASH => {
+                for p in self.applier.on_ocm() {
+                    Self::emit(actions, p);
+                }
             }
-            _ => return,
-        };
-        actions.push(Action::PluginCall {
-            plugin_id: self.ota_plugin,
-            command: cmd,
-            data: PayloadBuf::from_slice(event.payload),
-        });
+            _ => {}
+        }
     }
     fn state(&self) -> StateId {
         0
@@ -433,72 +391,54 @@ mod tests {
         }
     }
 
-    fn drain_progress<S: FirmwareSink>(p: &mut OtaPlugin<S>) -> Vec<[u8; 10]> {
-        let mut v = Vec::new();
-        while let Some((h, pl)) = p.poll() {
-            assert_eq!(h, PROGRESS_HASH);
-            let mut a = [0u8; 10];
-            a.copy_from_slice(pl);
-            v.push(a);
+    fn run_apply(a: &mut OtaApplier<MemSink>, header: &[u8], sig: &[u8], payload: &[u8]) -> Vec<u8> {
+        let mut ost = Vec::from(header);
+        ost.extend_from_slice(sig);
+        let mut phases = alloc::vec![a.on_ost(&ost)[0]];
+        for chunk in payload.chunks(200) {
+            phases.push(a.on_odt(chunk)[0]);
         }
-        v
+        for p in a.on_ocm() {
+            phases.push(p[0]);
+        }
+        phases
     }
 
     #[test]
-    fn ota_plugin_verifies_and_applies() {
+    fn ota_applier_verifies_and_applies() {
         let sk = SigningKey::from_bytes(&[0xF0; 32]);
         let tg_pk = sk.verifying_key().to_bytes();
         let payload = b"FIRMWARE-IMAGE-BYTES-v2-the-new-build".repeat(8);
         let header = mint(&payload, 1, tg_pk);
         let sig = sk.sign(&header).to_bytes();
 
-        let mut p = OtaPlugin::new(ota_cfg(tg_pk), MemSink::new());
-        // OST = header(123)+sig(64)
-        let mut ost = Vec::from(&header[..]);
-        ost.extend_from_slice(&sig);
-        p.execute(OTA_CMD_OST, &ost);
-        // ODT chunks (200B like push_ota_l2cap DEFAULT_CHUNK)
-        for chunk in payload.chunks(200) {
-            p.execute(OTA_CMD_ODT, chunk);
-        }
-        p.execute(OTA_CMD_OCM, &[]);
-
-        let progs = drain_progress(&mut p);
-        let phases: Vec<u8> = progs.iter().map(|x| x[0]).collect();
+        let mut a = OtaApplier::new(ota_cfg(tg_pk), MemSink::new());
+        let phases = run_apply(&mut a, &header, &sig, &payload);
         assert!(phases.contains(&PH_START_OK), "start ok: {phases:?}");
         assert!(phases.contains(&PH_VERIFIED), "verified: {phases:?}");
         assert!(phases.contains(&PH_APPLIED), "applied: {phases:?}");
         assert!(!phases.contains(&PH_REJECT), "no reject: {phases:?}");
-        // The verified image was written to the sink (verify-before-write held).
-        assert!(p.sink().finalized());
-        assert_eq!(p.sink().image(), &payload[..]);
+        // verify-before-write: the VERIFIED image was staged + activated.
+        assert!(a.sink().activated());
+        assert_eq!(a.sink().image(), &payload[..]);
     }
 
     #[test]
-    fn ota_plugin_rejects_tampered_payload() {
+    fn ota_applier_rejects_tampered_payload() {
         let sk = SigningKey::from_bytes(&[0xF0; 32]);
         let tg_pk = sk.verifying_key().to_bytes();
         let payload = b"GOOD-IMAGE".repeat(20);
         let header = mint(&payload, 1, tg_pk);
         let sig = sk.sign(&header).to_bytes();
-
-        let mut p = OtaPlugin::new(ota_cfg(tg_pk), MemSink::new());
-        let mut ost = Vec::from(&header[..]);
-        ost.extend_from_slice(&sig);
-        p.execute(OTA_CMD_OST, &ost);
-        // Tamper: flip a byte in the streamed payload — hash won't match the signed header.
         let mut bad = payload.clone();
-        bad[5] ^= 0xFF;
-        for chunk in bad.chunks(200) {
-            p.execute(OTA_CMD_ODT, chunk);
-        }
-        p.execute(OTA_CMD_OCM, &[]);
+        bad[5] ^= 0xFF; // hash won't match the signed header
 
-        let phases: Vec<u8> = drain_progress(&mut p).iter().map(|x| x[0]).collect();
+        let mut a = OtaApplier::new(ota_cfg(tg_pk), MemSink::new());
+        let phases = run_apply(&mut a, &header, &sig, &bad);
         assert!(phases.contains(&PH_REJECT), "tampered must reject: {phases:?}");
         assert!(!phases.contains(&PH_APPLIED), "must NOT apply: {phases:?}");
-        // verify-before-write: a rejected image is never finalized/activated.
-        assert!(!p.sink().finalized(), "bad image must not finalize");
+        // verify-before-write: a rejected image is never activated.
+        assert!(!a.sink().activated(), "bad image must not activate");
     }
 
     #[test]
@@ -508,11 +448,13 @@ mod tests {
         let payload = b"x".repeat(50);
         let header = mint(&payload, 0, tg_pk); // seq 0 <= current_seq 0 → StaleSeq
         let sig = sk.sign(&header).to_bytes();
-        let mut p = OtaPlugin::new(ota_cfg(tg_pk), MemSink::new());
-        let mut ost = Vec::from(&header[..]);
-        ost.extend_from_slice(&sig);
-        p.execute(OTA_CMD_OST, &ost);
-        let phases: Vec<u8> = drain_progress(&mut p).iter().map(|x| x[0]).collect();
-        assert!(phases.contains(&PH_REJECT), "stale seq must reject at OST: {phases:?}");
+        let mut a = OtaApplier::new(ota_cfg(tg_pk), MemSink::new());
+        // early OST verify rejects a stale seq immediately.
+        let p = a.on_ost(&{
+            let mut o = Vec::from(&header[..]);
+            o.extend_from_slice(&sig);
+            o
+        });
+        assert_eq!(p[0], PH_REJECT, "stale seq must reject at OST");
     }
 }
