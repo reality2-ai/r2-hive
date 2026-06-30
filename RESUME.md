@@ -86,8 +86,18 @@ signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2;
   the re-vendor (separate). EventBus API (base): register_sentant/register_plugin(Box<dyn>), tick, poll_plugins,
   drain_outbound→Vec<QueuedEvent>; Plugin::execute(cmd,&[u8])->PluginResult + poll; Sentant::handle_event(&Event,
   &mut ActionBuf). Ref: crates/r2-engine/src/conformance.rs.
-- **INCREMENT 2 SCOPED (OTA PLUGIN) — security-critical, NOT rushed.** Port ota_receiver's verify-before-write
-  state machine (main.rs:4344) into `impl Plugin for OtaPlugin`: execute(cmd,data) dispatch — START(cmd, data=
+- **★ OTA RECEIVER BUILT (supervisor decision (b)) — increments 2a+2b DONE, e2e image staged, NEEDS-REFUTATION.**
+  2a `8fb0010` `ota_receive_over_coc` (feature `otal2cap`) = the clean reusable CAPABILITY: verify-before-write /
+  4-gate / Ed25519 reused VERBATIM from ota_receiver; transport→0x00D3 CoC; R4→implicit CoC-peer-binding; FUNCTION
+  form (not a Plugin struct) → no OtaUpdater-lifetime issue. 2b `b5e7abb` = thin embassy harness (device advertises
+  opaque-addr + accepts 0x00D3 → ota_receive_over_coc; clean entry → #ota_* sentant later, zero complex-work
+  change). xtensa-GREEN: default+otal2cap+cocbench+full field,loraroute,multitg,staota,otal2cap. STAGED e2e:
+  ~/r2-staota-artifacts/r2-dfr1195-DFR-otal2cap-e2e.elf (conformance §7 + OTA). E2E (Roy AM): flash → PROVISION
+  (verify_header needs tg_pk) → composer push_ota_l2cap (signed, matching TG key) per-SDU OST/ODT/OCM over 0x00D3 →
+  verify-before-write→activate→reboot→confirmed-boot commit. ⚠ **NEEDS-REFUTATION** (opposite-provider review of
+  ota_receive_over_coc + metal e2e) before production/done. (a)-refactor = engine-host it (increment 1 #34fd380
+  proved r2-engine on-device, no re-vendor). ── superseded scoping (the Plugin-struct port; supervisor chose the
+  cleaner module form above): impl Plugin for OtaPlugin: execute(cmd,data) dispatch — START(cmd, data=
   123B header+64B sig) → build DeviceContext (read_persona tg_pk + read_anti_rollback seq/floor) → r2_update::
   verify_header → PayloadVerifier::new; CHUNK(data=off+payload) → pv.update THEN sector-buffered write to the
   inactive slot; COMMIT → pv.finish (BEFORE activate) → OtaUpdater activate + write_anti_rollback (monotonic);
