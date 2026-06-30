@@ -54,6 +54,20 @@ SignedOtaApply. The CLAUDE/codex OTA refute should target the SignedOtaApply pat
 `{"frames":[…],"progress":[{phase,bytes_done,bytes_total,reason},…]}` (fixes composer's all-0 compact-frame
 decode). (2) signed test pkg staged (above). composer can now render APPLIED + REJECT(tampered/unsigned/DIFF).
 
+### Claude OTA-refuter findings — 2 regressions FIXED + tested @a56c1bc (v0.4.2); F3 → core
+The refuter confirmed core's SignedOtaApply SEQUENCE sound (verify-before-write/type-gate/hash-before-activate);
+the 3 findings were all in MY hive OtaApplier ADAPTER seam (gaps the orchestrator can't close for the caller):
+- **F1 (HIGH) anti-rollback floor never advanced** — on_ocm dropped AppliedUpdate → cfg.current_seq frozen →
+  REPLAY + DOWNGRADE (defeats §10.1#3). FIXED: on_ocm advances cfg.current_seq=applied.seq + authority_epoch_floor
+  BEFORE APPLIED, resets per-transfer state. Test `ota_advances_floor_blocks_replay_and_downgrade`. (Board
+  persists floor→NVS; sim = cfg-in-RAM node-session floor.)
+- **F2 (MED/HIGH) unbounded ODT buffer + lost TOO_BIG** — OOM via replay-OST-then-flood. FIXED: on_ost rejects
+  payload_len>OTA_MAX_IMAGE(4MB); on_odt rejects buf+chunk>total → closes transfer. Test `ota_bounds_odt_buffer`.
+- **F3 (LOW) no abort() on reject** — ImageSink (core trait) has no abort → partial staging left; mitigated by
+  MemSink::begin-clears-next-attempt (never read/activated). FLAGGED core to add ImageSink::abort (+capacity).
+OtaConfig gained `authority_epoch_floor`. 7 ensemble tests + wasm e2e green; wasm32+host clean. These GATE METAL
+(Roy-gated) — closed except F3-pending-core. Refuter should re-run on a56c1bc.
+
 ### convergence-v1 @1a8f7a9 — applied core's OTA-plugin ruling (OTA_PLUGIN_SHAPE.md a53a07b) [SUPERSEDED by v2]
 core RULED the canonical OTA-plugin shape; supervisor CORRECTED the doc (IGNORE the experimental
 `r2-update::SignedOtaApply`/`ImageSink` orphan — it breaks r2-update's verify-only layering; r2-update stays
