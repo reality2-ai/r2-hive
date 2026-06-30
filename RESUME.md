@@ -1,5 +1,41 @@
 # RESUME — r2-hive (hive-worker)
 
+## ► 2026-06-30 — ADVERSARIAL REFUTATION of the receiver-staota work (peer-refuted; 2 fixed, 2 batched, 1 escalated)
+Closed the doctrine's "peer-refuted before done" gap on 30e0ff5 (console-receiver) + aa9088f (beacon un-gate):
+ran an INDEPENDENT read-only adversarial reviewer (fresh agent, tasked to BREAK them; not opposite-provider — a
+codex-twin pass would be stronger, noted). 5 findings, all triaged vs ground truth. The in-flight beacon-test
+artifacts (aa9088f) are UNTOUCHED — fixes are committed but not rebuilt; they bundle into the next staota.
+- **FIXED NOW (`6df9d0c`, build-green field,loraroute,multitg,staota / staota / nobt; no beacon-payload change):**
+  - **A4** (chunk robustness): handle_persona_cmd now requires PERSONA BEGIN before any chunk/END (begin_seen flag
+    threaded through both call sites) + RESETS the accumulator after END → no stale-accum re-parse / cross-record
+    append. New ACK `PERSONA ERR no-begin` (composer suffix-matches `PERSONA ERR`).
+  - **B3** (vacuous guard): the `debug_assert` was a release no-op (shipped artifact) AND tautological (adv[4]
+    just assigned 0xFF). Replaced with a release-EFFECTIVE runtime log-guard (`BEACON-GUARD FAIL` if plen==0).
+- **ESCALATED — spec-first (asked specs, awaiting inbox):**
+  - **B5 (medium, spec+privacy, VERIFIED vs ground truth):** BLE §7 beacon sets `class_hash = my_tg_hash`
+    (main.rs:2651) but the codec (beacon.rs:140 "class string §4") + the LoRa §8.1 beacon (`role_class_hash`,
+    main.rs:608) define it as the DEVICE CLASS. So BLE mis-populates the field AND leaks a STABLE per-TG id in the
+    clear (defeats rbid-rotation unlinkability §6.1/§8.1.2); my un-gate amplifies it to all-boards-always-on.
+    PREDATES aa9088f. Fix (post-test): thread class_hash into ble_task like LoRa (compute role_class_hash in main,
+    pass in) — pending specs' ruling on value + §7 endianness (LoRa is BE; BLE code uses LE).
+- **BATCHED — POST-TEST BEACON-HARDENING PASS (beacon-payload/behaviour changes; don't rebuild mid-test):**
+  - **B2 (medium):** every board now advertises `ConnectableScannableUndirected` → a central can connect-and-hold
+    to SUPPRESS a board's beacon (DoS) + force serve_coc. Fix: advertise the pure beacon NON-connectable for the
+    un-gated (non-blemesh) path; keep connectable only where the CoC is actually used (blemesh). Also add a backoff
+    to the `accept()` Err arm (currently a tight re-advertise spin, unlike the advertise() arm's 1s sleep).
+  - Do B5 + B2 together with the §2.3A per-available-transport beacon mask-gating (all beacon-emit changes).
+- **ACCEPTED-RISK / FOLLOW-UP (recorded, no immediate change):**
+  - **A2 (medium):** the persona receiver is parse-only (r2_trust::parse_persona does CBOR-decode + derive, NO
+    signature verify — cert key-4 parsed then ignored, persona.rs:33 "may be ignored v0.1"; firmware admits
+    cert-sig verify is a follow-up, main.rs:168) AND is wired into uart_rx_task (RUNNING boards), so momentary USB
+    access to a deployed node can re-home its identity unauthenticated. This is the INTENDED v0.1 model (console =
+    local-trust management plane) AND composer REQUIRES the running-board path (re-provision deployed boards). The
+    real gap = the documented cert-sig verify follow-up; until then console==full-trust. FYI'd composer.
+- **ATTACKED, NO DEFECT (verified):** A1 (no write-anywhere — offset is always a compile-time constant, never
+  console-derived), A3 (all buffers bounds-checked before indexing — no OOB/panic), A5 (fail-closed intact — no
+  radio/mesh before a validated persona), A6 (no p.USB_DEVICE double-take — diverging branch), B1 (advert built
+  unconditionally), B4 (blemesh preserved).
+
 ## ► 2026-06-30 — RECEIVER-STAOTA DELIVERED: console-persona-receiver (#14) + un-gated §7 BLE beacon (#13) — DONE+GREEN, ARTIFACTS STAGED
 Supervisor+composer GO (the gating deliverable for Roy's BLE-beacon test). Both features built, xtensa-green,
 committed, pushed on `dfr1195-fw`; both staota artifacts rebuilt with creds and staged on Alfred. ONE bootstrap
