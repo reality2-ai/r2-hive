@@ -13,7 +13,9 @@ field `arrival_transport: Option<Transport>` to `ForwardRequest`, silently break
   deliberate decision FLAGGED FOR CORE (asked: should the host sync/router tier enforce §2.3B, or is faked-distance
   mesh/firmware-only?).
 - **NOW GREEN:** `cargo test --workspace` (stable toolchain, default features) = ~200 tests pass, 0 failed, incl.
-  the relay-handshake v0.2 challenge-response conformance. (ble/lora features need host bluetooth libs — not built.)
+  the relay-handshake v0.2 challenge-response conformance. ALSO verified the `ble,lora` radio-deployment variant
+  builds clean (EXIT=0; host libdbus present; 1 benign pre-existing unreachable-log warning in the LoRa rx loop,
+  not my change) — so NO further consolidation API-drift hides behind the radio features.
 - **SAME break as the firmware** re-vendor onto 0d1f308 (identical None fix queued there). Reported to supervisor
   (task #4 closed) + FYI'd core (a required-field addition breaks all downstream ForwardRequest constructors;
   suggested #[non_exhaustive]+Default for future additive-non-breaking changes; flagged the consolidation→main
