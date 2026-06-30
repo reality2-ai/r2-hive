@@ -31,6 +31,18 @@ match / erase-all-to-demo / serial-PROVISION). Supervisor expects a REAL persona
 their good-key frames at all) — dump disambiguates real-vs-stale.
 
 
+## ✅ 2026-07-01 — THEATER ORACLE: neighbour/path classifier getters [hive @664e8b3, r2-hive-wasm v0.4.5]
+composer's next theater arm (conj 100/103 mobile-vs-infra classify + evict-at-floor/rediscovery; 200/204 used-path-
+wins/idle-decays). Read-only over EXISTING r2-route state — no engine change. New WasmHive methods:
+- `neighbours()` → JSON `[{hive_id,viable,confidence,last_seen,class:infra|mobile,duty,fade_remaining}]`. `viable` =
+  `is_viable(FORWARDING_CONFIDENCE_FLOOR=0.1)` — SAME floor the forwarder uses (r2-route engine.rs:607/648) = engine
+  truth. `class`=MobilityClass (decay-λ). `fade_remaining`=secs to floor (`neighbour_fade_remaining`, t=ln(conf/floor)/λ).
+- `paths()` → JSON `[{destination,next_hop,confidence,last_updated,sample_count}]` (conj 200/204).
+- `decay(now)` → real decay_neighbours+decay_paths; needed because confidence rises only on observation, falls only on a
+  decay tick → drag-out-of-range = stop route_frame + decay(now)↑ → confidence falls/viable→false/evict; fresh frame=rediscovery.
+- directed_via/flooded oracle = ALREADY in route_frame return (outcome=Directed+send target / outcome=Flooded). No new getter.
+Test neighbour_oracle_learns_then_fades_below_floor (learn→viable→decay→evicted). wasm32 + 7 host tests green.
+
 ## ✅ 2026-07-01 — CORE-SYNC §5.5 inv-5 (reject-while-pending) [hive @c7978c5]
 Core type-enforced §5.5 invariant-5 (r2-core e921622): `ImageSink::pending_seq()->Option<u32>` (default None) +
 `ApplyError::PendingUpdate{pending_seq,this_seq}` — `SignedOtaApply::start()` rejects unless new seq STRICTLY > staged
