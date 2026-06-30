@@ -73,7 +73,13 @@ Composer's carrier-as-bridge weave Qs (via supervisor), both verified in r2-hive
 routing (TG key NVS@0x14000); RIG-PINNING — bench-default consts hardcode tuxedo D1-D4 hive_ids (remap+rebuild for
 alfred X1-X4, OR use 'field' role-profile@0x17000); live = a bench-cycle (flash+prov2+run), gated composer bench-ssh.
 **#26 tie-in:** wasm SIM heterogeneous bench would tag Transport (r2-route enum exists) to SHOW LoRa-vs-ESPNOW links.
-**STATUS:** scope sent supervisor; asked core re LoRaTransport/Sx1262 API drift vs HEAD (re-vendor risk) → inbox.
+**CORE CONFIRMED (re-vendor CLEAN, zero breaking):** diffed core HEAD 274941f vs dfr1195-fw vendored state — lora.rs
+(LoRaRadio seam) / transport.rs (Transport trait) / lora_transport.rs (service()) / lora_airtime.rs all BYTE-IDENTICAL.
+Two ADDITIVE-only deltas, harmless: (1) r2-transport 'mesh' module = §2.6 ConnectionlessRadio/MeshTransport (NOT on LoRa
+path); (2) r2-sx1262 with_dio2_as_rf_switch() ctor (board uses RXEN → ignore). → ZERO dev cost to refresh LoRa; cost =
+rig-remap + xtensa-on-alfred + bench-cycle. SCOPE CLOSED.
+**BONUS #20 UNBLOCK:** §2.6 ConnectionlessRadio/ConnectionlessMeshTransport (ESP-NOW connectionless bearer) is NOW on
+core HEAD → #20's 're-vendor to 0df6feb' gate is effectively MET. #20 buildable whenever prioritized.
 
 ## ✅ 2026-07-01 — CORE-SYNC §5.5 inv-5 (reject-while-pending) [hive @c7978c5]
 Core type-enforced §5.5 invariant-5 (r2-core e921622): `ImageSink::pending_seq()->Option<u32>` (default None) +
