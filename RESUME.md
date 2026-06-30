@@ -65,7 +65,14 @@ signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2;
   4-gate Ed25519, R2-UPDATE v0.6) EXISTS but on TCP :21043 over the INFRA WiFi netif (old permanent-STA). NET-NEW
   = the BLE-negotiate (#ota_* frames) + transient-SoftAP-on-#wifi_req + L2CAP-0x00D3 wrapper. Signed core reusable.
   [task #19; align #ota_* frame bytes w/ composer's pusher; ref r2-workshop.]
-- **★ THROUGHPUT BENCH [task #18, GREENLIT] — BUILD DONE (0efe84c), RUN needs metal.** `cocbench` feature
+- **★ THROUGHPUT BENCH [task #18, GREENLIT] — BUILD CORRECTED + STAGED (24a35f8), awaiting Roy's metal run.**
+  First cocbench (0efe84c) couldn't run (un-gate→both boards drain/none push; opaque broke connect). FIX: manual
+  role flag `cocbench_provider`=RECEIVER (advertise@BENCH_ADDR+drain) vs plain `cocbench`=PUSHER (connect@BENCH_ADDR
+  +push); fixed BENCH_ADDR (no provisioning); LCD L1 shows 'COCBENCH N KB/s' (read off-screen, no console-reset).
+  STAGED: ~/r2-staota-artifacts/r2-dfr1195-cocbench-{RECEIVER,PUSHER}.elf (distinct). Sent supervisor per-board
+  espflash (D1=RECEIVER F4:12:FA:50:26:98 / D3=PUSHER F4:12:FA:B6:0A:A0). Conformance bundle UNAFFECTED (joiner
+  path unreachable there under the un-gate). PENDING: Roy flashes both → metal KB/s → I analyze vs §3.1.3 (C/R).
+  ~~`cocbench` feature~~ (superseded by the corrected build above):
   (xtensa-green: minimal `cocbench` + `staota,cocbench`): reuses the ble connect plumbing, cfg-swaps served fn
   (serve_coc→coc_bench_*) + PSM (0x00D2→0x00D3). provider(M7_PROVIDER_HIVE)=coc_bench_drain RECEIVER; joiner=
   coc_bench_push PUSHER (1.3MB / 240B chunks / Instant→KB/s). v1=default L2capChannelConfig. RUN (procedure sent
