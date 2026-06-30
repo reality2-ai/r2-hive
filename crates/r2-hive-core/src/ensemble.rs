@@ -119,6 +119,8 @@ impl Default for MemSink {
 }
 impl MemSink {
     pub fn new() -> Self {
+        // 4 MB = the SIM ceiling. The board ImageSink returns its REAL inactive-slot
+        // size (~1.5 MB for the DFR1195 ota_1 partition) so capacity() gates honestly.
         Self { staged: Vec::new(), activated: false, cap: 4 * 1024 * 1024, seq_floor: 0 }
     }
     /// The activated image (the installed bytes after a successful `activate`).
@@ -148,8 +150,14 @@ impl ImageSink for MemSink {
         Ok(())
     }
     fn activate(&mut self, applied: &AppliedUpdate) -> Result<(), ()> {
-        // Persist the anti-rollback floor BEFORE reporting success (F1) — the board
-        // writes NVS here; the sim holds it in RAM.
+        // SIM ONLY: advance the floor immediately in RAM (no boot/brick risk in wasm).
+        //
+        // ⚠ THE BOARD ImageSink MUST NOT DO THIS. A real device must DEFER the durable
+        // NVS floor commit to BOOT-CONFIRM: activate() stages the pending image +
+        // (seq, hash) and sets the boot partition, but the persisted current_seq floor
+        // is bumped ONLY after the new image boots and passes the §5 health check (cf.
+        // linux ota_tcp_recv.rs:606-613). Persisting the advanced floor here, before a
+        // confirmed boot, strands a FAILED-BOOT image below the floor = remote BRICK.
         self.seq_floor = applied.seq;
         self.activated = true;
         Ok(())
@@ -518,16 +526,22 @@ mod tests {
         assert!(ph.contains(&PH_APPLIED), "seq 2 applies: {ph:?}");
         assert_eq!(a.current_seq(), 2, "floor advanced to 2");
 
-        // REPLAY the exact seq-2 package → StaleSeq (2 <= floor 2).
-        let ph_replay = run_apply(&mut a, &h2, &s2, &p2);
-        assert!(!ph_replay.contains(&PH_APPLIED), "replay must NOT re-apply: {ph_replay:?}");
+        // REPLAY the exact seq-2 package → StaleSeq (2 <= floor 2), rejected at OST.
+        let mut ost2 = Vec::from(&h2[..]);
+        ost2.extend_from_slice(&s2);
+        let pr = a.on_ost(&ost2);
+        assert_eq!(pr[0], PH_REJECT, "replay rejects");
+        assert_eq!(pr[9], reject_reason(VerifyError::StaleSeq), "replay reason = StaleSeq");
 
         // DOWNGRADE to a validly-signed seq-1 → StaleSeq.
         let p1 = b"old-seq-1".repeat(10);
         let h1 = mint(&p1, 1, tg_pk);
         let s1 = sk.sign(&h1).to_bytes();
-        let ph_down = run_apply(&mut a, &h1, &s1, &p1);
-        assert!(!ph_down.contains(&PH_APPLIED), "downgrade must NOT apply: {ph_down:?}");
+        let mut ost1 = Vec::from(&h1[..]);
+        ost1.extend_from_slice(&s1);
+        let pd = a.on_ost(&ost1);
+        assert_eq!(pd[0], PH_REJECT, "downgrade rejects");
+        assert_eq!(pd[9], reject_reason(VerifyError::StaleSeq), "downgrade reason = StaleSeq");
         assert_eq!(a.current_seq(), 2, "floor NOT lowered by a downgrade");
     }
 
@@ -547,6 +561,7 @@ mod tests {
         let flood = alloc::vec![0u8; 10_000];
         let p = a.on_odt(&flood);
         assert_eq!(p[0], PH_REJECT, "over-length ODT must reject (anti-OOM)");
+        assert_eq!(p[9], reject_reason(VerifyError::LengthMismatch), "reason = LengthMismatch");
     }
 
     #[test]
