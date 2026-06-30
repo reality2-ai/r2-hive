@@ -24,6 +24,7 @@ extern crate alloc;
 #[cfg(test)]
 extern crate std;
 
+pub mod ensemble;
 pub mod identity;
 pub mod ota;
 pub mod platform;

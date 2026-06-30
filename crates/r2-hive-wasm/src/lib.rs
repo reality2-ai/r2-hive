@@ -23,6 +23,9 @@ use std::cell::RefCell;
 
 use wasm_bindgen::prelude::*;
 
+use r2_engine::queue::QueuedEvent;
+use r2_engine::EventBus;
+use r2_hive_core::ensemble::{HbSentant, TICK_HASH};
 use r2_hive_core::sync_host::{
     provisional_hive_id, route_inbound_sync, InboundFrame, SyncRouteOutcome, SyncTransport,
     TransportAddr,
@@ -82,20 +85,28 @@ fn outcome_tag(o: &SyncRouteOutcome) -> (&'static str, i64) {
     }
 }
 
-/// One hive node in the browser sim — owns the real routing engine.
+/// One hive node in the browser sim — the UNIFIED hive: the real routing engine
+/// (`route_frame`) PLUS the basic-ensemble runtime (`tick`/`deliver_event` over the
+/// `r2_engine` EventBus), the SAME ensemble the DFR1195 firmware runs.
 #[wasm_bindgen]
 pub struct WasmHive {
     engine: RouteEngine<64, 64, 64>,
+    bus: EventBus,
     self_hive_id: u32,
 }
 
 #[wasm_bindgen]
 impl WasmHive {
-    /// New hive node with the given canonical hive id (R2-WIRE §8.2).
+    /// New hive node with the given canonical hive id (R2-WIRE §8.2). Boots the
+    /// basic ensemble (heartbeat sentant) on its EventBus.
     #[wasm_bindgen(constructor)]
     pub fn new(self_hive_id: u32) -> WasmHive {
+        let mut bus = EventBus::new();
+        bus.register_sentant(Box::new(HbSentant::new(self_hive_id)));
+        bus.init_all();
         WasmHive {
             engine: RouteEngine::new(),
+            bus,
             self_hive_id,
         }
     }
@@ -205,6 +216,67 @@ impl WasmHive {
             seq,
         )
     }
+
+    /// Drive the basic ensemble one TICK: inject a host tick → run the EventBus →
+    /// return the frames the node's sentants want to BROADCAST, each a built R2-WIRE
+    /// frame (hex). The sim floods these to neighbours (their `deliver_event` +
+    /// `route_frame`) — so a wasm node originates its heartbeat via the SAME sentant
+    /// the firmware runs. Returns JSON `{"frames":["<hex>",…]}`.
+    #[wasm_bindgen]
+    pub fn tick(&mut self, seq: u32) -> String {
+        self.bus
+            .enqueue(QueuedEvent::new(TICK_HASH, 0xFF, false, seq as u16, &[]));
+        self.bus.tick();
+        self.bus.poll_plugins();
+        let outbound = self.bus.drain_outbound();
+        let mut frames = String::new();
+        let mut first = true;
+        for ev in &outbound {
+            let frame = encode_frame(
+                self.self_hive_id,
+                0, // broadcast
+                0,
+                r2_wire::MsgType::Event,
+                ev.hash,
+                ev.payload(),
+                8,
+                3,
+                ev.msg_id as u32,
+            );
+            if frame.is_empty() {
+                continue;
+            }
+            if !first {
+                frames.push(',');
+            }
+            first = false;
+            frames.push_str(&format!("\"{}\"", hex(&frame)));
+        }
+        format!("{{\"frames\":[{frames}]}}")
+    }
+
+    /// Deliver an inbound R2-WIRE frame to this node's ENSEMBLE (decode → bus event)
+    /// so its sentants observe peers' heartbeats/events. This is the application
+    /// layer; `route_frame` is the relay/transport layer. Returns the delivered
+    /// event_hash (0 if the frame didn't decode).
+    #[wasm_bindgen]
+    pub fn deliver_event(&mut self, frame: &[u8]) -> u32 {
+        match r2_wire::extended::decode_extended(frame) {
+            Ok(m) => {
+                let h = m.header.event_hash;
+                self.bus.enqueue(QueuedEvent::new(
+                    h,
+                    0xFF,
+                    true,
+                    m.header.msg_id as u16,
+                    m.payload,
+                ));
+                self.bus.tick();
+                h
+            }
+            Err(_) => 0,
+        }
+    }
 }
 
 /// Encode one R2-WIRE extended frame (origin in the route stack) — the same
@@ -311,6 +383,23 @@ mod tests {
         assert!(!ev.is_empty(), "event encoded");
         let out2 = b.route_frame(0, 5, &ev, 2, 0.5);
         assert!(!out2.contains("NotR2Wire"), "event must parse: {out2}");
+    }
+
+    #[test]
+    fn ensemble_tick_emits_heartbeat_to_peer() {
+        // Node A's ensemble TICK → a broadcast heartbeat frame.
+        let mut a = WasmHive::new(0x0000_00AA);
+        let out = a.tick(1);
+        assert!(out.contains("\"frames\":[\""), "tick emits a frame: {out}");
+        let hexframe = out.split('"').nth(3).unwrap_or("");
+        assert!(!hexframe.is_empty(), "frame hex present");
+        let bytes: Vec<u8> = (0..hexframe.len() / 2)
+            .map(|i| u8::from_str_radix(&hexframe[i * 2..i * 2 + 2], 16).unwrap())
+            .collect();
+        // Node B's ENSEMBLE receives A's heartbeat (decode → bus event).
+        let mut b = WasmHive::new(0x0000_00BB);
+        let h = b.deliver_event(&bytes);
+        assert_eq!(h, r2_hive_core::ensemble::HEARTBEAT_HASH, "B got A's HB");
     }
 
     #[test]

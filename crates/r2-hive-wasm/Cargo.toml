@@ -1,6 +1,6 @@
 [package]
 name = "r2-hive-wasm"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "wasm platform layer for r2-hive — exposes the REAL current-TN sync routing core (r2-hive-core route_inbound_sync over r2-route/r2-wire) to a browser/JS bench sim. R2-HIVE north-star wasm tier; one-codebase hive logic, thin per-platform host. Workspace-EXCLUDED (wasm-only, std/wasm-bindgen) so host CI is untouched."
@@ -16,6 +16,8 @@ crate-type = ["cdylib", "rlib"]
 # tier runs the IDENTICAL routing core as Linux/ESP32 — no fork.
 r2-hive-core = { path = "../r2-hive-core" }
 r2-route = { path = "../../../r2-core/crates/r2-route" }
+# EventBus = the basic-ensemble runtime (HB sentant now; OTA plugin+sentant next).
+r2-engine = { path = "../../../r2-core/crates/r2-engine", default-features = false, features = ["alloc"] }
 # In-wasm R2-WIRE ENCODE (build_heartbeat/build_frame) so each sim node originates
 # its OWN frames — same encoder the firmware uses. no_std/alloc, wasm-clean.
 r2-wire = { path = "../../../r2-core/crates/r2-wire", default-features = false, features = ["alloc"] }

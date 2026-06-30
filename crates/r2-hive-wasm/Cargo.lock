@@ -211,6 +211,15 @@ name = "r2-cbor"
 version = "0.1.0"
 
 [[package]]
+name = "r2-engine"
+version = "0.1.0"
+dependencies = [
+ "r2-cbor",
+ "r2-fnv",
+ "r2-wire",
+]
+
+[[package]]
 name = "r2-fnv"
 version = "0.1.0"
 
@@ -221,6 +230,7 @@ dependencies = [
  "async-trait",
  "ed25519-dalek",
  "hkdf",
+ "r2-engine",
  "r2-fnv",
  "r2-route",
  "r2-wire",
@@ -230,8 +240,9 @@ dependencies = [
 
 [[package]]
 name = "r2-hive-wasm"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "r2-engine",
  "r2-hive-core",
  "r2-route",
  "r2-wire",
