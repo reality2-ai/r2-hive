@@ -391,6 +391,92 @@ impl WasmHive {
         push(OCM_HASH, &[], 0xFFFF_FFFF);
         format!("{{\"frames\":[{}]}}", frames.join(","))
     }
+
+    /// Theater oracle: the post-route NEIGHBOUR-CLASSIFIER table — the read side of
+    /// conjectures 100/103 (mobile-vs-infra classify, neighbour-evict-at-floor +
+    /// rediscovery). One JSON object per tracked neighbour:
+    /// `{hive_id, viable, confidence, last_seen, class:"infra"|"mobile",
+    ///   duty:"unknown"|"always_on"|"intermittent", fade_remaining}`.
+    /// - `viable` = `is_viable(FORWARDING_CONFIDENCE_FLOOR)` — the SAME 0.1 floor the
+    ///   forwarder applies (`engine.rs:607/648`), so the oracle is the engine's truth.
+    /// - `class` = `MobilityClass` (sets the decay λ: mobile fades fast, infra slow).
+    /// - `fade_remaining` = seconds until confidence decays below the viability floor
+    ///   (`neighbour_fade_remaining`, `t = ln(conf/floor)/λ`; 0 if already at/below;
+    ///   `null` if untracked). Drag a node out of range → stop feeding it observations →
+    ///   call `decay(now)` with advancing `now` → watch `confidence` fall + `viable` flip
+    ///   false + the entry evict; a fresh `route_frame` from it = rediscovery.
+    #[wasm_bindgen]
+    pub fn neighbours(&self) -> String {
+        use r2_route::constants::FORWARDING_CONFIDENCE_FLOOR;
+        use r2_route::neighbour::MobilityClass;
+        let mut out = String::from("[");
+        let mut first = true;
+        for n in self.engine.neighbours().iter() {
+            if !first {
+                out.push(',');
+            }
+            first = false;
+            let class = match n.mobility {
+                MobilityClass::Infrastructure => "infra",
+                MobilityClass::Mobile => "mobile",
+            };
+            let duty = match n.duty_class {
+                r2_route::neighbour::DutyClass::AlwaysOn => "always_on",
+                r2_route::neighbour::DutyClass::Intermittent => "intermittent",
+                r2_route::neighbour::DutyClass::Unknown => "unknown",
+            };
+            let fade = match self.engine.neighbour_fade_remaining(n.hive_id) {
+                Some(s) => format!("{s}"),
+                None => String::from("null"),
+            };
+            out.push_str(&format!(
+                "{{\"hive_id\":{},\"viable\":{},\"confidence\":{},\"last_seen\":{},\"class\":\"{}\",\"duty\":\"{}\",\"fade_remaining\":{}}}",
+                n.hive_id,
+                n.is_viable(FORWARDING_CONFIDENCE_FLOOR),
+                n.confidence,
+                n.last_seen,
+                class,
+                duty,
+                fade,
+            ));
+        }
+        out.push(']');
+        out
+    }
+
+    /// Theater oracle: the learned DIRECTED-PATH table — the read side of conjectures
+    /// 200/204 (used-path-wins / idle-decays). One JSON object per path:
+    /// `{destination, next_hop, confidence, last_updated, sample_count}`. A delivered
+    /// frame raises the (dest,next_hop) confidence (used-path-wins); `decay(now)` lets
+    /// an unused path fade (idle-decays). Pair with `route_frame`'s `outcome` — "Directed"
+    /// + the send's `target` = the `directed_via` oracle; "Flooded" = the `flooded` oracle.
+    #[wasm_bindgen]
+    pub fn paths(&self) -> String {
+        let mut out = String::from("[");
+        let mut first = true;
+        for p in self.engine.paths().iter() {
+            if !first {
+                out.push(',');
+            }
+            first = false;
+            out.push_str(&format!(
+                "{{\"destination\":{},\"next_hop\":{},\"confidence\":{},\"last_updated\":{},\"sample_count\":{}}}",
+                p.destination, p.next_hop, p.confidence, p.last_updated, p.sample_count,
+            ));
+        }
+        out.push(']');
+        out
+    }
+
+    /// Theater driver: advance the decay clock to `now` — fades neighbour + path
+    /// confidences and evicts stale entries (the REAL `decay_neighbours`/`decay_paths`).
+    /// Confidence only falls on a decay tick (it rises on observation), so the theater
+    /// calls this between range changes to animate eviction-at-floor + path idle-decay.
+    #[wasm_bindgen]
+    pub fn decay(&mut self, now: u32) {
+        self.engine.decay_neighbours(now);
+        self.engine.decay_paths(now);
+    }
 }
 
 /// Encode one R2-WIRE extended frame (origin in the route stack) — the same
@@ -654,5 +740,32 @@ mod tests {
         );
         assert!(out.contains(&format!("\"target\":{target}")), "no relay to target: {out}");
         assert!(!out.contains("\"sends\":[]"), "sends must be populated: {out}");
+    }
+
+    #[test]
+    fn neighbour_oracle_learns_then_fades_below_floor() {
+        // The conj-100/103 theater arc: a node learns a neighbour (viable, confidence
+        // up), then dragged out of range (no more observations) it decays below the
+        // forwarding floor and evicts — the getter reflects each stage.
+        let peer = 0x0000_00AA;
+        let mut hive = WasmHive::new(0x0000_00FF);
+        assert_eq!(hive.neighbours(), "[]", "fresh hive has no neighbours");
+
+        // Hear a frame FROM peer → learned as a viable neighbour.
+        let learn = ext_frame(peer, 0x0000_0001, 5, 3, 0x1000);
+        let _ = hive.route_frame(peer, 1, &learn, 100, 0.5);
+        let n = hive.neighbours();
+        assert!(n.contains(&format!("\"hive_id\":{peer}")), "peer not tracked: {n}");
+        assert!(n.contains("\"viable\":true"), "freshly-heard peer must be viable: {n}");
+        assert!(n.contains("\"fade_remaining\":"), "fade telemetry present: {n}");
+
+        // Drag out of range: no new observations, advance the decay clock far past the
+        // fade window → confidence falls below FORWARDING_CONFIDENCE_FLOOR → evicted.
+        hive.decay(100 + 1_000_000);
+        let after = hive.neighbours();
+        assert!(
+            after == "[]" || after.contains("\"viable\":false"),
+            "peer must fade below the floor (evicted or non-viable), got {after}"
+        );
     }
 }
