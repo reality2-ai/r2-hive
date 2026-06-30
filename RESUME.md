@@ -72,7 +72,20 @@ signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2;
   basic ensemble FIRST (large, core-gated — asked core if r2_engine is no_std-capable [#21]), then OTA plugin+
   sentant; (b) INTERIM (my rec) = BLE-L2CAP OTA receiver NOW as an embassy task (ota_recv_signed over 0x00D3 +
   #ota_* + composer's push_ota_l2cap) = 'OTA from now on' fast, refactor to plugin+sentant later. Complex work
-  identical; only the control wrapper differs. AWAITING supervisor/Roy path pick + core's no_std read.
+  identical; only the control wrapper differs.
+- **★ FINDING (overnight) + INCREMENT 1 DONE (34fd380): NO RE-VENDOR needed for the runtime.** core confirmed
+  r2-engine is no_std-ready; VERIFIED on-device: r2-engine is workspace-local + no_std+alloc at the CURRENT base
+  (c46383e) — added it as an optional firmware dep (feature `otaengine`) + a minimal EventBus embassy task
+  (EventBus::new + tick + poll_plugins + drain_outbound), LINKS GREEN on xtensa (default unaffected). So the
+  on-device sentant/plugin runtime needs NO re-vendor → the PURE plugin+sentant OTA is buildable at the current
+  base (resolves the interim-vs-pure fork toward PURE). The re-vendor is ONLY for the §2.6 ESP-NOW bearer (#20) +
+  #9/#12/#13 — SEPARATE from OTA. **INCREMENTS 2-4 (next):** (2) OTA PLUGIN — Plugin::execute(write-chunk/verify/
+  activate), reuse ota_recv_signed's verify-before-write/4-gate/Ed25519; (3) OTA SENTANT — thin #ota_* control on
+  the bus; (4) BRIDGE — network deliver_out→Event→sentant, drain_outbound→egress, + the L2CAP-0x00D3 CoC → the
+  OTA plugin's chunk input. e2e w/ composer's push_ota_l2cap = metal (Roy AM). PARKED for Roy AM: flashing/e2e +
+  the re-vendor (separate). EventBus API (base): register_sentant/register_plugin(Box<dyn>), tick, poll_plugins,
+  drain_outbound→Vec<QueuedEvent>; Plugin::execute(cmd,&[u8])->PluginResult + poll; Sentant::handle_event(&Event,
+  &mut ActionBuf). Ref: crates/r2-engine/src/conformance.rs.
 - **★ THROUGHPUT BENCH [task #18] — v1 RAN: 11 KB/s; TUNED build staged (faf7213), awaiting re-run.**
   Roy ran the corrected bench (D1=RECEIVER/D3=PUSHER, read off LCD): **11 KB/s** default config. ROOT CAUSE
   (verified): trouble_host DEFAULT 80ms conn interval (connection.rs:208) — interval-starved, not a deeper bug.
