@@ -12,12 +12,19 @@ artifacts (aa9088f) are UNTOUCHED — fixes are committed but not rebuilt; they 
   - **B3** (vacuous guard): the `debug_assert` was a release no-op (shipped artifact) AND tautological (adv[4]
     just assigned 0xFF). Replaced with a release-EFFECTIVE runtime log-guard (`BEACON-GUARD FAIL` if plen==0).
 - **ESCALATED — spec-first (asked specs, awaiting inbox):**
-  - **B5 (medium, spec+privacy, VERIFIED vs ground truth):** BLE §7 beacon sets `class_hash = my_tg_hash`
-    (main.rs:2651) but the codec (beacon.rs:140 "class string §4") + the LoRa §8.1 beacon (`role_class_hash`,
-    main.rs:608) define it as the DEVICE CLASS. So BLE mis-populates the field AND leaks a STABLE per-TG id in the
-    clear (defeats rbid-rotation unlinkability §6.1/§8.1.2); my un-gate amplifies it to all-boards-always-on.
-    PREDATES aa9088f. Fix (post-test): thread class_hash into ble_task like LoRa (compute role_class_hash in main,
-    pass in) — pending specs' ruling on value + §7 endianness (LoRa is BE; BLE code uses LE).
+  - **B5 (medium, spec+privacy) — RULED by specs (authoritative; firmware fix, NOT a spec change). TWO bugs:**
+    BLE §7 beacon at main.rs:2651 does `class_hash: my_tg_hash.to_le_bytes()` — WRONG on both axes:
+      (1) VALUE: `class_hash` MUST = the DEVICE-CLASS hash `role_class_hash(profile.role)` (FNV-1a-32 of the class
+          string, §4/§7.3/§7.4) — same value the LoRa §8.1 + mDNS §8.4 profiles carry. `tg_hash` mis-populates the
+          field AND violates R2-BEACON Design Principle #1 ("signpost, not passport: NO trust-group identity in the
+          advert"). A clear-text rotation-invariant TG hash is a GROUP correlator (re-links all TG members across
+          every rbid epoch — §6.1/§8.1.2/§6A.2 below-membrane leak); my un-gate amplifies it all-boards-always-on.
+      (2) ENDIANNESS: `to_le_bytes` is a SECOND independent bug — §7.4.1 mandates BIG-ENDIAN (`uint32_be`); even
+          after the value fix, LE byte-reverses the field and fails cross-impl decode + the §9 vectors.
+    FIX (post-test pass): thread the class_hash into ble_task like LoRa (compute `role_class_hash(profile.role)` in
+    main, pass in), emit BIG-ENDIAN. specs landed R2-BEACON v0.12 §7.4.0 "Field privacy invariants (BLE)" (commit
+    72a2c69, hosted-CI verify pending per specs' honesty caveat) hardening this bug-class. Relayed ruling to
+    supervisor (specs' own relay hit the self-msg channel bug).
 - **BATCHED — POST-TEST BEACON-HARDENING PASS (beacon-payload/behaviour changes; don't rebuild mid-test):**
   - **B2 (medium):** every board now advertises `ConnectableScannableUndirected` → a central can connect-and-hold
     to SUPPRESS a board's beacon (DoS) + force serve_coc. Fix: advertise the pure beacon NON-connectable for the
