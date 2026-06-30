@@ -45,12 +45,17 @@ atomics) / L5 'nbrs:N ADV+' / L6 sync. Human label 'D3' on L2 = pending composer
 | LCD TN-READY render | ✅ 64bc0be (human-label NVS pending composer) |
 | Company-ID 0xFFFF prepend | ✅ 5e57aeb (was THE beacon-regression root cause: omitted prepend → 0x01B2 off-by-2; now §7.3 [FF FF][magic 0xB2 @ AD-off 4]) |
 | BLE address opacity | ⏳ sent composer the canonical RBID-derivation algo (HKDF-Expand→session_key, HMAC→rbid[0:8], epoch=0, shared hk+hive_id); flip address (random NVS-persisted) once their resolver matches D3's rbid + acks [#16] |
-**STATE: 6/8 done — §7-FUNCTIONALLY complete + discoverable.** Remaining 2 are composer-gated: address-opacity
-(composer RBID-resolver) + human-label (composer NVS write). Posed supervisor a FORK: (a) ship the 6-piece now,
-fast-follow the 2; or (b) hold for the full 8. My lean = (a). AWAITING supervisor's (a)/(b) + stage-now.
-Delivery = OTA (Roy's USB WiFi); validating via OTA also validates the OTA path. Desk fallback if OTA not ready
-(composer's OTA = design-only 487e5d0 so far). Re-vendor onto 0d1f308 = SEPARATE pass AFTER this rev validated.
-composer's Q1 console-open re-test gates whether the PAC register-disable joins this rev or a later one.
+**STATE: 6/8 done — §7-FUNCTIONALLY complete + discoverable.** Remaining 2 composer-gated: address-opacity
+(composer RBID-resolver) + human-label (composer NVS write). **SUPERVISOR DECISION: HOLD .1659, DON'T stage —
+deliver the FULL bundle via OTA, not a piecemeal desk session.** Rationale: OTA not ready (composer design-only)
+→ shipping 6 now = a desk session + the 2 fast-follow = a 2nd session = more desk work for no urgency (bench
+works fine on .1659; observer tolerates both company-id forms; download landmine not triggered). composer is
+building OTA path + RBID-resolver + NVS-label so the FULL 8 ships via OTA. Fallback = ONE desk session for the
+full 8 ONLY if OTA can't be readied. **DO NOT stage an artifact until supervisor gives the OTA-or-desk word.**
+composer HAS both inputs (RBID algo + NVS-label proposal) → not blocked on me. When composer's resolver matches +
+label offset acked → I implement the firmware halves (opaque random-NVS address + L2 label read) → 8/8 via OTA.
+Re-vendor onto 0d1f308 = SEPARATE pass AFTER this rev validated. composer's Q1 console-open re-test gates whether
+the PAC register-disable joins this rev or a later one.
 
 **BEACON CONFORMANCE-HARDENING (post-validation, multi-item — composer on-air decode + specs v0.15/R2-BLE v0.12):**
 D3's .1659 beacon had 3 AD issues, all now understood:
