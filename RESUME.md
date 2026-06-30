@@ -48,9 +48,10 @@ atomics) / L5 'nbrs:N ADV+' / L6 sync. Human label 'D3' on L2 = pending composer
 | class_hash canonical strings (v0.16 §4.1) | ✅ 765c948 (ai.reality2.device.*; repeater 00FC1F17 / sensor 43895E89 / bridge B52C9F26 / receiver 17F3554A BE) |
 | LCD TN-READY + human-label | ✅ 64bc0be render + 712fc34 NVS-label read (composer confirmed + writes 'D3' @0x18000 [LBL1][len][utf8]; L2 hex-fallback) |
 | Company-ID 0xFFFF prepend | ✅ 5e57aeb (was THE beacon-regression root cause: omitted prepend → 0x01B2 off-by-2; now §7.3 [FF FF][magic 0xB2 @ AD-off 4]) |
-| BLE address opacity | ⏳ sent composer the canonical RBID-derivation algo (HKDF-Expand→session_key, HMAC→rbid[0:8], epoch=0, shared hk+hive_id); flip address (random NVS-persisted) once their resolver matches D3's rbid + acks [#16] |
-**STATE: 7/8 done — §7-FUNCTIONALLY complete + discoverable + human-legible.** Only BLE address-opacity remains
-(gated on composer's RBID-resolver). **SUPERVISOR DECISION: HOLD .1659, DON'T stage —
+| BLE address opacity | ✅ 11d99bc (opaque per-boot HWRNG random, static-random type, NOT wire_id-derived; composer's RBID-resolver VERIFIED 2 ways → bench ID survives) |
+**STATE: 8/8 COMPLETE — fully §7-conformant + robust + human-legible.** All firmware work done (tip 11d99bc),
+xtensa-green. READY to stage the DFR+XIAO rev the instant supervisor gives the OTA-or-desk word. **SUPERVISOR
+DECISION: HOLD .1659, DON'T stage —
 deliver the FULL bundle via OTA, not a piecemeal desk session.** Rationale: OTA not ready (composer design-only)
 → shipping 6 now = a desk session + the 2 fast-follow = a 2nd session = more desk work for no urgency (bench
 works fine on .1659; observer tolerates both company-id forms; download landmine not triggered). composer is
