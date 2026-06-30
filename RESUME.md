@@ -53,6 +53,14 @@ artifacts (aa9088f) are UNTOUCHED — fixes are committed but not rebuilt; they 
     un-gated (non-blemesh) path; keep connectable only where the CoC is actually used (blemesh). Also add a backoff
     to the `accept()` Err arm (currently a tight re-advertise spin, unlike the advertise() arm's 1s sleep).
   - Do B5 + B2 together with the §2.3A per-available-transport beacon mask-gating (all beacon-emit changes).
+    §2.3A MASK-GATING API LANDED (core 50d73fa, CI-green): `engine.beacon_emit_transports(present: TransportSet)
+    -> TransportSet` (also on DataPlane) = present ∩ effective §2.3A mask (baseline ∩ lease) = the canonical
+    transports I MUST beacon on. BINDING: pass the board's PHYSICALLY-PRESENT transport set; map each returned
+    Transport to its profile (BLE→§7, LoRa→§8.1, IP→§8.4 mDNS); a masked/absent transport → no beacon there (flip
+    the mask → beacon stops, by construction). Replaces the current "advertise whenever `ble` is up" with
+    mask-driven emit. NOTE: §2.3B beacon-RX INGRESS gate (#13's other half — drop beacons from a faked-unreachable
+    peer) is NOT in 50d73fa; still spec-blocked on 2 pins (stable-link-address keying R2-TRANSPORT v0.7 + RBID §6
+    canonization). So #13 EMIT = ready (un-gate done + this mask-gating API); #13 RX-gate = spec-blocked.
 - **ACCEPTED-RISK / FOLLOW-UP (recorded, no immediate change):**
   - **A2 (medium):** the persona receiver is parse-only (r2_trust::parse_persona does CBOR-decode + derive, NO
     signature verify — cert key-4 parsed then ignored, persona.rs:33 "may be ignored v0.1"; firmware admits
@@ -114,7 +122,10 @@ disturbed. Result: the re-vendor is a KNOWN, PROVEN-CLEAN one-shot — no ambigu
   §2.3A boot-baseline + §2.3B virtual-reachability), `41a3a3f`, AND `c46383e` (current firmware base) are ALL
   ancestors of 0d1f308; and 0d1f308 holds both the #12 accessors and the faked-distance hooks. So ONE re-vendor
   enables #9 + #12 + (check) #13 together. RESOLVES the old #9 "re-vendor onto 41a3a3f vs 0d1f308" ambiguity →
-  use 0d1f308 (it subsumes 41a3a3f).
+  use 0d1f308 (it subsumes 41a3a3f). UPDATE: the re-vendor target is the consolidation TIP, which ADVANCES as
+  core lands more — now ≥`50d73fa` (beacon_emit_transports §2.3A API) on top of 0d1f308 (telemetry accessors) on
+  top of bf1bf3b (arrival_transport). At re-vendor time target the CURRENT tip + RE-CONFIRM the clean rebase (the
+  trial proved 0d1f308 clean; re-verify the newer tip since core keeps landing commits).
 - **REBASE PROVEN CLEAN:** `git rebase --onto 0d1f308 c46383e` over the firmware branch = 22 commits replayed,
   ZERO conflicts.
 - **ONE BUILD FIXUP (caught now, not as a post-test surprise):** 0d1f308's `ForwardRequest` gained
