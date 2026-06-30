@@ -1,6 +1,37 @@
 # RESUME — r2-hive (hive-worker)
 
-## ⚠️ 2026-06-30 — INCIDENT: .1408 BOOT-FAILED on D5 (INERT path) — FIX SHIPPED = staota.0630.1659 (awaiting metal re-test)
+## ✅ 2026-06-30 — staota.0630.1659 VALIDATED on metal + 2 post-validation fixes committed (NOT yet staged)
+**.1659 VALIDATED (supervisor + composer):** D3 provisioned is ALIVE + BEACONING — wire 46dbf1ae, fw
+staota.0630.1659, §7 BLE BEACON adv up, LoRa SF7/916.8 up. My INERT-revert diagnosis held; the provisioned path
+works. blank-INERT was benign (confirmed). Remaining provisioned-board issue: D3's LCD DARK even when alive (see
+dark-LCD below).
+**Two fixes committed on `dfr1195-fw` (xtensa-green, DESK-VALIDATION-REQUIRED, NOT staged to artifacts — .1408
+lesson: build-green ≠ boot-green for this region):**
+- `bf205d5` — moved `esp_rtos::start` ABOVE the §3.5 INERT block. Fixes the INERT liveness DEADLOCK (Timer::after
+  ran before the embassy time-driver was registered → one boot burst then hang). Verified staota-DFR + bench +
+  staota-XIAO. Also gives INERT post-init context to RE-ADD the in-INERT console receiver later (deferred).
+- `ca24915` — clear `force_download_boot` at app boot. Core-confirmed: that RTC bit is STICKY by design (ROM never
+  auto-clears) → after one reboot_to_download, ANY later reset (console-open chip-reset/brownout/WDT) re-enters
+  ROM download FOREVER. Clear-at-boot makes it one-shot. Highest-value half of the USB-JTAG finding.
+**USB-JTAG console-open reset (supervisor's big finding) — joint answer w/ core:** console-open → 'rst:0x15
+USB_UART_CHIP_RESET → boot DOWNLOAD' = ESP32-S3 ROM host DTR/RTS download trigger + (on boards that ran
+reboot_to_download) the sticky force_download_boot bit. NOT my app code. Core: no esp-hal disable for the host
+trigger (raw PAC write only; it disables over-USB auto-reset, reboot_to_download replaces it); eFuses off-limits
+(permanent). PLAN (core's order): clear-at-boot DONE → composer re-tests console-open → add PAC register-disable
+ONLY if it still resets. **FLAG (re-image escape gap):** a board PARKED in download never runs the app, so
+clear-at-boot can't free it → remote re-image still needs a power-cycle or tool-side bit-clear; field-recovery
+procedure decision is composer/supervisor's. Observe beacons by BLE scan, NOT console-open (still resets).
+**DARK-LCD on provisioned D3 (task #13):** LCD code UNCHANGED (ebfa5c86), main loop runs (prints status line),
+init would've panicked if it failed → most coherent cause for a code-unchanged "regression back after
+re-provisioning" = board-profile byte has_screen@0x13000 flipped to 0x00 (→ display=None → dark). Asked composer
+what .1659 provisioning wrote to 0x13000 + for the boot-banner `has_screen=` value (line 315) — that datum splits
+board-profile (H1) vs panel-power/backlight (H2). AWAITING composer.
+**NEXT (unblocked, post-beacon-test): re-vendor onto consolidation tip + beacon hardening** — #9 arrival_transport
+=Some(rx_via), #12 telemetry consume, #13 §2.3A beacon_emit_transports mask-gating, B5 class_hash fix (BLE beacon
+uses my_tg_hash.to_le_bytes() — specs ruled MUST be role_class_hash + BIG-ENDIAN; LoRa already correct), B2
+non-connectable beacon. B5 is small + standalone (doesn't need the re-vendor); the rest need the core base bump.
+
+## ⚠️ 2026-06-30 — INCIDENT (RESOLVED): .1408 BOOT-FAILED on D5 (INERT path) — FIX = staota.0630.1659 (VALIDATED above)
 **FIX SHIPPED (`dc78b90`, staota.0630.1659, SUPERSEDES .1408):** reverted the in-INERT console-receiver to the
 proven liveness-only INERT (removes the early `UsbSerialJtag::new` — the boot bug). Kept the un-gated §7 beacon,
 A4/B3, and reboot-to-download (command-only, now reachable only via uart_rx_task = post-init = safe). A FRESH
