@@ -24,7 +24,26 @@ r2-trust in wasm (TG/GroupHmac, derive_peering_keys, deliver-gate, L5) + real WS
 core's udp). Radio-less tier (MCU=radio / host+browser=IP), reaching radio hives via the Alfred carrier.
 **OTA codex refute (ota_receive_over_coc) STILL HELD — separate from this wasm validation.**
 
-### convergence @1a8f7a9 — applied core's OTA-plugin ruling (OTA_PLUGIN_SHAPE.md a53a07b)
+### convergence-v2 @e9e2775 — STATE B (authoritative final): core's SignedOtaApply orchestrator
+Supervisor CORRECTED the v1 ruling (the "use FirmwareSink / ignore apply.rs / verify-only" msg was a
+STALE-CHECKOUT read of a53a07b). AUTHORITATIVE = STATE B (OTA_PLUGIN_SHAPE.md @a97ac8d): core owns BOTH the
+verify primitive AND the canonical `r2_update::apply::SignedOtaApply<S: ImageSink>` orchestrator (the
+verify-before-write RCE-guard ordering is SHARED in core, NOT re-implemented per platform). Converged onto it:
+- `MemSink` impls `r2_update::apply::ImageSink` (begin/write/activate); board esp_ota_* impl = firmware (a)-refactor.
+- `OtaApplier<S: ImageSink>` buffers OST/ODT/OCM (= CMD_START_SIGNED datagram-framed) → on commit runs
+  start(verify_header 4-gate/Ed25519/anti-rollback + PT_FIRMWARE_FULL type-gate + begin) → feed(verify-then-write/
+  chunk) → finish(hash-confirm THEN activate). Bad image never activates. Early verify_header on OST = fast reject.
+- `OtaSentant<S>` owns the applier + broadcasts r2.update.progress (dropped the r2_engine::Plugin indirection).
+- **Borrow note (flagged to core):** SignedOtaApply borrows &mut sink + finish consumes self → can't persist across
+  discrete EventBus events; wasm BUFFERS-then-applies-on-commit, MCU streams the SAME orchestrator. Shared ordering.
+- NO wire/API change → composer UX + minted pkg stay valid. Tests: ota_applier_verifies_and_applies / rejects_
+  tampered / rejects_replayed_seq / ota_over_wasm_mesh_e2e green; wasm32 from-source + host clean.
+**MINTED for composer's live demo:** `~/r2-staota-artifacts/ota-test-pkg.bin` (1187B = header123‖payload1000‖sig64)
++ `ota-test-pkg.tg_pk.hex` (tg_pk 5f671329…945b), on TUXEDO + Alfred. Re-mint: `cargo test mint_ota_artifacts --
+--ignored` in crates/r2-hive-wasm. composer's from-source wasm build FIXED (FlashSink removed).
+**SignedOtaApply codex refute (core-side) + ota_receive_over_coc refute (hive-side) gate METAL separately.**
+
+### convergence-v1 @1a8f7a9 — applied core's OTA-plugin ruling (OTA_PLUGIN_SHAPE.md a53a07b) [SUPERSEDED by v2]
 core RULED the canonical OTA-plugin shape; supervisor CORRECTED the doc (IGNORE the experimental
 `r2-update::SignedOtaApply`/`ImageSink` orphan — it breaks r2-update's verify-only layering; r2-update stays
 VERIFY-ONLY; the EXISTING `r2-hive-core::ota::FirmwareSink` is the one canonical seam). Converged: dropped the
