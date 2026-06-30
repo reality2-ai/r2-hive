@@ -1,5 +1,29 @@
 # RESUME — r2-hive (hive-worker)
 
+## ⚠️ 2026-06-30 — ACTIVE INCIDENT: .1408 BOOT-FAILS on D5 metal (INERT path) — root-caused, workaround sent, fix pending
+**DO NOT flash .1408 to a FRESH/unprovisioned board.** Metal result (supervisor): D5 (the only board imaged with
+.1408) boot-loops/goes silent — drops USB-JTAG + stays absent, 0 passive console bytes, no BLE beacon. The other 9
+(older firmware) are stably present (clean differential = firmware regression in .1408).
+- **ROOT CAUSE (high confidence, structural — NOT yet metal-confirmed):** the firmware is `#[esp_rtos::main]` and
+  inits esp-rtos/embassy + esp-radio at main.rs:331 — AFTER the §3.5 INERT block (187-245). My console-receiver
+  constructs `UsbSerialJtag::new(p.USB_DEVICE)` at main.rs:200 = the PRE-esp-rtos/esp-radio-init window. The PROVEN
+  non-inert usb_rx (line 489) is built AFTER that init; the ORIGINAL Timer-only INERT (which D5 ran) never built a
+  UsbSerialJtag there. So grabbing/re-initing the USB-JTAG too early disrupts esp-println's USB-JTAG → 0-bytes /
+  USB-drop symptom. **INERT-PATH-ONLY:** a PROVISIONED board skips line 187, so the post-331 provisioned path
+  (un-gated beacon + reboot-to-download, both NON-boot-path) is unaffected.
+- **WORKAROUND for the beacon test (NO REBUILD):** download-mode-provision D5 with the EXISTING .1408 (esptool
+  write persona@0x12000 in the same BOOT session) → boots PROVISIONED → skips INERT → ble_task → beacon → scan.
+  Confirms root-cause-INERT-only AND validates the beacon. Sent to supervisor.
+- **FIX (track 2, restores remote/console provisioning — pending, CANNOT metal-test myself):** reorder so the
+  console-receiver runs AFTER esp-rtos/embassy init but BEFORE radio bring-up (keeps fail-closed), OR build usb_rx
+  once post-init + share it INERT↔uart_rx_task. Requested a BOOT-LOG from D5 (does the banner print before going
+  silent? pinpoints UsbSerialJtag::new vs elsewhere) to confirm before shipping. Needs desk-validation.
+- **SAFE FALLBACK build available on request:** revert the INERT console-receiver to the proven liveness-only loop
+  + keep un-gated beacon + drop reboot-to-download = guaranteed-booting beacon image (download-mode-provision for
+  the test). Not built yet (workaround covers the beacon test); ship if supervisor wants a clean baseline.
+- LESSON: .1200/.1404/.1408 were xtensa-BUILD-green but NEVER metal-booted before D5 — the INERT path (esp-rtos
+  ordering) only fails at runtime. The de-risk gap: build-green ≠ boot-green for early-init peripheral grabs.
+
 ## ► 2026-06-30 — REBOOT-TO-DOWNLOAD (field re-flash recovery) DONE+GREEN — NEW REV staota.0630.1408 (D5's desk image)
 Supervisor bumped this to FIELD-CRITICAL (Roy: no BOOT button in the field; D5's stuck flash proves it). ROOT
 CAUSE: the running app — incl. the §3.5 INERT/console-liveness loop — HOLDS the USB-Serial-JTAG, so a host
