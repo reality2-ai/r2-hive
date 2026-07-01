@@ -12,14 +12,33 @@ R2-TRANSPORT §2.3A/§2.3B); bench=localhost satisfies it; propagated to compose
 COMMAND-SUBSTITUTED (a bare word → "command not found" → dropped from the message). Do NOT use backticks in fleet-send
 message bodies; use plain words or single-quotes. (Cost me one dropped word in the specs ack; message stayed coherent.)
 
-## 🔄 2026-07-02 — FAKED-DISTANCE feature (supervisor Q1/Q2) — WORKFLOW running (wf_3874722a-bcc)
-Roy wants: drag a board icon in theater.html → fake distance → must RESTRICT which real radios the board uses (inject
-fake distance/RSSI into the REAL RouteEngine observe path so confidence/viability/spray-K react). Launched an ultracode
-workflow (understand: 5 parallel readers on transport-count reality, observation/RSSI seam, engine-API firmware-vs-core,
---control parser, security/spec/meshmask-overlap → design: synthesis + adversarial review). Awaiting result, then answer
-supervisor Q1 (transport count) + Q2 (smallest hook: (peer,transport) virtual-RSSI override via --control, substituted
-into the Observation before ingest, using range_to_loss_db as the canonical distance→RSSI, feature-gated non-field) +
-firmware-vs-core verdict. Ties to §2.3B reachability_override (hard block) + range_to_loss (this session's profile work).
+## 🔄 2026-07-02 — FAKED-DISTANCE (task #31): workflow DONE + adversarial refutation; AWAITING Roy's interpretation
+7-agent ultracode workflow (wf_3874722a-bcc; 5 readers + design + adversarial review, vs firmware+specs HEAD). Full
+design+review in /tmp task wmneea8wg.output (session-scoped — key verdicts captured here). **The adversarial review
+REFUTED the design's core premise — do not build the naive hook.**
+- **Q1:** every shipping build is SINGLE data-plane transport EXCEPT `bridge` (loraroute+bridge = LoRa+ESP-NOW). Weave =
+  ESP-NOW/Mesh (single). Radio-vs-radio choice exists only on bridge.
+- **★ LOAD-BEARING (verified):** firmware EGRESS (mesh_broadcast, main.rs:3421-26) floods ALL built carriers
+  unconditionally; ZERO firmware uses of best_transport/transport_score/transport_allow_mask. RouteEngine = routing-PLAN
+  + telemetry oracle here, NOT the carrier selector. ⇒ injecting fake RSSI/distance CANNOT silence a physical radio on
+  any build. Roy's ask ("restrict which radios the board is ALLOWED to use") is NOT achievable by faked-distance alone.
+- **Corrected model (code + R2-ROUTE §2.3):** injected RSSI drives link_quality ONLY (→ routing plan / radio-choice-in-
+  plan; at ≤−80dBm peer drops from the flood PLAN on ALL carriers). NOT confidence/viability/spray-K (those = neutral-init
+  + signal-independent reinforce + time-decay; move only via §2.3B or real fade). Supervisor's premise refuted.
+- **Two interpretations (sent supervisor for Roy):** (A) LITERAL physical-radio-off ⇒ NEW firmware EGRESS GATE (gate the
+  per-carrier push in mesh_broadcast on a node-wide §2.3A transport_allow_mask + a --control VMASK) — the ONLY thing that
+  silences a radio on a broadcast mesh; currently MISSING. (B) routing-graph/telemetry realism ⇒ §2.3C VRSSI/VDIST (obs-
+  seam substitution at main.rs:1509, using range_to_loss_db) + §2.3B VBLK (already vendored, set_reachability_blocked) —
+  real engine state + visible in #30 viz, but physical carriers still emit. (A+B) compose. ALL firmware-side, no core,
+  feature-gated non-field.
+- **Spec:** R2-TRANSPORT §2.3C ALREADY EXISTS (ratified) = this use case verbatim, firmware-side, no core, no new section.
+  BUT §2.3C line 423 wording claims confidence/viability/spray-K react to the synthetic signal — INACCURATE vs the engine
+  (only link_quality does). Flagging specs to correct (non-blocking).
+- **Confirmed side-fixes (regardless of A/B):** (1) obs.transport HARDCODED Mesh (main.rs:1511) → must be real arrival
+  transport (else per-transport keying misses on bridge; fade-rate side-effect via last_seen_transport); (2) §2.3B
+  ingress no-hear gate unwired (HB obs feed @1520-44 doesn't check is_reachability_blocked).
+- **NEXT:** await Roy's A/B/A+B pick → implement + build-verify (combos: vdist alone, vdist+routetest, vdist+loraroute,
+  vdist+bridge=decisive, vdist+blemesh, field must reject vdist) + adversarial re-check. Read back via #30 viz telemetry.
 
 ## ✅ 2026-07-02 — #30 RouteEngine telemetry SHIPPED (viz feature) + pre-existing fr4 build-breaker FIXED
 Supervisor GO'd the prototype. **emit_route_snapshot (dfr1195 00ef65b)** behind bench-only feature `viz` (=[], OFF by
