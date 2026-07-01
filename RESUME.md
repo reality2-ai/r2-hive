@@ -7,6 +7,15 @@ the production no-radio hive. Two bindings of ONE carrier-independent transport 
 DERIVED = -ln(min_conf)/λ; guard LoRa.λ<WiFi.λ<BLE.λ). DIVISION: core leads host-UDP (ConnectionlessRadio over
 UdpSocket, d0f1864 — NOT landed yet, core at session-limit until 12:30 Pacific/Auckland); I own WASM-WS binding +
 wiring both into route in/out + the §2.7 exports.
+**DONE — WASM-WS BINDING PROVEN END-TO-END (ae5b739, crates/r2-hive-wasm/ws-mesh/):** r2-hive-wasm now meshes over a
+REAL WebSocket (not the in-process relay) = the browser half of the production no-radio hive. Zero-dep WS broadcast
+gateway (ESP-NOW-shared-bearer analogue) + hive-ws client wiring route in/out to a real socket (Node global WS;
+verifyFrame deliver-gate + route_frame forwarding). test-mesh PROVES it: 3 hives, A+B share TG key, C wrong key
+(same tg_hash) → A's SIGNED heartbeat crosses real WS → B delivers (hmac_ok), C REJECTED (TG isolation over the
+socket). 3× PASS. Option B (JS-carried, my rec); gateway+wiring survive core's A/B choice. wasm-node build gitignored
+(rebuild: `wasm-pack build --target nodejs --out-dir ws-mesh/wasmhive-node`). GOTCHAS caught: route_inbound_sync is
+forwarding-ONLY (self-addressed→Dropped is correct; delivery=verifyFrame, a SEPARATE layer); verify method is
+`verifyFrame` (camelCase js_name) not verify_frame (a swallowed-throw made a false-positive isolation PASS until fixed).
 **DONE (seam-independent, committed 6df4060, v0.4.7, 9/9 tests):** the two §2.7 exports composer+core wanted —
 `quality_from_rssi(rssi_dbm)` (§2.5 −50→1.0/−80→0.0 clamp) + `range_to_loss(distance_m, path_loss_exp,
 ref_loss_db_1m)` (PROVISIONAL log-distance, caller-supplied steepness, range emergent at −80dBm). Same physics
