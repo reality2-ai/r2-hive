@@ -134,6 +134,16 @@ def render_rx(line):
             jline(kind="frame", bytes=len(hexstr) // 2, hex=hexstr)
         else:
             log(f"FRAME   {len(hexstr) // 2}B over-the-air R2-WIRE frame")
+    elif line.lstrip().startswith('{"t":"rt.'):
+        # RouteEngine telemetry (R2-DIAGNOSTICS v0.2 §5 Streaming Envelope) from a board's `viz` feature —
+        # already a JSON-Lines record (rt.snap / rt.nbr / rt.path, self-keyed by `dev`). Pass it THROUGH
+        # verbatim so carrier-r2-adapter.js can forward it to the viz-events WS (:21060) per device. (This
+        # bridge forwards the rt.* of whatever serial it reads — run one bridge/adapter per board serial for
+        # all-boards coverage; the `dev` field disambiguates.)
+        if JSON_MODE:
+            print(line.strip(), flush=True)
+        else:
+            log(f"RT {line.strip()}")
     elif not JSON_MODE:
         log(line)
 
