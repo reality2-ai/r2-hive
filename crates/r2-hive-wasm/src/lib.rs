@@ -82,13 +82,15 @@ fn transport_id_from_u8(k: u8) -> r2_transport::TransportId {
     }
 }
 
-/// §2.7 `range → loss` — the CANONICAL model, single-sourced from core's r2-transport (v0.19, e75fd4a), so
-/// the sim + field share one physics table (no drift). LOG-DISTANCE path-loss (§2.7 RATIFIED shape):
-/// `loss = reference_path_loss_db + 10·n·log10(range_units / d_ref)` dB, d_ref=1, n=path_loss_exponent
-/// per transport; clamped ≥0 (d≤d_ref → PL_ref; no signal gain). Range is EMERGENT:
-/// `quality_from_rssi(tx_dbm − range_to_loss_db(t, r))` crosses 0 at the −80 dBm point = the transport's
-/// range. VALUES provisional (n: LoRa 2.7/WiFi 2.9/Mesh 3.0/BLE 3.2, PL_ref=0) pending Roy field-anchor —
-/// only the numbers move, the shape is final; signature stable (d_ref internal).
+/// §2.7 `range → loss` — the CANONICAL model, single-sourced from core's r2-transport (v0.19), so the
+/// sim + field share one physics table (no drift). LOG-DISTANCE path-loss (§2.7 RATIFIED shape):
+/// `loss = clamp(PL_ref + 10·n·log10(max(range_units, d_ref) / d_ref), 0, 160)` dB, d_ref=1,
+/// n=path_loss_exponent per transport; d floored to d_ref (d≤d_ref → PL_ref; no negative loss, no gain).
+/// Range is EMERGENT: `quality_from_rssi(tx_dbm − range_to_loss_db(t, r))` crosses 0 at the −80 dBm point
+/// = the transport's range. VALUES PROVISIONAL, single-sourced from core (a snapshot as of core 5e30c49 =
+/// composer theater.html-matched: PL_ref 40 dB for all RF transports; n = LoRa 1.5 / WiFi 2.35 / Mesh 2.85
+/// / BLE 3.4; IP transports n=0 ⇒ zero loss) pending Roy field-anchor — only the numbers move, the shape is
+/// final; signature stable (d_ref internal). Code is truth; this doc-list is the snapshot.
 #[wasm_bindgen]
 pub fn range_to_loss_db(transport_id: u8, range_units: f32) -> f32 {
     r2_transport::profile::range_to_loss_db(transport_id_from_u8(transport_id), range_units)
@@ -129,6 +131,23 @@ pub fn frame_origin(frame: &[u8]) -> u32 {
     match r2_wire::decode_extended(frame) {
         Ok(m) => m.route.and_then(|r| r.origin()).unwrap_or(0),
         Err(_) => 0,
+    }
+}
+
+/// The frame's FULL reverse-trail — `route_stack[0..len]` = `[origin, hop1, …, immediate_sender]`
+/// (R2-WIRE §9.2: origin is immutable at [0], each relay appends itself; max 8). Empty if the frame
+/// is route-less / undecodable. This is the HOP-PATH read for a bench "directed-send" event
+/// (delivered/dropped/hop-path) over the REAL primitives — no plugin/event-bus fork: the path is the
+/// authentic route stack the routing core itself built, decoded the same way `frame_origin` reads [0].
+/// `route_hops(f)[0] == frame_origin(f)` (the originator); `.at(-1)` = the last hop that forwarded it.
+#[wasm_bindgen]
+pub fn route_hops(frame: &[u8]) -> Vec<u32> {
+    match r2_wire::decode_extended(frame) {
+        Ok(m) => match m.route {
+            Some(r) => r.entries[..(r.len as usize).min(r.entries.len())].to_vec(),
+            None => Vec::new(),
+        },
+        Err(_) => Vec::new(),
     }
 }
 
@@ -740,14 +759,49 @@ mod tests {
     }
 
     #[test]
+    fn route_hops_reads_full_trail_and_grows_by_a_hop_per_relay() {
+        // A freshly-originated frame's trail is just [origin] and hops[0] == frame_origin.
+        let a = WasmHive::new(0x0000_00aa);
+        let f = a.build_frame(0x0000_00cc, 0x1234, &[9], 3);
+        assert_eq!(route_hops(&f), vec![0x0000_00aa], "origin-only trail");
+        assert_eq!(route_hops(&f).first().copied(), Some(frame_origin(&f)), "hops[0] == origin");
+        // A relay appends itself: route B's frame (learn B first so it can relay to cc)…
+        let mut b = WasmHive::new(0x0000_00bb);
+        let learn = ext_frame(0x0000_00cc, 0x0000_0001, 5, 3, 0x1000);
+        let _ = b.route_frame(0x0000_00cc, 1, &learn, 100, 0.5);
+        let out = b.route_frame(0x0000_00aa, 1, &f, 200, 0.5);
+        // Pull the first relayed frame's hex out of the sends JSON and read its trail.
+        let hx = out.split("\"frame\":\"").nth(1).and_then(|s| s.split('"').next()).unwrap_or("");
+        if !hx.is_empty() {
+            let relayed: Vec<u8> = (0..hx.len() / 2)
+                .map(|i| u8::from_str_radix(&hx[i * 2..i * 2 + 2], 16).unwrap())
+                .collect();
+            let hops = route_hops(&relayed);
+            assert_eq!(hops.first().copied(), Some(0x0000_00aa), "origin immutable at [0]");
+            assert_eq!(hops.last().copied(), Some(0x0000_00bb), "relayer appended itself");
+            assert!(hops.len() >= 2, "trail grew by the relay hop: {hops:?}");
+        }
+        // Undecodable / route-less → empty.
+        assert_eq!(route_hops(b"not-a-frame"), Vec::<u32>::new());
+        assert_eq!(route_hops(&[]), Vec::<u32>::new());
+    }
+
+    #[test]
     fn range_to_loss_db_is_log_distance_and_lora_outranges_ble() {
-        // §2.7 v0.19 LOG-DISTANCE: loss = PL_ref + 10·n·log10(d/d_ref); grows (sub-linearly) with range
-        assert!(range_to_loss_db(2, 100.0) > range_to_loss_db(2, 10.0)); // LoRa (id 2)
-        // LoRa's smaller n → LESS loss at the same range than BLE → longer range
+        // §2.7 v0.19 LOG-DISTANCE: loss = PL_ref + 10·n·log10(d/d_ref); grows (sub-linearly) with range.
+        // VALUE-AGNOSTIC by design: PL_ref + n are PROVISIONAL (single-sourced from core r2-transport;
+        // they moved once already — provisional PL_ref 0 → theater.html-matched 40 in core 5e30c49 —
+        // and will move again on Roy's field-anchor). So assert the ratified SHAPE, not the numbers; a
+        // hard-coded value here would just re-break on the next anchor (this test IS the drift tripwire).
+        assert!(range_to_loss_db(2, 100.0) > range_to_loss_db(2, 10.0)); // monotonic ↑ (LoRa, id 2)
+        // LoRa's smaller n → LESS loss at the same range than BLE → longer emergent range
         assert!(range_to_loss_db(2, 50.0) < range_to_loss_db(0, 50.0)); // LoRa < BLE loss
-        // d≤d_ref(=1) / negative / zero clamps to PL_ref (0) — no negative loss, no signal gain
-        assert_eq!(range_to_loss_db(2, -5.0), 0.0);
-        assert_eq!(range_to_loss_db(2, 1.0), 0.0); // at d_ref, loss = PL_ref = 0
+        // d ≤ d_ref(=1) / negative / zero → floored to d_ref ⇒ loss == PL_ref (no signal gain, no
+        // negative loss). Assert the floor SHAPE against the reference-distance loss, whatever PL_ref is.
+        let pl_ref = range_to_loss_db(2, 1.0); // loss at d_ref = PL_ref (log10(1)=0)
+        assert!(pl_ref >= 0.0, "PL_ref is non-negative (no signal gain)");
+        assert_eq!(range_to_loss_db(2, -5.0), pl_ref, "≤0 range floors to d_ref ⇒ PL_ref");
+        assert_eq!(range_to_loss_db(2, 0.5), pl_ref, "below-reference floors to d_ref ⇒ PL_ref");
         // EMERGENT range: at a long range BLE quality has decayed further than LoRa (BLE shorter range)
         let far = 1000.0;
         assert!(
