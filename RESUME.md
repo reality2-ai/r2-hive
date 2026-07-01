@@ -1,5 +1,26 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-02 — R2-DIAGNOSTICS v0.1 RATIFIED (specs a47ab32) — telemetry shape is now CANON
+specs ratified my r2-hive-wasm neighbours()/paths() JSON shape VERBATIM as R2-DIAGNOSTICS v0.1 (verified against my
+lib.rs source). Shipped shape (wasm + dfr1195 viz feature) matches EXACTLY → zero code change; cited the spec as canon
+in both r2-hive-wasm getters (9ab266f) + firmware viz emitter/Cargo.toml (e13fdd1). Field pins: viable=conf>FCF(0.1);
+fade_remaining=neighbour_fade_remaining (t=ln(conf/floor)/λ), spec-pinned pure/derived; class=MobilityClass
+INFORMATIONAL-only (not decay-driving). ⚠️ NEW CONSTRAINT (R2-DIAGNOSTICS §2 non-aggregation, R2-TRUST §6A.2): any
+off-device forward (firmware→carrier-r2-adapter.js→:21060 dashboard) MUST be operator-authority-scoped (like
+R2-TRANSPORT §2.3A/§2.3B); bench=localhost satisfies it; propagated to composer (its adapter is the forwarder). Acked specs.
+**⚙️ TOOLING GOTCHA:** `fleet send peer "...backtick-word..."` — backticks inside the double-quoted arg are SHELL
+COMMAND-SUBSTITUTED (a bare word → "command not found" → dropped from the message). Do NOT use backticks in fleet-send
+message bodies; use plain words or single-quotes. (Cost me one dropped word in the specs ack; message stayed coherent.)
+
+## 🔄 2026-07-02 — FAKED-DISTANCE feature (supervisor Q1/Q2) — WORKFLOW running (wf_3874722a-bcc)
+Roy wants: drag a board icon in theater.html → fake distance → must RESTRICT which real radios the board uses (inject
+fake distance/RSSI into the REAL RouteEngine observe path so confidence/viability/spray-K react). Launched an ultracode
+workflow (understand: 5 parallel readers on transport-count reality, observation/RSSI seam, engine-API firmware-vs-core,
+--control parser, security/spec/meshmask-overlap → design: synthesis + adversarial review). Awaiting result, then answer
+supervisor Q1 (transport count) + Q2 (smallest hook: (peer,transport) virtual-RSSI override via --control, substituted
+into the Observation before ingest, using range_to_loss_db as the canonical distance→RSSI, feature-gated non-field) +
+firmware-vs-core verdict. Ties to §2.3B reachability_override (hard block) + range_to_loss (this session's profile work).
+
 ## ✅ 2026-07-02 — #30 RouteEngine telemetry SHIPPED (viz feature) + pre-existing fr4 build-breaker FIXED
 Supervisor GO'd the prototype. **emit_route_snapshot (dfr1195 00ef65b)** behind bench-only feature `viz` (=[], OFF by
 default → EXCLUDED from field builds, PROVISIONAL). Per-record JSON-lines every HB fire over USB-serial: rt.snap header
