@@ -1,5 +1,21 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — TASK #4: r2-hive BIN builds+tests GREEN vs consolidated r2-core crates (commit 478c6c8)
+Surfaced from INBOX (I'd been on wasm #26 / firmware #29; this r2-hive-BIN workstream had accumulated directives).
+VERIFIED ground truth before acting (didn't blind-trust hours-old directives): all 5 previously-dangling path-deps
+(r2-def/r2-ensemble/r2-dispatch/r2-transport/r2-discovery) now RESOLVE (core landed them in r2-core/crates as
+excluded std-only + workspace members). handshake.rs R2-TRANSPORT-RELAY **v0.2 already conformant** (NOT re-implemented
+— verified: device-first CHALLENGE, single-use nonce echo-match, ≤10s CHALLENGE_TTL, ±60s stateless reject, signs
+4-field `<nonce>:<trust_group>:<device_id>:<timestamp>` Ed25519, v1 legacy 3-field kept). **BUILD was RED** — 3×
+E0599 `no variant EspNow for r2_route::Transport`: core's vendored r2-route applied the v0.18 EspNow→Mesh rename,
+but r2-hive-bin/src/hive.rs still said `Transport::EspNow` at 3 sites (send-order list:532, try_send_on host-stub:576,
+USB TransportKind map:1037). FIXED = pure source rename ::EspNow→::Mesh (discriminant 5 unchanged, wire/OTA interop
+preserved per core), comments→R2-Mesh. **AFTER:** `cargo build -p r2-hive` GREEN (was exit 101); `cargo test -p r2-hive`
+GREEN — 105 lib tests + all integration binaries, 0 failed. No EspNow stragglers repo-wide. Reported to supervisor.
+**GOTCHA logged:** a backgrounded `cargo … 2>&1 | tail` reports TAIL's exit (0), MASKING cargo's failure — always
+redirect cargo to a file + capture its own `$?` (that's how I caught the real BUILD_EXIT=101). **NEXT (owed):** apply
+specs' canonical Ed25519 relay-handshake vector to handshake.rs test when it lands (specs authoring it).
+
 ## ✅ 2026-07-01 — wasm v0.4.12: near-field floor max(d,0.001) sync (commit 474fb26) — follow-up to v0.4.11
 core (fleet msg) confirmed the log-distance real params (PL_ref=40, n LoRa1.5/WiFi2.35/Mesh2.85/BLE3.4) — I'd
 already caught+synced those in v0.4.11. The delta I hadn't had: the NEAR-FIELD FLOOR is `max(d, RANGE_LOSS_MIN_D=
