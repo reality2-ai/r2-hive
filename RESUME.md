@@ -1,5 +1,21 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-02 — CLEANUP/PUSH: both repos' intentional work PUSHED; 2 non-mine dfr1195-fw items preserved
+- **r2-hive** (platform-trait): clean, PUSHED 0ca53ef..71f9055 (32 commits = this session: wasm v0.4.12, task#4,
+  #29 re-vendor+v0.22 seam, #30 viz telemetry, #31 workflow, bridge rt.* passthrough, R2-DIAGNOSTICS cites, hygiene).
+- **dfr1195-fw** (dfr1195-fw): my work PUSHED 55a8a45..1811267 — the batched combined ELF pieces: re-vendor
+  r2-route @8f425d6, LED signalling, --control override (§2.3C/§2.3B), companion fixes, §2.3A VMASK egress gate (Roy A+B),
+  otal2cap. All verified GREEN on carrier,multitg,field,routetest,viz,benchdist,otal2cap (the RUN-SHEET weave feature set).
+- **2 dfr1195-fw working-tree items — PRE-EXISTING, NOT mine, PRESERVED (not committed, not lost):**
+  (a) `docs/dfr1195-firstlight.patch` — a TRACKED doc (stored git-patch bundle, last committed d3fdc7c "refresh vs
+  c46383e base"); 651-insertion uncommitted refresh predates my takeover — I never touched it. It's now also stale vs my
+  batch's Cargo.toml feature adds (viz/benchdist). NEEDS OWNER DECISION: regenerate to include the new features + commit,
+  or discard. Left in the tree (preserved). (b) `tools/xbuild.sh` — machine-specific local xtensa build helper (hardcoded
+  /home/roycdavies paths); used it all session but didn't author it; correctly UNTRACKED (not for the shared repo). Left as-is.
+- **STILL PENDING (external, not blockers):** adversarial-review workflow (wf_974cb118-08e) kept getting killed by
+  between-turn process restarts — do a foreground review before the flash; then Roy flashes the combined ELF (needs staging
+  as ~/r2-dfr1195-weave.elf — a build+copy step, Roy-only flash). composer adapter is READY (inert until reflash+bridge-deploy).
+
 ## 🔄 2026-07-02 — BATCHED FW BUILD: all pieces BUILT+VERIFIED; awaiting weave feature-set + adversarial review
 Commits (dfr1195-fw): d435a95 (re-vendor r2-route @8f425d6 + LED) → 0c1119c (--control override §2.3C/§2.3B +
 companion fixes) ; (r2-hive): 79cafd1 (bridge rt.* passthrough). ALL feature combos GREEN: ble+viz+benchdist+otal2cap
