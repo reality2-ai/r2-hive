@@ -1,5 +1,29 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-02T08:46:52+12:00 — CLEANUP VERIFY: pushed state confirmed; non-owned firmware WIP preserved
+- **Current objective:** finish the interrupted cleanup without losing work: verify r2-hive push/cache hygiene and
+  classify the remaining sibling `dfr1195-fw-wt` dirty items.
+- **r2-hive ground truth before this RESUME-only verification update:** `platform-trait` was clean at `d160073`
+  (`docs: cleanup/push status — both repos pushed; 2 pre-existing non-mine dfr1195-fw items preserved+characterized`),
+  matching `origin/platform-trait`. No generated `__pycache__` dirty file remained; `.gitignore` contains
+  `__pycache__/`.
+- **dfr1195-fw ground truth:** `/home/roycdavies/Development/R2/dfr1195-fw-wt` was at `1811267`
+  (`feat(dfr1195): batch(3/N) — §2.3A egress gate (VMASK / TX_ALLOW_MASK) = physical radio-off (Roy A+B)`),
+  matching `origin/dfr1195-fw`. The only remaining worktree items were preserved and not committed:
+  `M docs/dfr1195-firstlight.patch` and `?? tools/xbuild.sh`.
+- **Classification of preserved firmware items:** `docs/dfr1195-firstlight.patch` is a tracked stored patch artifact
+  last committed by `d3fdc7c` and currently has an uncommitted refresh (`723` changed lines, `651` insertions,
+  `72` deletions). It still needs an owner decision: regenerate/commit it against the current batch or discard it.
+  `tools/xbuild.sh` is a machine-local xtensa build helper with hardcoded `/home/roycdavies` paths; leave untracked
+  unless the firmware owner deliberately generalizes it.
+- **Verification commands:** `git status --short --branch`; `git log -6 --oneline --decorate --graph`; `sed -n
+  '1,120p' RESUME.md`; sibling firmware `git status --short --branch`; sibling firmware `git log -8 --oneline
+  --decorate --graph`; sibling firmware `git diff --stat -- docs/dfr1195-firstlight.patch`; `sed -n '1,120p'
+  tools/xbuild.sh`; placeholder-token/`__pycache__` scan of `RESUME.md` and `.gitignore`.
+- **Next actions:** no repo-local cleanup remains. Do not commit the sibling firmware patch artifact or local helper
+  without an explicit owner decision. External/bench work remains: foreground adversarial review before flash, stage
+  the combined ELF as `~/r2-dfr1195-weave.elf`, Roy-only flash, then bridge deploy validation.
+
 ## ✅ 2026-07-02 — CLEANUP/PUSH: both repos' intentional work PUSHED; 2 non-mine dfr1195-fw items preserved
 - **r2-hive** (platform-trait): clean, PUSHED 0ca53ef..71f9055 (32 commits = this session: wasm v0.4.12, task#4,
   #29 re-vendor+v0.22 seam, #30 viz telemetry, #31 workflow, bridge rt.* passthrough, R2-DIAGNOSTICS cites, hygiene).
