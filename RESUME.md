@@ -16,9 +16,15 @@ pairs via set_reachability_blocked), EMPTY by default ⇒ None is behavior-IDENT
 "preserving". FOOTGUN: the override is enforced ASYMMETRICALLY when None — OUTBOUND selection (engine.rs:716) honors
 it, INBOUND ingress-drop (engine.rs:534, behind `if let Some(arrival)`) is SILENTLY BYPASSED. Both ForwardRequest code
 comments now say this (comment-only fix, blemesh re-verified green).
-**FOLLOW-UPS owed (re-scoped):** (1) ONLY IF using §2.3B reachability_override on-device: resolve arrival Transport
-(io_task has got.3 ordinal in ble builds; u8→Transport) → Some(arrival) at the 2 sites FIRST (PREREQUISITE for
-symmetric enforcement), then the RX guard. Pure DoS protection needs NOTHING — already live. (2) #20
+**✅ v0.22 §2.3B SEAM WIRED (specs R2-TRANSPORT v0.22 17d9046 ruled Option(a) caller-seam; commit e44cfa2):** io_task
+is the dfr1195 ingress seam (r2-dataplane::handle_rx_frame is NOT called by dfr1195 — only its util fns). got.3 is
+ALWAYS a canonical §2.2 ordinal (Ble/Lora/Mesh bridges), so added arrival_transport_of(u8)→Option<Transport> and set
+arrival_transport: arrival_transport_of(got.3) at the ForwardRequest + a seam debug-assert (dev/test; stripped in
+--release) ⇒ §2.3B now enforces SYMMETRICALLY (inbound :534 + outbound :716), footgun closed. Verified GREEN blemesh +
+loraroute. r2-dataplane stays None (not the dfr1195 seam; PhyMask ingress ≠ 1:1 PHY). Contract honored: plan_forward(None)
+= always-correct pass-through; canonical-PHY-known ⇒ Some(T).
+**FOLLOW-UPS owed:** (1) the RX neighbour-refresh is_reachability_blocked guard is still unwired — only needed IF/when
+overrides are populated on-device (the ingress-drop seam is now symmetric, so populating an override is now safe). (2) #20
 (ConnectionlessRadio ESP-NOW/R2-Mesh) now UNBLOCKED (mesh.rs vendored). (3) build field/staota/carrier combo before a
 field flash (blemesh+loraroute cover the vendored surface). Core: nothing to fix core-side (tree clean @4235bab);
 offered to raise a §2.3B strict-mode/debug-assert to specs (override-set non-empty + arrival None) — I'm endorsing it.
