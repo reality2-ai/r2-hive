@@ -49,6 +49,38 @@ fn kind_from_u8(k: u8) -> TransportKind {
     }
 }
 
+// ───────────────────── R2-TRANSPORT §2.7 transport-profile physics helpers ─────────────────────
+// The carrier-independent physics the radio-SIM (composer's bench) AND the field share — one
+// source of timing/physics truth (§2.7: "the simulator and the field share one source"). Exported
+// from the wasm hive so composer's sim derives synthetic link-quality from the SAME functions the
+// routing layer's reachability seed uses — no drift between sim and field. These are pure math (no
+// transport-seam coupling); the WS/UDP socket BINDINGS + the shared TransportProfile struct
+// (single-sourced in r2-transport) land with core's host-UDP binding.
+
+/// §2.5 / R2-ROUTE §2.6 `rssi → quality`: RSSI (dBm) → link-quality in [0,1]. Canonical clamp
+/// (§2.7 table): −50 dBm → 1.0 (excellent), −80 dBm → 0.0 (link-dead); linear between, saturating
+/// outside. This is the reachability-strength metric the neighbour-table confidence seed reads.
+#[wasm_bindgen]
+pub fn quality_from_rssi(rssi_dbm: f32) -> f32 {
+    const RSSI_FULL: f32 = -50.0; // → 1.0
+    const RSSI_ZERO: f32 = -80.0; // → 0.0
+    ((rssi_dbm - RSSI_ZERO) / (RSSI_FULL - RSSI_ZERO)).clamp(0.0, 1.0)
+}
+
+/// §2.7 `range → loss` (PROVISIONAL — the schema pins the SHAPE; per-transport steepness values are
+/// pending composer+core sync + operator ratification, so they are CALLER-supplied, NOT baked here).
+/// Log-distance path-loss: `loss(d) = ref_loss_db_1m + 10·n·log10(d)` dB (n = `path_loss_exp`, d in
+/// metres, reference at 1 m). Range is EMERGENT (not a stored constant): compose
+/// `quality_from_rssi(tx_dbm − range_to_loss(d, n, ref))` and read the distance where quality crosses
+/// 0 (the −80 dBm zero-crossing) as the transport's range.
+#[wasm_bindgen]
+pub fn range_to_loss(distance_m: f32, path_loss_exp: f32, ref_loss_db_1m: f32) -> f32 {
+    if distance_m <= 1.0 {
+        return ref_loss_db_1m; // ≤1 m reference floor (no negative log10)
+    }
+    ref_loss_db_1m + 10.0 * path_loss_exp * distance_m.log10()
+}
+
 /// A sim-side transport: it never receives (the sim injects via `route_frame`); it
 /// only CAPTURES what the engine decides to send, so JS can move it on-wire itself.
 /// Mirror of `sync_host`'s test `StubTransport`.
@@ -637,6 +669,27 @@ pub fn version() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn quality_from_rssi_matches_the_50_80_clamp() {
+        assert!((quality_from_rssi(-50.0) - 1.0).abs() < 1e-6); // excellent
+        assert!((quality_from_rssi(-80.0) - 0.0).abs() < 1e-6); // link-dead
+        assert!((quality_from_rssi(-65.0) - 0.5).abs() < 1e-6); // midpoint
+        assert_eq!(quality_from_rssi(-30.0), 1.0); // saturates above −50
+        assert_eq!(quality_from_rssi(-100.0), 0.0); // saturates below −80
+    }
+
+    #[test]
+    fn range_to_loss_is_monotonic_and_range_emerges() {
+        // reference floor at ≤1 m
+        assert!((range_to_loss(1.0, 2.0, 40.0) - 40.0).abs() < 1e-6);
+        // loss grows with distance
+        assert!(range_to_loss(100.0, 2.0, 40.0) > range_to_loss(10.0, 2.0, 40.0));
+        // EMERGENT range: with tx=0 dBm, n=2, ref=40 → loss(100 m)=80 dB → rssi=−80 → quality 0;
+        // at 50 m quality is still > 0. The range is the quality-zero crossing, not a stored constant.
+        assert_eq!(quality_from_rssi(0.0 - range_to_loss(100.0, 2.0, 40.0)), 0.0);
+        assert!(quality_from_rssi(0.0 - range_to_loss(50.0, 2.0, 40.0)) > 0.0);
+    }
 
     // Real R2-WIRE extended frame builder (mirrors r2-hive-core's sync_host test).
     fn ext_frame(origin_hive: u32, target_hive: u32, ttl: u8, k: u8, msg_id: u32) -> Vec<u8> {

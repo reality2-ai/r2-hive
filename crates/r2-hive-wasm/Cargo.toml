@@ -1,6 +1,6 @@
 [package]
 name = "r2-hive-wasm"
-version = "0.4.6"
+version = "0.4.7"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "wasm platform layer for r2-hive — exposes the REAL current-TN sync routing core (r2-hive-core route_inbound_sync over r2-route/r2-wire) to a browser/JS bench sim. R2-HIVE north-star wasm tier; one-codebase hive logic, thin per-platform host. Workspace-EXCLUDED (wasm-only, std/wasm-bindgen) so host CI is untouched."
