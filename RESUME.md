@@ -2,22 +2,37 @@
 
 ## ✅ 2026-07-01 — wasm v0.4.12: near-field floor max(d,0.001) sync (commit 474fb26) — follow-up to v0.4.11
 core (fleet msg) confirmed the log-distance real params (PL_ref=40, n LoRa1.5/WiFi2.35/Mesh2.85/BLE3.4) — I'd
-already caught+synced those in v0.4.11. BUT core had ALSO **amended commit 5e30c49 in the shared r2-core tree**
-after my v0.4.11 build, changing the NEAR-FIELD FLOOR from `max(d, d_ref=1.0)` to `max(d, RANGE_LOSS_MIN_D=0.001)`
-(a new numeric floor ≠ d_ref). Effect: sub-reference d<1 now gives LESS loss than PL_ref (near-field modelled),
-not a PL_ref plateau. My v0.4.11 pkgs were built against the pre-amend source (correct for d≥1, wrong for d<1).
+already caught+synced those in v0.4.11. The delta I hadn't had: the NEAR-FIELD FLOOR is `max(d, RANGE_LOSS_MIN_D=
+0.001)` (a numeric floor ≠ d_ref=1.0), so sub-reference d<1 gives LESS loss than PL_ref (near-field modelled), not
+a PL_ref plateau. My v0.4.11 pkgs were built against a transient worktree state (floor=1.0) — correct for d≥1,
+wrong for d<1.
 **REFUTED via test:** re-ran my range test against current source → FAILED (range_to_loss_db(2,-5.0)=0.0 not 40)
-→ proved the floor changed. Rebuilt v0.4.12 against **profile.rs sha256 76038e63** (anchored on CONTENT, because
-the 5e30c49 commit HASH is unstable — core amends it in place). Test rewritten to the current near-field model
-(sub-reference < PL_ref; monotonic↑ above d_ref; loss finite∧∈[0,160] any input; LoRa<BLE) — value-agnostic +
-intentional tripwire on floor flips. Canonical: `clamp(PL_ref + 10n·log10(max(d,0.001)/1), 0, 160)`.
+→ proved the floor was 0.001. Rebuilt v0.4.12 against **profile.rs sha256 76038e63** (content-sha anchor).
+Test rewritten to the current near-field model (sub-reference < PL_ref; monotonic↑ above d_ref; loss finite∧∈[0,160]
+any input; LoRa<BLE) — value-agnostic + intentional tripwire on floor flips. Canonical: `clamp(PL_ref +
+10n·log10(max(d,0.001)/1), 0, 160)`.
 **VERIFIED:** host 12/12, wasm32 clean, ws-mesh e2e 3× PASS. 3 pkgs re-staged v0.4.12: web wasm **66d9fdd90491807a**
 / js **c55c6b39a0ca0bfd**; ws-mesh node wasm 66d9fdd9 (==web); + carrier-bridge. route_hops still exported.
-**⚠️ DO-NOT-ASSUME (process risk, told core):** the shared r2-core tree is a MOVING TARGET — core amends
-published commit hashes in place (5e30c49 content changed twice under me: PL_ref 0→40, floor 1.0→0.001). A
-"built against <commit>" claim is UNRELIABLE there; anchor on file content-sha instead. Same hazard blocks #29
-(don't re-vendor r2-route off a live-edited tree). Sent: composer (corrected swap params incl 0.001 floor +
-v0.4.12 sha), core (v0.4.11 already had real params; the delta was the floor; asked if 0.001 is FINAL).
+**✅ CORRECTED (core forensics, hop-2/50):** I WRONGLY claimed core amended 5e30c49 in place. GROUND TRUTH (core's
+reflog + blob check, verified): 5e30c49 is a PLAIN commit, never force-pushed/amended (reflog e75fd4a→69dc566→
+5e30c49→3323f3d, all plain); its committed profile.rs blob fbc1549 == worktree (sha256 76038e63). The 1.0→0.001
+flip was a real COMMIT BOUNDARY (e75fd4a floored 1.0; 5e30c49 set 0.001, byte-exact to composer theater.html +
+ratified R2-TRANSPORT v0.20). What moved under my v0.4.11 BUILD was the shared WORKING TREE: the #27 off-thread
+fork transiently STAGED a floor=1.0 edit (blob 6cf58f8) there, which core caught+reverted — NOT an amend by core.
+Core AFFIRMED: never amends published commits; content-sha anchoring is the right robustness for path-dep builds
+(keep it).
+**⚠️ DO-NOT-ASSUME (corrected):** the shared r2-core WORKING TREE (what path-deps compile) can be transiently
+dirtied by the #27 off-thread fork (recurring hazard supervisor tracks) — commits themselves are stable. So anchor
+path-dep builds on file content-sha, not commit hash, AND prefer vendoring from COMMITTED blobs (git show <ref>:path)
+over the worktree. FLOOR STATUS: 0.001 is CANON NOW (v0.20-ratified) but NOT guaranteed-final — core routed the
+d_ref=1.0-vs-0.001 §2.7 floor to specs; if specs blesses d_ref, core lands a NEW commit + pings me (tripwire firing
+would then be EXPECTED/coordinated, not drift). My 0.001 tripwire stands.
+**Sent:** composer (corrected swap params incl 0.001 floor + v0.4.12 sha), core (v0.4.11 already had real params;
+the delta was the floor; asked if 0.001 FINAL; wrongly-accused-of-amend RETRACTED after its forensics).
+**#29 UNBLOCKED by core (tree stable @cf2646e, worktree==5e30c49 committed):** core offers vendor-now-on-0.001 OR
+hold-for-specs-floor. Floor Q is ORTHOGONAL to #29 — r2-route re-vendor ≠ r2-transport profile, and the firmware
+uses MEASURED RSSI not synthetic range_to_loss, so the §2.7 floor never touches firmware routing. Decision: vendor
+from COMMITTED blobs (fork-immune) when I turn to #29; not floor-gated.
 
 ## ✅ 2026-07-01 — wasm v0.4.11: route_hops + core log-distance REAL-PARAM drift-sync (commit 104dde1)
 **Trigger:** composer coord-Q — supervisor wanted the directed-message feature as an "R2-TEST-SENDER PLUGIN
