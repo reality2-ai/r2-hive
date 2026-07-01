@@ -1,5 +1,14 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-02 — v0.21 class-id FLASH EXECUTED (Roy, all 4 boards) — takeover item (B) fully closed
+Supervisor confirmed Roy flashed all 4 boards (3 hives + carrier) with ELF 424ec044 (v0.21 class-id +
+formation-decouple + role-Hive + clean-reset recipe). All role-0 now beacon hive class_hash 0xBAFE8AC1 (was
+repeater 0x00FC1F17). Told composer: cutover complete → RETIRE the 0x00FC1F17 legacy alias when confident (no
+dark gap — all 4 flashed); PING ME if discovery/beacon/class-id looks off (beacon emission is my firmware).
+Composer owns the live weave bring-up (scanner + ttys); I stand ready to diagnose firmware-side discrepancies.
+NOTE: this was the v0.21 CLASS-ID ELF, NOT the #29 re-vendor firmware — #29 (e44cfa2) is built+verified but NOT
+yet staged as an ELF or flashed (separate later flash; needs field/staota/carrier build combo staged first).
+
 ## ✅ 2026-07-01 — #29 DONE: r2-route + r2-transport re-vendored into dfr1195-fw, BUILD-VERIFIED (commit dfad9b7)
 2-crate vendor from r2-core cf2646e committed blobs (fork-immune); r2-wire + r2-fnv PINNED (frame codecs
 byte-identical, interop-safe). r2-route gained immune.rs (§13.8.2 network-immune, DoS-cap, is_reachability_blocked,
