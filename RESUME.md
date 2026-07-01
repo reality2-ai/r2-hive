@@ -45,8 +45,22 @@ committed r2-route/src — delta ~1482 lines: **1373 core-side / 109 firmware-si
 STALE upstream code core refactored (use-stmts, ingest_observation, select_transport), NOT embedded-local
 adaptations — so a whole-crate overwrite is viable; the 109-line audit is the SAFETY GATE before overwrite.
 Confirmed firmware transport.rs:22 `Transport::EspNow=5` (apply core's v0.18 →Mesh rename; discriminant 5
-unchanged = label-only). **GATE before executing:** core confirm (a) cf2646e ref (b) no fork edits staged — asked.
-Vendor from COMMITTED blobs (git show cf2646e:crates/r2-route/...), NOT the worktree. Next focused pass, not this turn.
+unchanged = label-only, wire/OTA interop preserved per core). **GATES CLEARED by core (hop-4/6):** (a) vendor r2-route
+from cf2646e (byte-identical at tip fe99b56; last r2-route change 5e30c49, stable); (b) worktree clean/fork-immune now.
+Floor re-touch if specs flips = just `range_to_loss_db(Lora,-10.0)` in r2-route tests.rs (PL(10) values floor-indep).
+**AUDIT GATE PASSED (read-only):** the 109 firmware-side r2-route lines have ZERO embedded-local markers
+(no cfg/xtensa/esp/panic/no_std) — all STALE-UPSTREAM (old import lists, pre-refactor ingest_observation/select_transport,
+local transport constants core moved into r2_transport::profile). Safe whole-crate overwrite; nothing firmware-local to preserve.
+**⚠️ SCOPE GREW → MULTI-CRATE CASCADE (escalated to core; HELD pending its guidance):** #29 is NOT r2-route-only.
+core's r2-route now `r2-transport.workspace=true` (firmware's r2-route has no such dep), and:
+  • **r2-transport** firmware copy is STALE — MISSING profile.rs (the whole log-distance model) + mesh.rs; lib/transport/tests
+    differ (EspNow→Mesh). host_udp.rs is core-only but `#[cfg(feature="std")]` (lib.rs:74-75) ⇒ inert for no_std firmware (safe).
+  • **r2-wire** ALSO drifted — lib.rs differs + core-only wifi.rs. INTEROP-CRITICAL (wire format; a bump must be fleet-coordinated).
+    Not yet determined whether core's r2-route/r2-transport REQUIRE the newer r2-wire or compile against firmware's existing one.
+  • firmware call-sites: only 2 `Transport::EspNow` in platforms/dfr1195/src/main.rs → Mesh.
+**DO-NOT (until core confirms):** do NOT autonomously vendor the wire-format crate (r2-wire) — interop risk with deployed boards.
+Vendor from COMMITTED blobs @cf2646e, NOT worktree. Alfred remote build required (firmware builds on neither local box).
+Next focused pass AFTER core confirms the coherent snapshot set (2-crate vs 3-crate) + r2-wire interop guarantee.
 
 ## ✅ 2026-07-01 — wasm v0.4.11: route_hops + core log-distance REAL-PARAM drift-sync (commit 104dde1)
 **Trigger:** composer coord-Q — supervisor wanted the directed-message feature as an "R2-TEST-SENDER PLUGIN
