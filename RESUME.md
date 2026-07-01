@@ -18,6 +18,17 @@ FNV auto-derives, no hardcoded hash). Firmware DONE (main.rs:3661, commit 6fb157
 also carries the clean-reset recipe + formation-decouple + role-Hive). WIRE CHANGE: flash all role-0 boards in the
 SAME window as composer's scanner cutover to 0xBAFE8AC1 (mixed-version goes dark) — Roy flashes; coordinating the
 window with composer + supervisor now.
+**(C) BROWSER WASM-WS module DELIVERED (335f7ba):** composer was standing by. ws-mesh/hive-ws-browser.js (ESM) +
+hive-ws-browser.d.ts — the option-B binding for composer's webapp (caller passes init'd wasm module; global
+WebSocket; frame_origin echo-drop → verifyFrame → route_frame). WS msg shape = binary raw R2-WIRE. Gateway = HIVE
+infra (composer confirmed its bench runs no WS bearer). Also FIXED a latent node bug: frame_origin is a MODULE
+free-fn (this.wh.frame_origin), was called as this.hive.frame_origin → echo-drop silently no-op'd. test-mesh 3× PASS.
+**hive-codex read-only findings TRIAGED (all resolved at HEAD 1d6c6d2):** (1) class-id — v0.21 SUPERSEDED the v0.17
+.repeater ruling, I shipped .hive (6fb1579); (2) Cargo.lock now consistent 0.4.9 + r2-transport present; (3) no dirty
+pyc, tree clean. codex's findings were at the older 941ca60.
+**#29 r2-route re-vendor NOW UNBLOCKED (core hop-3):** whole-crate re-vendor clean — DoS-cap + is_reachability_blocked
++ SCF-gate + spray all in r2-core HEAD. TODO next: re-vendor r2-route into dfr1195-fw (verify no firmware-specific
+r2-route deltas to preserve) + align firmware Transport::EspNow→Mesh (v0.18) + rebuild + re-stage. Non-blocking.
 
 ## ✅ 2026-07-01T14:58:15+12:00 — v0.4.9 WASM PKGS STAGED + THEATER REGRESSION LEAD
 Objective: urgent supervisor unblock for composer after `5809fde` landed `r2-hive-wasm v0.4.9` but generated wasm
