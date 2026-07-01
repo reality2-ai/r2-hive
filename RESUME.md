@@ -1,5 +1,21 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-02 — #30 RouteEngine telemetry SHIPPED (viz feature) + pre-existing fr4 build-breaker FIXED
+Supervisor GO'd the prototype. **emit_route_snapshot (dfr1195 00ef65b)** behind bench-only feature `viz` (=[], OFF by
+default → EXCLUDED from field builds, PROVISIONAL). Per-record JSON-lines every HB fire over USB-serial: rt.snap header
+{dev,now,nbr,path} = (dev,now) CYCLE EPOCH for evict detection (+ empty-snapshot handling) → rt.nbr {hive_id,viable,
+confidence(4dp),last_seen,class,duty,fade_remaining|null} → rt.path {destination,next_hop,confidence(4dp),last_updated,
+sample_count}. Record fields BYTE-IDENTICAL to wasm neighbours()/paths() ⇒ sim+real share the renderer. dev=self hive_id,
+now=route_now_s() (matches last_seen). → carrier-r2-adapter.js → viz-events WS :21060. No core change (getters vendored
+@cf2646e; RouteEngine bounded 16/16 ⇒ per-record lines safe). VERIFIED GREEN: blemesh,viz + loraroute,viz; field build
+EXCLUDES viz (0 dead-code). Sent composer the exact wire format; flagged specs to canonicalize as R2-ROUTE §telemetry
+(PROVISIONAL until ruled — the transport-profile-drift lesson: don't let a 3rd ad-hoc shape drift).
+**⚠️ BONUS FIX (c8563d7): pre-existing field-build breaker.** While build-verifying, found field,blemesh (field=[fr4],
+no routetest) fails E0425 — ROUTETEST_HASH was #[cfg(routetest)]-only but the fr4 field-routing path (main.rs ~1851)
+uses it. Repro'd at e44cfa2 (BEFORE viz — NOT mine). Widened const to any(routetest,fr4) (same class as the earlier
+emit_msg widening; additive, can't regress). field,blemesh now GREEN. Told supervisor (matters if Roy's field flash
+combo omits routetest). Task #30 firmware side DONE; awaiting composer adapter confirm for end-to-end.
+
 ## 🔄 2026-07-02 — ROUTEENGINE TELEMETRY question (supervisor) — ANSWERED, awaiting prototype-vs-spec decision
 Supervisor asked: does dfr1195 firmware expose RouteEngine neighbour/path telemetry (confidence/RSSI/decay) over
 serial/--control, and what's the smallest addition to emit the wasm neighbours()/paths() JSON shape for the physical
