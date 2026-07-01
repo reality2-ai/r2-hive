@@ -1,5 +1,24 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — wasm v0.4.12: near-field floor max(d,0.001) sync (commit 474fb26) — follow-up to v0.4.11
+core (fleet msg) confirmed the log-distance real params (PL_ref=40, n LoRa1.5/WiFi2.35/Mesh2.85/BLE3.4) — I'd
+already caught+synced those in v0.4.11. BUT core had ALSO **amended commit 5e30c49 in the shared r2-core tree**
+after my v0.4.11 build, changing the NEAR-FIELD FLOOR from `max(d, d_ref=1.0)` to `max(d, RANGE_LOSS_MIN_D=0.001)`
+(a new numeric floor ≠ d_ref). Effect: sub-reference d<1 now gives LESS loss than PL_ref (near-field modelled),
+not a PL_ref plateau. My v0.4.11 pkgs were built against the pre-amend source (correct for d≥1, wrong for d<1).
+**REFUTED via test:** re-ran my range test against current source → FAILED (range_to_loss_db(2,-5.0)=0.0 not 40)
+→ proved the floor changed. Rebuilt v0.4.12 against **profile.rs sha256 76038e63** (anchored on CONTENT, because
+the 5e30c49 commit HASH is unstable — core amends it in place). Test rewritten to the current near-field model
+(sub-reference < PL_ref; monotonic↑ above d_ref; loss finite∧∈[0,160] any input; LoRa<BLE) — value-agnostic +
+intentional tripwire on floor flips. Canonical: `clamp(PL_ref + 10n·log10(max(d,0.001)/1), 0, 160)`.
+**VERIFIED:** host 12/12, wasm32 clean, ws-mesh e2e 3× PASS. 3 pkgs re-staged v0.4.12: web wasm **66d9fdd90491807a**
+/ js **c55c6b39a0ca0bfd**; ws-mesh node wasm 66d9fdd9 (==web); + carrier-bridge. route_hops still exported.
+**⚠️ DO-NOT-ASSUME (process risk, told core):** the shared r2-core tree is a MOVING TARGET — core amends
+published commit hashes in place (5e30c49 content changed twice under me: PL_ref 0→40, floor 1.0→0.001). A
+"built against <commit>" claim is UNRELIABLE there; anchor on file content-sha instead. Same hazard blocks #29
+(don't re-vendor r2-route off a live-edited tree). Sent: composer (corrected swap params incl 0.001 floor +
+v0.4.12 sha), core (v0.4.11 already had real params; the delta was the floor; asked if 0.001 is FINAL).
+
 ## ✅ 2026-07-01 — wasm v0.4.11: route_hops + core log-distance REAL-PARAM drift-sync (commit 104dde1)
 **Trigger:** composer coord-Q — supervisor wanted the directed-message feature as an "R2-TEST-SENDER PLUGIN
 emitting delivered/dropped/hop-path events"; composer built it on real primitives (build_frame/route_frame/
