@@ -129,6 +129,13 @@ Composer's carrier-as-bridge weave Qs (via supervisor), both verified in r2-hive
 - **#26 STATUS UPDATE:** the 'real r2-trust (TG/GroupHmac/deliver-gate)' portion of #26 is ALREADY DONE in wasm
   (real r2_trust::GroupHmac + sign_extended outbound + verify_extended inbound, exported + tested). **#26 remaining
   = WS + UDP transports ONLY.**
+- **#26 VIRTUAL-TRANSPORTS scope (from core, 2026-07-01):** mostly-COMPOSITION not net-new — the route engine
+  already treats each Transport type faithfully (a sim presenting as Transport::Lora/Ble/Wifi inherits the real
+  routing math, isomorphism free). Exists to compose: §2.6 ConnectionlessRadio seam, per-transport MTU/power/jitter
+  tables, LoRa ToA+duty+MTU math, harness faked-distance. NET-NEW ~1.5-2.5d: per-radio profile structs single-sourced
+  from those tables + a UDP-backed ConnectionlessRadio. FLAG: wasm can't open UDP → profile is carrier-independent, a
+  wasm node carries the SAME profile over WebSocket. core wants me to confirm host-UDP-first vs wasm-browser lead when
+  I open #26 (I'll do BOTH bindings — supervisor pinned wasm-hive as browser/WS AND host/UDP). Ack'd core.
 
 ## 📋 2026-07-01 — LoRa-into-bench SCOPE (Roy multi-transport direction; READ-ONLY, #16/#22)
 **KEY FINDING: board-side LoRa is ALREADY BUILT + METAL-PROVEN — integration, not net-new dev.**
