@@ -9,13 +9,19 @@ arrival_transport: Option<Transport> → set None at BOTH sites (r2-dataplane ha
 behavior-preserving (new drop, inert = prior behavior). **VERIFIED: local xtensa build GREEN on blemesh (route+Mesh/
 espnow) AND loraroute (lora + alloc-gated mesh.rs).** libm resolved as new transitive dep. Committed to dfr1195-fw
 (mine only; docs/dfr1195-firstlight.patch + tools/xbuild.sh left as pre-existing non-mine churn). NOT flashed (Roy-only).
-**FOLLOW-UPS owed:** (1) enable DoS-cap ingress-drop on metal = resolve arrival Transport (io_task has got.3 ordinal in
-ble builds; map u8→Transport) → pass Some(arrival) at the 2 ForwardRequest sites + add the RX neighbour-refresh
-is_reachability_blocked guard, then validate on-device. (2) #20 (ConnectionlessRadio for ESP-NOW / R2-Mesh bearer) was
-GATED on this re-vendor — now UNBLOCKED (mesh.rs ConnectionlessMeshTransport is vendored). (3) full field build set
-(field/staota/carrier) not yet compiled — blemesh+loraroute cover the vendored-crate surface; build the field combo
-before a field flash. Core confirmed (hop-8): bucket-1 wholesale adopt, immune.rs security-load-bearing, libm expected,
-feature-gating as built — nothing for core to fix.
+**⚠️ CORRECTED FRAMING (core hop-10, verified engine.rs):** the DoS-cap PROPER (neighbour.rs provisional-ceiling +
+no-evict-authenticated) is UNCONDITIONAL — already LIVE on this build; arrival_transport=None does NOT weaken DoS
+protection. arrival_transport gates ONLY the SEPARATE §2.3B reachability_override_set (bench faked-distance/no-hear
+pairs via set_reachability_blocked), EMPTY by default ⇒ None is behavior-IDENTICAL today (zero risk), not merely
+"preserving". FOOTGUN: the override is enforced ASYMMETRICALLY when None — OUTBOUND selection (engine.rs:716) honors
+it, INBOUND ingress-drop (engine.rs:534, behind `if let Some(arrival)`) is SILENTLY BYPASSED. Both ForwardRequest code
+comments now say this (comment-only fix, blemesh re-verified green).
+**FOLLOW-UPS owed (re-scoped):** (1) ONLY IF using §2.3B reachability_override on-device: resolve arrival Transport
+(io_task has got.3 ordinal in ble builds; u8→Transport) → Some(arrival) at the 2 sites FIRST (PREREQUISITE for
+symmetric enforcement), then the RX guard. Pure DoS protection needs NOTHING — already live. (2) #20
+(ConnectionlessRadio ESP-NOW/R2-Mesh) now UNBLOCKED (mesh.rs vendored). (3) build field/staota/carrier combo before a
+field flash (blemesh+loraroute cover the vendored surface). Core: nothing to fix core-side (tree clean @4235bab);
+offered to raise a §2.3B strict-mode/debug-assert to specs (override-set non-empty + arrival None) — I'm endorsing it.
 
 ## (historical) #29 EXECUTING — superseded by the DONE entry above
 Core resolved the cascade (off-thread + live): #29 = **2-crate vendor (r2-route + r2-transport), r2-wire PINNED**.
