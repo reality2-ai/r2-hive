@@ -14,8 +14,16 @@ if/else — verified→`accept_keepalive`, unverified→`ingest_observation` (bo
    off) → r2-route re-vendor follow-up. DoS-band (provisional low-conf upsert) = core's flagged NOT-YET, noted in-code.
 Build-verified xtensa (carrier,multitg,field,routetest green, 1.32MB). **Recipe ELF RE-STAGED** with this fix
 (alfred:~/r2-dfr1195-weave.elf sha 52da8eae) — ESSENTIAL, pre-fix boards form 0 nbrs.
-**PENDING:** peer-refute (asked supervisor for a codex twin on c5ccdd3 — spoofed-origin/DoS-eviction/over-under-gate).
-Not marking fully done until challenged.
+**REFUTER-PASSED (verdict in):** decouple logic CLEAN — Angle-3 H9 intact (DG-1/duty/seq stay verified-only);
+Angle-1 trust PASS (delivery HMAC-gated; phantom can't become a directed hop — try_directed needs a PATH entry,
+ingest_observation touches only the neighbour table). #28 = DONE. Two refuter-confirmed issues = the KNOWN DoS-band,
+NOT decouple defects → follow-ups:
+- **[#29] r2-route RE-VENDOR:** dfr1195-fw r2-route PREDATES core's DoS-cap 0df4646 (provisional-ceiling +
+  no-evict-authenticated = Angle-2 flood-evict fix) AND lacks is_reachability_blocked. Cherry-pick of 0df4646
+  CONFLICTS (engine.rs+tests.rs diverge from core lineage) → coordinated whole-crate re-vendor needed (core owns
+  r2-route; don't hand-fork). Asked core the clean path (→inbox). NON-BLOCKING (no adversary on bench) → post-run.
+- **Angle-1 SCF-suppression sub-case** (spoof origin=D → has_viable(D)=true → suppresses SCF buffering, fr4 path):
+  one-line note sent to specs for the DoS-band normative (SCF reach should require authenticated liveness).
 
 ## ⚠ 2026-07-01 — CARRIER FLASHED + LIVE on Alfred; R2RX works, PARTICIPATION blocked (TG-key mismatch) — diagnosed
 Carrier flashed (role=STA fw=leaderless-0.4). R2RX reception WORKS (real over-the-air frames). But can't verify/
