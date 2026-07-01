@@ -1,11 +1,42 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — TAKEOVER CLEANUP: class-id ruling + wasm lockfile hygiene
+Objective: finish the interrupted handoff after specs ruled the v0.17 class-id question and hive-codex found dirty
+generated/lockfile state. Pre-cleanup ground truth: `platform-trait` at `5809fde` (ahead of origin), with
+`RESUME.md`, `crates/r2-hive-wasm/Cargo.lock`, and tracked generated
+`crates/r2-hive-wasm/carrier-bridge/__pycache__/r2-carrier-bridge.cpython-314.pyc` dirty.
+- **Specs ruling recorded:** R2-RUNTIME v0.17 role label rename remains label-only for beacon class identity:
+  `ai.reality2.device.repeater` / class_hash `0x00FC1F17` STAYS. Do not rename the class-id to `.hive` without a
+  future explicit wire-change ruling.
+- **Lockfile fixed:** regenerated `crates/r2-hive-wasm/Cargo.lock` from the wasm crate so it matches
+  `r2-hive-wasm v0.4.9` and includes the new `r2-transport` path dependency. The prior dirty lockfile had only
+  advanced to `0.4.8`; do not commit that stale state.
+- **Generated churn cleaned:** restored the tracked `__pycache__/r2-carrier-bridge.cpython-314.pyc` to HEAD. The
+  bytecode change was generated cache churn, not source.
+- **Verification this turn:** `cargo generate-lockfile` in `crates/r2-hive-wasm`; `cargo test` PASS (11 passed,
+  1 ignored; only pre-existing `r2-wire::hmac::EXT_AUTH_MAX` dead-code warning); `cargo build --target
+  wasm32-unknown-unknown` PASS; `wasm-pack build --target nodejs --out-dir ws-mesh/wasmhive-node` PASS; `node
+  ws-mesh/test-mesh.js` PASS (B delivered signed HB over real WS, C wrong-key rejected). Final diff should be
+  `RESUME.md` + `crates/r2-hive-wasm/Cargo.lock` only.
+
+## 🔵 2026-07-01 — #26 CURRENT STATE (my deliverables IN; cross-integration remains)
+r2-hive-wasm v0.4.9. My #26 half is delivered + green (host 11/11, wasm32 clean, WS mesh 3× PASS):
+1. **WS binding PROVEN** over a real WebSocket (ws-mesh/: gateway + hive-ws + test; ae5b739) + **refuter-fixed**
+   (941ca60): localhost-bind boundary (was binding 0.0.0.0!), keyless-hive warning, own-echo drop via frame_origin.
+2. **§2.7 TransportProfile IMPORTED** from core's r2-transport, single-sourced, wasm-clean (5809fde): exports
+   transport_profile(id) + range_to_loss_db(id,units) [core's CANONICAL linear per-transport-slope, replaced my
+   provisional log-distance] + quality_from_rssi (byte-exact). Composer's sim reads the SAME physics = no drift.
+3. **EspNow→Mesh v0.18** rename aligned (78a31a8). **Role Repeater→Hive** v0.17 done (52b2819, firmware).
+core landed ITS half: 7f31dab (canonical profile + host-UDP ConnectionlessRadio). REMAINING for #26 DONE =
+composer wires its browser app to the WS gateway (its bench server per core's ruling) + core's host-UDP binding
+integration + a live multi-hive-over-real-sockets demo (the composer/core join). WS-seam peer-refute PASSED.
+
 ## ✅ 2026-07-01 — ROLE RENAME Repeater→Hive (R2-RUNTIME v0.17) + core WS-design APPROVED
 **Role rename (dfr1195-fw 52b2819, build-green):** specs R2-RUNTIME v0.17 (Roy) — canonical roles = sensor/HIVE/
 bridge/receiver; role-0 Repeater→Hive (LABEL only). Renamed Role enum variant + label()→"hive"; wire byte 0 +
 from_wire + behaviour UNCHANGED; "repeater"=descriptive alias. **KEPT** the R2-BEACON §8.1 class-id string
-"ai.reality2.device.repeater" (wire class_hash 00FC1F17) to honor "no wire change" — **asked specs** if the class-id
-also renames (separate wire change) or stays .repeater. Recipe ELF re-staged (alfred:~/r2-dfr1195-weave.elf sha
+"ai.reality2.device.repeater" (wire class_hash 00FC1F17) to honor "no wire change"; **specs ruled it STAYS
+.repeater** (no `.hive` class-id rename in v0.17). Recipe ELF re-staged (alfred:~/r2-dfr1195-weave.elf sha
 1c66026c). RPF1 role bytes unchanged (0=Hive), so the prep recipe is unaffected.
 **core APPROVED WS-TRANSPORT-BINDING.md (all 4):** (1) TransportProfile→r2-transport (there's an uncommitted
 profile.rs WIP core will adopt+commit as canonical; import THAT byte-exact — HOLD until core pings field names/path);

@@ -324,12 +324,13 @@ dependencies = [
 
 [[package]]
 name = "r2-hive-wasm"
-version = "0.4.6"
+version = "0.4.9"
 dependencies = [
  "ed25519-dalek",
  "r2-engine",
  "r2-hive-core",
  "r2-route",
+ "r2-transport",
  "r2-trust",
  "r2-update",
  "r2-wire",
@@ -343,6 +344,14 @@ version = "0.1.0"
 dependencies = [
  "heapless",
  "libm",
+ "r2-transport",
+ "r2-wire",
+]
+
+[[package]]
+name = "r2-transport"
+version = "0.1.0"
+dependencies = [
  "r2-wire",
 ]
 
