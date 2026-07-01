@@ -82,12 +82,13 @@ fn transport_id_from_u8(k: u8) -> r2_transport::TransportId {
     }
 }
 
-/// §2.7 `range → loss` — the CANONICAL model, single-sourced from core's r2-transport (7f31dab), so the
-/// sim + field share one physics table (no drift). Linear synthetic path-loss: `loss = range_units ×
-/// range_loss_db_per_unit(transport)` dB (per-transport slope is now a ratified const, not caller-guessed;
-/// negative/NaN/inf clamp to 0). Range is EMERGENT: `quality_from_rssi(tx_dbm − range_to_loss_db(t, r))`
-/// crosses 0 at the −80 dBm point = the transport's range. (Replaces the earlier provisional log-distance
-/// `range_to_loss`; core ratified the linear per-transport-slope model.)
+/// §2.7 `range → loss` — the CANONICAL model, single-sourced from core's r2-transport (v0.19, e75fd4a), so
+/// the sim + field share one physics table (no drift). LOG-DISTANCE path-loss (§2.7 RATIFIED shape):
+/// `loss = reference_path_loss_db + 10·n·log10(range_units / d_ref)` dB, d_ref=1, n=path_loss_exponent
+/// per transport; clamped ≥0 (d≤d_ref → PL_ref; no signal gain). Range is EMERGENT:
+/// `quality_from_rssi(tx_dbm − range_to_loss_db(t, r))` crosses 0 at the −80 dBm point = the transport's
+/// range. VALUES provisional (n: LoRa 2.7/WiFi 2.9/Mesh 3.0/BLE 3.2, PL_ref=0) pending Roy field-anchor —
+/// only the numbers move, the shape is final; signature stable (d_ref internal).
 #[wasm_bindgen]
 pub fn range_to_loss_db(transport_id: u8, range_units: f32) -> f32 {
     r2_transport::profile::range_to_loss_db(transport_id_from_u8(transport_id), range_units)
@@ -95,18 +96,20 @@ pub fn range_to_loss_db(transport_id: u8, range_units: f32) -> f32 {
 
 /// The full canonical §2.7 [`r2_transport::TransportProfile`] for a transport, as JSON — the shared
 /// param-set the routing layer + the radio-sim both read. Fields: max_payload (MTU), power_cost,
-/// decay_lambda (λ, per-transport staleness; LoRa<WiFi<BLE), range_loss_db_per_unit, jitter_ms,
-/// congested_jitter_ms. Composer's sim reads THIS (not hard-coded copies) so there is zero sim/field drift.
+/// decay_lambda (λ, per-transport staleness; LoRa<WiFi<BLE), reference_path_loss_db + path_loss_exponent
+/// (§2.7 v0.19 log-distance two-field schema), jitter_ms, congested_jitter_ms. Composer's sim reads THIS
+/// (not hard-coded copies) so there is zero sim/field drift.
 #[wasm_bindgen]
 pub fn transport_profile(transport_id: u8) -> String {
     let p = r2_transport::TransportProfile::for_transport(transport_id_from_u8(transport_id));
     format!(
-        "{{\"transport\":{},\"max_payload\":{},\"power_cost\":{},\"decay_lambda\":{},\"range_loss_db_per_unit\":{},\"jitter_ms\":[{},{}],\"congested_jitter_ms\":[{},{}]}}",
+        "{{\"transport\":{},\"max_payload\":{},\"power_cost\":{},\"decay_lambda\":{},\"reference_path_loss_db\":{},\"path_loss_exponent\":{},\"jitter_ms\":[{},{}],\"congested_jitter_ms\":[{},{}]}}",
         transport_id,
         p.max_payload,
         p.power_cost,
         p.decay_lambda,
-        p.range_loss_db_per_unit,
+        p.reference_path_loss_db,
+        p.path_loss_exponent,
         p.jitter_ms.0,
         p.jitter_ms.1,
         p.congested_jitter_ms.0,
@@ -737,13 +740,14 @@ mod tests {
     }
 
     #[test]
-    fn range_to_loss_db_is_canonical_linear_and_lora_outranges_ble() {
-        // linear per-transport slope (canonical §2.7): loss grows with range
+    fn range_to_loss_db_is_log_distance_and_lora_outranges_ble() {
+        // §2.7 v0.19 LOG-DISTANCE: loss = PL_ref + 10·n·log10(d/d_ref); grows (sub-linearly) with range
         assert!(range_to_loss_db(2, 100.0) > range_to_loss_db(2, 10.0)); // LoRa (id 2)
-        // LoRa's smaller slope → LESS loss at the same range than BLE → longer range
+        // LoRa's smaller n → LESS loss at the same range than BLE → longer range
         assert!(range_to_loss_db(2, 50.0) < range_to_loss_db(0, 50.0)); // LoRa < BLE loss
-        // negative/zero range clamps to 0 loss (binding-safe)
+        // d≤d_ref(=1) / negative / zero clamps to PL_ref (0) — no negative loss, no signal gain
         assert_eq!(range_to_loss_db(2, -5.0), 0.0);
+        assert_eq!(range_to_loss_db(2, 1.0), 0.0); // at d_ref, loss = PL_ref = 0
         // EMERGENT range: at a long range BLE quality has decayed further than LoRa (BLE shorter range)
         let far = 1000.0;
         assert!(
@@ -756,7 +760,8 @@ mod tests {
     fn transport_profile_exposes_core_canonical_fields() {
         let lora = transport_profile(2);
         assert!(lora.contains("\"max_payload\":222")); // R2-LORA §5.2 MTU (core for_transport)
-        assert!(lora.contains("range_loss_db_per_unit"));
+        assert!(lora.contains("reference_path_loss_db"));
+        assert!(lora.contains("path_loss_exponent"));
         assert!(lora.contains("decay_lambda"));
     }
 
