@@ -13,7 +13,9 @@ MTU cap + AB-006) landed @8aaf01a; item C (log-distance profile.rs) STILL PENDIN
 **✅ DONE — core LANDED v0.19 log-distance (e75fd4a, CI-green); I RE-ALIGNED (v0.4.10, 6b7fc7d):** range_to_loss_db
 re-exports core's now-log-distance fn (no source change to the fn — path-dep auto-followed); transport_profile JSON
 re-emits reference_path_loss_db + path_loss_exponent (dropped range_loss_db_per_unit); tests → log-distance. Host
-11/11 + wasm32 + ws-mesh 3× PASS. ALL 3 pkgs re-staged at 0.4.10 (web pkg/ + carrier-bridge + ws-mesh node). Values
+11/11 + wasm32 + ws-mesh 3× PASS. ALL 3 pkgs re-staged at 0.4.10 (web pkg/ wasm sha e1527886d87396ec / js
+d956b91d07fef140; ws-mesh node wasm 4f0cbf556f93672f; + carrier-bridge). ✓ SIGNATURE UNCHANGED (d.ts):
+range_to_loss_db(transport_id:number, range_units:number):number. Values
 PROVISIONAL (n LoRa2.7/WiFi2.9/Mesh3.0/BLE3.2, PL_ref=0) → re-stage when Roy field-anchors; shape FINAL, signature
 stable. composer told (re-consume pkg, same call site, reach-spread re-tunes, ordering BLE<Mesh<WiFi<LoRa preserved).
 core ack'd. composer's own web-build into its webapp = fine (compiling≠source-edit, one-writer intact).
