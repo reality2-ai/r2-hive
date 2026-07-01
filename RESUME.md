@@ -1,5 +1,24 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔄 2026-07-01 — CROSS-PROVIDER TAKEOVER (codex→claude); TWO new spec items in flight
+Took over from hive-codex. Verified ground truth: r2-hive `platform-trait`@0ca53ef (clean); dfr1195-fw@52b2819
+(dirty: docs/dfr1195-firstlight.patch + platforms/dfr1195/Cargo.lock + ?? tools/xbuild.sh — pre-existing churn from
+prior session, NOT mine; left untouched, committing only my files).
+**(A) R2-TRANSPORT v0.19 (specs 37dfc60) — range→loss LOG-DISTANCE ratified** (reverses v0.4.9's linear). Spec:
+PL(d)=PL_ref+10·n·log10(d/d_ref); schema {reference_path_loss_db, path_loss_exponent} per transport; VALUES
+provisional; SIM-ONLY. core's r2-transport HEAD (b988515) is STILL LINEAR (range_loss_db_per_unit). Single-source =
+core's r2-transport (my wasm range_to_loss_db re-exports it). **ASKED CORE to land log-distance in r2-transport**
+(→inbox); HOLDING my wasm re-align + tests until core lands it (no fork). Composer told (its v0.4.7 log-distance
+instinct was right; v0.4.9 linear was the wrong turn). composer's range_unit Q → d_ref/px convention comes from core's
+v0.19 impl, will relay.
+**(B) R2-BEACON v0.21 (specs bd32ddd) — class-id repeater→hive, ROY GREENLIT** (the wire change previously held).
+role_class_hash string "ai.reality2.device.repeater"→"ai.reality2.device.hive" (class_hash 0x00FC1F17→0xBAFE8AC1;
+FNV auto-derives, no hardcoded hash). Firmware DONE (main.rs:3661, commit 6fb1579), build-green, hash VERIFIED
+(FNV-1a-32 of both strings = spec bytes exactly), ELF staged alfred:~/r2-dfr1195-weave.elf sha 424ec044 (this ELF
+also carries the clean-reset recipe + formation-decouple + role-Hive). WIRE CHANGE: flash all role-0 boards in the
+SAME window as composer's scanner cutover to 0xBAFE8AC1 (mixed-version goes dark) — Roy flashes; coordinating the
+window with composer + supervisor now.
+
 ## ✅ 2026-07-01T14:58:15+12:00 — v0.4.9 WASM PKGS STAGED + THEATER REGRESSION LEAD
 Objective: urgent supervisor unblock for composer after `5809fde` landed `r2-hive-wasm v0.4.9` but generated wasm
 packages on disk were stale. Result: generated staging outputs refreshed; no tracked code/package files changed
