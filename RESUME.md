@@ -23,6 +23,11 @@ arrival_transport: arrival_transport_of(got.3) at the ForwardRequest + a seam de
 --release) ⇒ §2.3B now enforces SYMMETRICALLY (inbound :534 + outbound :716), footgun closed. Verified GREEN blemesh +
 loraroute. r2-dataplane stays None (not the dfr1195 seam; PhyMask ingress ≠ 1:1 PHY). Contract honored: plan_forward(None)
 = always-correct pass-through; canonical-PHY-known ⇒ Some(T).
+**NEXT-RE-VENDOR NOTE (core cdc014e, past cf2646e):** core renamed the last EspNow-named public id
+ESPNOW_MAX_PAYLOAD→MESH_MAX_PAYLOAD (value 250, no wire/behavior). Firmware code does NOT reference it (grep: only
+docs RESUME.md/TRANSPORT-EXPANSION-SCOPE.md + the vendored constants.rs def) ⇒ next re-vendor is CLEAN, no alias needed;
+just refresh the 2 doc mentions + prefer r2_transport::profile::max_payload(TransportId::Mesh)=250 as single-source if
+ever needed. Current #29 vendor @cf2646e still has the OLD name — nothing broken now.
 **FOLLOW-UPS owed:** (1) the RX neighbour-refresh is_reachability_blocked guard is still unwired — only needed IF/when
 overrides are populated on-device (the ingress-drop seam is now symmetric, so populating an override is now safe). (2) #20
 (ConnectionlessRadio ESP-NOW/R2-Mesh) now UNBLOCKED (mesh.rs vendored). (3) build field/staota/carrier combo before a
