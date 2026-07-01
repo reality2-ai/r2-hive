@@ -1,5 +1,41 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — #29 DONE: r2-route + r2-transport re-vendored into dfr1195-fw, BUILD-VERIFIED (commit dfad9b7)
+2-crate vendor from r2-core cf2646e committed blobs (fork-immune); r2-wire + r2-fnv PINNED (frame codecs
+byte-identical, interop-safe). r2-route gained immune.rs (§13.8.2 network-immune, DoS-cap, is_reachability_blocked,
+§2.3B override) + EspNow→Mesh; r2-transport gained profile.rs(+libm) + mesh.rs(alloc-gated) + host_udp/tcp/udp(std,inert).
+Firmware reconcile: main.rs EspNow→Mesh (2 code + 2 comments; ESP-NOW HW driver untouched); ForwardRequest gained
+arrival_transport: Option<Transport> → set None at BOTH sites (r2-dataplane handle_rx_frame + main.rs io_task) =
+behavior-preserving (new drop, inert = prior behavior). **VERIFIED: local xtensa build GREEN on blemesh (route+Mesh/
+espnow) AND loraroute (lora + alloc-gated mesh.rs).** libm resolved as new transitive dep. Committed to dfr1195-fw
+(mine only; docs/dfr1195-firstlight.patch + tools/xbuild.sh left as pre-existing non-mine churn). NOT flashed (Roy-only).
+**FOLLOW-UPS owed:** (1) enable DoS-cap ingress-drop on metal = resolve arrival Transport (io_task has got.3 ordinal in
+ble builds; map u8→Transport) → pass Some(arrival) at the 2 ForwardRequest sites + add the RX neighbour-refresh
+is_reachability_blocked guard, then validate on-device. (2) #20 (ConnectionlessRadio for ESP-NOW / R2-Mesh bearer) was
+GATED on this re-vendor — now UNBLOCKED (mesh.rs ConnectionlessMeshTransport is vendored). (3) full field build set
+(field/staota/carrier) not yet compiled — blemesh+loraroute cover the vendored-crate surface; build the field combo
+before a field flash. Core confirmed (hop-8): bucket-1 wholesale adopt, immune.rs security-load-bearing, libm expected,
+feature-gating as built — nothing for core to fix.
+
+## (historical) #29 EXECUTING — superseded by the DONE entry above
+Core resolved the cascade (off-thread + live): #29 = **2-crate vendor (r2-route + r2-transport), r2-wire PINNED**.
+Verified the pin is interop-safe: r2-wire frame codecs (compact/extended/transcode/types) are BYTE-IDENTICAL
+firmware-vs-core; only additive alloc-gated wifi.rs differs (absent in no_std firmware). **ISOLATED HOST COMPILE
+GREEN:** built cf2646e r2-route+r2-transport against firmware's pinned r2-wire+r2-fnv in a scratch workspace,
+`cargo check --no-default-features` = exit 0 (proves the 2-crate vendor compiles no_std against pinned r2-wire).
+**APPLIED to dfr1195-fw-wt (from cf2646e COMMITTED blobs, fork-immune):** replaced crates/r2-route + crates/r2-transport
+wholesale (r2-route gained immune.rs; r2-transport gained profile.rs+mesh.rs+host_udp/tcp/udp/lora*; profile.rs sha
+76038e63 == core). Kept r2-wire + r2-fnv PINNED. **main.rs reconciled:** all firmware-used r2-route/r2-transport
+symbols VERIFIED present in vendored crates (LoRaRadio is a TRAIT not struct — false-alarm cleared); only break was
+EspNow→Mesh — fixed 2 code refs (1424 Observation.transport, 4062 DATA_RX send) + 2 ordinal comments. `espnow_task`/
+`esp_radio::esp_now::EspNow` left as-is (that's the ESP-NOW HARDWARE driver, maps to abstract Transport::Mesh).
+**IN FLIGHT:** local xtensa build (toolchain present at ~/.rustup/toolchains/esp; NO alfred needed) `cargo build
+--release --no-default-features --features blemesh` — this is the signature-level gate. **DO NOT COMMIT the firmware
+until this build is GREEN.** If red: iterate the specific errors (residual risk = refactored r2-route signatures the
+firmware calls). After blemesh green: also build `lora`/`loraroute` (exercises r2_transport::lora paths) + `field`.
+Then commit dfr1195-fw + (optionally) drive Roy's flash. NOTE firmware worktree has PRE-EXISTING non-mine churn
+(docs/dfr1195-firstlight.patch, platforms/dfr1195/Cargo.lock, tools/xbuild.sh) — commit ONLY my #29 files.
+
 ## ✅ 2026-07-01 — TASK #4: r2-hive BIN builds+tests GREEN vs consolidated r2-core crates (commit 478c6c8)
 Surfaced from INBOX (I'd been on wasm #26 / firmware #29; this r2-hive-BIN workstream had accumulated directives).
 VERIFIED ground truth before acting (didn't blind-trust hours-old directives): all 5 previously-dangling path-deps
