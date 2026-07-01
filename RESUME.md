@@ -1,5 +1,38 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — wasm v0.4.11: route_hops + core log-distance REAL-PARAM drift-sync (commit 104dde1)
+**Trigger:** composer coord-Q — supervisor wanted the directed-message feature as an "R2-TEST-SENDER PLUGIN
+emitting delivered/dropped/hop-path events"; composer built it on real primitives (build_frame/route_frame/
+verifyFrame) and asked if a plugin-install + event-subscribe surface is on the wasm roadmap.
+**MY RULING (my repo, my call):** NO JS plugin-registration surface — a JS "plugin" forks core's Rust Plugin
+trait into JS-land (one-codebase violation). The plugin+event-bus model ALREADY exists & is real in r2-engine
+(register_plugin/Sentant/enqueue/drain_outbound; HB+OTA are real Rust sentants on that bus in-wasm). A
+directed-send test-sender = BENCH INSTRUMENT, not production hive behavior → does NOT belong in the production
+ensemble. So composer's PRIMITIVE version STANDS. Told supervisor; if it wants a REAL Rust in-ensemble plugin
+that's a specs/core Q (my answer: a test instrument doesn't belong in the production ensemble).
+**SHIPPED route_hops(frame)->Uint32Array (v0.4.11):** full route_stack trail [origin,…,last_hop], mirrors
+frame_origin. Closes the hop-path leg → composer's event triad is 100% derivable from real primitives, zero
+plugin: delivered=verifyFrame deliver:true@dest; dropped=route_frame Dropped | verifyFrame deliver:false;
+hop-path=route_hops(frame). ExtendedRouteStack.{len,entries} are pub in core r2-wire → read without touching
+core (one-writer respected).
+**DRIFT CAUGHT (important):** my range test tripwire FIRED — core landed 5e30c49 ("real composer/specs-v0.19
+params") AFTER my e75fd4a build: PL_ref moved 0(provisional)→40 dB (theater.html-matched), n-table now LoRa
+1.5/WiFi 2.35/Mesh 2.85/BLE 3.4 (was my provisional 2.7/2.9/3.0/3.2), clamp [0,160]. My range_to_loss_db/
+transport_profile RE-EXPORT core so they auto-track — only my TEST+doc baked the stale PL_ref=0. Rewrote range
+test to assert the ratified SHAPE (monotonic; d≤d_ref→PL_ref; LoRa<BLE loss), NOT the provisional numbers →
+value-agnostic (survives Roy field-anchor) but still trips on MODEL drift. Doc updated to snapshot current
+values + "code is truth, doc is snapshot".
+**SIDE-EFFECT UNBLOCK for composer:** core's range_to_loss_db now matches composer's theater.html BYTE-FOR-BYTE
+(per core's own comment) → composer's stated trigger to swap its JS pathLossDb → my range_to_loss_db is now MET.
+Told composer to refute-check (confirm its theater.html n-table == the 4-tuple; feed range_units in d_ref=1
+convention) before swapping.
+**VERIFIED:** host 12/12 (incl new route_hops test + drift-synced range test), wasm32 clean, ws-mesh e2e 3× PASS
+(TG isolation over real WS holds). 3 pkgs re-staged v0.4.11: web pkg wasm sha **e253810a13dd320b** / js
+**3cb4353c428c85df**; ws-mesh node wasm e253810a (== web); + carrier-bridge. route_hops in web d.ts confirmed.
+Sent: composer (ruling + route_hops shas + swap unblock), supervisor (ruling + drift catch).
+**This is ALSO the "re-stage when Roy field-anchors provisional values" pending item DISCHARGED** — core's
+5e30c49 IS the anchoring event (provisional 0 → theater.html-matched real params).
+
 ## 🔄 2026-07-01 — CROSS-PROVIDER TAKEOVER (codex→claude); TWO new spec items in flight
 Took over from hive-codex. Verified ground truth: r2-hive `platform-trait`@0ca53ef (clean); dfr1195-fw@52b2819
 (dirty: docs/dfr1195-firstlight.patch + platforms/dfr1195/Cargo.lock + ?? tools/xbuild.sh — pre-existing churn from
