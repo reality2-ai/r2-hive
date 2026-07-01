@@ -1,5 +1,23 @@
 # RESUME — r2-hive (hive-worker)
 
+## ⏳ 2026-07-01 — #26 real WS+UDP transports (supervisor GO; core-seam-blocked for WS binding) [task #26]
+GOAL: r2-hive-wasm stops using the in-process virtual-mesh → meshes over REAL sockets (browser/WS + host/UDP) =
+the production no-radio hive. Two bindings of ONE carrier-independent transport profile (specs R2-TRANSPORT v0.16
+§2.7, bcb1a37 — schema gathers EXISTING per-transport params; only range→loss is new/PROVISIONAL; staleness_timeout
+DERIVED = -ln(min_conf)/λ; guard LoRa.λ<WiFi.λ<BLE.λ). DIVISION: core leads host-UDP (ConnectionlessRadio over
+UdpSocket, d0f1864 — NOT landed yet, core at session-limit until 12:30 Pacific/Auckland); I own WASM-WS binding +
+wiring both into route in/out + the §2.7 exports.
+**DONE (seam-independent, committed 6df4060, v0.4.7, 9/9 tests):** the two §2.7 exports composer+core wanted —
+`quality_from_rssi(rssi_dbm)` (§2.5 −50→1.0/−80→0.0 clamp) + `range_to_loss(distance_m, path_loss_exp,
+ref_loss_db_1m)` (PROVISIONAL log-distance, caller-supplied steepness, range emergent at −80dBm). Same physics
+field+sim share (§2.7 one-source). Composer told.
+**HELD on core (queued, →core inbox for 12:30):** (1) WHERE the shared TransportProfile struct lives (r2-transport?
+import-not-fork); (2) host-UDP ConnectionlessRadio interface — should WASM-WS impl the SAME trait or ride the wasm's
+existing SyncTransport seam?; (3) confirm export sigs. NOT building the WS binding until the seam is confirmed
+(avoid forking core's transport architecture / building the wrong layer). NOTE: current wasm route_frame-in +
+sends-out is already transport-agnostic (JS carries them); the "in-process mesh" is composer's router.js relay →
+real-WS-mesh likely = a WS gateway + router.js glue + profile metadata, NOT a wasm-core rewrite (confirm division).
+
 ## ✅⏳ 2026-07-01 — FORMATION-DECOUPLE firmware DONE + build-verified; PENDING peer-refute [task #28]
 Firmware path of the carrier nbrs=0 root cause. core's API contract (via supervisor, r2-dataplane 140da84):
 if/else — verified→`accept_keepalive`, unverified→`ingest_observation` (both exist in vendored r2-route). SHIPPED
