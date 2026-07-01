@@ -34,8 +34,27 @@ be paired with an auth token before exposure (the code warns on a non-local bind
 (`HiveWs` without `{hk,tgHash}`) runs TG-agnostic (accepts all frames) and logs a loud warning — pass a
 GroupHmac for the real deliver-gate.
 
+## Browser module (composer's webapp) — `hive-ws-browser.js` + `.d.ts`
+The ESM build of the binding for the browser (Node's `hive-ws.js` is the same contract for Node). Composer's
+webapp wires its wasm hives to the gateway with it:
+```js
+import initWasm, * as wasm from './wasmhive/r2_hive_wasm.js';  // wasm-pack --target web pkg (this crate's pkg/)
+await initWasm();
+import { HiveWs } from './hive-ws-browser.js';
+const hive = new HiveWs({ wasm, hiveId: 0x0a, url: 'ws://127.0.0.1:21055', hk: nodesHk, tgHash: TG,
+                          onDeliver: (id, bytes, gate) => …, onRoute: (id, out) => … });
+await hive.connect();
+hive.originate(hive.buildHeartbeat());
+```
+**WS message shape (client ↔ gateway):** a WebSocket **binary** frame whose payload is the raw R2-WIRE frame
+bytes — no JSON envelope on the wire (the gateway is a dumb broadcast bearer). JSON appears only in the local
+`route_frame` return. **Receive pattern** (baked into `HiveWs._onFrame`): `frame_origin`(echo-drop) →
+`verifyFrame`(deliver-gate) → `route_frame`(forwarding, relay `sends[]`). Delivery and forwarding are SEPARATE
+layers — a self-addressed frame yields `route_frame` outcome `Dropped` yet still delivers via `verifyFrame`.
+Types in `hive-ws-browser.d.ts`; the `WasmHive`/free-fn types are in the wasm-pack `pkg/r2_hive_wasm.d.ts`.
+
 ## Status / open seam (see ../../../docs/WS-TRANSPORT-BINDING.md)
-This is the JS-carried (option B) reference. Core owns the host-UDP `ConnectionlessRadio` binding and the
-shared `TransportProfile` struct (§2.7); the one open decision is whether the browser binding stays JS-carried
-(B, recommended) or becomes a Rust `web_sys` `WsRadio` (A, full symmetry). The gateway + wiring survive either.
-Gateway ownership (hive infra vs composer's bench server) — to confirm with composer.
+This is the JS-carried (option B) reference — **RATIFIED B** (core confirmed; reserve A). Core owns the host-UDP
+`ConnectionlessRadio` binding (`r2_transport::host_udp::HostUdpRadio`) and the shared `TransportProfile` (§2.7);
+the browser binding rides the SAME profile over WS. **Gateway = HIVE infra** (composer confirmed its bench runs no
+general WS broadcast bearer). Composer connects its browser wasm hives to this gateway via `hive-ws-browser.js`.

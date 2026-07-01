@@ -55,7 +55,7 @@ class HiveWs {
     // Drop our OWN echo: a broadcast bearer rebroadcasts a relayed copy of our originated frame back
     // to us; an unauthenticated frame isn't dedup-RECORDED (route_inbound_sync A1) so we'd re-relay it.
     // origin == self ⇒ it's ours, returning — drop (F2 self-exclusion; the wasted-echo fix).
-    try { if (this.hive.frame_origin(bytes) === this.id) return; } catch (_) { /* undecodable → fall through */ }
+    try { if (this.wh.frame_origin(bytes) === this.id) return; } catch (_) { /* undecodable → fall through */ }
     // Two SEPARATE layers, per the route contract:
     //  (1) DELIVER-GATE: verify_frame = the real r2_trust deliver-gate (tg_ok/hmac_ok/deliver).
     //      This is how a hive ACCEPTS a frame for its trust-group (the local-delivery decision).
