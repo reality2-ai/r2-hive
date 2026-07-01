@@ -136,6 +136,10 @@ Composer's carrier-as-bridge weave Qs (via supervisor), both verified in r2-hive
   from those tables + a UDP-backed ConnectionlessRadio. FLAG: wasm can't open UDP → profile is carrier-independent, a
   wasm node carries the SAME profile over WebSocket. core wants me to confirm host-UDP-first vs wasm-browser lead when
   I open #26 (I'll do BOTH bindings — supervisor pinned wasm-hive as browser/WS AND host/UDP). Ack'd core.
+  **2026-07-01 core follow-up:** specs is PINNING the transport-profile field schema now; core will have the profile-
+  table shape ready to coordinate. #26 DELIVERABLE flagged by core: r2-hive-wasm must EXPORT quality_from_rssi +
+  range→loss for composer. is_reachability_blocked = grab on next r2-route re-vendor (§2.3B faked-distance ingress
+  gate; flagged in core's ingest_observation caller-contract doc). Ping core the lead binding when I open #26.
 
 ## 📋 2026-07-01 — LoRa-into-bench SCOPE (Roy multi-transport direction; READ-ONLY, #16/#22)
 **KEY FINDING: board-side LoRa is ALREADY BUILT + METAL-PROVEN — integration, not net-new dev.**
