@@ -1,5 +1,46 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔄 2026-07-02 — BATCHED FW BUILD: all pieces BUILT+VERIFIED; awaiting weave feature-set + adversarial review
+Commits (dfr1195-fw): d435a95 (re-vendor r2-route @8f425d6 + LED) → 0c1119c (--control override §2.3C/§2.3B +
+companion fixes) ; (r2-hive): 79cafd1 (bridge rt.* passthrough). ALL feature combos GREEN: ble+viz+benchdist+otal2cap
+(ESP-NOW combined), field+blemesh (field EXCLUDES bench), blemesh, loraroute, blemesh+benchdist.
+Pieces: ✅ re-vendor · ✅ LED(off/flash/breathe) · ✅ viz(00ef65b) · ✅ otal2cap(folds clean) · ✅ override(VRSSI/VDIST/
+VCLR/VBLK → OvrCmd channel → io_task → engine.set_quality_override/set_reachability_blocked; feature benchdist=
+[r2-route/bench-hooks]) · ✅ companion fixes(obs.transport unhardcode + §2.3B ingress gate) · ✅ bridge passthrough.
+**BLOCKERS to STAGE the ELF:** (1) supervisor: EXACT weave base feature set (I built combined as ble,viz,benchdist,
+otal2cap = ESP-NOW; is it ESP-NOW or blemesh? + staota/multitg/field? — v0.21 BUILD_ID looked like staota.*). (2) adversarial
+review workflow wf_974cb118-08e RUNNING (LED lifecycle/override wiring/§2.3B semantics/cfg-combos/bridge). Once both
+clear → build FINAL combined ELF + stage ~/r2-dfr1195-weave.elf + tell supervisor for the single 5-board flash.
+⚠️ KNOWN: blemesh+otal2cap = pre-existing `ch` double-move (both consume the BLE CoC) — MUST resolve (dispatch CoC by
+PSM) IF the weave uses blemesh; ESP-NOW (ble) combined is clean. Deployed bridge (alfred:~/carrier-bridge/) needs re-scp.
+**DO-NOT:** flash is Roy-only; this is the LAST USB flash (everything after = BLE-OTA via otal2cap) — the ELF must be
+correct-first-time. LED is unconditional (all builds); override/viz are bench-gated (field-excluded).
+
+## 🔄 2026-07-02 — BATCHED FIRMWARE BUILD (supervisor: ONE combined ELF = LAST USB flash across 5 boards)
+Roy wants ONE reflash containing everything; after this, all updates go over BLE-OTA. HIGH STAKES (last USB flash).
+Pieces (build-verify each; adversarial-review the combined before staging):
+1. ✅ **r2-route RE-VENDOR** cf2646e→8f425d6 (fork-immune committed blobs) — brings set_quality_override + `bench-hooks`
+   feature (§2.3C, core eabbc99); r2-transport+r2-wire PINNED (unchanged since cf2646e). blemesh GREEN. DONE.
+2. ⏳ **LED signalling** (Roy, unconditional): OFF idle (DROP the lub-DUB heartbeat) + brief bright FLASH on event
+   arrival (RECEIPT_SIGNAL, make unconditional @deliver-gate main.rs:1888, was loraroute-only) + slow BREATHE while OTA
+   (new OTA_ACTIVE flag set in ota_receive_over_coc entry/exit) + keep IDENTIFY solid. Render loop @624-680 rewrite.
+3. ⏳ **rt.snap viz telemetry** — already built (00ef65b); just in the combined feature set. (Re-cite R2-DIAGNOSTICS v0.2
+   §5 in the viz doc per specs.)
+4. ⏳ **otal2cap** BLE-OTA receiver — already impl (ota_receive_over_coc @4796); enable+verify in combined.
+5. ⏳ **--control override cmds**: quality-override (→engine.set_quality_override, §2.3C, needs bench-hooks) + reachability
+   (→engine.set_reachability_blocked, §2.3B, already vendored). Parser=uart_rx_task@4193 (separate task, no engine access)
+   → route via a static command channel drained in io_task (MASK_LIST@3467 pattern). fake_rssi = tx_dbm(10) -
+   loss_from_range_units(transport, range). got.3→Transport seam.
+6. ⏳ **companion fixes**: unhardcode obs.transport (main.rs:1511→arrival_transport_of(got.3)); wire §2.3B ingress gate
+   (HB obs feed @1520-44 check is_reachability_blocked).
+7. ⏳ **bridge rt.* passthrough**: r2-carrier-bridge.py (crates/r2-hive-wasm/carrier-bridge/) currently filters to
+   SEEN/R2RX/INJECT/# route — add passthrough for lines starting with the rt.* JSON prefix (composer's blocker).
+FEATURES for the combined ELF: viz + otal2cap + a bench feature enabling r2-route/bench-hooks for the override cmds
+(+ LED unconditional). field build MUST still exclude viz/bench-hooks. Verify combos: combined, field(excl), blemesh,
+loraroute, bridge. Then stage ELF + tell supervisor for the single 5-board flash. RSSI-override drag driven by composer.
+Adversarial finding still holds: quality-override → link_quality/plan/telemetry, NOT physical radio egress (mesh_broadcast
+floods all); §2.3B beyond-range for confidence-decay. Told supervisor; §2.3A egress-gate available if Roy wants literal radio-off.
+
 ## ✅ 2026-07-02 — R2-DIAGNOSTICS v0.1 RATIFIED (specs a47ab32) — telemetry shape is now CANON
 specs ratified my r2-hive-wasm neighbours()/paths() JSON shape VERBATIM as R2-DIAGNOSTICS v0.1 (verified against my
 lib.rs source). Shipped shape (wasm + dfr1195 viz feature) matches EXACTLY → zero code change; cited the spec as canon
