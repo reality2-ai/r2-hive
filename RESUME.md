@@ -1,5 +1,37 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01T14:58:15+12:00 — v0.4.9 WASM PKGS STAGED + THEATER REGRESSION LEAD
+Objective: urgent supervisor unblock for composer after `5809fde` landed `r2-hive-wasm v0.4.9` but generated wasm
+packages on disk were stale. Result: generated staging outputs refreshed; no tracked code/package files changed
+because these outputs are gitignored.
+- **Branch/HEAD/worktree:** `platform-trait` at `7c9122e` (`docs: record class-id ruling and wasm lock`), matching
+  `origin/platform-trait` before this RESUME-only update. Generated package dirs remain ignored by git:
+  `crates/r2-hive-wasm/pkg`, `crates/r2-hive-wasm/carrier-bridge/wasmhive-node`, and
+  `crates/r2-hive-wasm/ws-mesh/wasmhive-node`.
+- **Staged package outputs:** rebuilt all three from current source: web package at `crates/r2-hive-wasm/pkg`
+  and node packages at `crates/r2-hive-wasm/{carrier-bridge,ws-mesh}/wasmhive-node`. All now report
+  `r2-hive-wasm 0.4.9`, have `range_to_loss_db`, `transport_profile`, and `quality_from_rssi`, and no longer export
+  stale `range_to_loss`. Web package hashes: `r2_hive_wasm.js` `98e641bf`, `r2_hive_wasm.d.ts` `5c8a92ce`,
+  `r2_hive_wasm_bg.wasm` `ffec64d5`, `package.json` `08ce6a53`. Node package hashes:
+  `r2_hive_wasm.js` `0cb104c6`, `r2_hive_wasm.d.ts` `c6cd3940`, `r2_hive_wasm_bg.wasm` `ffec64d5`,
+  `package.json` `8b0a4e70`.
+- **Verification:** `wasm-pack build --release --target web`; `wasm-pack build --release --target nodejs --out-dir
+  carrier-bridge/wasmhive-node`; `wasm-pack build --release --target nodejs --out-dir ws-mesh/wasmhive-node`; direct
+  Node require check proved `version()=="0.4.9"`, `transport_profile(2)` JSON, `range_to_loss_db(2,10)`, and
+  `quality_from_rssi(-65)`; `node ws-mesh/test-mesh.js` PASS; carrier router test-vector PASS. Only observed warning
+  was the pre-existing `r2-wire::hmac::EXT_AUTH_MAX` dead-code warning plus wasm-pack version/LICENSE notices.
+- **Composer theater lead sent:** composer-side `webapp/theater.html` and `webapp/bench-sim.html` still import
+  stale `/webapp/wasmhive` `range_to_loss`; their checked-in `webapp/wasmhive` copy lacks `range_to_loss_db` and
+  `transport_profile`. That is the strongest current lead for Roy's missing event visualisations: stale wasm import
+  can abort module init before animation/event wiring starts. Composer owns that repo; do not patch it from r2-hive.
+- **Event-driver context sent to composer:** packet/relay flow is driven by `route_frame(...).sends[]` and each send's
+  `kind`/`target`/`frame`; delivery confirmations are driven by `verifyFrame(frame).deliver` rather than
+  `route_frame().outcome` because route forwarding is separate from local delivery; sentant/app/OTA arms are driven by
+  `tick()` and `deliver_event(frame)` returned `frames`/`progress`. Migration hazards to check in composer:
+  `range_to_loss` -> `range_to_loss_db(id, units)`, use `transport_profile(id)` fields for physics, and preserve
+  numeric transport-id handling for Mesh id `5`.
+- **Changed files:** this `RESUME.md` entry only. Generated wasm outputs are on disk for local staging but ignored.
+
 ## ✅ 2026-07-01 — TAKEOVER CLEANUP: class-id ruling + wasm lockfile hygiene
 Objective: finish the interrupted handoff after specs ruled the v0.17 class-id question and hive-codex found dirty
 generated/lockfile state. Pre-cleanup ground truth: `platform-trait` at `5809fde` (ahead of origin), with
