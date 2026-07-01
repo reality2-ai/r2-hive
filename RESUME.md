@@ -1,5 +1,24 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-01 — ROLE RENAME Repeater→Hive (R2-RUNTIME v0.17) + core WS-design APPROVED
+**Role rename (dfr1195-fw 52b2819, build-green):** specs R2-RUNTIME v0.17 (Roy) — canonical roles = sensor/HIVE/
+bridge/receiver; role-0 Repeater→Hive (LABEL only). Renamed Role enum variant + label()→"hive"; wire byte 0 +
+from_wire + behaviour UNCHANGED; "repeater"=descriptive alias. **KEPT** the R2-BEACON §8.1 class-id string
+"ai.reality2.device.repeater" (wire class_hash 00FC1F17) to honor "no wire change" — **asked specs** if the class-id
+also renames (separate wire change) or stays .repeater. Recipe ELF re-staged (alfred:~/r2-dfr1195-weave.elf sha
+1c66026c). RPF1 role bytes unchanged (0=Hive), so the prep recipe is unaffected.
+**core APPROVED WS-TRANSPORT-BINDING.md (all 4):** (1) TransportProfile→r2-transport (there's an uncommitted
+profile.rs WIP core will adopt+commit as canonical; import THAT byte-exact — HOLD until core pings field names/path);
+(2) WS binding = **B** (JS-carried, my rec) confirmed, reserve A; (3) exports confirmed (quality_from_rssi byte-exact
+to core's transport.rs, zero drift; range_to_loss provisional until specs ratifies values = one-line swap);
+(4) gateway = **composer's** bench server (my ws-mesh/gateway.js = reference/test-harness). HOLD WS route in/out wiring
+on core's committed-struct ping (as planned — no fork).
+**SCF-suppression catch → CANON:** specs R2-ROUTE v0.46 §3B (6a953cf) — SCF has_viable MUST require confidence >
+NEIGHBOUR_PROVISIONAL_CEILING (authenticated liveness); conjecture TN-L0-XT-AB-006 open; core wiring SCF-gate to
+is_authenticated. Folds into #29.
+**#29 r2-route re-vendor = WHOLE-CRATE (core ruling), AFTER core lands the v0.46/v0.47 batch** (DoS-cap 0df4646 +
+is_reachability_blocked + SCF-has_viable-gate + spray-rank) → vendor ONE coherent HEAD. core pings when committed.
+
 ## ⏳ 2026-07-01 — #26 real WS+UDP transports (supervisor GO; core-seam-blocked for WS binding) [task #26]
 GOAL: r2-hive-wasm stops using the in-process virtual-mesh → meshes over REAL sockets (browser/WS + host/UDP) =
 the production no-radio hive. Two bindings of ONE carrier-independent transport profile (specs R2-TRANSPORT v0.16
