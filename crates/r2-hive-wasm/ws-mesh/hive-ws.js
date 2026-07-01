@@ -21,6 +21,13 @@ class HiveWs {
     this.hive = new this.wh.WasmHive(hiveId >>> 0);
     if (opts.hk && opts.tgHash != null) {
       this.hive.setGroupHmac(Uint8Array.from(opts.hk), opts.tgHash >>> 0);
+      this.keyed = true;
+    } else {
+      // MISCONFIG GUARD (refuter Angle-3): with no GroupHmac the hive runs TG-AGNOSTIC — verifyFrame
+      // accepts ALL frames (deliver:true, no gate). Fine for a pure-routing sim; DANGEROUS for a real
+      // mesh (no trust boundary). Warn loudly so a keyless production node can't pass silently.
+      this.keyed = false;
+      process.stderr.write(`# ⚠ hive ${hex(hiveId >>> 0)}: NO GroupHmac (opts.hk absent) — TG-AGNOSTIC, ACCEPTS ALL FRAMES. Pass {hk,tgHash} for the real deliver-gate.\n`);
     }
     this.id = hiveId >>> 0;
     this.url = url;
@@ -45,6 +52,10 @@ class HiveWs {
   }
 
   _onFrame(bytes) {
+    // Drop our OWN echo: a broadcast bearer rebroadcasts a relayed copy of our originated frame back
+    // to us; an unauthenticated frame isn't dedup-RECORDED (route_inbound_sync A1) so we'd re-relay it.
+    // origin == self ⇒ it's ours, returning — drop (F2 self-exclusion; the wasted-echo fix).
+    try { if (this.hive.frame_origin(bytes) === this.id) return; } catch (_) { /* undecodable → fall through */ }
     // Two SEPARATE layers, per the route contract:
     //  (1) DELIVER-GATE: verify_frame = the real r2_trust deliver-gate (tg_ok/hmac_ok/deliver).
     //      This is how a hive ACCEPTS a frame for its trust-group (the local-delivery decision).

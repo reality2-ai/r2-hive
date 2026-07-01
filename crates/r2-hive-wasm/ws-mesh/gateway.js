@@ -15,6 +15,13 @@ const crypto = require('crypto');
 
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const PORT = parseInt(process.argv[2] || process.env.WS_MESH_PORT || '21055', 10);
+// SECURITY BOUNDARY (WS-seam refuter Angle-2): the gateway has NO connection auth or rate-limit — any
+// client that can open a socket can flood O(N×M) route_frame() calls. So it binds LOCALHOST-ONLY by
+// default (127.0.0.1); the closed-bench 127.0.0.1 isolation IS the boundary. Binding a routable
+// interface (WS_MESH_HOST=0.0.0.0) is an EXPLICIT opt-in that you MUST pair with a real auth token /
+// rate-limit before exposing. (Node's `listen(port)` with no host would bind 0.0.0.0 — do NOT rely on
+// the default; we pin the host below.)
+const HOST = process.env.WS_MESH_HOST || '127.0.0.1';
 
 const clients = new Set(); // net.Socket, one per connected hive
 
@@ -112,8 +119,11 @@ server.on('upgrade', (req, socket) => {
   socket.on('error', drop);
 });
 
-server.listen(PORT, () => {
-  process.stderr.write(`# ws-mesh gateway listening ws://127.0.0.1:${PORT} (broadcast bearer)\n`);
+if (HOST !== '127.0.0.1' && HOST !== 'localhost' && HOST !== '::1') {
+  process.stderr.write(`# ⚠ ws-mesh gateway binding NON-LOCAL host ${HOST} — NO AUTH/RATE-LIMIT. Add a token before exposing.\n`);
+}
+server.listen(PORT, HOST, () => {
+  process.stderr.write(`# ws-mesh gateway listening ws://${HOST}:${PORT} (broadcast bearer, ${HOST === '127.0.0.1' ? 'localhost-only' : 'EXPOSED'})\n`);
 });
 
 module.exports = { encodeFrame, drainFrames, accept }; // for unit tests

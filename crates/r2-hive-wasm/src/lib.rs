@@ -44,7 +44,7 @@ fn kind_from_u8(k: u8) -> TransportKind {
         2 => TransportKind::Lora,
         3 => TransportKind::Internet,
         4 => TransportKind::Usb,
-        5 => TransportKind::EspNow,
+        5 => TransportKind::Mesh, // R2-TRANSPORT v0.18: EspNow → Mesh (r2-core 78a31a8)
         _ => TransportKind::Udp,
     }
 }
@@ -79,6 +79,21 @@ pub fn range_to_loss(distance_m: f32, path_loss_exp: f32, ref_loss_db_1m: f32) -
         return ref_loss_db_1m; // ≤1 m reference floor (no negative log10)
     }
     ref_loss_db_1m + 10.0 * path_loss_exp * distance_m.log10()
+}
+
+/// The frame's ORIGINATOR (route_stack[0], the ROUTE-ORIGIN-1 authentic origin), or 0 if the frame
+/// is route-less / undecodable. A WS-mesh client uses this to DROP its own echo — a broadcast bearer
+/// rebroadcasts a relayed copy back to the originator; since an unauthenticated frame is dedup-CHECKED
+/// but not dedup-RECORDED (route_inbound_sync A1), the originator would otherwise re-relay its own
+/// frame's echo (wasted bandwidth). `origin == self` ⇒ drop. (source_hive stays 0 at the call site:
+/// route_inbound_sync derives the true immediate-sender from route_stack[last], so F2 exclusion is
+/// already correct — the echo is an originator-reprocess artefact, not a source_hive bug.)
+#[wasm_bindgen]
+pub fn frame_origin(frame: &[u8]) -> u32 {
+    match r2_wire::decode_extended(frame) {
+        Ok(m) => m.route.and_then(|r| r.origin()).unwrap_or(0),
+        Err(_) => 0,
+    }
 }
 
 /// A sim-side transport: it never receives (the sim injects via `route_frame`); it
@@ -677,6 +692,15 @@ mod tests {
         assert!((quality_from_rssi(-65.0) - 0.5).abs() < 1e-6); // midpoint
         assert_eq!(quality_from_rssi(-30.0), 1.0); // saturates above −50
         assert_eq!(quality_from_rssi(-100.0), 0.0); // saturates below −80
+    }
+
+    #[test]
+    fn frame_origin_reads_route_stack0_and_0_on_garbage() {
+        let h = WasmHive::new(0x0000_00aa);
+        let f = h.build_frame(0x0000_00bb, 0x1234, &[1, 2, 3], 7);
+        assert_eq!(frame_origin(&f), 0x0000_00aa); // originator = route_stack[0] = self
+        assert_eq!(frame_origin(b"not-a-frame"), 0); // undecodable → 0
+        assert_eq!(frame_origin(&[]), 0);
     }
 
     #[test]

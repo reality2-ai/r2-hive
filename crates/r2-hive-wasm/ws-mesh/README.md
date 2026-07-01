@@ -26,6 +26,14 @@ cd ws-mesh && node test-mesh.js     # expect 3× PASS
 Run a live mesh: `node gateway.js 21055` then point hive clients (or composer's browser app) at
 `ws://<host>:21055`.
 
+## Security boundary (WS-seam refuter Angle-2)
+The gateway has **no connection auth or rate-limit** — any client that can open a socket floods
+`route_frame()` O(N×M). It therefore binds **localhost-only (127.0.0.1) by default** — that isolation
+IS the boundary. Binding a routable interface is an explicit opt-in (`WS_MESH_HOST=0.0.0.0`) that MUST
+be paired with an auth token before exposure (the code warns on a non-local bind). A keyless hive client
+(`HiveWs` without `{hk,tgHash}`) runs TG-agnostic (accepts all frames) and logs a loud warning — pass a
+GroupHmac for the real deliver-gate.
+
 ## Status / open seam (see ../../../docs/WS-TRANSPORT-BINDING.md)
 This is the JS-carried (option B) reference. Core owns the host-UDP `ConnectionlessRadio` binding and the
 shared `TransportProfile` struct (§2.7); the one open decision is whether the browser binding stays JS-carried
