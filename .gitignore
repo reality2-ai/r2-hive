@@ -13,3 +13,7 @@
 
 # Compiled deploy binaries — use GitHub releases / git-lfs, not git history (supervisor/Roy)
 prebuilt/
+
+# Python bytecode cache (carrier-bridge) — generated, never track
+__pycache__/
+*.pyc
