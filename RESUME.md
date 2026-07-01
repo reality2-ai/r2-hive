@@ -30,9 +30,14 @@ would then be EXPECTED/coordinated, not drift). My 0.001 tripwire stands.
 **Sent:** composer (corrected swap params incl 0.001 floor + v0.4.12 sha), core (v0.4.11 already had real params;
 the delta was the floor; asked if 0.001 FINAL; wrongly-accused-of-amend RETRACTED after its forensics).
 **#29 UNBLOCKED by core (tree stable @cf2646e, worktree==5e30c49 committed):** core offers vendor-now-on-0.001 OR
-hold-for-specs-floor. Floor Q is ORTHOGONAL to #29 — r2-route re-vendor ≠ r2-transport profile, and the firmware
-uses MEASURED RSSI not synthetic range_to_loss, so the §2.7 floor never touches firmware routing. Decision: vendor
-from COMMITTED blobs (fork-immune) when I turn to #29; not floor-gated.
+hold-for-specs-floor. Floor coupling to #29 is MINOR (verified, NOT fully orthogonal — I initially over-claimed):
+r2-route ROUTING BEHAVIOR is floor-independent (decides on MEASURED RSSI, not synthetic range_to_loss), BUT the
+r2-route CRATE re-exports range_to_loss_db/loss_from_range_units (lib.rs:66-67) + carries a loss-VALUES test
+(tests.rs:45-53: Ble74/WiFi63.5/LoRa55/Mesh68.5/LoRa(-10)→0, all consistent with PL_ref=40 + floor 0.001). So a
+future specs d_ref flip = re-touch ~5 vendored test numbers, NOT a behavior change. Decision: vendor from COMMITTED
+blobs @cf2646e (fork-immune) on 0.001 canon; the DoS-cap/is_reachability_blocked/SCF-gate/spray security fixes are
+the value and are floor-independent. Steps owed: diff firmware's vendored r2-route vs core committed (firmware-specific
+deltas to preserve?) + EspNow→Mesh v0.18 align + rebuild on alfred + re-stage.
 
 ## ✅ 2026-07-01 — wasm v0.4.11: route_hops + core log-distance REAL-PARAM drift-sync (commit 104dde1)
 **Trigger:** composer coord-Q — supervisor wanted the directed-message feature as an "R2-TEST-SENDER PLUGIN
