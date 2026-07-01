@@ -67,18 +67,51 @@ pub fn quality_from_rssi(rssi_dbm: f32) -> f32 {
     ((rssi_dbm - RSSI_ZERO) / (RSSI_FULL - RSSI_ZERO)).clamp(0.0, 1.0)
 }
 
-/// §2.7 `range → loss` (PROVISIONAL — the schema pins the SHAPE; per-transport steepness values are
-/// pending composer+core sync + operator ratification, so they are CALLER-supplied, NOT baked here).
-/// Log-distance path-loss: `loss(d) = ref_loss_db_1m + 10·n·log10(d)` dB (n = `path_loss_exp`, d in
-/// metres, reference at 1 m). Range is EMERGENT (not a stored constant): compose
-/// `quality_from_rssi(tx_dbm − range_to_loss(d, n, ref))` and read the distance where quality crosses
-/// 0 (the −80 dBm zero-crossing) as the transport's range.
-#[wasm_bindgen]
-pub fn range_to_loss(distance_m: f32, path_loss_exp: f32, ref_loss_db_1m: f32) -> f32 {
-    if distance_m <= 1.0 {
-        return ref_loss_db_1m; // ≤1 m reference floor (no negative log10)
+/// §2.2 medium ids → the canonical [`r2_transport::TransportId`] (single-source; same order as
+/// `kind_from_u8`): 0 Ble / 1 Wifi / 2 Lora / 3 Internet / 4 Usb / 5 Mesh / 6 Udp.
+fn transport_id_from_u8(k: u8) -> r2_transport::TransportId {
+    use r2_transport::TransportId;
+    match k {
+        0 => TransportId::Ble,
+        1 => TransportId::Wifi,
+        2 => TransportId::Lora,
+        3 => TransportId::Internet,
+        4 => TransportId::Usb,
+        5 => TransportId::Mesh,
+        _ => TransportId::Udp,
     }
-    ref_loss_db_1m + 10.0 * path_loss_exp * distance_m.log10()
+}
+
+/// §2.7 `range → loss` — the CANONICAL model, single-sourced from core's r2-transport (7f31dab), so the
+/// sim + field share one physics table (no drift). Linear synthetic path-loss: `loss = range_units ×
+/// range_loss_db_per_unit(transport)` dB (per-transport slope is now a ratified const, not caller-guessed;
+/// negative/NaN/inf clamp to 0). Range is EMERGENT: `quality_from_rssi(tx_dbm − range_to_loss_db(t, r))`
+/// crosses 0 at the −80 dBm point = the transport's range. (Replaces the earlier provisional log-distance
+/// `range_to_loss`; core ratified the linear per-transport-slope model.)
+#[wasm_bindgen]
+pub fn range_to_loss_db(transport_id: u8, range_units: f32) -> f32 {
+    r2_transport::profile::range_to_loss_db(transport_id_from_u8(transport_id), range_units)
+}
+
+/// The full canonical §2.7 [`r2_transport::TransportProfile`] for a transport, as JSON — the shared
+/// param-set the routing layer + the radio-sim both read. Fields: max_payload (MTU), power_cost,
+/// decay_lambda (λ, per-transport staleness; LoRa<WiFi<BLE), range_loss_db_per_unit, jitter_ms,
+/// congested_jitter_ms. Composer's sim reads THIS (not hard-coded copies) so there is zero sim/field drift.
+#[wasm_bindgen]
+pub fn transport_profile(transport_id: u8) -> String {
+    let p = r2_transport::TransportProfile::for_transport(transport_id_from_u8(transport_id));
+    format!(
+        "{{\"transport\":{},\"max_payload\":{},\"power_cost\":{},\"decay_lambda\":{},\"range_loss_db_per_unit\":{},\"jitter_ms\":[{},{}],\"congested_jitter_ms\":[{},{}]}}",
+        transport_id,
+        p.max_payload,
+        p.power_cost,
+        p.decay_lambda,
+        p.range_loss_db_per_unit,
+        p.jitter_ms.0,
+        p.jitter_ms.1,
+        p.congested_jitter_ms.0,
+        p.congested_jitter_ms.1,
+    )
 }
 
 /// The frame's ORIGINATOR (route_stack[0], the ROUTE-ORIGIN-1 authentic origin), or 0 if the frame
@@ -704,15 +737,27 @@ mod tests {
     }
 
     #[test]
-    fn range_to_loss_is_monotonic_and_range_emerges() {
-        // reference floor at ≤1 m
-        assert!((range_to_loss(1.0, 2.0, 40.0) - 40.0).abs() < 1e-6);
-        // loss grows with distance
-        assert!(range_to_loss(100.0, 2.0, 40.0) > range_to_loss(10.0, 2.0, 40.0));
-        // EMERGENT range: with tx=0 dBm, n=2, ref=40 → loss(100 m)=80 dB → rssi=−80 → quality 0;
-        // at 50 m quality is still > 0. The range is the quality-zero crossing, not a stored constant.
-        assert_eq!(quality_from_rssi(0.0 - range_to_loss(100.0, 2.0, 40.0)), 0.0);
-        assert!(quality_from_rssi(0.0 - range_to_loss(50.0, 2.0, 40.0)) > 0.0);
+    fn range_to_loss_db_is_canonical_linear_and_lora_outranges_ble() {
+        // linear per-transport slope (canonical §2.7): loss grows with range
+        assert!(range_to_loss_db(2, 100.0) > range_to_loss_db(2, 10.0)); // LoRa (id 2)
+        // LoRa's smaller slope → LESS loss at the same range than BLE → longer range
+        assert!(range_to_loss_db(2, 50.0) < range_to_loss_db(0, 50.0)); // LoRa < BLE loss
+        // negative/zero range clamps to 0 loss (binding-safe)
+        assert_eq!(range_to_loss_db(2, -5.0), 0.0);
+        // EMERGENT range: at a long range BLE quality has decayed further than LoRa (BLE shorter range)
+        let far = 1000.0;
+        assert!(
+            quality_from_rssi(0.0 - range_to_loss_db(0, far))
+                <= quality_from_rssi(0.0 - range_to_loss_db(2, far))
+        );
+    }
+
+    #[test]
+    fn transport_profile_exposes_core_canonical_fields() {
+        let lora = transport_profile(2);
+        assert!(lora.contains("\"max_payload\":222")); // R2-LORA §5.2 MTU (core for_transport)
+        assert!(lora.contains("range_loss_db_per_unit"));
+        assert!(lora.contains("decay_lambda"));
     }
 
     // Real R2-WIRE extended frame builder (mirrors r2-hive-core's sync_host test).
