@@ -1,5 +1,21 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔄 2026-07-02 — ROUTEENGINE TELEMETRY question (supervisor) — ANSWERED, awaiting prototype-vs-spec decision
+Supervisor asked: does dfr1195 firmware expose RouteEngine neighbour/path telemetry (confidence/RSSI/decay) over
+serial/--control, and what's the smallest addition to emit the wasm neighbours()/paths() JSON shape for the physical
+theater? ANSWER (verified main.rs): EXISTS PARTIALLY — same r2-route getters as wasm (neighbours()/paths()/
+neighbour_fade_remaining, identical post-#29); already emits 'NBR-TBL count=N {hive@conf*1000}' every HB fire
+(main.rs:1181, fastevict-gated) + path best_for (1598) + real per-recv RSSI (rx_control.rssi, 4078). MISSING: the full
+wasm shape + a clean snapshot. SMALLEST ADD: periodic emit_route_snapshot(&engine,now) reusing the getters + serial
+emit + HB-fire hook, emitting the EXACT wasm shape; ~30-50 lines, NO core change; JSON-lines (parity w/ wasm + my
+carrier-bridge #24 forwards to viz-events WS :21060) or CBOR via existing emit_msg; feature-gate ('viz'/reuse routetest)
+so FIELD excludes it. SPEC-FIRST FLAG raised: the neighbours()/paths() shape is AD-HOC in r2-hive-wasm (mine) — becomes
+a cross-component contract (fw+adapter+browser+composer per-device nodes) → recommend specs canonicalize it
+(R2-DIAGNOSTICS / R2-ROUTE §telemetry) before cementing, like the WS-bridge gaps. Offered: ship a bench-gated PROVISIONAL
+prototype (wasm shape as-is) to unblock composer NOW, or hold for the spec section. **AWAITING supervisor's call.**
+Feeds composer's just-tasked per-device bench nodes + always-on confidence viz. (Getters are core's r2-route; emit is
+mine/host; shape is specs'.)
+
 ## ✅ 2026-07-02 — v0.21 class-id FLASH EXECUTED (Roy, all 4 boards) — takeover item (B) fully closed
 Supervisor confirmed Roy flashed all 4 boards (3 hives + carrier) with ELF 424ec044 (v0.21 class-id +
 formation-decouple + role-Hive + clean-reset recipe). All role-0 now beacon hive class_hash 0xBAFE8AC1 (was
