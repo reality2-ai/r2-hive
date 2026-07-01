@@ -1620,6 +1620,7 @@ version = "0.1.0"
 dependencies = [
  "heapless",
  "libm",
+ "r2-transport",
  "r2-wire",
 ]
 
@@ -1627,6 +1628,7 @@ dependencies = [
 name = "r2-transport"
 version = "0.1.0"
 dependencies = [
+ "libm",
  "r2-wire",
 ]
 
