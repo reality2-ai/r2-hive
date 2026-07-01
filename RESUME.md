@@ -1,16 +1,21 @@
 # RESUME — r2-hive (hive-worker)
 
-## ⏳ 2026-07-01 — FORMATION-DECOUPLE firmware task (supervisor GO; core-blocked) [task #28]
-Firmware path of the carrier nbrs=0 root cause + specs/core H9-preserving ruling. CURRENT (main.rs:1411-1433):
-under `multitg` the neighbour feed is verify-gated — `couple_ok = verify_extended(&m,&group_hmac)`; the ONLY
-table feed `engine.accept_keepalive(obs,boot_epoch,hb_seq,false)` (+set_neighbour_duty_class) sits INSIDE
-`if couple_ok` → unverified HB forms NO neighbour → nbrs=0. WANT: form/refresh from ANY decoded HB (nbrs>0,
-topology); GroupHmac gates ONLY liveness/duty/deliver. Guard: unverified-HB→nbrs>0 but no liveness/duty/deliver.
-**BLOCKED on core** (asked, →inbox): the canonical r2-route API split — observe/form primitive vs accept_keepalive
-(liveness), + whether plan_forward already excludes a formed-but-not-kept-alive nbr (auto-guard). HOLD firmware
-edit until core specifies fn signatures (core-first for the dataplane; no fork). Wire plan: form-on-any-HB OUTSIDE
-couple_ok; accept_keepalive+duty+deliver INSIDE. Peer-refute before done (trust/topology boundary). GO-GATE for the
-prep run is GREEN (composer confirmed distinct master_secret); supervisor assembling Roy's flash run-sheet.
+## ✅⏳ 2026-07-01 — FORMATION-DECOUPLE firmware DONE + build-verified; PENDING peer-refute [task #28]
+Firmware path of the carrier nbrs=0 root cause. core's API contract (via supervisor, r2-dataplane 140da84):
+if/else — verified→`accept_keepalive`, unverified→`ingest_observation` (both exist in vendored r2-route). SHIPPED
+**dfr1195-fw c5ccdd3**, TWO bugs fixed (both present, both found via the clean-reset build-verify):
+1. **EMIT (the real root):** HB header `flags {mcu_origin:true,..Default}` → has_route=FALSE while route=Some;
+   `sign_extended` PRESERVES flags (doesn't force has_route) → emitted HB decoded ORIGIN-LESS even under multitg →
+   dropped at ROUTE-ORIGIN-1A → NO neighbour ever formed. Fixed has_route:true (mirrors core encode_keepalive fix).
+   [Corrected my earlier WRONG claim that emit already set has_route — verified, didn't assume.]
+2. **RX decouple:** ANY decoded HB → `engine.ingest_observation(obs)` (TG-agnostic §2.1 link, relay-viable, nbrs>0);
+   couple_ok(GroupHmac) gates ONLY accept_keepalive+duty+seen+PCO/rate; seq/dc parsed ONLY in verified branch;
+   delivery stays classify(auth&&addressed). is_reachability_blocked OMITTED (not in vendored r2-route; bench mask
+   off) → r2-route re-vendor follow-up. DoS-band (provisional low-conf upsert) = core's flagged NOT-YET, noted in-code.
+Build-verified xtensa (carrier,multitg,field,routetest green, 1.32MB). **Recipe ELF RE-STAGED** with this fix
+(alfred:~/r2-dfr1195-weave.elf sha 52da8eae) — ESSENTIAL, pre-fix boards form 0 nbrs.
+**PENDING:** peer-refute (asked supervisor for a codex twin on c5ccdd3 — spoofed-origin/DoS-eviction/over-under-gate).
+Not marking fully done until challenged.
 
 ## ⚠ 2026-07-01 — CARRIER FLASHED + LIVE on Alfred; R2RX works, PARTICIPATION blocked (TG-key mismatch) — diagnosed
 Carrier flashed (role=STA fw=leaderless-0.4). R2RX reception WORKS (real over-the-air frames). But can't verify/
