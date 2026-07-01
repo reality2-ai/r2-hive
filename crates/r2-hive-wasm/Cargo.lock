@@ -324,7 +324,7 @@ dependencies = [
 
 [[package]]
 name = "r2-hive-wasm"
-version = "0.4.11"
+version = "0.4.12"
 dependencies = [
  "ed25519-dalek",
  "r2-engine",

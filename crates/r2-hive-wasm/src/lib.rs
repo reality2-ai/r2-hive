@@ -84,13 +84,15 @@ fn transport_id_from_u8(k: u8) -> r2_transport::TransportId {
 
 /// §2.7 `range → loss` — the CANONICAL model, single-sourced from core's r2-transport (v0.19), so the
 /// sim + field share one physics table (no drift). LOG-DISTANCE path-loss (§2.7 RATIFIED shape):
-/// `loss = clamp(PL_ref + 10·n·log10(max(range_units, d_ref) / d_ref), 0, 160)` dB, d_ref=1,
-/// n=path_loss_exponent per transport; d floored to d_ref (d≤d_ref → PL_ref; no negative loss, no gain).
-/// Range is EMERGENT: `quality_from_rssi(tx_dbm − range_to_loss_db(t, r))` crosses 0 at the −80 dBm point
-/// = the transport's range. VALUES PROVISIONAL, single-sourced from core (a snapshot as of core 5e30c49 =
-/// composer theater.html-matched: PL_ref 40 dB for all RF transports; n = LoRa 1.5 / WiFi 2.35 / Mesh 2.85
-/// / BLE 3.4; IP transports n=0 ⇒ zero loss) pending Roy field-anchor — only the numbers move, the shape is
-/// final; signature stable (d_ref internal). Code is truth; this doc-list is the snapshot.
+/// `loss = clamp(PL_ref + 10·n·log10(max(range_units, 0.001) / d_ref), 0, 160)` dB, d_ref=1,
+/// n=path_loss_exponent per transport. NEAR-FIELD is MODELLED: the floor is a numerical 0.001 (not d_ref),
+/// so a sub-reference distance (d<1) yields LESS loss than PL_ref (down to the 0 clamp) — closer ⇒ stronger,
+/// not a PL_ref plateau. `loss(d_ref=1) == PL_ref` (log10(1)=0). Range is EMERGENT:
+/// `quality_from_rssi(tx_dbm − range_to_loss_db(t, r))` crosses 0 at the −80 dBm point = the transport's
+/// range. VALUES PROVISIONAL, single-sourced from core (snapshot as of profile.rs sha256 76038e63 =
+/// composer theater.html byte-for-byte: PL_ref 40 dB all RF; n = LoRa 1.5 / WiFi 2.35 / Mesh 2.85 / BLE 3.4;
+/// IP transports n=0 ⇒ zero loss) pending Roy field-anchor — only the numbers move, the shape is final;
+/// signature stable (d_ref internal). Code is truth; this doc-list is the snapshot.
 #[wasm_bindgen]
 pub fn range_to_loss_db(transport_id: u8, range_units: f32) -> f32 {
     r2_transport::profile::range_to_loss_db(transport_id_from_u8(transport_id), range_units)
@@ -794,14 +796,20 @@ mod tests {
         // and will move again on Roy's field-anchor). So assert the ratified SHAPE, not the numbers; a
         // hard-coded value here would just re-break on the next anchor (this test IS the drift tripwire).
         assert!(range_to_loss_db(2, 100.0) > range_to_loss_db(2, 10.0)); // monotonic ↑ (LoRa, id 2)
+        assert!(range_to_loss_db(2, 10.0) > range_to_loss_db(2, 1.0)); // still ↑ down to d_ref
         // LoRa's smaller n → LESS loss at the same range than BLE → longer emergent range
         assert!(range_to_loss_db(2, 50.0) < range_to_loss_db(0, 50.0)); // LoRa < BLE loss
-        // d ≤ d_ref(=1) / negative / zero → floored to d_ref ⇒ loss == PL_ref (no signal gain, no
-        // negative loss). Assert the floor SHAPE against the reference-distance loss, whatever PL_ref is.
-        let pl_ref = range_to_loss_db(2, 1.0); // loss at d_ref = PL_ref (log10(1)=0)
-        assert!(pl_ref >= 0.0, "PL_ref is non-negative (no signal gain)");
-        assert_eq!(range_to_loss_db(2, -5.0), pl_ref, "≤0 range floors to d_ref ⇒ PL_ref");
-        assert_eq!(range_to_loss_db(2, 0.5), pl_ref, "below-reference floors to d_ref ⇒ PL_ref");
+        // NEAR-FIELD MODELLED (floor = 0.001, NOT d_ref): a sub-reference distance yields LESS loss than
+        // the reference (closer ⇒ stronger), it does NOT plateau at PL_ref. This asserts the CURRENT
+        // ratified floor semantics and is an intentional tripwire — it trips if core flips the floor back
+        // to max(d, d_ref) (it has flip-flopped 1.0↔0.001 already; that churn is how the drift is caught).
+        let at_ref = range_to_loss_db(2, 1.0); // loss at d_ref = PL_ref (log10(1)=0)
+        assert!(range_to_loss_db(2, 0.5) < at_ref, "sub-reference is near-field-modelled (< PL_ref)");
+        // No signal gain / no non-finite RSSI: loss is finite, ≥0, ≤160 for ANY input (incl ≤0 / huge).
+        for &d in &[-5.0f32, 0.0, 0.5, 1.0, 50.0, 1.0e9] {
+            let l = range_to_loss_db(2, d);
+            assert!(l.is_finite() && (0.0..=160.0).contains(&l), "bounded finite loss at d={d}: {l}");
+        }
         // EMERGENT range: at a long range BLE quality has decayed further than LoRa (BLE shorter range)
         let far = 1000.0;
         assert!(
