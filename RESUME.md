@@ -10,12 +10,13 @@ d≤d_ref; ★ signature STAYS range_to_loss_db(TransportId,range_units)→f32 (
 values provisional. **core BLOCKED landing it:** (a) core's commit/fleet-send perms tightened; (b) a concurrent 'core'
 FORK live-editing r2-core transport crates (#27 worktree-isolation). Fork IS driving the batch — item D (HostUdpRadio
 MTU cap + AB-006) landed @8aaf01a; item C (log-distance profile.rs) STILL PENDING (profile.rs still LINEAR at HEAD).
-**MY SIDE = no-op until C lands:** r2-hive-wasm range_to_loss_db is a path-dep re-export of r2_transport's → when
-core flips profile.rs to log-distance, my export follows on a REBUILD (no source change, signature stable). Just
-rebuild+re-stage the pkg then + relay to composer (reach-spread re-tunes, ordering preserved). r2-hive-wasm builds
-GREEN against the moving r2-core HEAD 8aaf01a (fork edits haven't broken me). composer answered: range_units abstract,
-d_ref=1, its U_PER_PX=0.9/TX_DBM=−40 provisional is fine; on v0.4.9 linear = future-proof integration. composer's own
-web-build into its webapp/wasmhive/ = fine (compiling≠source-edit, one-writer intact).
+**✅ DONE — core LANDED v0.19 log-distance (e75fd4a, CI-green); I RE-ALIGNED (v0.4.10, 6b7fc7d):** range_to_loss_db
+re-exports core's now-log-distance fn (no source change to the fn — path-dep auto-followed); transport_profile JSON
+re-emits reference_path_loss_db + path_loss_exponent (dropped range_loss_db_per_unit); tests → log-distance. Host
+11/11 + wasm32 + ws-mesh 3× PASS. ALL 3 pkgs re-staged at 0.4.10 (web pkg/ + carrier-bridge + ws-mesh node). Values
+PROVISIONAL (n LoRa2.7/WiFi2.9/Mesh3.0/BLE3.2, PL_ref=0) → re-stage when Roy field-anchors; shape FINAL, signature
+stable. composer told (re-consume pkg, same call site, reach-spread re-tunes, ordering BLE<Mesh<WiFi<LoRa preserved).
+core ack'd. composer's own web-build into its webapp = fine (compiling≠source-edit, one-writer intact).
 **#29 HOLD extended:** don't re-vendor r2-route into dfr1195-fw until r2-core HEAD STABILIZES post-fork (re-vendoring
 off a live-edited tree = moving target). Unblocked-in-principle (batch in HEAD) but wait for the fork race to settle.
 **(B) R2-BEACON v0.21 (specs bd32ddd) — class-id repeater→hive, ROY GREENLIT** (the wire change previously held).
