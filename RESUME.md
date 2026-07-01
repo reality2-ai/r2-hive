@@ -25,6 +25,12 @@ FNV auto-derives, no hardcoded hash). Firmware DONE (main.rs:3661, commit 6fb157
 also carries the clean-reset recipe + formation-decouple + role-Hive). WIRE CHANGE: flash all role-0 boards in the
 SAME window as composer's scanner cutover to 0xBAFE8AC1 (mixed-version goes dark) — Roy flashes; coordinating the
 window with composer + supervisor now.
+**v0.21 FLASH-GO = GREEN (composer scanner READY):** composer's scanner recognises BOTH 0xBAFE8AC1 (hive) AND
+0x00FC1F17 (repeater, LABELED LEGACY alias) through the window → NO DARK GAP (reflash needn't be atomic; retire the
+alias once all role-0 on v0.21). FNV TRIPLE-verified (me+specs+composer). Relayed flash-go to supervisor with 2 paths:
+(a) class-id-only reflash (espflash flash --partition-table … r2-dfr1195-weave.elf, preserves persona) or (b) full
+clean-reset prep (#27). AWAITING Roy's flash (Roy-only) + supervisor's path pick. Ping composer to drop the legacy
+alias once reflash confirmed.
 **(C) BROWSER WASM-WS module DELIVERED (335f7ba):** composer was standing by. ws-mesh/hive-ws-browser.js (ESM) +
 hive-ws-browser.d.ts — the option-B binding for composer's webapp (caller passes init'd wasm module; global
 WebSocket; frame_origin echo-drop → verifyFrame → route_frame). WS msg shape = binary raw R2-WIRE. Gateway = HIVE
