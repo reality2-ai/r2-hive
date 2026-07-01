@@ -17,6 +17,13 @@ existing SyncTransport seam?; (3) confirm export sigs. NOT building the WS bindi
 (avoid forking core's transport architecture / building the wrong layer). NOTE: current wasm route_frame-in +
 sends-out is already transport-agnostic (JS carries them); the "in-process mesh" is composer's router.js relay →
 real-WS-mesh likely = a WS gateway + router.js glue + profile metadata, NOT a wasm-core rewrite (confirm division).
+**DESIGN PROPOSAL written** (docs/WS-TRANSPORT-BINDING.md, 5a3d31f) — spec-first §2.7; pointed core at it. The ONE
+decision for core: WS binding = my rec is deliberate asymmetry (host=core's Rust UdpRadio ConnectionlessRadio;
+browser=JS-carried over SAME wire+profile — wasm sync-route boundary makes web_sys async↔sync bridge not worth it;
+route_frame-in/sends-out already IS the binding) vs full-symmetry option A (Rust WsRadio via web_sys, I'll build if
+core prefers). Unify the PROFILE not the socket layer. Gateway (broadcast relay) = layer-agnostic infra either way
+(hive's or composer's bench server? — confirm). NEXT on core's seam confirm: struct in r2-transport → WS binding →
+attach profile to links → peer-refute → hosted-green.
 
 ## ✅⏳ 2026-07-01 — FORMATION-DECOUPLE firmware DONE + build-verified; PENDING peer-refute [task #28]
 Firmware path of the carrier nbrs=0 root cause. core's API contract (via supervisor, r2-dataplane 140da84):
