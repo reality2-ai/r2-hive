@@ -38,6 +38,15 @@ future specs d_ref flip = re-touch ~5 vendored test numbers, NOT a behavior chan
 blobs @cf2646e (fork-immune) on 0.001 canon; the DoS-cap/is_reachability_blocked/SCF-gate/spray security fixes are
 the value and are floor-independent. Steps owed: diff firmware's vendored r2-route vs core committed (firmware-specific
 deltas to preserve?) + EspNow→Mesh v0.18 align + rebuild on alfred + re-stage.
+**SCOPED (read-only, cf2646e reachable locally):** firmware r2-route/src (13 files @dfr1195-fw-wt 6fb1579) vs core
+committed r2-route/src — delta ~1482 lines: **1373 core-side / 109 firmware-side** (firmware is MOSTLY BEHIND).
+9 files differ (constants/engine/hop/lib/neighbour/path/strategy/tests/transport) + **immune.rs is CORE-ONLY**
+(the is_reachability_blocked/DoS module = the #29 payload). The 109 fw-side lines SAMPLED (engine.rs) look like
+STALE upstream code core refactored (use-stmts, ingest_observation, select_transport), NOT embedded-local
+adaptations — so a whole-crate overwrite is viable; the 109-line audit is the SAFETY GATE before overwrite.
+Confirmed firmware transport.rs:22 `Transport::EspNow=5` (apply core's v0.18 →Mesh rename; discriminant 5
+unchanged = label-only). **GATE before executing:** core confirm (a) cf2646e ref (b) no fork edits staged — asked.
+Vendor from COMMITTED blobs (git show cf2646e:crates/r2-route/...), NOT the worktree. Next focused pass, not this turn.
 
 ## ✅ 2026-07-01 — wasm v0.4.11: route_hops + core log-distance REAL-PARAM drift-sync (commit 104dde1)
 **Trigger:** composer coord-Q — supervisor wanted the directed-message feature as an "R2-TEST-SENDER PLUGIN
