@@ -583,6 +583,8 @@ impl WasmHive {
         format!("{{\"frames\":[{}]}}", frames.join(","))
     }
 
+    /// CANON: this JSON shape is **R2-DIAGNOSTICS v0.1** (specs a47ab32, ratified verbatim from this getter);
+    /// the dfr1195 firmware `viz` feature emits the identical record fields for physical boards.
     /// Theater oracle: the post-route NEIGHBOUR-CLASSIFIER table — the read side of
     /// conjectures 100/103 (mobile-vs-infra classify, neighbour-evict-at-floor +
     /// rediscovery). One JSON object per tracked neighbour:
@@ -635,6 +637,8 @@ impl WasmHive {
         out
     }
 
+    /// CANON: this JSON shape is **R2-DIAGNOSTICS v0.1** (specs a47ab32) — 1:1 with R2-ROUTE §4.2 PathTable;
+    /// the dfr1195 firmware `viz` feature emits the identical record fields for physical boards.
     /// Theater oracle: the learned DIRECTED-PATH table — the read side of conjectures
     /// 200/204 (used-path-wins / idle-decays). One JSON object per path:
     /// `{destination, next_hop, confidence, last_updated, sample_count}`. A delivered
