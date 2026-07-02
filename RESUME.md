@@ -437,7 +437,7 @@
   fork): (1) raw relay TX/RX verbatim; (2) BEACON_AD "BAD <cur|next> <adhex>" (CMD 0xC0/0xC1) Linux→MCU; (3) HEALTH
   "HLT <hex>" MCU→Linux; (4) MCU gate-off (encode_advert/HB/readings/sign/PROVISION/PERSONA/IDENTIFY/HEALTH-responder/deliver/
   dedup/route OFF; KEEP TX/RX + BAD-air + HLT + radio). Composer confirms verbs/CMDs → I build+stage the radiofrontend ELF
-  (no flash). ✅ CMD-BYTE CORRECTED (specs, the authority): the BEACON_AD CMD stays HOME-HUB-LOCAL (NOT pushed to canon —
+  (no flash). ✅ CMD-BYTE CORRECTED (specs, the authority): the BEACON_AD CMD stays gateway-LOCAL (NOT pushed to canon —
   the zero-key-Sentinel is a gateway-SPECIFIC hardening per §8, not universal; §10.2 baseline distributes keys to ALL
   components + Pattern-C §3.4 has an autonomous Sentinel, so a mandatory brain-encodes rule would conflict). §5.4's 0x80-0xBF
   is CORE-RESERVED (my proposed 0x80/0x81 was WRONG); 0xC0-0xFF is "reserved for future use" = fair for a gateway-local pick
