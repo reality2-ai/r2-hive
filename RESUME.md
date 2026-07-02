@@ -158,6 +158,27 @@
   TTL-is-the-hop-counter + no-TX-loopback calls). All surfacings 1-hop (no ttl=6) = relaying boards are direct carrier-
   neighbours / 2-hop deduped. wire has_route layout hardware-validated 7/7. ONLY remaining = deliver-gate hmac VERIFY
   (below-L5, relay does NOT prove it) = Roy's LED-watch (RECEIPT ~400ms flash) via TX-inject — ready on cue.
+- **⚠️ LED-WATCH REFUTED (supervisor, 2026-07-03): Roy watched all 4 boards on composer's signed-c0ffee01 inject burst =
+  ZERO flashes.** Ground-truth investigation (read cb87c8aa source @8ec1a6f + grepped the flashed ELF) → VERDICT: NOT an LED
+  gap; most likely FAIL-CLOSED-working-as-designed (group-KEY mismatch), + a relay-vs-deliver test-design element.
+  (1) recv_flash IS in the flashed ELF (strings ~/r2-dfr1195-weave.elf has 'DELIVERED msg_id='; hive-codex earlier cmp-
+  verified ELF≡rebuild of 8ec1a6f). LED path (main.rs:642/658/683) UNCONDITIONAL: idle=OFF (line 640/690, NO heartbeat
+  baseline = nothing masks it), deliver→RECEIPT_SIGNAL→recv_flash=8=~400ms full-on, polarity-aware. A real deliver WOULD be
+  visible. task#34 (off/flash/pulse) pending ≠ flash-on-deliver missing — that IS present + unconditional.
+  (2) CORRECTED the supervisor's framing: the deliver-gate (main.rs:1935-1944) is GROUP-HMAC-POSSESSION, NOT origin-
+  provisioning — `for_me && (target_group==my_tg_hash||0) && verify_extended(hmac)`; it NEVER checks the origin id, so
+  "is c0ffee01 provisioned" is not the gate. Credential = the 32B group KEY (hk); any holder can inject a deliverable frame
+  with ANY origin. for_me (main.rs:1820) = target_hive==my_hive||==0, so composer's target_hive=0 broadcast DOES reach the gate.
+  (3) So zero flashes on all 4 = tg_ok&&hmac_ok FALSE everywhere = boards' provisioned (hk,tg) ≠ composer's aligned
+  (hk,tg 04bc57e7) = fail-closed correctly refusing a frame not signed with the board's real key = CORRECT security. Relay
+  (TTL-7, proven) is trust-agnostic + INDEPENDENT of the gate (main.rs:1936) → relay success says NOTHING about key match;
+  proving relay ≠ proving deliver. Boards' effective (hk,tg): provisioned persona.bin@0x12000 (194-197) OR multitg NVS@0x14000
+  override (268-273) OR demo fallback if unprovisioned (196: TG_HK_DEMO/MY_TG_HASH). DECISIVE DISCRIMINATOR (cheap): watch a
+  board USB serial during inject — real deliver prints 'r2-dfr1195: DELIVERED msg_id=...(tg+hmac ok)' (1946) + bumps LCD dlv=
+  (700); absent+dlv-flat = gate rejected (key/tg mismatch, LED innocent); present+no-LED = an LED bug (re-investigate). Boot
+  serial fw=+BUILD_ID confirms WHICH firmware is flashed (answers Roy's "right firmware?"). REPORTED to supervisor; ASKED
+  composer the decisive key question (did it align to the boards' REAL hk vs a self-consistent key; did its adapter ever
+  hmac-DELIVER a native board frame vs only decode layout — self-verify hmac_ok proves nothing about the boards' key). AWAIT.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
