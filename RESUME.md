@@ -46,9 +46,10 @@
   unicasts for a broadcast-style send. `tick()` auto-originates sensor/HB emissions. E2E `udp-test-mesh.js` over REAL
   sockets: A(sensor)+B(receiver) same TG key → B delivered 8 readings; C wrong-key → 0. PASS (unicast bearer + SENSOR role
   + §7.5.4 TG deliver-gate over UDP, TG-isolation held). NOW CANON-BACKED: my spec-first flag → specs landed R2-TRANSPORT
-  §2.6.1a + R2-DISCOVERY §4.9 (PROVISIONAL, d073a48) confirming unicast/config-seeded-PeerTable + inbound-first-contact is
+  §2.6.1a + R2-DISCOVERY §4.9 (RATIFIED, bfaa592 — Roy confirmed config-seeded PeerTable as the LONG-TERM mechanism for
+  this tier; no rendezvous/registry service planned) confirming unicast/config-seeded-PeerTable + inbound-first-contact is
   the CORRECT cross-network/no-shared-broadcast-domain mechanism (not a stopgap); auto-discovery rightly scoped out (no
-  LAN-broadcast/mDNS crosses a subnet/VPC boundary). PROVISIONAL pending Roy's long-term-direction confirm (escalated).
+  LAN-broadcast/mDNS crosses a subnet/VPC boundary). Fully ratified canon — nothing to change in hive-udp.js.
   kind configurable (Udp 6 default; Wifi 1 for SoftAP UDP-LAN, per core's Transport taxonomy — wire is transport-agnostic).
 - **NEXT:** the heterogeneous cross-transport TG-mesh (a BRIDGE node running WS+UDP+carrier in ONE TG) — specs: NO gateway
   construct, it's R2-ROUTE §5.4 multi-transport-relay + §5.2 per-neighbour directed-egress (same MUST the firmware bridge
