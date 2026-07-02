@@ -441,8 +441,15 @@
   the zero-key-Sentinel is a gateway-SPECIFIC hardening per §8, not universal; §10.2 baseline distributes keys to ALL
   components + Pattern-C §3.4 has an autonomous Sentinel, so a mandatory brain-encodes rule would conflict). §5.4's 0x80-0xBF
   is CORE-RESERVED (my proposed 0x80/0x81 was WRONG); 0xC0-0xFF is "reserved for future use" = fair for a gateway-local pick
-  → BEACON_AD_CUR=0xC0 / _NEXT=0xC1. Corrected to composer. NEXT (my active build): implement the radiofrontend feature to
-  this contract + the §4.1 Sentinel bar (adds LoRa wake-RX + wake-gating + frame-validation).
+  → 0xC0/0xC1. ✅✅ NOW CANON-PINNED (specs, private gateway spec v0.4 §5.1.1, pushed 2e6e92c — specs-codex rightly flagged
+  ad-hoc-wire-format = silent-divergence risk, same class as the TV4/route-stack gap; the encode/transmit-split PATTERN stays
+  gateway-specific, but the WIRE FORMAT is canon): BEACON_AD = CMD 0xC0 (SINGLE), payload = [1B slot: 0x00=current/air-now,
+  0x01=next/air-at-next-RBID-epoch-rollover] ++ ad_bytes (the complete ready-to-air beacon). AD is OPAQUE to the MCU — MUST
+  NOT parse/validate/modify beyond a LENGTH sanity-check vs the radio payload limit. Direction brain→MCU only; MCU MUST NOT
+  originate. On length-reject the MCU MUST keep airing its LAST-KNOWN-GOOD (NEVER zero beacons, even transiently). I build
+  the MCU side to this EXACT layout (supersedes my ad-hoc 0xC0/0xC1). Confirmed to composer. NEXT (my active build, now fully
+  canon-locked — no gates left): implement the radiofrontend feature to this contract + the §4.1 Sentinel bar (LoRa wake-RX +
+  wake-gating + frame-validation).
 - **▶ #49 CRITICAL-PATH (2026-07-03, supervisor): composer STAGED (9/9 fail-closed dry-run, target 09a07e47 a proven
   flasher), blocked ONLY on my 2 inputs.** (2) SEQ = 0 DELIVERED: 09a07e47 USB-flashed cb87c8aa + never OTA'd → 0x18000
   erased → current_seq 0 → composer header.seq=1, authority_epoch=0. (1) .bin = GATE-ESCALATED: the offline ELF→app-image
@@ -450,8 +457,11 @@
   op) — did NOT auto-run. It's pure offline (no device/flash/sign/keys). Escalated to supervisor: recommend composer's
   signed-ota-deploy pipeline takes the ELF (~/r2-dfr1195-weave.elf) + extracts the image itself (its pipeline almost
   certainly does ELF→image→sign); else authorize the offline extraction, or a human runs it. Composer signs regardless
-  (holds TG_SK). MTU/credits (task#18) = follow-up optimization, non-blocking (200B default). AWAIT supervisor's .bin
-  routing + composer's ELF-vs-bin answer → then STAGED for Roy's GO.
+  (holds TG_SK). MTU/credits (task#18) = follow-up optimization, non-blocking (200B default).
+  ✅ UNBLOCKED FROM MY SIDE (supervisor chose option (a)): composer's pipeline takes the cb87c8aa ELF directly (ELF→image→
+  sign) — NO .bin handoff / offline save-image needed from me; my firmware-gate escalation validated as correct (conservative
+  gate working as designed). seq=1 (09a07e47=0) + ELF are all composer needs → it wires the entrypoint = STAGED for Roy's GO.
+  MY REMAINING #49 ROLE: metal-validate the anti-rollback floor + CoC throughput once the push runs. AWAIT the push.
   ▶ mariko-guard reconcile PENDING: specs (add allowlisted now) vs specs-codex (bare-mariko too broad given the README
   branding hits → hold/narrow); the README "marketplace" is customer-facing = Roy's call, NOT a leak per specs, do NOT scrub.
   Deferred (critical-path #49 first); the private gateway-product guard stays hard+green meanwhile.
