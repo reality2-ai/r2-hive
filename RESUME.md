@@ -352,6 +352,25 @@
   transparent modem consistent if no route_stack/TTL/identity leaks (✓ INJECT already verbatim). NET for task#34: the mode =
   SUPPRESS (own emit/beacon/sign/provision/identify/health-announce) + ADD (air Linux's beacon; report health to Linux). Fold
   both into the USB contract w/ composer.
+  ✅ SPECS NORMATIVE (private gateway spec §5.1/5.2, pushed 2212449 — my 7-MUST mapping confirmed no mis-reads; MUST7-already-
+  satisfied confirmed): (A) BEACON — NOT gated off. The MCU MUST be the SOLE/CONTINUOUS transmitter (§4.1 Sentinel MUST-
+  advertise-continuously; owns the radio HW). REDIRECT (not kill): the MCU advertises the PRIMARY identity (a1f5ed00) +
+  content FED by Linux (R2-CAP set, power-state) over the internal bridge's §5.4 POWER_STATE/BATTERY command range. Linux MUST
+  NOT transmit any beacon on any radio. So gate off only the MCU's OWN-identity/own-content beacon; KEEP the advertiser,
+  re-source it to primary-id + Linux-fed state. (B) POWER-STATE — mains-powered → mains/backup-battery health signalling. BRAIN
+  (Linux) is the authority (§6.2 MC-as-scheduler generalized); MCU reports local health to Linux over the bridge, Linux
+  computes the ONE composite state, MCU announces it via the beacon. No independent MCU power-state computation (my IDENTIFY/
+  HEALTH gate-off stays correct). ⚠ TENSION TO FLAG (spec-first): §5.1 "MCU encodes+transmits using the primary identity" vs
+  MUST4 "MCU holds NO keys" — the R2-BEACON RBID (§6.1 = HMAC(session_key,epoch)) needs a1f5ed00's beacon session_key. So
+  either Linux feeds the per-epoch RBID/identity material (extend the §5.4 feed beyond CAP/power-state), OR Linux feeds a
+  PRE-ENCODED beacon AD (MCU airs verbatim, no encode, no key), OR a static primary id (breaks RBID privacy). ASKING specs
+  which. USB CONTRACT is now spec-defined: §5.4 command range (Linux→MCU: feed CAP/power-state[/RBID?]; MCU→Linux: report
+  local health) + the raw air↔serial frame relay. Coordinate composer to that.
+  ★ PUBLIC-HYGIENE SCOPE (specs-codex, from specs ground truth): (1) committed RESUME.md IS public repo content (no private
+  exception) → neutralize fresh leaks (DONE: #48), provenance to .r2-local/. (2) DO NOT bulk-scrub pre-existing historical IDs
+  (mariko-03/triplet/reading/orchestrator) — not customer-facing, don't reveal the private gateway; INVENTORY + route the fork
+  to Roy/supervisor. (3) CI guard: a NARROW private-gateway-term guard is sensible; HOLD a broad mariko/earthgrid guard for
+  Roy/supervisor. Fresh RESUME verified clean of the private naming; routing the pre-existing-refs fork to supervisor.
 - **▶ OTA STATUS (2026-07-03, supervisor — load-bearing for Roy scaling on OTA-not-USB; HONEST, no overclaim).** Q1 RECEIVER:
   YES + code-COMPLETE. cb87c8aa feature set (carrier,multitg,routetest,viz,benchdist,otal2cap) INCLUDES otal2cap → all 5
   weave boards run ota_receive_over_coc (main.rs:4935): real verify_header Ed25519 vs persona tg_pk + anti-rollback (seq/floor)
@@ -365,8 +384,14 @@
   a signed R2-UPDATE image (weave TG_SK) + ONE-board metal e2e (push→verify→write→commit→reboot→confirm new boot) + task#18
   CoC throughput + anti-rollback metal-validate + connectable advertising. RECOMMEND: one-board metal e2e FIRST to de-risk
   before fleet-relying (a failed first push may need USB re-flash). Joint hive(receiver=DONE)+composer(pusher+image). Reported
-  supervisor + asked composer pusher-readiness. AWAIT composer.
-
+  supervisor + asked composer pusher-readiness.
+  ✅ SUPERVISOR ENDORSED the one-board e2e = task#49 (my task#35), + KEY REFRAME: it may be REMOTE-safe (NO Roy needed). The
+  receiver is FAIL-SAFE (firmware-confirmed): verify_header BEFORE opening the slot + writes to the INACTIVE slot (ota_1) +
+  activate-on-COMMIT-not-boot (main.rs:2708 — a bad/partial push never activates → active slot keeps running → no brick) +
+  anti-rollback. USB-JTAG re-flash recovery is SSH-able (espflash) = remote fallback. So run the e2e REMOTELY on a MESH board
+  (reboot-tolerant, NOT the carrier=live bridge). My role: support composer's pusher + metal-validate the anti-rollback floor
+  + CoC throughput (task#18) + assess remote-safety. Confirmed the fail-safe/remote-safe assessment from firmware. AWAIT
+  composer's pusher-readiness (real-HW BLE central? signed image?) to schedule the remote e2e.
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
 - **r2-hive (platform-trait) PUSHED 972d131..e027edd:**
