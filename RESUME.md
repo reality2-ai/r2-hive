@@ -255,6 +255,23 @@
     ★ FALSIFIABLE METAL TEST of my NVS-override diagnosis: after Roy clears 495b's @0x14000, it should VERIFY+DELIVER+FLASH on
     composer's next LED-watch + its native frames should carry target_group 04bc57e7. FLASHES ⟹ NVS-override CONFIRMED on
     metal; NO flash ⟹ diagnosis wrong (re-investigate: on-board persona@0x12000 not weave, or deliver-path). AWAIT the result.
+- **DESIGN CONSULT (2026-07-03) — sim↔real-bridge / R2-COMPLEX-HIVE ensemble (composer design 57e0cf6):** Alfred-Linux has
+  no bench radio → the USB/carrier DFR1195 is Alfred's radio; composer models Alfred-Linux + USB-MCU-radio as ONE composite
+  hive (MCU = radio component). Q to my firmware authority. GROUND TRUTH I gave: today the carrier is a DUAL role — the
+  `carrier` build-feature (Cargo:251, implies ble) is a THIN overlay (adds R2RX-emit + INJECT + hmac-force-good; gates at
+  main.rs 1447/4229/4276/4428/4507/4520/4537) that does NOT suppress the board's own ensemble → the carrier runs its OWN weave
+  hive (655a9e5f: HB/deliver/LCD/persona) AND transparently bridges Alfred verbatim (preserves Alfred's identity, no
+  re-originate). TWO OPTIONS: (a) TRANSPORT-BINDING+PLUGIN (no fw change) = formalize carrier-r2-adapter as a first-class
+  Transport in Alfred's wasm-hive list; but MCU keeps its own 655a9e5f hive = TWO identities on air (not strictly one
+  composite hive). (b) RADIO-FRONT-END MODE (small fw change = a `radiofrontend` feature/flag gating OFF the independent
+  ensemble, keep only bridge+R2RX/INJECT) = MCU is a PURE transport of Alfred's ONE hive, one identity; does NOT need
+  Alfred's persona (Alfred's wasm hive signs, MCU transports already-signed). My read: R2-ENSEMBLE canon (transports
+  aren't ensemble-scoped, bridge isn't a sentant) points at (b) for a clean composite hive; it's a small gate-off, not a
+  build-out. DECIDING Q is specs' (agreed spec-first, composer leads): does R2-COMPLEX-HIVE model the radio-component as (i)
+  a PURE transport of the one hive [no independent identity → I add gate (b)] or (ii) a device that coexists as its own hive
+  + serves as another's transport [→ current carrier + first-class host binding (a)]? I offered to co-flag the fw-consumer
+  side to specs. Host-side either way: carrier-r2-adapter → first-class Transport binding. NO firmware task yet (gated on the
+  specs answer). Registry closed per my NVS-override finding (composer corrected: all 5 weave; b14b apiary-via-override; 495b joiner).
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
