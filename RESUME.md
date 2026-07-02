@@ -272,6 +272,21 @@
   + serves as another's transport [→ current carrier + first-class host binding (a)]? I offered to co-flag the fw-consumer
   side to specs. Host-side either way: carrier-r2-adapter → first-class Transport binding. NO firmware task yet (gated on the
   specs answer). Registry closed per my NVS-override finding (composer corrected: all 5 weave; b14b apiary-via-override; 495b joiner).
+- **▶ BUILD DIRECTED (2026-07-03, Roy via supervisor) — pure-transport MCU radio-front-end (task#34), option (i).** SCOPE+BUILD
+  spec-first (R2-COMPLEX-HIVE §2.2/§2.6), STAGE for Roy — DO NOT flash (Roy-only + changes the LIVE carrier bridge). Goal:
+  carrier MCU B6:0A:A0 DROPS its independent hive (655a9e5f — no own beacon/signing/TG-membership/ensemble) → TRANSPARENT
+  radio front-end for the Linux hive a1f5ed00 = ONE R2 device (fwd-aligned w/ the single-device Uno-Q). CONJECTURE: Linux
+  hive + pure-transport MCU = ONE R2 device. FALSIFIER: two identities/beacons leak, two TG memberships, MCU signs
+  independently, or MCU can't be pure-transport. ✅ ASKED specs (§2.2/§2.6 conformance criteria) + composer (USB frame
+  contract). SCOPED gate-off from firmware ground truth: io_task (main.rs:898) multiplexes select(Timer HB-tick @1091-92,
+  DATA_RX air-RX). GATE OFF under a new `radiofrontend` feature: (1) Timer branch = own-hive periodic emit (HB @1147 /
+  originate @1340 / signed Event @1425 — the own sign_extended self-emissions); (2) DATA_RX relay/deliver/dedup processing;
+  (3) beacon advertise (3014-3025) + ble_task beacon/RBID (523); (4) persona-based TG-membership. KEEP: DATA_RX → RAW
+  emit_carrier_rx (air→serial), host INJECT/TX (4428-4432) → air verbatim, control verbs, ESP-NOW radio up. Net: io_task
+  becomes a thin air↔serial pump carrying ONLY a1f5ed00's already-signed frames; MCU needs NO persona (Linux signs). BUILD
+  GATED on specs' §2.2/§2.6 criteria + composer's USB contract (does Linux need per-frame L2-MAC/RSSI/timestamp metadata, or
+  raw-everything-up?). On both replies: add `radiofrontend` feature, gate-off, build+stage ELF, report the plan + exactly what
+  Roy flashes. NO flash (Roy-present cutover). AWAIT specs + composer.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
