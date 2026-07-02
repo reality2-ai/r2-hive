@@ -237,7 +237,18 @@
     write_provisioned_tg @0x14000 → live GroupHmac swap (verify parse_provision authorization first). NO autonomous join
     handshake. PRE-FLASH CHECK asked of composer: decode 495b/b14b NATIVE frames' target_group — !=04bc57e7 confirms the NVS
     override (clear it); ==04bc57e7 means on-weave-TG + should-deliver = dark is a deliver/LED bug not membership (do NOT
-    flash). AWAIT composer's target_group/verify answer.
+    flash).
+  ✅ CONVERGED (composer ACCEPTED the refutation + logically CONFIRMED the NVS-override WITHOUT a live probe): composer
+    signed c0ffee01 with the weave hk (==weave-hk.bin), 2 weave-PERSONA boards rejected it, recv_flash is unconditional-at-
+    deliver → no-flash ⟹ active key != weave ⟹ NVS @0x14000 override. So the fix = NVS-CLEAR, persona reflash REDUNDANT
+    (already weave). DEFINITIVE NVS-CLEAR MECHANISM (hive owns per composer; verified NO runtime clear verb — PROVISION only
+    OVERWRITES @0x14000, never clears): CLEAN = espflash erase-region 0x14000 0x1000 (download-mode) → read_provisioned_tg
+    None → falls back to weave persona @0x12000 → delivers. RUNTIME ALT = console PROVISION line w/ weave (tg 04bc57e7 + weave
+    hk) → write_provisioned_tg @0x14000 → live GroupHmac swap (1079); overwrites override w/ weave. PER-BOARD: 495b1b62(joiner)
+    → clear = joins weave; b14b07d8(apiary) → ROY DECIDES leave(apiary)/clear(weave). Offered an OPTIONAL runtime PROVISION-
+    CLEAR/deprovision console verb (non-urgent, needs a flash) for a download-mode-free clear — flag if wanted. Clean positive:
+    L5 trust boundary held on metal; mechanism = runtime NVS override; fix = one-sector erase. Composer seeded catalogue/
+    devices origin↔MAC (its repo). Roy runs the erase (Roy-only). Tool: scratchpad/persona_map.py.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
