@@ -249,6 +249,12 @@
     CLEAR/deprovision console verb (non-urgent, needs a flash) for a download-mode-free clear — flag if wanted. Clean positive:
     L5 trust boundary held on metal; mechanism = runtime NVS override; fix = one-sector erase. Composer seeded catalogue/
     devices origin↔MAC (its repo). Roy runs the erase (Roy-only). Tool: scratchpad/persona_map.py.
+  ✅ SUPERVISOR DECISION (Roy-facing): unify JOINER 495b1b62 ONLY (MAC F4:12:FA:52:99:28) = erase-region 0x14000 0x1000 +
+    write-bin 0x12000 persona-F4:12:FA:52:99:28.bin + reset. HOLD b14b07d8 (apiary, MAC F4:12:FA:B7:90:10): its @0x14000
+    override to Alfred's apiary is INTENTIONAL — membership/bridging defined by the apiary ensemble (#46), NOT a manual clear.
+    ★ FALSIFIABLE METAL TEST of my NVS-override diagnosis: after Roy clears 495b's @0x14000, it should VERIFY+DELIVER+FLASH on
+    composer's next LED-watch + its native frames should carry target_group 04bc57e7. FLASHES ⟹ NVS-override CONFIRMED on
+    metal; NO flash ⟹ diagnosis wrong (re-investigate: on-board persona@0x12000 not weave, or deliver-path). AWAIT the result.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
