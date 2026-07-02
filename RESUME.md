@@ -11,7 +11,10 @@
 - **WEAVE ELF STAGED (final):** `~/r2-dfr1195-weave.elf` (1361616 B, xtensa, sha cb87c8aa337b4d90) = the security-complete
   last-USB-flash image (field DROPPED per §3.2.5; VMASK/§2.3A item-7 incl. the INJECT-path gate; beacon BE; event-rename
   a no-op — firmware emits r2.tn.routetest). Roy-only flash — FLASH sha = cb87c8aa.
-- **REFUTATION CLEARED (hive-codex, opposite-provider, at 3cdbd82):** (1) missed API call-sites REFUTED (r2-dataplane/
+- **REFUTATION CLEARED + RE-VERIFIED at the fix HEAD 8ec1a6f (hive-codex, opposite-provider):** re-run confirms NO
+  remaining blocking finding — staged ELF cmp-identical to the release build (sha cb87c8aa), 8 crates byte-exact to
+  core@1275732, forbidden field+viz/benchdist correctly fails (compile_error), weave + loraroute/bridge/benchdist builds
+  green, beacon anti_collision BE. Findings triage (from the 3cdbd82 pass): (1) missed API call-sites REFUTED (r2-dataplane/
   r2-trust/r2-update/r2-route/r2-cbor call surfaces all still match); (2) carrier INJECT-path VMASK bypass = CONFIRMED
   BUG → FIXED at 8ec1a6f (INJECT now honours TX_ALLOW_MASK Mesh bit, mirrors mesh_broadcast); (3) field-drop PARTIAL =
   accepted (matches the ratified decision — weave needs no fr4 SCF/silence); (4) beacon anti_collision BE CONFIRMED
