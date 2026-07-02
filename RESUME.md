@@ -37,11 +37,18 @@
   split (me=wasm+bindings+gateway, composer=UX/orchestrator); pkg-sha ping on each bump.
 - **NEXT:** (a) confirm composer's item-2 (the wasm OTA IS the real otal2cap flow — verify_header + PayloadVerifier +
   slot semantics + pkg wire format) and reply; (b) ASK CORE the UDP on-wire model to RECONCILE specs-says-multicast vs
-  my-read-of-udp_lan.rs-says-unicast-PeerTable (+ the addr/port + PROVISIONAL-ratification need) BEFORE building
-  hive-udp.js; (c) then build the conformant UDP bearer + a cross-transport heterogeneous TG-mesh test (WS+UDP+carrier,
-  TG-isolation held, §5.2 per-neighbour egress) = the refutation instrument. No gateway construct (specs: §5.4+§5.2).
-  Composer's #1 unblocks its UX build now; UDP bearer waits on the core reconcile. Confirm composer's Q: emit_route_snapshot
-  IS the rt.* R2-DIAGNOSTICS snapshot (YES).
+  my-read-of-udp_lan.rs-says-unicast-PeerTable — RESOLVED: core confirmed UNICAST-per-peer (zero multicast in
+  r2-discovery); specs' §2.6.1-multicast recall does not match the code. Flagged the §2.6.1-vs-§4.4 divergence + the
+  missing discovery beacon to the supervisor for the real specs session (non-blocking the unicast data path).
+- **✅ UDP-FIRST-CLASS-L1 BEARER DONE — `ws-mesh/hive-udp.js`:** the unicast §4.4 model, byte-interoperable with a Linux
+  r2-hive UDP peer — Node dgram + `hive_id→"ip:port"` PeerTable (config-seed; recv learns source addrs; no core discovery
+  beacon exists = out-of-scope until specs reconciles), resolves each route_frame `sends[].target` → addr → unicast; N
+  unicasts for a broadcast-style send. `tick()` auto-originates sensor/HB emissions. E2E `udp-test-mesh.js` over REAL
+  sockets: A(sensor)+B(receiver) same TG key → B delivered 8 readings; C wrong-key → 0. PASS (unicast bearer + SENSOR role
+  + §7.5.4 TG deliver-gate over UDP, TG-isolation held).
+- **NEXT:** the heterogeneous cross-transport TG-mesh (a BRIDGE node running WS+UDP+carrier in ONE TG) — specs: NO gateway
+  construct, it's R2-ROUTE §5.4 multi-transport-relay + §5.2 per-neighbour directed-egress (same MUST the firmware bridge
+  owes). dedup/GroupHmac survive by construction. Composer's #1 (ensemble) + items 2-4 confirmed; composer building its UX.
 
 ## ✅ 2026-07-02 — SECURITY RE-VENDOR + WEAVE ELF DONE + REFUTATION CLEARED (ready for Roy's flash)
 - **dfr1195-fw PUSHED 1811267..8ec1a6f:** re-vendored 8 crates BYTE-EXACT to core@1275732 (supervisor byte-verified,
