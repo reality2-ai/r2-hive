@@ -56,7 +56,10 @@ pub async fn handler(
     }
 }
 
-fn authorize_upgrade(hive: &HiveState, headers: &HeaderMap) -> Result<(), Response> {
+/// Reused by the `/routes` + `/stats` topology-read endpoints (R2 audit P0): those exposed the
+/// neighbour/path graph unauthenticated while publicly proxied. Gating them behind this same
+/// same-origin + web-auth-cookie check closes the leak with the mgmt-equivalent posture.
+pub fn authorize_upgrade(hive: &HiveState, headers: &HeaderMap) -> Result<(), Response> {
     if !same_origin_or_non_browser(headers) {
         return Err((StatusCode::FORBIDDEN, "origin rejected").into_response());
     }

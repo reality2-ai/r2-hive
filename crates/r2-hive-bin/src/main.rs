@@ -170,7 +170,15 @@ async fn health() -> Response {
      r#"{"status":"ok","class":"ai.reality2.wayfinder"}"#).into_response()
 }
 
-async fn routes_json(State(state): State<Arc<HiveState>>) -> Response {
+async fn routes_json(
+    State(state): State<Arc<HiveState>>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    // R2 audit P0: /routes exposed the neighbour/path topology graph UNAUTHENTICATED while publicly
+    // proxied. Gate it behind the same auth as mgmt (same-origin + web-auth cookie), fail-closed.
+    if let Err(resp) = mgmt::ws::authorize_upgrade(&state, &headers) {
+        return resp;
+    }
     use r2_route::transport::Transport;
     let engine = state.route_engine.lock().await;
     let now_secs = std::time::SystemTime::now()
@@ -217,7 +225,15 @@ async fn routes_json(State(state): State<Arc<HiveState>>) -> Response {
     ([(header::CONTENT_TYPE, "application/json")], json).into_response()
 }
 
-async fn stats_json(State(state): State<Arc<HiveState>>) -> Response {
+async fn stats_json(
+    State(state): State<Arc<HiveState>>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    // R2 audit P0: /stats exposed topology/neighbour stats UNAUTHENTICATED while publicly proxied.
+    // Gate it behind the same auth as mgmt (same-origin + web-auth cookie), fail-closed.
+    if let Err(resp) = mgmt::ws::authorize_upgrade(&state, &headers) {
+        return resp;
+    }
     use r2_discovery::PeerMap;
     let peers = state.ws_transport.peers().peer_count();
     let frames = state.frames_routed.load(Ordering::Relaxed);
