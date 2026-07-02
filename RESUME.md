@@ -428,6 +428,25 @@
     pusher-readiness Qs. KEY-CUSTODY CONFIRMED (supervisor): composer signs (holds weave TG_SK), hive holds only tg_pk (verify)
     = correct verifier/signer separation, do NOT provision TG_SK to hive. My remaining #49 = metal-validate the anti-rollback
     floor + CoC throughput when the push runs. AWAIT composer's (real-lane) pusher-readiness.
+- **▶ task#34 BEACON = CANON + USB CONTRACT PROPOSED (2026-07-03):** specs landed beacon (b) as CANON (private gateway spec
+  v0.3 §5.1, pushed 5d3b19d — my flag was a real v0.2-wording bug, not a false alarm): brain = sole ENCODER (builds the
+  complete beacon AD incl RBID from its own session_key/hk + class + CAP/power), feeds it over a NEW BEACON_AD current/next
+  bridge command (extends §5.4); radio front-end = sole TRANSMITTER, airs VERBATIM, zero key material (MUST4 by construction);
+  MCU MAY schedule/rate-limit/length-check + hold cur+next (flip at rotation) but MUST NOT originate any payload bit. specs
+  CLEARED me to wire it. So I PROPOSED the concrete USB contract to composer (unblock the many-turn wait on its sandboxed
+  fork): (1) raw relay TX/RX verbatim; (2) BEACON_AD "BAD <cur|next> <adhex>" (proposed CMD 0x80/0x81 in the §5.4 0x80-0xBF
+  range) Linux→MCU; (3) HEALTH "HLT <hex>" MCU→Linux; (4) MCU gate-off (encode_advert/HB/readings/sign/PROVISION/PERSONA/
+  IDENTIFY/HEALTH-responder/deliver/dedup/route OFF; KEEP TX/RX + BAD-air + HLT + radio). Composer confirms verbs/CMDs → I
+  build+stage the radiofrontend ELF (no flash). NEXT (my active build): implement the radiofrontend feature to this contract
+  + the §4.1 Sentinel bar (adds LoRa wake-RX + wake-gating + frame-validation). specs may formalize the exact CMD byte in
+  canon (my call; else gateway-local).
+- **▶ HYGIENE mariko-guard HELD (2026-07-03):** the allowlisted-mariko guard is NOT simple (specs-codex's hold-condition met):
+  the term appears pervasively — historical dev IDs + a field-results doc + my own hygiene meta-text + ★ CUSTOMER-FACING in
+  THREE public READMEs (root + r2-hive-bin + r2hive-cli: "...marketplace and vertical-market services / ships commercial").
+  So HOLD the mariko guard; flagged the CUSTOMER-FACING README exposure to specs+supervisor for Roy (distinct from + more
+  significant than the historical IDs; intentional public branding vs leak = Roy's call; I did NOT touch the READMEs). The
+  private gateway-product-term guard stays hard (no allowlist), live+green. Going forward: minimize spelling the held term in
+  RESUME (use descriptions) to avoid inflating the count.
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
 - **r2-hive (platform-trait) PUSHED 972d131..e027edd:**
