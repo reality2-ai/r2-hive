@@ -255,6 +255,17 @@
     ★ FALSIFIABLE METAL TEST of my NVS-override diagnosis: after Roy clears 495b's @0x14000, it should VERIFY+DELIVER+FLASH on
     composer's next LED-watch + its native frames should carry target_group 04bc57e7. FLASHES ⟹ NVS-override CONFIRMED on
     metal; NO flash ⟹ diagnosis wrong (re-investigate: on-board persona@0x12000 not weave, or deliver-path). AWAIT the result.
+  ▶ RESULT: erase DIDN'T stick — after Roy's reset the @0x14000 override 0xea6c5a9d RETURNED (composer saw the 5-min reset
+    07:47-52). This REFINES (not refutes) the NVS-override diagnosis — the override IS real + correct, but its SOURCE is a
+    LIVE connect-time re-provision, not a stale leftover. DEFINITIVE @0x14000 TRUTH (firmware): offset 0x14000 (2191) + 4KB
+    sector → erase-region 0x14000 0x1000 is CORRECT (candidate-a REFUTED). The ONLY writer of @0x14000 is write_provisioned_tg,
+    called from EXACTLY ONE site — the PROVISION console verb (4298); boot only READS (268-273), NO persona/boot re-persist.
+    So the override returning ⟹ a PROVISION line (wire==495b1b62, tg 0xea6c5a9d) was sent AFTER the reset = a connect-time
+    re-provision from composer's Alfred adapter (candidate-b CONFIRMED). Erase can't win against it. FIX = composer redirects
+    495b's adapter provision target apiary→WEAVE: send a PROVISION w/ tg 0x04bc57e7 + weave hk to wire 495b1b62 → PROVISION
+    path re-keys LIVE (write @0x14000 + PENDING_PROVISION → GroupHmac swap) → 495b joins weave on the spot, NO erase/reflash.
+    PROOF: 495b serial prints 'PROVISION-APPLIED wire=495b1b62 tg_id=<x>' per applied PROVISION. Reported supervisor + asked
+    composer (is the apiary target intentional or a stale adapter config?). b14b stays apiary per #46. AWAIT composer.
 - **DESIGN CONSULT (2026-07-03) — sim↔real-bridge / R2-COMPLEX-HIVE ensemble (composer design 57e0cf6):** Alfred-Linux has
   no bench radio → the USB/carrier DFR1195 is Alfred's radio; composer models Alfred-Linux + USB-MCU-radio as ONE composite
   hive (MCU = radio component). Q to my firmware authority. GROUND TRUTH I gave: today the carrier is a DUAL role — the
@@ -305,6 +316,10 @@
   MCU-side beacon; (B) MCU→Linux power/health report for the single power-state machine. ACK'd specs w/ the full mapping.
   NEXT: on composer's USB contract → add radiofrontend feature + gate-offs + build+stage ELF + VERIFY each MUST vs the ELF +
   report the plan + exact flash. Build once, coherently (spec criteria clear; composer contract finalizes bridge KEEP-paths).
+  ★ #48 EARTHGRID reframe (Roy, 2026-07-03): the complex-hive (pure-transport MCU + Linux hive) = what a MARIKO EARTHGRID
+  HOME-HUB needs — bridges an AP/wired network ↔ the R2 mesh (Earthgrid). REAL PRODUCT PATTERN → factor into task#34: Linux
+  hive = home-hub brain + AP/wired bridge to the home net; MCU = the R2-mesh radio front-end. Validates the pure-transport-MCU
+  direction (fwd-aligned w/ the single-device Uno-Q too). Doesn't change the gate-off; it's the product context the mode serves.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
