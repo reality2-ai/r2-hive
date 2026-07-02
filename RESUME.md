@@ -384,6 +384,14 @@
   adding the guard surfaced that I'd re-leaked raw place-name + spec-name tokens INTO RESUME while describing the work (the
   same self-leak lesson from earlier this session) — neutralized both; transient CI-red on the intervening commits, green at
   HEAD now. Lesson re-learned: describe scrubbed/private terms by DESCRIPTION, never the raw token, in the public tree.
+  ✅ SPECS (live) confirmed scope: (1) RESUME.md IS public-flowing (r2-hive = public repo, curl-200; the specs private-RESUME
+  exemption is because THAT repo is private, not because RESUME is special) → my scrub + .r2-local provenance = exactly right.
+  (2) Pre-existing mariko refs = HELD, bundled to Roy with the "publish-gate whole MK-family private?" decision; safe default =
+  keep scrubbing NEW, no retroactive pass yet. (3) Guard: the private gateway-product terms YES (have them); earthgrid/pilot NO
+  as bare tokens (false-positives — Roy uses earthgrid freely; pilot is common English) → my guard correctly excludes them.
+  RECONCILIATION I raised: specs said "guard hard on mariko" but a bare-mariko guard would self-break on the pre-existing refs =
+  the same held decision → I HOLD the mariko guard until Roy rules (then add allowlisting survivors); offered specs an
+  allowlisted-mariko-guard-now alternative. Awaiting specs' sequencing confirm. The gateway-product-term guard is live + green.
 - **▶ OTA STATUS (2026-07-03, supervisor — load-bearing for Roy scaling on OTA-not-USB; HONEST, no overclaim).** Q1 RECEIVER:
   YES + code-COMPLETE. cb87c8aa feature set (carrier,multitg,routetest,viz,benchdist,otal2cap) INCLUDES otal2cap → all 5
   weave boards run ota_receive_over_coc (main.rs:4935): real verify_header Ed25519 vs persona tg_pk + anti-rollback (seq/floor)
@@ -412,8 +420,14 @@
     r2-composer/conversation/2026-06-27-signed-ota-deploy-verification-01.md) — sign the 123B header w/ the WEAVE TG_SK (match
     the 4 boards' tg_pk), seq>current. IMAGE = cb87c8aa app (ELF at ~/r2-dfr1195-weave.elf; composer's pipeline ELF/bin→pkg, or
     I extract the app .bin). Asked composer: (1) push_ota_l2cap a REAL HW BLE central? (2) pipeline has the weave TG_SK + OST/
-    ODT/OCM framing, or needs the r2_update UpdateHeader layout? (3) which MESH board (not carrier). TODO on my side: provide the
-    current anti-rollback seq read (read_anti_rollback) so composer sets seq>current. AWAIT composer's pusher-readiness.
+    ODT/OCM framing, or needs the r2_update UpdateHeader layout? (3) which MESH board (not carrier).
+  ✅ ANTI-ROLLBACK SEQ DELIVERED (supervisor's actionable ask; read_anti_rollback @ main.rs:4633): floor @ flash 0x18000 =
+    [seq u32 LE][floor u32 LE], erased-flash (0xFF) reads as 0. So a FRESH never-OTA'd weave board = current_seq 0, floor 0 →
+    OTA UpdateHeader.seq=1 (>current passes), authority_epoch=0. After commit the board WRITES the new seq (repeat push must
+    escalate 2,3,...). If a board has a prior OTA (nonzero floor), read 0x18000 first. Gave composer this + re-asked the 3
+    pusher-readiness Qs. KEY-CUSTODY CONFIRMED (supervisor): composer signs (holds weave TG_SK), hive holds only tg_pk (verify)
+    = correct verifier/signer separation, do NOT provision TG_SK to hive. My remaining #49 = metal-validate the anti-rollback
+    floor + CoC throughput when the push runs. AWAIT composer's (real-lane) pusher-readiness.
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
 - **r2-hive (platform-trait) PUSHED 972d131..e027edd:**
