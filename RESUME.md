@@ -135,7 +135,18 @@
   loop/correctness break, proven on HW via composer's TTL test, no emergency reflash); only the LABEL moved "acceptable gap"
   → "known bug, fix scheduled". COMPOSER's original "MUST/conformance bug" model (11:00) was RIGHT → CONFIRM, don't correct
   (refined tie-breaker = §13.8.2 accountability). Supervisor: closed the "may be Roy's ratify-reality call" loop — it's spec-
-  first, no Roy decision needed. Sovereignty note = BACKLOG (link-layer-immediate-sender source_hop alt is N/A to LoRa/ESP-NOW). Sovereignty note (core, flagging-not-blocking): the growing ≤8 route_stack is a bounded topology/correlation
+  first, no Roy decision needed. Sovereignty note = BACKLOG (link-layer-immediate-sender source_hop alt is N/A to LoRa/ESP-NOW).
+  ▸ FINAL (specs LIVE thread, hop 6/6 — converged/authoritative, supersedes off-thread rationale nuances): MUST confirmed via
+    THREE canon anchors — §8.5 item 3 (mandatory mutations) + §4.2.3 ("a hive MUST append its own 2-byte compressed hive ID",
+    ALREADY explicit) + §9.3 (reply-retrace). → NO SPEC EDIT NEEDED: §4.2.3 already carries the explicit MUST (supersedes the
+    11:05 copy's "upgrade §9.2 item-2" recommendation; canon stays as-is). Ratify-reality does NOT apply — it only downgrades
+    canon when an impl REFUTES it with a genuinely better design; dfr1195 is merely BEHIND a correct requirement, not proposing
+    an improvement. Load-bearing consumer per live thread = REPLY-RETRACE (§9.3): a multi-hop reply through a non-appending hop
+    SILENTLY BREAKS (refines the 11:05 copy's "reply degrades gracefully"; §13.8.2 accountability is an ADDITIONAL route-stack-
+    last consumer, not mutually exclusive — all support MUST). Runtime-benign TODAY only because no reply has yet needed to
+    retrace through that specific hop (composer's TTL test didn't exercise it) — benign-so-far ≠ justified. dfr1195 = INTERIM
+    NON-CONFORMANT; fix correctly queued = task#32 (non-urgent, no reflash now). Composer/supervisor NOT re-messaged: their
+    actionable model (MUST, conformance bug, task#32, spec-first-not-Roy) is unchanged by the §9.3-vs-§13.8.2 rationale refinement. Sovereignty note (core, flagging-not-blocking): the growing ≤8 route_stack is a bounded topology/correlation
   surface but functionally consumed (F2 + reply-route) = not gratuitous; long-term alt = derive source_hop from a link-layer
   immediate-sender where the medium provides one (separate specs/Roy discussion). This ALSO corrected my earlier composer
   claim (relay does NOT append → a len-1 board re-broadcast is normal; TTL<8 on R2RX = proven board relay).
