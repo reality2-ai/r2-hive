@@ -38,10 +38,13 @@ export class HiveWs {
       this.hive.setGroupHmac(Uint8Array.from(opts.hk), opts.tgHash >>> 0);
       this.keyed = true;
     } else {
-      // MISCONFIG GUARD (refuter Angle-3): no GroupHmac ⇒ TG-AGNOSTIC (verifyFrame accepts ALL frames).
-      // Fine for a pure-routing sim; DANGEROUS for a real trust mesh. Warn loudly.
+      // MISCONFIG GUARD (refuter Angle-3): no GroupHmac ⇒ keyless pure-routing sim. R2-TRUST §7.5.4 makes an
+      // unkeyed hive FAIL-CLOSED by default (default-OPEN is FORBIDDEN); we EXPLICITLY opt this bench hive into
+      // the legacy accept-all deliver so the sim still works. DANGEROUS for a real trust mesh — never on a
+      // production node; pass {hk,tgHash} for the real deliver-gate.
       this.keyed = false;
-      console.warn(`⚠ hive ${hex(this.id)}: NO GroupHmac — TG-AGNOSTIC, ACCEPTS ALL FRAMES. Pass {hk,tgHash} for the real deliver-gate.`);
+      this.hive.setUnkeyedOpen(true); // §7.5.4 explicit dev-only opt-in (else unkeyed → deliver:false)
+      console.warn(`⚠ hive ${hex(this.id)}: NO GroupHmac — TG-AGNOSTIC pure-routing sim (§7.5.4 opt-in accept-all). Pass {hk,tgHash} for the real deliver-gate.`);
     }
     this.onDeliver = opts.onDeliver || (() => {});
     this.onRoute = opts.onRoute || (() => {});
