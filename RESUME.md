@@ -74,7 +74,11 @@
   accepted (matches the ratified decision — weave needs no fr4 SCF/silence); (4) beacon anti_collision BE CONFIRMED
   (encode_advert to_be_bytes, firmware auto-flipped). Net: 1 confirmed bug found + fixed; ELF ready.
 - **STILL OWED (follow-up, none block the weave):** directed-relay single-transport (R2-ROUTE v0.48 §5.2, BRIDGE builds
-  only — weave is single-transport conformant); dedup-16 io_task (msg_id,origin) key (coord core, asked whose fix);
+  only — weave is single-transport conformant); dedup-16 io_task (msg_id,origin) key (core: it's MINE — wire io_task →
+  r2_dataplane ROUTE-ORIGIN-1 pipeline; CONCRETE SYMPTOM found via composer's R2RX decode: cb87c8aa's ROUTETEST originate
+  is ROUTE-LESS (main.rs:1330 route:None, origin in payload[0..4]) while the wasm emits it ROUTE-ORIGIN-1-correct
+  (route_stack[0], has_route=true) — so in a heterogeneous firmware+wasm mesh the wasm's ROUTE-ORIGIN-1 would DROP a
+  firmware ROUTETEST reading. Fixing dedup-16 = firmware ROUTETEST gets route_stack[0]=self, closing that interop gap);
   dedup-13 PROVISION-ACK serial line (low-pri bench, DEFERRED — in PENDING_PROVISION path; a concurrent writer also
   touched it in composer's tree per composer's one-writer-collision note); SCF-flush trigger now UNBLOCKED (core: use
   engine.neighbours().has_authenticated_viable(dest) per R2-ROUTE v0.52 §3B; reconnect = beacon-then-verified-keepalive
