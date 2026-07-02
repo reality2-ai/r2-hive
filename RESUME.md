@@ -101,10 +101,22 @@
   (main.rs:1870-1872) re-broadcasts with ONLY ttl-=1 + re-encode — it does NOT append its hive to route_stack, while the
   wasm/host relay (sync_host.rs:229 prepare_relay_extended) DOES the §8.3/§8.4/§9.2 append. So firmware-relayed frames keep
   route_stack len=1 across hops (TTL is the only hop indicator) while wasm-relayed frames grow it — a firmware↔wasm relay
-  DIVERGENCE. Asked core: is §9.2 route-append a MUST (→ switch firmware to prepare_relay_extended) or intentional (firmware
-  tracks the trail via note_forwarded/reinforcer, dedups on route_stack[0], loop-bounds on msg_id+fp)? Non-blocking (weave
-  works); ruling pending before folding a fix into the next firmware cycle. This ALSO corrected my earlier composer claim
-  (relay does NOT append → a len-1 board re-broadcast is normal; TTL<8 on R2RX = proven board relay).
+  DIVERGENCE. ✅ CORE RULING (route-core ground truth, 10:50:03): REAL GAP — adopt prepare_relay_extended. NOT cosmetic:
+  downstream F2 flood-exclusion reads source_hop = route_stack.last_hop() (r2-dataplane lib.rs:418-419); on connectionless
+  media (LoRa/ESP-NOW = dfr1195) the wire trail is the ONLY immediate-sender source (PHY carries no link src), so a non-
+  appending relay makes last_hop()==origin → downstream re-floods back toward the relayer (its own dedup catches it = no
+  loop/correctness break, but WASTED AIRTIME on duty-cycle media) + breaks reply reverse-routing. prepare_relay_extended
+  (r2-wire extended.rs:148-199) ALSO brings the route-len-8 cap (InvalidRouteLen §9.2) + TTL=0-no-relay (§8.3) + ROUTE-
+  ORIGIN-1 drop (§9.5/9.6) that the firmware's hand-rolled ttl-=1+re-encode currently SKIPS. My dedup reasoning HELD
+  (route_stack[0] origin IS preserved by firmware → dedup + loop-bound intact) but F2 is a SEPARATE downstream reader I
+  missed — honest gap in my analysis. NON-BLOCKING (dedup bounds it; no emergency reflash). FOLD into next firmware cycle,
+  CONSOLIDATED with dedup-16: wiring firmware io_task → r2_dataplane pipeline fixes BOTH by construction (RX origin=
+  route_stack[0] + full-u32 msg_id + A1 verify-then-record AND TX prepare_relay_extended relay-append). Normative §9.2 MUST
+  wording FORWARDED to specs for the canon stamp (core's engineering read: MUST for extended-format relays; canon stamp is
+  specs'). Sovereignty note (core, flagging-not-blocking): the growing ≤8 route_stack is a bounded topology/correlation
+  surface but functionally consumed (F2 + reply-route) = not gratuitous; long-term alt = derive source_hop from a link-layer
+  immediate-sender where the medium provides one (separate specs/Roy discussion). This ALSO corrected my earlier composer
+  claim (relay does NOT append → a len-1 board re-broadcast is normal; TTL<8 on R2RX = proven board relay).
 - **DONE (composer live-weave support):** carrier-bridge control-verb passthrough (VMASK/VRSSI/VDIST/VCLR/VBLK → carrier
   serial verbatim, --participate-gated; 388b966) — restores the §2.3A Mesh bit + unblocks the §2.3C/§2.3B drag-to-inject
   virtual-distance bench end-to-end (toward task#31). Needs re-scp to alfred:~/carrier-bridge/. Board RECEIPT+RELAY+egress-
