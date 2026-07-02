@@ -212,8 +212,22 @@ def control_reader(router, ser, participate):
                 log(f"CTRL TX> {hexstr[:24]}… (verbatim -> mesh)")
             else:
                 log(f"CTRL TX  {hexstr[:24]}… (read-only; --participate to send)")
+        elif verb in ("VMASK", "VRSSI", "VDIST", "VCLR", "VBLK"):
+            # Carrier-firmware BENCH CONTROL verbs (feature `benchdist`): §2.3A egress mask (VMASK <hex>) +
+            # §2.3C/§2.3B virtual-distance overrides (VRSSI/VDIST/VCLR/VBLK). Forward the raw line VERBATIM to
+            # the carrier serial — its uart_rx_task parses them. Enables restoring the Mesh bit (VMASK ff) and
+            # driving the drag-to-inject virtual-distance bench through the bridge.
+            sent = bool(participate and ser)
+            if sent:
+                ser.write((line + "\n").encode())
+            if JSON_MODE:
+                jline(kind="control", verb=verb, arg=hexstr, sent=sent)
+            elif sent:
+                log(f"CTRL {verb}> {line} (-> carrier bench control)")
+            else:
+                log(f"CTRL {verb}  {line} (read-only; --participate to send)")
         elif not JSON_MODE:
-            log(f"# control: unknown verb {verb!r} (use 'RX <hex>' | 'TX <hex>')")
+            log(f"# control: unknown verb {verb!r} (use 'RX <hex>' | 'TX <hex>' | VMASK/VRSSI/VDIST/VCLR/VBLK)")
 
 
 def run_live(args):
