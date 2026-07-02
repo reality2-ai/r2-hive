@@ -390,8 +390,17 @@
   activate-on-COMMIT-not-boot (main.rs:2708 — a bad/partial push never activates → active slot keeps running → no brick) +
   anti-rollback. USB-JTAG re-flash recovery is SSH-able (espflash) = remote fallback. So run the e2e REMOTELY on a MESH board
   (reboot-tolerant, NOT the carrier=live bridge). My role: support composer's pusher + metal-validate the anti-rollback floor
-  + CoC throughput (task#18) + assess remote-safety. Confirmed the fail-safe/remote-safe assessment from firmware. AWAIT
-  composer's pusher-readiness (real-HW BLE central? signed image?) to schedule the remote e2e.
+  + CoC throughput (task#18) + assess remote-safety. Confirmed the fail-safe/remote-safe assessment from firmware.
+  ✅ DELIVERED to composer the 0x00D3 PUSHER CONTRACT (supervisor ask): RECEIVER protocol from ota_receive_over_coc (4935) —
+    L2CAP CoC PSM 0x00D3, MTU 251 (~240B/SDU usable, buf 512B); 3-byte-ASCII-prefix SDUs: OST='OST'+123B UpdateHeader+64B
+    Ed25519 sig=190B (verify_header vs board tg_pk BEFORE opening the inactive slot; DeviceContext scope-1 TG_SK-DIRECT, certs/
+    revocation=[], class/carrier/tg/dev prefixes=0, anti-rollback seq MUST be > current); ODT='ODT'+chunk(<=~240B, payload_size-
+    bounded); OCM='OCM'=commit(finalize+activate). SIGNING is COMPOSER's (holds the TG_SK + the signed-ota-deploy pipeline,
+    r2-composer/conversation/2026-06-27-signed-ota-deploy-verification-01.md) — sign the 123B header w/ the WEAVE TG_SK (match
+    the 4 boards' tg_pk), seq>current. IMAGE = cb87c8aa app (ELF at ~/r2-dfr1195-weave.elf; composer's pipeline ELF/bin→pkg, or
+    I extract the app .bin). Asked composer: (1) push_ota_l2cap a REAL HW BLE central? (2) pipeline has the weave TG_SK + OST/
+    ODT/OCM framing, or needs the r2_update UpdateHeader layout? (3) which MESH board (not carrier). TODO on my side: provide the
+    current anti-rollback seq read (read_anti_rollback) so composer sets seq>current. AWAIT composer's pusher-readiness.
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
 - **r2-hive (platform-trait) PUSHED 972d131..e027edd:**
