@@ -50,6 +50,12 @@
   this tier; no rendezvous/registry service planned) confirming unicast/config-seeded-PeerTable + inbound-first-contact is
   the CORRECT cross-network/no-shared-broadcast-domain mechanism (not a stopgap); auto-discovery rightly scoped out (no
   LAN-broadcast/mDNS crosses a subnet/VPC boundary). Fully ratified canon — nothing to change in hive-udp.js.
+- **OTA-mesh-enforcement flag RESOLVED (canon MUST):** my ground-truth flag (route core is event-agnostic → OTA point-to-
+  point is an otal2cap-layer property, not route-core-enforced) → specs landed R2-UPDATE MUST 2061235: package-transfer
+  events (§3.3 mesh-forwarded, §3.4.2 pull-response) MUST be DIRECTED, never broadcast (advert/progress stay broadcast/
+  bounded). WASM VERIFIED COMPLIANT: the OtaSentant only ever broadcasts PROGRESS_HASH (status) — it HANDLES OST/ODT/OCM
+  inbound but never SENDS package-transfer; the updater (composer) sends directed = the MUST. No wasm change. specs also
+  escalated a broader "cap broadcast-frame payload size" hardening to core (route core has no enforcement mechanism today).
   kind configurable (Udp 6 default; Wifi 1 for SoftAP UDP-LAN, per core's Transport taxonomy — wire is transport-agnostic).
 - **NEXT:** the heterogeneous cross-transport TG-mesh (a BRIDGE node running WS+UDP+carrier in ONE TG) — specs: NO gateway
   construct, it's R2-ROUTE §5.4 multi-transport-relay + §5.2 per-neighbour directed-egress (same MUST the firmware bridge
