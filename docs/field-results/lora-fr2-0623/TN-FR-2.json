@@ -4,11 +4,11 @@
   "tier": "hardware",
   "transport": "lora+espnow (cross-transport)",
   "topology": "L1-multihop + cross-transport bridge (D1->D2->D3[bridge]->D4; D1<->D3 LoRa-masked)",
-  "scope": "intra-TG (one TG 'wairoa' 3932969629 spanning both islands)",
+  "scope": "intra-TG (one TG 'pilot-site' 3932969629 spanning both islands)",
   "payload": "events",
   "run_id": "lora-fr2-metal-0623",
   "timestamp_utc": "2026-06-23T09:55:00Z",
-  "runner": "hive; 4 tuxedo DFR1195 — D1=480e900e(50:26:98) origin, D2=2cab5f69(b7:90:10) LoRa-router, D3=f91c8911(b6:0a:a0) BRIDGE(LoRa+ESP-NOW), D4=06ae082b(52:99:28) ESP-NOW receiver; wairoa TG provisioned by composer (prov2.py); my ssh for flash/run",
+  "runner": "hive; 4 tuxedo DFR1195 — D1=480e900e(50:26:98) origin, D2=2cab5f69(b7:90:10) LoRa-router, D3=f91c8911(b6:0a:a0) BRIDGE(LoRa+ESP-NOW), D4=06ae082b(52:99:28) ESP-NOW receiver; pilot-site TG provisioned by composer (prov2.py); my ssh for flash/run",
   "hardware": "DFR1195 (ESP32-S3 + SX1262); D3 dual-radio = SX1262 LoRa + onboard ESP-NOW(2.4GHz)",
   "config": "LoRa: wairoa_as923_nz SF7 916.8 -9dBm + 4B immediate-sender prepend + hive-MASK (D1->[D2] D2->[D1,D3] D3->[D2]) + ALOHA TX-jitter; ESP-NOW: ch1 broadcast + MAC-MASK (D3->[D4] D4->[D3]); per-transport TX channels (DATA_TX_LORA / DATA_TX) + mesh_broadcast (bridge pushes BOTH)",
   "firmware_commit": "r2-hive eed35f9 (bridge feature; this run as-flashed)",
@@ -21,5 +21,5 @@
   ],
   "verdict": "PASS",
   "raw_serial": "docs/field-results/lora-fr2-0623/{50-26-98,B7-90-10,B6-0A-A0,52-99-28}.log",
-  "notes": "TN-FR-2 = the marae LoRa<->WiFi gateway (DG-2 #16), ESP-NOW-minimal variant (proves the cross-transport core fastest). The ENGINE AUTO-BRIDGES (core): D3's transport-aware neighbour table (D2 on LoRa, D4 on ESP-NOW) -> plan_forward picks egress per hop -> directed_via D4 over ESP-NOW, NO bridge routing code. Firmware = per-transport TX channels (DATA_TX_LORA vs DATA_TX) + mesh_broadcast (the bridge pushes BOTH carriers); dedup transport-agnostic on frame-carried origin. Delivery ~63% (vs FR-1's 11%) — the fast ESP-NOW leg avoids the LoRa half-duplex contention. NEXT: FR-2b = the TRUE LoRa<->WiFi/UDP gateway with PI5 (Linux r2-hive RECEIVER over real WiFi); FR-4 = role-based sensor/router/receiver Wairoa sim + the TN-FR-1-REL loose-jittered-HB two-arm. Baseline restored after (composer reattach-5)."
+  "notes": "TN-FR-2 = the central LoRa<->WiFi gateway (DG-2 #16), ESP-NOW-minimal variant (proves the cross-transport core fastest). The ENGINE AUTO-BRIDGES (core): D3's transport-aware neighbour table (D2 on LoRa, D4 on ESP-NOW) -> plan_forward picks egress per hop -> directed_via D4 over ESP-NOW, NO bridge routing code. Firmware = per-transport TX channels (DATA_TX_LORA vs DATA_TX) + mesh_broadcast (the bridge pushes BOTH carriers); dedup transport-agnostic on frame-carried origin. Delivery ~63% (vs FR-1's 11%) — the fast ESP-NOW leg avoids the LoRa half-duplex contention. NEXT: FR-2b = the TRUE LoRa<->WiFi/UDP gateway with PI5 (Linux r2-hive RECEIVER over real WiFi); FR-4 = role-based sensor/router/receiver pilot-site sim + the TN-FR-1-REL loose-jittered-HB two-arm. Baseline restored after (composer reattach-5)."
 }

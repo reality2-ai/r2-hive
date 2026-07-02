@@ -24,7 +24,7 @@ constants — there is **no role-profile abstraction**. Observed in `main.rs`:
 | default duty | — | mains boards | `my_duty = AlwaysOn` |
 
 **The gap:** role identity is welded to specific provisioned hive_ids (the tuxedo D1–D4 rig). Deploying
-a real Wairoa field requires a board to KNOW its role independent of which physical unit it is. That is
+a real pilot-site field requires a board to KNOW its role independent of which physical unit it is. That is
 the role-profile abstraction this prep targets.
 
 ## 2. Role behaviour today is FEATURE-GATED, not profile-selected
@@ -85,7 +85,7 @@ There is **no config struct**: role is selected by `my_hive ==` constant matches
 `{wake_cadence, wake_window, sleep_policy}` (NEW — see ⚠); `beacon_cadence`; `hb/keepalive_cadence`;
 `scf_policy{cap, ttl_s, reach_conf}`; `dest/subscription`; `ota_window_policy`. Selected from
 persona/NVS (raw blob like persona@0x12000), collapsing §1 hive-pins + §2 feature-gates into ONE
-provisioned profile = the WAIROA-6 unified-hive (one no_std build, role-by-config).
+provisioned profile = the PILOT-SITE-6 unified-hive (one no_std build, role-by-config).
 
 ### (c) 8-byte LoRa beacon layout (exact, main.rs:2757-2759)
 `payload[0..4] = my_hive` (u32 **big-endian**) ++ `payload[4..8] = seq` (u32 **big-endian**) = 8 bytes,

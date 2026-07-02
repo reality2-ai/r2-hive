@@ -17,3 +17,6 @@ prebuilt/
 # Python bytecode cache (carrier-bridge) — generated, never track
 __pycache__/
 *.pyc
+
+# local scrub provenance (never public)
+.r2-local/

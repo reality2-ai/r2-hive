@@ -4,4 +4,4 @@ MUTUAL bidirectional reception, clean payload (hive id decoded), every cycle:
   D2 RX: LORA-RX from=480e900e len=8 rssi=-44dBm snr=12dB   (D2 hears D1)
   D1 RX: LORA-RX from=2cab5f69 len=8 rssi=-45dBm snr=13dB   (D1 hears D2)
 Validates: TCXO DIO3 1.8V PLL-lock (RF radiating+received); RXEN42 polarity (HIGH-RX/LOW-TX, core's spec); DIO1 (polled); driver configure/transmit/listen/poll/read; wire (sync 0x21, freq, payload); RSSI/SNR readout.
-BENCH NOTES (not defects): SF12 (Wairoa deployment SF) gave per-packet CRC-err at 30cm — ~2s ToA vs ~3s windows = partial-catch timing (bench artifact, NOT RF); SF7 (~40ms ToA) -> clean. tx_power -9dBm (close range; deployment uses +20). SF12 long-range is a later real-distance test.
+BENCH NOTES (not defects): SF12 (pilot-site deployment SF) gave per-packet CRC-err at 30cm — ~2s ToA vs ~3s windows = partial-catch timing (bench artifact, NOT RF); SF7 (~40ms ToA) -> clean. tx_power -9dBm (close range; deployment uses +20). SF12 long-range is a later real-distance test.
