@@ -101,7 +101,11 @@
   (main.rs:1870-1872) re-broadcasts with ONLY ttl-=1 + re-encode — it does NOT append its hive to route_stack, while the
   wasm/host relay (sync_host.rs:229 prepare_relay_extended) DOES the §8.3/§8.4/§9.2 append. So firmware-relayed frames keep
   route_stack len=1 across hops (TTL is the only hop indicator) while wasm-relayed frames grow it — a firmware↔wasm relay
-  DIVERGENCE. ✅ CORE RULING (route-core ground truth, 10:50:03): REAL GAP — adopt prepare_relay_extended. NOT cosmetic:
+  DIVERGENCE. ✅ CORE RULING (TWO off-thread reads RECONCILED, 10:50 + 10:54): dedup-bounded INEFFICIENCY, NOT a
+  correctness/security break — adopt prepare_relay_extended (non-urgent). Both reads AGREE on the facts + the action; they
+  SPLIT only on MUST-emphasis (read-1 leans MUST citing airtime waste; read-2 = NOT a correctness/security MUST today, since
+  no core consumer REQUIRES the appended trail — it's an optimization). Do-not-assume: neither is "the" ruling; the stamp is
+  specs'. Mechanism (both agree):
   downstream F2 flood-exclusion reads source_hop = route_stack.last_hop() (r2-dataplane lib.rs:418-419); on connectionless
   media (LoRa/ESP-NOW = dfr1195) the wire trail is the ONLY immediate-sender source (PHY carries no link src), so a non-
   appending relay makes last_hop()==origin → downstream re-floods back toward the relayer (its own dedup catches it = no
@@ -111,9 +115,11 @@
   (route_stack[0] origin IS preserved by firmware → dedup + loop-bound intact) but F2 is a SEPARATE downstream reader I
   missed — honest gap in my analysis. NON-BLOCKING (dedup bounds it; no emergency reflash). FOLD into next firmware cycle,
   CONSOLIDATED with dedup-16: wiring firmware io_task → r2_dataplane pipeline fixes BOTH by construction (RX origin=
-  route_stack[0] + full-u32 msg_id + A1 verify-then-record AND TX prepare_relay_extended relay-append). Normative §9.2 MUST
-  wording FORWARDED to specs for the canon stamp (core's engineering read: MUST for extended-format relays; canon stamp is
-  specs'). Sovereignty note (core, flagging-not-blocking): the growing ≤8 route_stack is a bounded topology/correlation
+  route_stack[0] + full-u32 msg_id + A1 verify-then-record AND TX prepare_relay_extended relay-append). Normative §9.2
+  MUST-vs-SHOULD FORWARDED to specs (both core reads defer the stamp to specs); sent specs a FOLLOW-UP correcting my initial
+  "core says MUST" to the honest two-read split (no correctness/security forcing function today; the MUST case rests on
+  airtime-efficiency + heterogeneous-mesh trail-consistency, not a break). Firmware adopts prepare_relay_extended next cycle
+  regardless (task#32); specs' ruling only sets conformance-REQUIRED vs scheduled-OPTIMIZATION. Sovereignty note (core, flagging-not-blocking): the growing ≤8 route_stack is a bounded topology/correlation
   surface but functionally consumed (F2 + reply-route) = not gratuitous; long-term alt = derive source_hop from a link-layer
   immediate-sender where the medium provides one (separate specs/Roy discussion). This ALSO corrected my earlier composer
   claim (relay does NOT append → a len-1 board re-broadcast is normal; TTL<8 on R2RX = proven board relay).
