@@ -97,6 +97,19 @@
   touched it in composer's tree per composer's one-writer-collision note); SCF-flush trigger now UNBLOCKED (core: use
   engine.neighbours().has_authenticated_viable(dest) per R2-ROUTE v0.52 §3B; reconnect = beacon-then-verified-keepalive
   via accept_keepalive) — owed for FIELD builds only (the weave dropped fr4/SCF).
+- **NEW FINDING (via composer's live-weave dx) — firmware relay omits §9.2 route-append:** the dfr1195 io_task relay
+  (main.rs:1870-1872) re-broadcasts with ONLY ttl-=1 + re-encode — it does NOT append its hive to route_stack, while the
+  wasm/host relay (sync_host.rs:229 prepare_relay_extended) DOES the §8.3/§8.4/§9.2 append. So firmware-relayed frames keep
+  route_stack len=1 across hops (TTL is the only hop indicator) while wasm-relayed frames grow it — a firmware↔wasm relay
+  DIVERGENCE. Asked core: is §9.2 route-append a MUST (→ switch firmware to prepare_relay_extended) or intentional (firmware
+  tracks the trail via note_forwarded/reinforcer, dedups on route_stack[0], loop-bounds on msg_id+fp)? Non-blocking (weave
+  works); ruling pending before folding a fix into the next firmware cycle. This ALSO corrected my earlier composer claim
+  (relay does NOT append → a len-1 board re-broadcast is normal; TTL<8 on R2RX = proven board relay).
+- **DONE (composer live-weave support):** carrier-bridge control-verb passthrough (VMASK/VRSSI/VDIST/VCLR/VBLK → carrier
+  serial verbatim, --participate-gated; 388b966) — restores the §2.3A Mesh bit + unblocks the §2.3C/§2.3B drag-to-inject
+  virtual-distance bench end-to-end (toward task#31). Needs re-scp to alfred:~/carrier-bridge/. Composer PROVED egress-over-
+  air (TX-inject → 11 c0ffee01 on R2RX) + board receipt/relay; wire has_route layout hardware-validated 7/7. Board VERIFY
+  (deliver-gate) close = Roy's LED-watch (RECEIPT ~400ms flash) — ready on cue.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
