@@ -287,6 +287,24 @@
   GATED on specs' §2.2/§2.6 criteria + composer's USB contract (does Linux need per-frame L2-MAC/RSSI/timestamp metadata, or
   raw-everything-up?). On both replies: add `radiofrontend` feature, gate-off, build+stage ELF, report the plan + exactly what
   Roy flashes. NO flash (Roy-present cutover). AWAIT specs + composer.
+  ✅ SPECS CHECKLIST RECEIVED (R2-COMPLEX-HIVE v0.6 §2.2 SINGLE-hive mode — NOT the optional §2.6 multi-hive, don't conflate).
+  7 POSITIVE MUSTs (§2.2 + §9.1) + refuting observations = the flash yardstick. My gate-off MAPPING (radiofrontend feature):
+  · MUST1 one identity=a1f5ed00 + MUST6 MCU never originates/signs own frame → gate io_task own-hive emit (HB@1147/
+    originate@1340/signed-Event@1425) + all own sign_extended.
+  · MUST2 one beacon → gate MCU beacon advertise (3014-3025) + ble_task beacon/RBID.
+  · MUST3 one R2-CAP (union) → no CAP responder exists in fw (CAP rides the beacon → covered by MUST2); Linux answers CAP.
+  · MUST4 one shared TG key + NO separate MCU provisioning entry (structurally impossible) → gate PROVISION (is_provision
+    @4292) + PERSONA (is_persona/handle_persona_cmd @4417-22); MCU holds NO keys, cannot be independently TG-joined.
+  · MUST5 one power-state → MCU must not announce independently; OPEN: report local health to Linux over the bridge? (composer)
+  · MUST7 internal bridge ≠ R2-ROUTE hop → ALREADY SATISFIED: INJECT TX (4426-45) transmits Alfred's frame UNCHANGED (no
+    TTL--, no route-append; src comment 'transmit it unchanged, transparent radio modem'); RX-air→serial hands RAW bytes.
+  · ALSO gate the IDENTIFY responder (@1679) + HEALTH responder (@1691) so no peer gets an MCU-identity response.
+  REFUTERS (check first, cheapest): 2nd beacon/device-ID ≠ a1f5ed00; MCU independently TG-provisioned; MCU signs/originates
+  non-a1f5ed00 frame; peer reaches MCU AS a separate hive; MCU/Linux power-state independent; Linux↔MCU shows as a routed hop.
+  2 POINTS FLAGGED TO SPECS needing composer: (A) does Linux AIR its beacon THROUGH the MCU (still a1f5ed00 identity) or NO
+  MCU-side beacon; (B) MCU→Linux power/health report for the single power-state machine. ACK'd specs w/ the full mapping.
+  NEXT: on composer's USB contract → add radiofrontend feature + gate-offs + build+stage ELF + VERIFY each MUST vs the ELF +
+  report the plan + exact flash. Build once, coherently (spec criteria clear; composer contract finalizes bridge KEEP-paths).
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
