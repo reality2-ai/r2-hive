@@ -200,7 +200,29 @@
     issue); no-native-heard=RANGE-dark. Serial-open RESETS the board (task#14) → prefer LCD-read/identify.
   • §9.2/task#32 OBSERVABILITY PAYOFF (composer's point, confirmed): non-append = R2RX can't attribute WHICH board relayed;
     prepare_relay_extended APPENDS the relaying hive to route_stack → per-board relay attribution. Concrete reason to prioritize
-    task#32 ON TOP of the conformance MUST. REPORTED to supervisor; ASKED composer the reply-probe + truth table. AWAIT metal.
+    task#32 ON TOP of the conformance MUST. REPORTED to supervisor; ASKED composer the reply-probe + truth table.
+  ★★ PERSONA-FILE REFUTATION (2026-07-03 — CONTRADICTS the fleet's converged "2 dark = non-weave-persona" consensus).
+  Fleet+Roy concluded: 495b1b62=joiner-no-hk, b14b07d8=Alfred-apiary-different-tg, dark=fail-closed-membership=clean positive.
+  I VERIFIED against ground truth (parsed all 5 ~/r2-weave-tg/persona-*.bin: tool scratchpad/persona_map.py — CBOR KS1 parse +
+  hk-vs-weave-hk.bin sha compare + derive_hive_id per hkdf.rs; NO secret bytes emitted). RESULT: ALL 5 personas incl BOTH dark
+  carry the IDENTICAL weave TG (tg_hash 04bc57e7, tg_id c95649a6-45a9-43ac-9537-838d8d4477f2) + IDENTICAL weave hk (every
+  hk==weave-hk.bin sha12 f991956b34d2). CROSS-VALIDATED: my derived hive_ids MATCH composer's observed origins EXACTLY
+  (50:23:E4→09a07e47, 50:26:98→8900955e, 52:99:28→495b1b62, B7:90:10→b14b07d8, B6:0A:A0→655a9e5f=carrier) → derivation
+  correct + dark boards RUN these weave personas (on-air id = persona-derived, NOT demo mac_low3). So at the PERSONA level the
+  2 dark are FULL weave members with the correct key → the joiner/apiary-persona story is REFUTED; re-minted B7:90:10 STILL
+  has hk==weave (re-mint did NOT rotate the key → that hypothesis refuted too). RECONCILIATION (preserves the apiary intuition):
+  the firmware's RUNTIME NVS @0x14000 multitg override (main.rs:266-273) swaps hk+tg WITHOUT changing hive_id → a dark board
+  can run the weave PERSONA but be overridden at runtime to a DIFFERENT TG (Alfred's apiary) → fail-closed on the override key
+  → dark, still showing its weave hive_id. That NVS-override is the ONLY way a weave-persona board is dark. DECISIVE CHECKS
+  (composer): (1) 495b/b14b NATIVE frames' target_group — !=04bc57e7 = NVS override confirmed; ==04bc57e7 = on weave TG +
+  SHOULD deliver = dark is NOT membership (real bug/LED). (2) does composer's weave-keyed adapter hmac-VERIFY (deliver) their
+  native frames? verify = weave key = should flash. (3) boot serial "PROVISIONED TG restored from NVS — tg_id=<x>" (accepts
+  reset). FIX IMPLICATION: if NVS-override, re-mint+reflash persona.bin does NOT fix it (persona already weave) → CLEAR NVS
+  @0x14000 (or leave b14b if intentionally apiary). CORRECTION to supervisor's LCD assumption: the DFR1195 LCD shows hive_id
+  (L2, main.rs:735) but does NOT render dlv= (dlv only on the SERIAL status line 766) → can't read dlv non-invasively today;
+  Roy's task#34 LED-legibility feature is the right non-invasive fix (or add dlv=/blk= to the LCD next cycle). REPORTED to
+  supervisor + composer; AWAIT the target_group/verify answers. DO-NOT-ASSUME: consensus "clean positive" was persona-level
+  wrong; the mechanism (if dark is real membership) is NVS-override, which changes the fix.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
