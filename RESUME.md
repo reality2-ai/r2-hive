@@ -158,9 +158,11 @@
   TTL-is-the-hop-counter + no-TX-loopback calls). All surfacings 1-hop (no ttl=6) = relaying boards are direct carrier-
   neighbours / 2-hop deduped. wire has_route layout hardware-validated 7/7. ONLY remaining = deliver-gate hmac VERIFY
   (below-L5, relay does NOT prove it) = Roy's LED-watch (RECEIPT ~400ms flash) via TX-inject — ready on cue.
-- **⚠️ LED-WATCH REFUTED (supervisor, 2026-07-03): Roy watched all 4 boards on composer's signed-c0ffee01 inject burst =
-  ZERO flashes.** Ground-truth investigation (read cb87c8aa source @8ec1a6f + grepped the flashed ELF) → VERDICT: NOT an LED
-  gap; most likely FAIL-CLOSED-working-as-designed (group-KEY mismatch), + a relay-vs-deliver test-design element.
+- **✅ LED-WATCH VERDICT VALIDATED then REFOCUSED (supervisor, 2026-07-03).** FIRST premise "ZERO flashes" → my ground-truth
+  verdict (NOT an LED gap; deliver-gate is GroupHmac-possession; likely key-mismatch fail-closed). THEN premise flipped: Roy
+  reports **3 of 4 boards FLASH** (09a07e47 + 8900955e flash; **495b1b62 + b14b07d8 DARK**) → CONFIRMS recv_flash works + the
+  L5 deliver-gate ACCEPTS injects (composer's key matches the 3) = my verdict validated on metal. REFOCUS = why the 2 dark.
+  My initial ground-truth (still all correct, kept for the record):
   (1) recv_flash IS in the flashed ELF (strings ~/r2-dfr1195-weave.elf has 'DELIVERED msg_id='; hive-codex earlier cmp-
   verified ELF≡rebuild of 8ec1a6f). LED path (main.rs:642/658/683) UNCONDITIONAL: idle=OFF (line 640/690, NO heartbeat
   baseline = nothing masks it), deliver→RECEIPT_SIGNAL→recv_flash=8=~400ms full-on, polarity-aware. A real deliver WOULD be
@@ -178,7 +180,27 @@
   (700); absent+dlv-flat = gate rejected (key/tg mismatch, LED innocent); present+no-LED = an LED bug (re-investigate). Boot
   serial fw=+BUILD_ID confirms WHICH firmware is flashed (answers Roy's "right firmware?"). REPORTED to supervisor; ASKED
   composer the decisive key question (did it align to the boards' REAL hk vs a self-consistent key; did its adapter ever
-  hmac-DELIVER a native board frame vs only decode layout — self-verify hmac_ok proves nothing about the boards' key). AWAIT.
+  hmac-DELIVER a native board frame vs only decode layout — self-verify hmac_ok proves nothing about the boards' key).
+  REFOCUS (2 dark = 495b1b62 + b14b07d8) — ground-truth answers to supervisor + composer:
+  • LOCATE-BY-ID (Roy can't map physical position→origin): (a) DFR1195 LCD L2 ALREADY renders "hive <8hex>" = the origin
+    unless composer wrote a human label (main.rs:731-735) → Roy READS each DFR1195 board's ID off its screen (XIAO-S3 = no
+    screen). (b) r2.hb.identify (IDENTIFY_HASH=fnv1a_32 "r2.hb.identify"): a Directed identify → target board SOLID ~5s
+    (main.rs:1679-1688), handled PRE-deliver-gate (NO hmac, fires on target_hive==my_hive) = works CROSS-KEY; but consumed-
+    not-relayed (continue @1689) = DIRECT-neighbours only (1-hop). Inject identify target_hive=<origin> payload=[1] (unsigned
+    ok) → locate.
+  • PER-BOARD DELIVER SIGNAL (composer's "which board delivered"): a delivered DIRECTED routetest REQUEST (payload=<req_origin
+    BE4>++"req") → over-air REPLY (main.rs:1968-2022) with payload[0..4]=DELIVERING board's hive_id (route:None, origin in
+    payload = routetest convention; reply msg_id has high-bit set). Broadcast c0ffee01 is not "req" → no reply (LED is the only
+    current signal). Reply requires DELIVER(hmac_ok) → reply-seen = key matches. Directed caveat: ESP-NOW broadcast PHY = all
+    in-range hear it, only target acts on gate; direct-neighbour delivers+replies; distant needs route (may drop at carrier).
+  • MEMBERSHIP-vs-RANGE (can't tell per-board provisioning from SOURCE — runtime NVS persona@0x12000 / NVS@0x14000; read from
+    boot serial RE-ATTACH tg=X vs UNPROVISIONED demo-TG @206/209, or native frames' target_group). TRUTH TABLE (composer's
+    native-liveness measurement): hears-native+flash=member OK; hears-native+no-flash+no-reply=in-range+gate-rejects=MEMBERSHIP-
+    dark (fail-closed §7.5.4 CORRECT = Roy's "joiner" hypothesis); hears-native+no-flash+REPLIES=delivered-but-LED-silent (LED
+    issue); no-native-heard=RANGE-dark. Serial-open RESETS the board (task#14) → prefer LCD-read/identify.
+  • §9.2/task#32 OBSERVABILITY PAYOFF (composer's point, confirmed): non-append = R2RX can't attribute WHICH board relayed;
+    prepare_relay_extended APPENDS the relaying hive to route_stack → per-board relay attribution. Concrete reason to prioritize
+    task#32 ON TOP of the conformance MUST. REPORTED to supervisor; ASKED composer the reply-probe + truth table. AWAIT metal.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
