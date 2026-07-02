@@ -320,6 +320,31 @@
   HOME-HUB needs — bridges an AP/wired network ↔ the R2 mesh (Earthgrid). REAL PRODUCT PATTERN → factor into task#34: Linux
   hive = home-hub brain + AP/wired bridge to the home net; MCU = the R2-mesh radio front-end. Validates the pure-transport-MCU
   direction (fwd-aligned w/ the single-device Uno-Q too). Doesn't change the gate-off; it's the product context the mode serves.
+  ★ specs-codex REFINEMENT (adversarial check of my mapping, mostly aligned): (1) MCU-holds-NO-keys OK ONLY if it's pure radio
+  modem + NEVER makes TG-auth/sign/validation decisions (any GroupHmac path would have to use a1f5ed00's material — pure-
+  transport means it touches none). Gate-off PROVISION/PERSONA = right. (2) ADDITIVE PATHS beyond suppression: (A) BEACON —
+  conformant = Linux builds a1f5ed00's beacon/CAP + MCU AIRS it, OR another radio provides the single beacon; if the MCU
+  radio is the ONLY field radio, NO beacon on it LIKELY FAILS the checklist → so the radiofrontend mode probably needs an
+  "air a1f5ed00's beacon" path (Linux → MCU beacon AD → MCU advertises it, still a1f5ed00 identity), NOT just gate off the
+  MCU's own beacon. (B) POWER-STATE — feed MCU battery/health INTO Linux's single composite power-state machine (MCU reports
+  over the internal bridge; must NOT announce independently) → a "report health to Linux" serial path to ADD. (3) MUST7
+  transparent modem consistent if no route_stack/TTL/identity leaks (✓ INJECT already verbatim). NET for task#34: the mode =
+  SUPPRESS (own emit/beacon/sign/provision/identify/health-announce) + ADD (air Linux's beacon; report health to Linux). Fold
+  both into the USB contract w/ composer.
+- **▶ OTA STATUS (2026-07-03, supervisor — load-bearing for Roy scaling on OTA-not-USB; HONEST, no overclaim).** Q1 RECEIVER:
+  YES + code-COMPLETE. cb87c8aa feature set (carrier,multitg,routetest,viz,benchdist,otal2cap) INCLUDES otal2cap → all 5
+  weave boards run ota_receive_over_coc (main.rs:4935): real verify_header Ed25519 vs persona tg_pk + anti-rollback (seq/floor)
+  BEFORE opening the slot + PayloadVerifier streaming write + session timeout, on the 0x00D3 L2CAP CoC. CAVEAT: under otal2cap
+  the CoC IS the OTA receiver (0x00D3), NOT the 0x00D2 control plane (fine — weave mesh = ESP-NOW + carrier-bridge). Q2 REAL-HW
+  PUSH: ✗ NOT PROVEN end-to-end — do NOT rely on OTA for scaling yet. Pieces validated SEPARATELY: (a) OTA SLOT-SWITCH (write
+  ota_1 → activate_next_partition → reboot → boot new image) METAL-PROVEN (D5 staota 2026-06-30); (b) verify-before-write
+  WASM-PROVEN (composer item-2, MemSink≠real slots). The INTEGRATED BLE-CoC push (central → signed image over 0x00D3 → verify
+  → write → activate → reboot) has NEVER run on real HW — PARKED for a Roy-AM e2e (RESUME 1397/1410); anti-rollback floor
+  ordering also needs a networked metal OTA. Q3 FIRST REAL-HW PUSH NEEDS: composer's push_ota_l2cap as a real BLE central +
+  a signed R2-UPDATE image (weave TG_SK) + ONE-board metal e2e (push→verify→write→commit→reboot→confirm new boot) + task#18
+  CoC throughput + anti-rollback metal-validate + connectable advertising. RECOMMEND: one-board metal e2e FIRST to de-risk
+  before fleet-relying (a failed first push may need USB re-flash). Joint hive(receiver=DONE)+composer(pusher+image). Reported
+  supervisor + asked composer pusher-readiness. AWAIT composer.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
