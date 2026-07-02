@@ -1,5 +1,28 @@
 # RESUME — r2-hive (hive-worker)
 
+## ▶ 2026-07-02 — NEXT TRACK SCOPED: r2-hive-wasm production-hive + refutation-instrument (spec-first, blocked on specs)
+- **Supervisor track (while Roy schedules the flash):** build r2-hive-wasm as the PRODUCTION no-radio hive + refutation
+  instrument — full real TN+TG+OTA (mirror firmware flows, no mocks), WS + UDP-first-class-L1 transports, carrier-bridge
+  unifying wasm + hardware into ONE heterogeneous TG mesh. I'm SOLE WRITER of r2-hive-wasm; composer builds the UX/
+  orchestrator (re-pulls webapp/wasmhive/); spec-first; commit/push/hosted-green; dedup-16 stays deferred.
+- **Baseline assessed (already DONE):** real-core TN+TG+OTA stack (r2_engine EventBus + HbSentant + OtaSentant +
+  r2_route sync-route + r2_trust deliver-gate, NO mocks); WS bearer (ws-mesh: gateway.js broadcast relay + hive-ws.js +
+  browser variant); carrier-bridge (Python + wasmhive-node: host <-> DFR1195-ESP-NOW carrier <-> wasm route core).
+- **GAPS this track:** (1) UDP-first-class-L1 bearer (no wasm UDP binding yet — README defers to "core's host-UDP");
+  (2) heterogeneous-TG-mesh unification (WS + UDP + ESP-NOW carrier in ONE TG).
+- **★ SPEC-FIRST FORK (asked specs, HOLDING the conformant UDP build):** core's std UDP-LAN
+  (r2_discovery::bindings::udp_lan) is UNICAST-per-peer via a PeerTable + raw R2-WIRE — which does NOT match the wasm
+  route core's BROADCAST model (route_frame → sends[] onto a shared bearer, like the WS-gateway/ESP-NOW). So the wasm UDP
+  bearer is either (a) UDP MULTICAST (shared broadcast bearer, fits the wasm model + WS/ESP-NOW pattern) or (b) unicast-
+  peer-table (matches core's std, but needs next-hop hive_id→addr resolution the broadcast route_frame doesn't expose).
+  ALSO asked: heterogeneous-mesh shape = multi-bearer GATEWAY (relays across bearers) vs per-node bridge (R2-ROUTE §5.2),
+  and how (msg_id,origin) dedup + TG GroupHmac stay intact across a WS->ESP-NOW->UDP hop chain. Build-wrong = non-conformant,
+  so HOLDING for specs (per supervisor's spec-first).
+- **Coordinated composer** (peer-to-peer): asked what wasm API the refutation-UX needs beyond current WasmHive; confirmed
+  split (me=wasm+bindings+gateway, composer=UX/orchestrator); pkg-sha ping on each bump.
+- **NEXT when specs answers:** build the conformant UDP bearer (hive-udp.js) + the heterogeneous-mesh gateway; then a
+  cross-transport TG-mesh test (WS+UDP+carrier, TG-isolation held) as the refutation instrument. Idle until specs/composer reply.
+
 ## ✅ 2026-07-02 — SECURITY RE-VENDOR + WEAVE ELF DONE + REFUTATION CLEARED (ready for Roy's flash)
 - **dfr1195-fw PUSHED 1811267..8ec1a6f:** re-vendored 8 crates BYTE-EXACT to core@1275732 (supervisor byte-verified,
   security-complete): r2-cbor(§7.4 dup-key reject), r2-dataplane(140da84 + arrival_transport gate), r2-trust(persona
