@@ -57,14 +57,15 @@ fn kind_from_u8(k: u8) -> TransportKind {
 // transport-seam coupling); the WS/UDP socket BINDINGS + the shared TransportProfile struct
 // (single-sourced in r2-transport) land with core's host-UDP binding.
 
-/// §2.5 / R2-ROUTE §2.6 `rssi → quality`: RSSI (dBm) → link-quality in [0,1]. Canonical clamp
-/// (§2.7 table): −50 dBm → 1.0 (excellent), −80 dBm → 0.0 (link-dead); linear between, saturating
-/// outside. This is the reachability-strength metric the neighbour-table confidence seed reads.
+/// §2.5 / R2-ROUTE §2.6 `rssi → quality`: continuous RSSI (dBm) → link-quality in [0,1].
+/// DELEGATES to core's canonical §2.5 curve [`r2_transport::profile::quality_from_rssi_f32`] — the f32
+/// entry point core exposed (992197f) so the JS sim's fractional dBm (`tx_dbm − range_to_loss_db(..)`)
+/// keeps full precision, no i8 stair-step; the metal i8 path (`quality_from_rssi(i8)`) shares the SAME
+/// curve. Compile-time single-source (like `range_to_loss_db`/`transport_profile`) → no drift BY
+/// CONSTRUCTION, not by a tripwire. Anchors: −50 dBm → 1.0, −80 dBm → 0.0, linear between, clamped.
 #[wasm_bindgen]
 pub fn quality_from_rssi(rssi_dbm: f32) -> f32 {
-    const RSSI_FULL: f32 = -50.0; // → 1.0
-    const RSSI_ZERO: f32 = -80.0; // → 0.0
-    ((rssi_dbm - RSSI_ZERO) / (RSSI_FULL - RSSI_ZERO)).clamp(0.0, 1.0)
+    r2_transport::profile::quality_from_rssi_f32(rssi_dbm)
 }
 
 /// §2.2 medium ids → the canonical [`r2_transport::TransportId`] (single-source; same order as
@@ -784,23 +785,10 @@ mod tests {
         assert!((quality_from_rssi(-65.0) - 0.5).abs() < 1e-6); // midpoint
         assert_eq!(quality_from_rssi(-30.0), 1.0); // saturates above −50
         assert_eq!(quality_from_rssi(-100.0), 0.0); // saturates below −80
-    }
-
-    #[test]
-    fn quality_from_rssi_is_byte_exact_with_core_canonical() {
-        // §2.7 single-source ENFORCEMENT — core's «bind byte-exact to these» made a CI invariant.
-        // `range_to_loss_db` / `transport_profile` DELEGATE into r2-transport at compile time, so they
-        // cannot drift. `quality_from_rssi` is the one export deliberately kept as an f32-native copy: the
-        // JS sim feeds fractional dBm (`tx_dbm − range_to_loss_db(..)`), and delegating to core's i8 export
-        // would stair-step the quality curve at integer dBm. So THIS is its drift tripwire — at every integer
-        // anchor across the full i8 domain the f32 wrapper MUST equal core's canonical i8 `quality_from_rssi`
-        // BIT-for-bit (the interpolation is the identical `(rssi+80)/30` op-sequence; boundaries agree because
-        // 30/30 and 0/30 are exact). It trips the instant core moves the −50/−80 breakpoints out from under us.
-        for rssi in i8::MIN..=i8::MAX {
-            let core = r2_transport::profile::quality_from_rssi(rssi);
-            let wasm = quality_from_rssi(rssi as f32);
-            assert_eq!(wasm, core, "sim/field drift at {rssi} dBm: wasm {wasm} != core {core}");
-        }
+        // Fractional dBm is NOT stair-stepped (the whole reason for the f32 entry point): −65.5 sits
+        // strictly between the −65 and −66 anchors, proving continuous precision (delegated to core's f32).
+        assert!(quality_from_rssi(-66.0) < quality_from_rssi(-65.5));
+        assert!(quality_from_rssi(-65.5) < quality_from_rssi(-65.0));
     }
 
     #[test]

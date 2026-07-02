@@ -17,20 +17,22 @@
      already dropped. Ratified v0.19 params present: PL_ref=40 all-RF, n = LoRa1.5/WiFi2.35/Mesh2.85/BLE3.4, IP=0.
   - **Proof:** `cargo test --manifest-path crates/r2-hive-wasm/Cargo.toml --lib` → 14 passed / 0 failed / 1 ignored
     against landed r2-core `a6cf14a` (incl. the 3 §2.7 export tests). Binding is complete + green.
-- **CLOSED the one single-source gap (the only real delta):** `range_to_loss_db` + `transport_profile` DELEGATE into
-  r2-transport (compile-time single-source — cannot drift). `quality_from_rssi` is the one export kept as a
-  **deliberate f32-native copy** (`lib.rs:64-67`): the JS sim feeds fractional dBm (`tx_dbm − range_to_loss_db(..)`),
-  so delegating to core's `i8` export (`profile.rs:210`) would stair-step the quality curve — a real regression for
-  composer's theater. Verified the two are arithmetically identical (`(rssi+80)/30`, same f32 op-seq; boundaries exact
-  via 30/30, 0/30) and added test `quality_from_rssi_is_byte_exact_with_core_canonical` asserting bit-equality across
-  the FULL i8 domain (256 vals) → makes core's "bind byte-exact" a CI-enforced invariant / drift tripwire. Green.
-- **No pkg rebuild / version bump:** test-only addition; zero change to any exported fn or pkg output (v0.4.12 staged
-  pkgs unaffected). Guard clean (exit 0).
-- **DO-NOT-ASSUME:** `quality_from_rssi` is INTENTIONALLY not delegated (f32-precision on the JS surface); `range_to_loss_db`
-  + `transport_profile` ARE compile-time-delegated. Don't "fix" the asymmetry by forcing the i8 cast — the cross-check
-  test guards byte-exactness without the precision loss.
-- **NEXT:** reply to core confirming already-converged + the drift-guard; nothing further needed on WS-binding. #49
-  still Roy-gated (.bin one-liner); task#34 canon-locked + ready.
+- **The one single-source gap — RESOLVED; core did BETTER than my tripwire (challenge → single-source):** I first kept
+  `quality_from_rssi` as a deliberate f32-native copy + a bit-equality tripwire vs core's `i8` export (delegating to i8
+  would stair-step the JS sim's fractional dBm). Flagged the asymmetry to core as a challenge; core SINGLE-SOURCED it —
+  exposed `quality_from_rssi_f32(f32)->f32` (`profile.rs:215`, canonical §2.5 curve on continuous dBm) and made
+  `quality_from_rssi(i8)` delegate to it (992197f, r2-transport 45/0, i8==f32 proven in core's own test). So I REBOUND:
+  wasm `quality_from_rssi` now delegates directly to `r2_transport::profile::quality_from_rssi_f32`; dropped the local
+  reimpl + the tripwire. Now ALL THREE §2.7 exports (range_to_loss_db, transport_profile, quality_from_rssi) are
+  compile-time single-source → no drift BY CONSTRUCTION, not by a test. Kept the anchor smoke test + added a
+  fractional-precision assertion (−65.5 strictly between −65/−66). wasm lib 13/0/1-ignored green; guard clean (exit 0).
+- **No pkg rebuild / version bump:** impl-internal only; `quality_from_rssi(f32)->f32` signature + all pkg output
+  unchanged (v0.4.12 staged pkgs unaffected).
+- **DO-NOT-ASSUME:** all three §2.7 exports now delegate into core's r2-transport (compile-time single-source). The f32/i8
+  split lives in CORE — `quality_from_rssi_f32` is the f32 entry (bind THIS for fractional dBm), `quality_from_rssi(i8)`
+  the metal path. Do NOT reintroduce a local wasm reimpl of the curve.
+- **NEXT:** ack core's single-source follow-up (rebound, done) — WS-binding fully closed. #49 still Roy-gated (.bin
+  one-liner); task#34 canon-locked + ready.
 
 ## ▶ 2026-07-02 — r2-hive-wasm production-hive track: composer's #1 (FULL ENSEMBLE) DONE; UDP model resolved
 - **Supervisor track (while Roy schedules the flash):** build r2-hive-wasm as the PRODUCTION no-radio hive + refutation
