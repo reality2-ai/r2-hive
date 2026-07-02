@@ -15,8 +15,12 @@
 const path = require('path');
 const dgram = require('dgram');
 
-// UDP bearer routing-kind: 6 = Udp (r2_route Transport::Udp; the §2.7 profile is carrier-independent —
-// the kind only tags the link for the transport-aware routing math). source_hive=0 = "unknown immediate
+// UDP bearer routing-kind (LOCAL routing-math tag ONLY — core confirmed the r2-wire frame is
+// TRANSPORT-AGNOSTIC, carries NO transport id, so the kind never goes on the wire and browser⇄board frames
+// match regardless). Per core's authoritative Transport taxonomy: generic/global connectionless UDP =
+// Udp(6) [default here]; a SoftAP/infrastructure UDP-LAN bearer maps to the EXISTING Wifi(1) ("UDP events
+// over SoftAP or infrastructure") — pass `opts.kind: 1` for that topology. Do NOT invent a new UDP-LAN
+// variant (that's a specs Transport-enum change, not a local fork). source_hive=0 = "unknown immediate
 // sender" (the frame's route_stack[0] origin is what (msg_id,origin) dedup keys on).
 const UDP_KIND = 6;
 
@@ -43,6 +47,8 @@ class HiveUdp {
     for (const [k, v] of Object.entries(opts.peers || {})) this.peers.set(parseInt(k) >>> 0, v);
     this.bindPort = opts.bindPort || 0;
     this.bindAddr = opts.bindAddr || '127.0.0.1';
+    // Routing-math kind: Udp(6) generic connectionless [default]; Wifi(1) for a SoftAP UDP-LAN topology.
+    this.kind = opts.kind != null ? (opts.kind >>> 0) : UDP_KIND;
     this.onDeliver = opts.onDeliver || (() => {});
     this.onRoute = opts.onRoute || (() => {});
     this.seq = 0;
@@ -83,7 +89,7 @@ class HiveUdp {
     if (gate.deliver) this.onDeliver(this.id, bytes, gate);
     // (2) FORWARDING — route_frame relay/flood; unicast each send to its resolved next-hop addr.
     let out;
-    try { out = JSON.parse(this.hive.route_frame(0, UDP_KIND, bytes, this._now(), 0.5)); }
+    try { out = JSON.parse(this.hive.route_frame(0, this.kind, bytes, this._now(), 0.5)); }
     catch (e) { process.stderr.write(`# hive ${hex(this.id)}: route_frame threw: ${e}\n`); return; }
     this.onRoute(this.id, out);
     for (const s of out.sends || []) this._sendTo(this.peers.get(s.target >>> 0), hexToBytes(s.frame));
