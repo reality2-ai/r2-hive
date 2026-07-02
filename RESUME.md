@@ -57,6 +57,13 @@
   inbound but never SENDS package-transfer; the updater (composer) sends directed = the MUST. No wasm change. specs also
   escalated a broader "cap broadcast-frame payload size" hardening to core (route core has no enforcement mechanism today).
   kind configurable (Udp 6 default; Wifi 1 for SoftAP UDP-LAN, per core's Transport taxonomy — wire is transport-agnostic).
+- **§8.4a broadcast/flood amplification cap (core b26703c, R2-WIRE v0.27 / R2-ROUTE §3.4 v0.53) — that broader hardening
+  LANDED:** plan_forward drops broadcast/spray-K≥2 frames with payload_len>BROADCAST_PAYLOAD_MAX(512) as
+  DropReason::OversizeBroadcast. FIXED a real wasm bug it exposed: sync_host passed ForwardRequest.payload_len=frame.len()
+  (whole frame, over-counts) → now msg.payload.len() (4940f29; core's heads-up 2). Wasm gets §8.4a LIVE via its path-dep to
+  core HEAD; Drop(_) wildcard = no match-arm break. FIRMWARE already compliant (all plan_forward sites pass real
+  payload.len(); Drop(r)/matches! non-exhaustive) → its §8.4a re-vendor is clean but DEFERRED (dormant in the weave; won't
+  churn the cleared ELF cb87c8aa). Pkgs re-staged (web sha 5e7bf56b).
 - **NEXT:** the heterogeneous cross-transport TG-mesh (a BRIDGE node running WS+UDP+carrier in ONE TG) — specs: NO gateway
   construct, it's R2-ROUTE §5.4 multi-transport-relay + §5.2 per-neighbour directed-egress (same MUST the firmware bridge
   owes). dedup/GroupHmac survive by construction. Composer's #1 (ensemble) + items 2-4 confirmed; composer building its UX.
