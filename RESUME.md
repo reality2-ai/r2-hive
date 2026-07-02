@@ -266,6 +266,16 @@
     path re-keys LIVE (write @0x14000 + PENDING_PROVISION → GroupHmac swap) → 495b joins weave on the spot, NO erase/reflash.
     PROOF: 495b serial prints 'PROVISION-APPLIED wire=495b1b62 tg_id=<x>' per applied PROVISION. Reported supervisor + asked
     composer (is the apiary target intentional or a stale adapter config?). b14b stays apiary per #46. AWAIT composer.
+  ✅✅ RESOLVED ON METAL (2026-07-03): Roy's 08:05 CLEAN erase (0x00014000 / 4096B) STUCK — 495b's target_group flipped
+    0xea6c5a9d → 0x04bc57e7 (weave) on the first frame (08:15:43). My NVS-override diagnosis is PROVEN ON METAL (clear the
+    @0x14000 override → board falls back to its flashed weave persona → joins weave). Bench now 4/5 on weave; b14b held apiary.
+    HONEST ACCOUNTING: my @0x14000 firmware TRUTH held EXACTLY (boot only READS, only the PROVISION verb writes → a clean
+    erase sticks + there's NO other writer). BUT my secondary INFERENCE — "override returned ⟹ the host re-provisioned it on
+    connect" — was an OVER-REACH + was REFUTED: composer's code ground-truth (carrier-r2-adapter.js is a verbatim RX/TX relay,
+    ZERO 0xea6c5a9d emitters, no @0x14000 write path anywhere) + the clean-erase test proved the simpler cause = Roy's FIRST
+    erase was MALFORMED (didn't clean the sector); the override never actually returned. Lesson: I inferred a complex cause
+    (connect-time re-provision) over the simple one (bad erase command); composer's refutation + the metal test corrected it —
+    conjecture/refutation working. Core diagnosis RIGHT + proven; the source-inference was the wrong part.
 - **DESIGN CONSULT (2026-07-03) — sim↔real-bridge / R2-COMPLEX-HIVE ensemble (composer design 57e0cf6):** Alfred-Linux has
   no bench radio → the USB/carrier DFR1195 is Alfred's radio; composer models Alfred-Linux + USB-MCU-radio as ONE composite
   hive (MCU = radio component). Q to my firmware authority. GROUND TRUTH I gave: today the carrier is a DUAL role — the
@@ -316,10 +326,21 @@
   MCU-side beacon; (B) MCU→Linux power/health report for the single power-state machine. ACK'd specs w/ the full mapping.
   NEXT: on composer's USB contract → add radiofrontend feature + gate-offs + build+stage ELF + VERIFY each MUST vs the ELF +
   report the plan + exact flash. Build once, coherently (spec criteria clear; composer contract finalizes bridge KEEP-paths).
-  ★ #48 EARTHGRID reframe (Roy, 2026-07-03): the complex-hive (pure-transport MCU + Linux hive) = what a MARIKO EARTHGRID
-  HOME-HUB needs — bridges an AP/wired network ↔ the R2 mesh (Earthgrid). REAL PRODUCT PATTERN → factor into task#34: Linux
-  hive = home-hub brain + AP/wired bridge to the home net; MCU = the R2-mesh radio front-end. Validates the pure-transport-MCU
-  direction (fwd-aligned w/ the single-device Uno-Q too). Doesn't change the gate-off; it's the product context the mode serves.
+  ★ #48 GATEWAY-PRODUCT reframe (Roy, 2026-07-03; PRIVATE product naming redacted per specs — see .r2-local/ provenance):
+  the complex-hive (pure-transport MCU + Linux hive) = what a resident-premises GATEWAY product needs — bridges an AP/wired
+  network ↔ the R2 mesh. REAL PRODUCT PATTERN → factor into task#34: Linux hive = gateway brain + AP/wired bridge to the home
+  net; MCU = the R2-mesh radio front-end. Validates the pure-transport-MCU direction (fwd-aligned w/ the single-device Uno-Q
+  too). Doesn't change the gate-off; it's the product context the mode serves.
+  ★ PRODUCTIZED SPEC (specs authored, Publish:PRIVATE — do NOT leak the product/place naming to public surfaces): the private
+  gateway spec generalizes the Alfred conformance checklist into a real deployment (a resident-premises gateway realizing the
+  grid-spec's Gateway Node as a genuine R2-COMPLEX-HIVE). MY SIDE = the pure-transport MCU firmware = the spec's §4.1 SENTINEL
+  role, SAME bar as the Alfred checklist, generalized: BLE beacon, LoRa wake-mode RX, frame validation, wake-gating; MUST NOT
+  decode CBOR payloads or dispatch to sentants; MUST NOT originate/sign any externally-visible frame under its own identity —
+  only relay on behalf of the gateway's single primary identity OR hand raw data to the SBC over the internal bridge. specs:
+  "largely the same firmware productized, not new work" (matches task#34). NEW vs the Alfred scope: LoRa wake-mode RX +
+  wake-gating + structural frame-validation (the SENTINEL→MCU→SBC custom-sensor arch). Ties into task#34; align the mode to
+  the §4.1 Sentinel bar. specs flagged public-hygiene (WAIROA precedent) — keep product/place naming out of RESUME/webapp/
+  vendored crates; provenance in .r2-local/. Asked specs to confirm RESUME's public-flowing scope + pre-existing mariko refs.
   ★ specs-codex REFINEMENT (adversarial check of my mapping, mostly aligned): (1) MCU-holds-NO-keys OK ONLY if it's pure radio
   modem + NEVER makes TG-auth/sign/validation decisions (any GroupHmac path would have to use a1f5ed00's material — pure-
   transport means it touches none). Gate-off PROVISION/PERSONA = right. (2) ADDITIVE PATHS beyond suppression: (A) BEACON —
