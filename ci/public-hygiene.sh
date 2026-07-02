@@ -33,8 +33,20 @@ if macrons=$(git grep -inP '[\x{0101}\x{0113}\x{012B}\x{014D}\x{016B}\x{0100}\x{
   fi
 fi
 
+# (3) Private gateway-product naming (Roy-gated private spec, authorized by supervisor). NARROW: the
+# resident-premises gateway product + its private spec name MUST NOT appear in the public tree (provenance
+# lives in gitignored .r2-local/). The broad historical Mariko/Earthgrid ID scrub is a SEPARATE Roy decision
+# and is deliberately NOT guarded here (some are functional/commit identifiers with real rename cost).
+gwhits=$(git grep -inE 'mk-?homehub|home-?hub' -- . "${PATHSPEC[@]}" || true)
+if [ -n "$gwhits" ]; then
+  echo "::error::private gateway-product term(s) found (Home-Hub / MK-HOMEHUB). This naming is Publish:Private —"
+  echo "::error::keep it out of the public tree (provenance belongs in gitignored .r2-local/). Offending lines:"
+  echo "$gwhits"
+  fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "public-content-hygiene: FAIL"
   exit 1
 fi
-echo "public-content-hygiene: OK (no scrubbed terms outside the allowlist; no macrons)"
+echo "public-content-hygiene: OK (no scrubbed terms outside the allowlist; no macrons; no private gateway naming)"

@@ -339,7 +339,7 @@
   only relay on behalf of the gateway's single primary identity OR hand raw data to the SBC over the internal bridge. specs:
   "largely the same firmware productized, not new work" (matches task#34). NEW vs the Alfred scope: LoRa wake-mode RX +
   wake-gating + structural frame-validation (the SENTINEL→MCU→SBC custom-sensor arch). Ties into task#34; align the mode to
-  the §4.1 Sentinel bar. specs flagged public-hygiene (WAIROA precedent) — keep product/place naming out of RESUME/webapp/
+  the §4.1 Sentinel bar. specs flagged public-hygiene (the earlier place-name scrub precedent) — keep product/place naming out of RESUME/webapp/
   vendored crates; provenance in .r2-local/. Asked specs to confirm RESUME's public-flowing scope + pre-existing mariko refs.
   ★ specs-codex REFINEMENT (adversarial check of my mapping, mostly aligned): (1) MCU-holds-NO-keys OK ONLY if it's pure radio
   modem + NEVER makes TG-auth/sign/validation decisions (any GroupHmac path would have to use a1f5ed00's material — pure-
@@ -363,14 +363,27 @@
   HEALTH gate-off stays correct). ⚠ TENSION TO FLAG (spec-first): §5.1 "MCU encodes+transmits using the primary identity" vs
   MUST4 "MCU holds NO keys" — the R2-BEACON RBID (§6.1 = HMAC(session_key,epoch)) needs a1f5ed00's beacon session_key. So
   either Linux feeds the per-epoch RBID/identity material (extend the §5.4 feed beyond CAP/power-state), OR Linux feeds a
-  PRE-ENCODED beacon AD (MCU airs verbatim, no encode, no key), OR a static primary id (breaks RBID privacy). ASKING specs
-  which. USB CONTRACT is now spec-defined: §5.4 command range (Linux→MCU: feed CAP/power-state[/RBID?]; MCU→Linux: report
-  local health) + the raw air↔serial frame relay. Coordinate composer to that.
+  PRE-ENCODED beacon AD (MCU airs verbatim, no encode, no key), OR a static primary id (breaks RBID privacy).
+  ✅ RESOLVED = (b) (specs-codex, from specs ground truth; my lean confirmed): R2-BEACON §6.1 RBID needs the hk-derived
+  session_key → a keyless pure-transport MCU MUST NOT derive RBID or hold hk/session_key. So LINUX builds the COMPLETE current
+  beacon AD (RBID + class/CAP/power flags); the MCU AIRS IT VERBATIM as sole radio transmitter. MCU MAY schedule/rate-limit/
+  length-check + rotate between Linux-supplied current/next payloads, but NO on-MCU RBID derivation, NO static id. = one beacon
+  + ZERO MCU key material (satisfies MUST4 by construction). BUILD IMPL: the beacon path = a "air this AD" verbatim channel
+  (like INJECT but on the advertising channel), NOT the current encode_advert-on-MCU path (gate that off). specs will TIGHTEN
+  the private gateway spec §5.1 wording ("encodes" → Linux encodes / MCU airs). USB CONTRACT: §5.4 range (Linux→MCU: the ready-to-air beacon
+  AD [current + next] + CAP/power-state folded in by Linux; MCU→Linux: report local health) + the raw air↔serial frame relay.
+  Coordinate composer to that.
   ★ PUBLIC-HYGIENE SCOPE (specs-codex, from specs ground truth): (1) committed RESUME.md IS public repo content (no private
   exception) → neutralize fresh leaks (DONE: #48), provenance to .r2-local/. (2) DO NOT bulk-scrub pre-existing historical IDs
   (mariko-03/triplet/reading/orchestrator) — not customer-facing, don't reveal the private gateway; INVENTORY + route the fork
   to Roy/supervisor. (3) CI guard: a NARROW private-gateway-term guard is sensible; HOLD a broad mariko/earthgrid guard for
   Roy/supervisor. Fresh RESUME verified clean of the private naming; routing the pre-existing-refs fork to supervisor.
+  ✅ SUPERVISOR RULED: (1) NARROW guard AUTHORIZED → ADDED to ci/public-hygiene.sh section (3): a case-insensitive
+  optional-hyphen match on the private gateway-product terms fails the build (excludes the guard's own file; broad
+  mariko/earthgrid NOT guarded). Guard re-runs green. (2) BROAD historical mariko scrub = Roy's call (NOT bulk-scrubbed); supervisor surfacing the inventory to Roy. NB:
+  adding the guard surfaced that I'd re-leaked raw place-name + spec-name tokens INTO RESUME while describing the work (the
+  same self-leak lesson from earlier this session) — neutralized both; transient CI-red on the intervening commits, green at
+  HEAD now. Lesson re-learned: describe scrubbed/private terms by DESCRIPTION, never the raw token, in the public tree.
 - **▶ OTA STATUS (2026-07-03, supervisor — load-bearing for Roy scaling on OTA-not-USB; HONEST, no overclaim).** Q1 RECEIVER:
   YES + code-COMPLETE. cb87c8aa feature set (carrier,multitg,routetest,viz,benchdist,otal2cap) INCLUDES otal2cap → all 5
   weave boards run ota_receive_over_coc (main.rs:4935): real verify_header Ed25519 vs persona tg_pk + anti-rollback (seq/floor)
