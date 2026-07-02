@@ -223,6 +223,21 @@
   Roy's task#34 LED-legibility feature is the right non-invasive fix (or add dlv=/blk= to the LCD next cycle). REPORTED to
   supervisor + composer; AWAIT the target_group/verify answers. DO-NOT-ASSUME: consensus "clean positive" was persona-level
   wrong; the mechanism (if dark is real membership) is NVS-override, which changes the fix.
+  ▶ RE-PROVISION (Roy directive: put all 5 boards on weave 04bc57e7). Confirmed flash layout: PERSONA_OFFSET=0x12000
+    (persona bundle, self-delimiting CBOR — write-bin auto-erases the sector, trailing 0xFF fine), PROVISIONED_TG_OFFSET=
+    0x14000 (multitg NVS override, magic R2TG=0x52325447, own 4KB sector, [magic|tg_id|key32]=40B), board-profile=0x13000,
+    RPF1=0x17000, human-label=0x1B000. read_provisioned_tg (2207) → if R2TG magic valid, OVERRIDES persona (hk,tg) at boot
+    (268-273) AND live via PENDING_PROVISION (1079). SO: persona reflash @0x12000 ALONE does NOT re-key a board that has a
+    stale @0x14000 override (NVS wins). ROBUST per-board cmd handed to supervisor (Roy, download-mode, covers BOTH a stale
+    override AND a wrong persona; ELF untouched): (a) espflash erase-region 0x14000 0x1000 [clears NVS override — likely-
+    decisive] (b) espflash write-bin 0x12000 ~/r2-weave-tg/persona-<MAC>.bin (c) reset. MAP (verified, hive_ids match
+    composer's origins): 495b1b62(joiner)=MAC F4:12:FA:52:99:28 ; b14b07d8(apiary)=MAC F4:12:FA:B7:90:10 ; 09a07e47=50:23:E4
+    ; 8900955e=50:26:98 ; carrier 655a9e5f=B6:0A:A0. Both dark personas ARE correct weave (no re-mint needed). OTA cross-TG =
+    moot (re-provision is persona-flash/console-PROVISION, not an OTA pkg). Runtime alt (no reflash): console PROVISION line →
+    write_provisioned_tg @0x14000 → live GroupHmac swap (verify parse_provision authorization first). NO autonomous join
+    handshake. PRE-FLASH CHECK asked of composer: decode 495b/b14b NATIVE frames' target_group — !=04bc57e7 confirms the NVS
+    override (clear it); ==04bc57e7 means on-weave-TG + should-deliver = dark is a deliver/LED bug not membership (do NOT
+    flash). AWAIT composer's target_group/verify answer.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
