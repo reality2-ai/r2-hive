@@ -218,7 +218,10 @@ pub fn route_inbound_sync(
         k: header.k,
         destination,
         msg_type: header.msg_type,
-        payload_len: frame.len(),
+        // §8.4a (R2-WIRE v0.27 / R2-ROUTE §3.4 v0.53): the broadcast/flood amplification cap keys on the REAL
+        // payload size, NOT the whole frame (was frame.len() — over-counted by the ~header+route+hmac overhead,
+        // which would wrongly OversizeBroadcast-drop a broadcast whose payload is under BROADCAST_PAYLOAD_MAX=512).
+        payload_len: msg.payload.len(),
         relay_enabled: true,
         congested: false,
         dice_roll,
