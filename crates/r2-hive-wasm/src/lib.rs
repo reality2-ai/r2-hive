@@ -209,6 +209,10 @@ pub struct WasmHive {
     /// The TG hash (firmware `my_tg_hash`) this member stamps into `target_group` and
     /// gates inbound `target_group` against. Meaningful only when `group_hmac` is set.
     tg_hash: u32,
+    /// R2-TRUST §7.5.4 posture for an UNKEYED hive (`group_hmac: None`). Default `false` = FAIL-CLOSED
+    /// (`verify_frame` returns `deliver:false`) — "default-OPEN is FORBIDDEN". A pure-routing / TG-agnostic
+    /// bench opts in explicitly via `setUnkeyedOpen(true)` to restore the legacy deliver-everything sim.
+    unkeyed_open: bool,
 }
 
 #[wasm_bindgen]
@@ -226,6 +230,7 @@ impl WasmHive {
             self_hive_id,
             group_hmac: None,
             tg_hash: 0,
+            unkeyed_open: false, // §7.5.4 fail-closed default; setUnkeyedOpen(true) for the pure-routing sim
         }
     }
 
@@ -262,6 +267,14 @@ impl WasmHive {
         self.tg_hash = tg_hash;
     }
 
+    /// R2-TRUST §7.5.4 opt-in: allow an UNKEYED hive (no `group_hmac`) to DELIVER unverified frames — the
+    /// legacy TG-agnostic pure-routing sim. Default is FAIL-CLOSED; a keyed hive ignores this. Composer's
+    /// pure-routing bench must call `setUnkeyedOpen(true)` to keep delivering without a group key.
+    #[wasm_bindgen(js_name = setUnkeyedOpen)]
+    pub fn set_unkeyed_open(&mut self, open: bool) {
+        self.unkeyed_open = open;
+    }
+
     /// New OTA-CAPABLE node: the basic ensemble PLUS the OTA plugin+sentant (the pure
     /// increment-3 form), so this node can RECEIVE a signed image over the mesh and
     /// run the real R2-UPDATE verify-before-write. `tg_pk` = the 32-byte trust-group
@@ -291,6 +304,7 @@ impl WasmHive {
             self_hive_id,
             group_hmac: None,
             tg_hash: 0,
+            unkeyed_open: false, // §7.5.4 fail-closed default; setUnkeyedOpen(true) for the pure-routing sim
         }
     }
 
@@ -384,7 +398,12 @@ impl WasmHive {
             }
         };
         match &self.group_hmac {
-            None => String::from("{\"keyed\":false,\"tg_ok\":true,\"hmac_ok\":false,\"deliver\":true}"),
+            // R2-TRUST §7.5.4: an UNKEYED hive FAIL-CLOSES (deliver:false) by default — "default-OPEN is
+            // FORBIDDEN". Only an explicit setUnkeyedOpen(true) (pure-routing / TG-agnostic sim) delivers.
+            None => format!(
+                "{{\"keyed\":false,\"tg_ok\":true,\"hmac_ok\":false,\"deliver\":{}}}",
+                self.unkeyed_open
+            ),
             Some(hmac) => {
                 let tg = m.header.target_group;
                 let tg_ok = tg == self.tg_hash || tg == 0;
@@ -887,13 +906,22 @@ mod tests {
         assert!(v2.contains("\"hmac_ok\":false"), "wrong-key reject: {v2}");
         assert!(v2.contains("\"deliver\":false"), "wrong-key no-deliver: {v2}");
 
-        // a NON-member (TG-agnostic) hive applies no gate → legacy deliver
-        let d = WasmHive::new(0x0000_00D4);
+        // a NON-member (unkeyed) hive FAIL-CLOSES by default (§7.5.4: default-OPEN is FORBIDDEN).
+        let mut d = WasmHive::new(0x0000_00D4);
         assert!(
             d.verify_frame(&frame).contains("\"keyed\":false"),
             "unkeyed = TG-agnostic"
         );
-        assert!(d.verify_frame(&frame).contains("\"deliver\":true"));
+        assert!(
+            d.verify_frame(&frame).contains("\"deliver\":false"),
+            "unkeyed fail-closed by default"
+        );
+        // explicit operator opt-in restores the legacy TG-agnostic deliver-everything (pure-routing sim).
+        d.set_unkeyed_open(true);
+        assert!(
+            d.verify_frame(&frame).contains("\"deliver\":true"),
+            "unkeyed OPEN by opt-in delivers"
+        );
 
         // set_group_hmac at runtime = join → d now verifies like a member
         let mut d2 = WasmHive::new(0x0000_00D5);

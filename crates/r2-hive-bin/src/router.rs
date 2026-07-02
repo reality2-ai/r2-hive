@@ -219,12 +219,23 @@ pub async fn route_frame(
         Some(FrameClass::SameGroup) | Some(FrameClass::CrossGroup(_))
     );
     let gate_deliver = if state.group_hmacs.is_empty() {
-        log::warn!(
-            "§7.5.4 deliver-gate INACTIVE (no group keys configured) — delivering UNVERIFIED \
-             msg_id={} tg={:08x} (dev/migration; production MUST configure a sealed HK)",
-            header.msg_id, header.target_group
-        );
-        true
+        // R2-TRUST §7.5.4: default-OPEN is FORBIDDEN. No keys configured → FAIL-CLOSED (drop, don't deliver
+        // unverified) UNLESS an operator explicitly opted into the legacy open behaviour.
+        if state.deliver_unkeyed_open {
+            log::warn!(
+                "§7.5.4 deliver-gate OPEN by operator opt-in (R2_DELIVER_UNKEYED_OPEN) — delivering \
+                 UNVERIFIED msg_id={} tg={:08x} (dev/migration ONLY; production MUST configure a sealed HK)",
+                header.msg_id, header.target_group
+            );
+            true
+        } else {
+            log::warn!(
+                "§7.5.4 FAIL-CLOSED: no group keys configured — DROPPING unverified msg_id={} tg={:08x} \
+                 (configure a sealed HK, or set R2_DELIVER_UNKEYED_OPEN=1 for a keyless dev daemon only)",
+                header.msg_id, header.target_group
+            );
+            false
+        }
     } else {
         match class {
             None => log::warn!(
@@ -238,7 +249,7 @@ pub async fn route_frame(
             Some(FrameClass::Relay) => {} // transit (no key for this TG) — relay forwards, don't deliver
             _ => {}
         }
-        gate_should_deliver(false, class)
+        gate_should_deliver(false, state.deliver_unkeyed_open, class)
     };
     if gate_deliver {
         state.deliver_inbound(trimmed, originator, None).await;
@@ -457,13 +468,15 @@ fn pseudo_random() -> f32 {
 }
 
 /// §7.5.4 deliver decision (pure, testable): deliver iff the frame VERIFIED
-/// (SameGroup / CrossGroup). When no group keys are configured (migration mode)
-/// deliver everything — the caller logs the UNVERIFIED warning — so existing
-/// no-key daemons keep working. A forgery (`None`), transit (`Relay`, no key for
-/// that TG), or untagged (`Unauthenticated`) frame is NOT delivered.
-fn gate_should_deliver(keys_empty: bool, class: Option<FrameClass>) -> bool {
+/// (SameGroup / CrossGroup). When no group keys are configured the R2-TRUST §7.5.4
+/// posture is FAIL-CLOSED (drop) — "default-OPEN is FORBIDDEN" — UNLESS an operator
+/// explicitly opted into the legacy open behaviour (`unkeyed_open`, e.g. a keyless
+/// dev daemon), in which case everything delivers (the caller logs the UNVERIFIED
+/// warning). A forgery (`None`), transit (`Relay`), or untagged (`Unauthenticated`)
+/// frame is never delivered.
+fn gate_should_deliver(keys_empty: bool, unkeyed_open: bool, class: Option<FrameClass>) -> bool {
     if keys_empty {
-        return true; // migration mode — no keys configured
+        return unkeyed_open; // fail-closed by default; deliver only on explicit operator opt-in
     }
     matches!(
         class,
@@ -476,23 +489,34 @@ mod gate_tests {
     use super::*;
 
     #[test]
-    fn migration_mode_delivers_everything() {
-        // No keys configured -> deliver regardless of class (back-compat).
-        assert!(gate_should_deliver(true, None));
-        assert!(gate_should_deliver(true, Some(FrameClass::SameGroup)));
-        assert!(gate_should_deliver(true, Some(FrameClass::Unauthenticated)));
+    fn no_keys_fail_closed_by_default() {
+        // R2-TRUST §7.5.4: no keys configured + no operator opt-in => DROP everything
+        // ("default-OPEN is FORBIDDEN"). This is the security-critical inversion.
+        assert!(!gate_should_deliver(true, false, None));
+        assert!(!gate_should_deliver(true, false, Some(FrameClass::SameGroup)));
+        assert!(!gate_should_deliver(true, false, Some(FrameClass::Unauthenticated)));
+    }
+
+    #[test]
+    fn no_keys_open_only_by_operator_opt_in() {
+        // Legacy deliver-everything is reachable ONLY via the explicit R2_DELIVER_UNKEYED_OPEN opt-in.
+        assert!(gate_should_deliver(true, true, None));
+        assert!(gate_should_deliver(true, true, Some(FrameClass::SameGroup)));
+        assert!(gate_should_deliver(true, true, Some(FrameClass::Unauthenticated)));
     }
 
     #[test]
     fn enforcing_delivers_only_verified() {
-        assert!(gate_should_deliver(false, Some(FrameClass::SameGroup)));
-        assert!(gate_should_deliver(false, Some(FrameClass::CrossGroup(0))));
+        // With keys configured, unkeyed_open is irrelevant — the class-based gate rules.
+        assert!(gate_should_deliver(false, false, Some(FrameClass::SameGroup)));
+        assert!(gate_should_deliver(false, false, Some(FrameClass::CrossGroup(0))));
+        assert!(gate_should_deliver(false, true, Some(FrameClass::SameGroup))); // opt-in ignored when keyed
     }
 
     #[test]
     fn enforcing_drops_forgery_transit_and_untagged() {
-        assert!(!gate_should_deliver(false, None)); // forgery aimed at us -> DROP
-        assert!(!gate_should_deliver(false, Some(FrameClass::Relay))); // transit (no key) -> don't deliver
-        assert!(!gate_should_deliver(false, Some(FrameClass::Unauthenticated))); // untagged -> drop
+        assert!(!gate_should_deliver(false, false, None)); // forgery aimed at us -> DROP
+        assert!(!gate_should_deliver(false, false, Some(FrameClass::Relay))); // transit (no key) -> don't deliver
+        assert!(!gate_should_deliver(false, false, Some(FrameClass::Unauthenticated))); // untagged -> drop
     }
 }

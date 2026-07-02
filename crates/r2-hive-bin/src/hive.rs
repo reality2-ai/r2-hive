@@ -148,6 +148,11 @@ pub struct HiveState {
     /// keystore (production, R2-KEYSTORE §4) or — for the FR-2b bench only — the
     /// C3-flagged plaintext `R2_GROUP_KEYS_BENCH` json (dev-only, never prod).
     pub group_hmacs: HashMap<u32, GroupHmac>,
+    /// R2-TRUST §7.5.4 posture when `group_hmacs` is EMPTY (no keys configured). Default `false` =
+    /// FAIL-CLOSED (drop, do not deliver unverified) — "default-OPEN is FORBIDDEN". An operator may set
+    /// `R2_DELIVER_UNKEYED_OPEN=1` to explicitly opt into the legacy migration behaviour (deliver + loud
+    /// warn) for a keyless dev/bring-up daemon; production never sets it.
+    pub deliver_unkeyed_open: bool,
     /// Currently-attached trust group, if any (R2-HIVE §1.4 / §7).
     /// `None` means the daemon is detached — fresh device, no TG joined.
     active_tg: RwLock<Option<ActiveTg>>,
@@ -231,6 +236,10 @@ impl HiveState {
             route_engine: Mutex::new(RouteEngine::new()),
             transport_policy_lease: RwLock::new(None),
             group_hmacs: load_bench_group_hmacs(),
+            // R2-TRUST §7.5.4: fail-closed by default; only an explicit operator opt-in flips it to open.
+            deliver_unkeyed_open: std::env::var("R2_DELIVER_UNKEYED_OPEN")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false),
             active_tg: RwLock::new(None),
             subscribers: Mutex::new(Vec::new()),
             next_subscriber_id: AtomicU64::new(1),
