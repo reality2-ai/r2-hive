@@ -116,17 +116,28 @@
   missed — honest gap in my analysis. NON-BLOCKING (dedup bounds it; no emergency reflash). FOLD into next firmware cycle,
   CONSOLIDATED with dedup-16: wiring firmware io_task → r2_dataplane pipeline fixes BOTH by construction (RX origin=
   route_stack[0] + full-u32 msg_id + A1 verify-then-record AND TX prepare_relay_extended relay-append).
-  ✅✅ SPECS RULED (10:58:05, THE AUTHORITY / canon stamp): §9.2 append is ALREADY a MUST — for BOTH compact + extended
-  relays — via §8.5 Relay Procedure ("these mutations are mandatory; an implementation that forwards an unmodified frame is
-  non-conformant"; item 3 = append to route stack §9.2). So dfr1195's non-append io_task relay is a CONFIRMED CONFORMANCE
-  BUG against ratified canon (same class as dedup-16), NOT an optional optimization. Reconciles core-read-2 ("no runtime
-  consumer REQUIRES it") on a DIFFERENT axis: runtime-benign (dedup-safe, no emergency reflash) AND conformance-MUST
-  (violates §8.5) are BOTH true — no contradiction. Extra dependent specs cited beyond F2: §13.8.2 Network-Immune-System
-  penalty policy keys on route-stack-last (§2.6 pt 7). §9.2 item-2 was DESCRIPTIVE (no MUST) = the narrow real wording gap;
-  specs is landing a wording-only fix (item-2 → explicit MUST + §8.5 xref) in ITS OWN session — no behaviour/policy change.
-  Sovereignty note = BACKLOG (specs: a link-layer-immediate-sender alt only helps transports WITH a native link src; LoRa/
-  ESP-NOW carry none = the exact reason route_stack exists → doesn't apply to the motivating case). FIX = task#32 (adopt
-  prepare_relay_extended, folded with dedup-16, next firmware cycle) — now CONFORMANCE-REQUIRED, still non-urgent/no-reflash. Sovereignty note (core, flagging-not-blocking): the growing ≤8 route_stack is a bounded topology/correlation
+  ⚠️ SPECS SELF-CONTRADICTED — normative LABEL is CONTESTED (fix unaffected). Two off-thread specs copies gave OPPOSITE
+  rulings on the SAME question:
+    (A) 10:58:05 → already a MUST for BOTH formats; dfr1195 non-append = CONFIRMED conformance bug vs ratified canon.
+        Grounds: §8.5 Relay Procedure ("these mutations are mandatory; forwarding an unmodified frame is non-conformant";
+        item 3 = append to route stack §9.2) + §13.8.2 penalty policy keys on route-stack-last (§2.6 pt 7). §9.2 item-2 is
+        merely DESCRIPTIVE (no MUST) = a local wording gap; would upgrade item-2 → explicit MUST.
+    (B) 10:59:37 → SHOULD, not MUST. Land §9.2 item-2 as SHOULD via RATIFY-REALITY precedent (don't brand shipping firmware
+        non-conformant for a provably-harmless gap); F2 degrades GRACEFULLY (one dedup-caught echo/hop, no amplification);
+        pure efficiency/consistency tradeoff; SHOULD-today-MUST-later once broadly shipped.
+  → CONTRADICT on the LABEL (MUST/non-conformant vs SHOULD/recommended). Tension B did NOT address: §8.5 as WRITTEN already
+    lists append in its mandatory-mutations / "non-conformant if unmodified" set — so item-2→SHOULD WITHOUT also softening
+    §8.5 = INTERNALLY INCONSISTENT canon (§8.5 says MUST, §9.2 says SHOULD for the same act). Honest self-flag: my two asks
+    were framed differently (ask-1 led "core leans MUST"; ask-2 emphasized "no forcing function, efficiency-only") → my
+    framing may have SPLIT the copies. ASKED specs to reconcile from the full picture in ONE view + heads-up to supervisor
+    (ratify-reality is a Roy-level tie-breaker). RECORDING AS CONTESTED until specs converges — do NOT claim MUST or SHOULD
+    as settled. DO-NOT-ASSUME: neither off-thread copy is "the" ruling.
+  → INVARIANT ACROSS BOTH (settled): runtime-benign (dedup-safe, no loop/correctness break, proven on HW via composer's TTL
+    test, no emergency reflash) AND the FIX is IDENTICAL either way = task#32 (adopt prepare_relay_extended, folded with
+    dedup-16, next firmware cycle, non-urgent). Only the conformance LABEL + the §8.5/§9.2 edit depends on specs' reconcile.
+    Sovereignty note = BACKLOG (both agree: link-layer-immediate-sender alt only helps transports WITH a native link src;
+    LoRa/ESP-NOW carry none = the exact reason route_stack exists → N/A here). COMPOSER CORRECTION HELD until specs settles
+    (told composer "MUST/conformance bug" at 11:00 — directionally fine: fix + runtime-benign unchanged; only label may soften). Sovereignty note (core, flagging-not-blocking): the growing ≤8 route_stack is a bounded topology/correlation
   surface but functionally consumed (F2 + reply-route) = not gratuitous; long-term alt = derive source_hop from a link-layer
   immediate-sender where the medium provides one (separate specs/Roy discussion). This ALSO corrected my earlier composer
   claim (relay does NOT append → a len-1 board re-broadcast is normal; TTL<8 on R2RX = proven board relay).
