@@ -21,8 +21,10 @@
   (carrier,multitg,routetest,viz,benchdist,otal2cap) compiles green — role machinery is field-INDEPENDENT.
 - **NEXT (owed):** (1) ★ firmware SECURITY RE-VENDOR r2-cbor(§7.4 dup-key)/r2-dataplane(140da84)/r2-trust(persona dup-key)
   /r2-update(apply.rs) + r2-route/r2-sx1262 (mariko-03 SF10) to ONE consistent core HEAD — asked core for the sha.
-  (2) beacon anti_collision LE→BE flip in the combined-ELF window (core 8c28d4f; firmware has a bespoke no_std beacon
-  codec — flip it, land BE together with core+composer). (3) rebuild+stage the field-DROPPED weave ELF
+  (2) beacon anti_collision LE→BE: AUTO via re-vendoring r2-discovery — the firmware USES core's r2_discovery::beacon
+  codec, NOT bespoke (confirmed main.rs:2924 encode_advert / 3381 decode_advert; ble.rs "import core's, do not
+  re-author"), so ADD r2-discovery to the re-vendor crate list and 8c28d4f's BE flip lands automatically. (3)
+  rebuild+stage the field-DROPPED weave ELF
   (carrier,multitg,routetest,viz,benchdist,otal2cap). (4) canon: R2-ROUTE v0.48 §5.2 directed-relay single-transport
   (bites BRIDGE builds, M-ESPNOW-3); dedup-16 io_task (msg_id,origin) key (coord core). (5) dedup-13 PROVISION-ACK
   firmware line (low pri). (6) push `4ce04c4` with the re-vendor.
