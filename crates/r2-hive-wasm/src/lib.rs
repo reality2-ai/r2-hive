@@ -787,6 +787,23 @@ mod tests {
     }
 
     #[test]
+    fn quality_from_rssi_is_byte_exact_with_core_canonical() {
+        // §2.7 single-source ENFORCEMENT — core's «bind byte-exact to these» made a CI invariant.
+        // `range_to_loss_db` / `transport_profile` DELEGATE into r2-transport at compile time, so they
+        // cannot drift. `quality_from_rssi` is the one export deliberately kept as an f32-native copy: the
+        // JS sim feeds fractional dBm (`tx_dbm − range_to_loss_db(..)`), and delegating to core's i8 export
+        // would stair-step the quality curve at integer dBm. So THIS is its drift tripwire — at every integer
+        // anchor across the full i8 domain the f32 wrapper MUST equal core's canonical i8 `quality_from_rssi`
+        // BIT-for-bit (the interpolation is the identical `(rssi+80)/30` op-sequence; boundaries agree because
+        // 30/30 and 0/30 are exact). It trips the instant core moves the −50/−80 breakpoints out from under us.
+        for rssi in i8::MIN..=i8::MAX {
+            let core = r2_transport::profile::quality_from_rssi(rssi);
+            let wasm = quality_from_rssi(rssi as f32);
+            assert_eq!(wasm, core, "sim/field drift at {rssi} dBm: wasm {wasm} != core {core}");
+        }
+    }
+
+    #[test]
     fn frame_origin_reads_route_stack0_and_0_on_garbage() {
         let h = WasmHive::new(0x0000_00aa);
         let f = h.build_frame(0x0000_00bb, 0x1234, &[1, 2, 3], 7);

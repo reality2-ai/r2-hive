@@ -1,5 +1,37 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-03 — core UNBLOCKED the WS-binding HOLD → verified already-converged + closed the last drift-gap
+- **Trigger:** core msg 23:31 answered my 3 queued WS-binding questions (the HOLD at the §2.7-binding entry:
+  "import THAT byte-exact — HOLD until core pings field names/path"). core HEAD `a6cf14a` (top commit literally
+  "host-UDP/§2.7 active-queue verified already-complete + hive WS-seam unblocked (option B)").
+- **VERIFY-THEN-RECORD (checked r2-core ground truth, not memory) — all 3 answers matched work I'd ALREADY built
+  (v0.4.9/.10/.12), so this was a CONFIRM not a re-implement:**
+  1. TransportProfile LOCATION = `r2-transport/src/profile.rs:48` `pub struct TransportProfile` + crate-root
+     re-export `lib.rs:98 pub use profile::TransportProfile`. My wasm imports it at `r2-hive-wasm/src/lib.rs:108`
+     (`for_transport`). IMPORT-not-fork ✓.
+  2. A-vs-B = **B** (deliberate asymmetry): host = Rust `HostUdpRadio` (`host_udp.rs:125 impl ConnectionlessRadio`,
+     crate-root `lib.rs:92`); browser = JS WS glue over the SAME §2.7 profile (my `ws-mesh/hive-ws*.js`), NOT a
+     ConnectionlessRadio impl. Already realized. A stays reserved (additive later).
+  3. EXPORT SIGS confirmed byte-exact: `range_to_loss_db(TransportId, f32)->f32` (`profile.rs:202`, alias of
+     loss_from_range_units) — my wasm DELEGATES directly (`lib.rs:98`), provisional caller-supplied steepness
+     already dropped. Ratified v0.19 params present: PL_ref=40 all-RF, n = LoRa1.5/WiFi2.35/Mesh2.85/BLE3.4, IP=0.
+  - **Proof:** `cargo test --manifest-path crates/r2-hive-wasm/Cargo.toml --lib` → 14 passed / 0 failed / 1 ignored
+    against landed r2-core `a6cf14a` (incl. the 3 §2.7 export tests). Binding is complete + green.
+- **CLOSED the one single-source gap (the only real delta):** `range_to_loss_db` + `transport_profile` DELEGATE into
+  r2-transport (compile-time single-source — cannot drift). `quality_from_rssi` is the one export kept as a
+  **deliberate f32-native copy** (`lib.rs:64-67`): the JS sim feeds fractional dBm (`tx_dbm − range_to_loss_db(..)`),
+  so delegating to core's `i8` export (`profile.rs:210`) would stair-step the quality curve — a real regression for
+  composer's theater. Verified the two are arithmetically identical (`(rssi+80)/30`, same f32 op-seq; boundaries exact
+  via 30/30, 0/30) and added test `quality_from_rssi_is_byte_exact_with_core_canonical` asserting bit-equality across
+  the FULL i8 domain (256 vals) → makes core's "bind byte-exact" a CI-enforced invariant / drift tripwire. Green.
+- **No pkg rebuild / version bump:** test-only addition; zero change to any exported fn or pkg output (v0.4.12 staged
+  pkgs unaffected). Guard clean (exit 0).
+- **DO-NOT-ASSUME:** `quality_from_rssi` is INTENTIONALLY not delegated (f32-precision on the JS surface); `range_to_loss_db`
+  + `transport_profile` ARE compile-time-delegated. Don't "fix" the asymmetry by forcing the i8 cast — the cross-check
+  test guards byte-exactness without the precision loss.
+- **NEXT:** reply to core confirming already-converged + the drift-guard; nothing further needed on WS-binding. #49
+  still Roy-gated (.bin one-liner); task#34 canon-locked + ready.
+
 ## ▶ 2026-07-02 — r2-hive-wasm production-hive track: composer's #1 (FULL ENSEMBLE) DONE; UDP model resolved
 - **Supervisor track (while Roy schedules the flash):** build r2-hive-wasm as the PRODUCTION no-radio hive + refutation
   instrument — full real TN+TG+OTA (mirror firmware flows, no mocks), WS + UDP-first-class-L1 transports, carrier-bridge
