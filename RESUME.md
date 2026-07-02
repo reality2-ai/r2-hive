@@ -1,5 +1,21 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-02 — SECURITY RE-VENDOR DONE + WEAVE ELF STAGED (last-USB-flash ready, pending refutation)
+- **dfr1195-fw PUSHED 1811267..4744fe8:** re-vendored 7 crates BYTE-EXACT to core@1275732 (supervisor byte-verified,
+  security-complete): r2-cbor(§7.4 dup-key reject), r2-dataplane(140da84), r2-trust(persona dup-key), r2-update(apply),
+  r2-route(neighbour ceiling), r2-discovery(beacon anti_collision LE→BE = the endianness flip, AUTO via re-vendor),
+  r2-sx1262(mariko-03 relay SF10 + wairoa_as923_nz→as923_nz). Only call-site fix: the as923_nz rename (main.rs ×3 +
+  lora.rs doc). Both builds GREEN: field-dropped weave (carrier,multitg,routetest,viz,benchdist,otal2cap) + a lora set.
+  New file beacon_reachability.rs committed. 2 pre-existing non-mine items untouched.
+- **WEAVE ELF STAGED:** `~/r2-dfr1195-weave.elf` (1361548 B, xtensa, sha 51cb0711f7ebb5eb) = the security-complete
+  last-USB-flash image (field DROPPED per §3.2.5; VMASK/§2.3A item-7 in from 1811267; beacon BE; event-rename is a
+  no-op — firmware emits r2.tn.routetest, not any .reading). Roy-only flash; HOLD flash for the hive-codex refutation.
+- **REFUTATION PASS requested:** hive-codex (opposite-provider) to challenge the re-vendor + combined ELF (missed API
+  call-sites? carrier INJECT-path VMASK bypass? field-drop losing anything?) BEFORE Roy flashes.
+- **STILL OWED (follow-up, none block the weave):** directed-relay single-transport (R2-ROUTE v0.48 §5.2, BRIDGE builds
+  only — weave is single-transport conformant); dedup-16 io_task (msg_id,origin) key (coord core); dedup-13 PROVISION-ACK
+  serial line (low-pri bench, DEFERRED — in PENDING_PROVISION path); SCF-flush-auth HOLD (core open fork).
+
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
 - **r2-hive (platform-trait) PUSHED 972d131..e027edd:**
