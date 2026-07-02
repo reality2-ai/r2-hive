@@ -434,12 +434,27 @@
   bridge command (extends §5.4); radio front-end = sole TRANSMITTER, airs VERBATIM, zero key material (MUST4 by construction);
   MCU MAY schedule/rate-limit/length-check + hold cur+next (flip at rotation) but MUST NOT originate any payload bit. specs
   CLEARED me to wire it. So I PROPOSED the concrete USB contract to composer (unblock the many-turn wait on its sandboxed
-  fork): (1) raw relay TX/RX verbatim; (2) BEACON_AD "BAD <cur|next> <adhex>" (proposed CMD 0x80/0x81 in the §5.4 0x80-0xBF
-  range) Linux→MCU; (3) HEALTH "HLT <hex>" MCU→Linux; (4) MCU gate-off (encode_advert/HB/readings/sign/PROVISION/PERSONA/
-  IDENTIFY/HEALTH-responder/deliver/dedup/route OFF; KEEP TX/RX + BAD-air + HLT + radio). Composer confirms verbs/CMDs → I
-  build+stage the radiofrontend ELF (no flash). NEXT (my active build): implement the radiofrontend feature to this contract
-  + the §4.1 Sentinel bar (adds LoRa wake-RX + wake-gating + frame-validation). specs may formalize the exact CMD byte in
-  canon (my call; else gateway-local).
+  fork): (1) raw relay TX/RX verbatim; (2) BEACON_AD "BAD <cur|next> <adhex>" (CMD 0xC0/0xC1) Linux→MCU; (3) HEALTH
+  "HLT <hex>" MCU→Linux; (4) MCU gate-off (encode_advert/HB/readings/sign/PROVISION/PERSONA/IDENTIFY/HEALTH-responder/deliver/
+  dedup/route OFF; KEEP TX/RX + BAD-air + HLT + radio). Composer confirms verbs/CMDs → I build+stage the radiofrontend ELF
+  (no flash). ✅ CMD-BYTE CORRECTED (specs, the authority): the BEACON_AD CMD stays HOME-HUB-LOCAL (NOT pushed to canon —
+  the zero-key-Sentinel is a gateway-SPECIFIC hardening per §8, not universal; §10.2 baseline distributes keys to ALL
+  components + Pattern-C §3.4 has an autonomous Sentinel, so a mandatory brain-encodes rule would conflict). §5.4's 0x80-0xBF
+  is CORE-RESERVED (my proposed 0x80/0x81 was WRONG); 0xC0-0xFF is "reserved for future use" = fair for a gateway-local pick
+  → BEACON_AD_CUR=0xC0 / _NEXT=0xC1. Corrected to composer. NEXT (my active build): implement the radiofrontend feature to
+  this contract + the §4.1 Sentinel bar (adds LoRa wake-RX + wake-gating + frame-validation).
+- **▶ #49 CRITICAL-PATH (2026-07-03, supervisor): composer STAGED (9/9 fail-closed dry-run, target 09a07e47 a proven
+  flasher), blocked ONLY on my 2 inputs.** (2) SEQ = 0 DELIVERED: 09a07e47 USB-flashed cb87c8aa + never OTA'd → 0x18000
+  erased → current_seq 0 → composer header.seq=1, authority_epoch=0. (1) .bin = GATE-ESCALATED: the offline ELF→app-image
+  conversion (espflash save-image / esptool elf2image) trips the fleet FIRMWARE/KEY gate on my side (classed as a firmware
+  op) — did NOT auto-run. It's pure offline (no device/flash/sign/keys). Escalated to supervisor: recommend composer's
+  signed-ota-deploy pipeline takes the ELF (~/r2-dfr1195-weave.elf) + extracts the image itself (its pipeline almost
+  certainly does ELF→image→sign); else authorize the offline extraction, or a human runs it. Composer signs regardless
+  (holds TG_SK). MTU/credits (task#18) = follow-up optimization, non-blocking (200B default). AWAIT supervisor's .bin
+  routing + composer's ELF-vs-bin answer → then STAGED for Roy's GO.
+  ▶ mariko-guard reconcile PENDING: specs (add allowlisted now) vs specs-codex (bare-mariko too broad given the README
+  branding hits → hold/narrow); the README "marketplace" is customer-facing = Roy's call, NOT a leak per specs, do NOT scrub.
+  Deferred (critical-path #49 first); the private gateway-product guard stays hard+green meanwhile.
 - **▶ HYGIENE mariko-guard HELD (2026-07-03):** the allowlisted-mariko guard is NOT simple (specs-codex's hold-condition met):
   the term appears pervasively — historical dev IDs + a field-results doc + my own hygiene meta-text + ★ CUSTOMER-FACING in
   THREE public READMEs (root + r2-hive-bin + r2hive-cli: "...marketplace and vertical-market services / ships commercial").
