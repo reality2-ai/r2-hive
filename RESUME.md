@@ -458,10 +458,15 @@
   signed-ota-deploy pipeline takes the ELF (~/r2-dfr1195-weave.elf) + extracts the image itself (its pipeline almost
   certainly does ELF→image→sign); else authorize the offline extraction, or a human runs it. Composer signs regardless
   (holds TG_SK). MTU/credits (task#18) = follow-up optimization, non-blocking (200B default).
-  ✅ UNBLOCKED FROM MY SIDE (supervisor chose option (a)): composer's pipeline takes the cb87c8aa ELF directly (ELF→image→
-  sign) — NO .bin handoff / offline save-image needed from me; my firmware-gate escalation validated as correct (conservative
-  gate working as designed). seq=1 (09a07e47=0) + ELF are all composer needs → it wires the entrypoint = STAGED for Roy's GO.
-  MY REMAINING #49 ROLE: metal-validate the anti-rollback floor + CoC throughput once the push runs. AWAIT the push.
+  ⚠ OPTION (a) REFUTED (composer, 20:59): composer's signing pipeline (build_signed_ota_stream) takes RAW payload bytes +
+  hashes exactly those — it does NOT parse an ELF; feeding the ELF → a NON-BOOTABLE esp_ota_write. So composer needs the
+  APP-PARTITION .bin, NOT the ELF. AND the ELF→app-image conversion trips the A9 firmware gate on COMPOSER's side too (same
+  class as flashing). So the .bin extraction is A9-gated on BOTH automated lanes → needs the supervisor's authorization
+  (triggers its earlier conditional). RELAYED to supervisor: (b) authorize ME to run offline `espflash save-image --chip
+  esp32s3 ~/r2-dfr1195-weave.elf ~/cb87c8aa-app.bin` (app-only, pure offline — no device/sign/keys), OR (c) Roy runs that
+  one-liner (composer's rec). Either way composer then signs the .bin (weave TG_SK, seq=1) + stages. THE .bin is the LAST #49
+  blocker; seq=1 delivered stands. MY REMAINING #49 ROLE: metal-validate the anti-rollback floor + CoC throughput once the
+  push runs. AWAIT supervisor's authorize-me-vs-Roy call on the .bin.
   ▶ mariko-guard reconcile PENDING: specs (add allowlisted now) vs specs-codex (bare-mariko too broad given the README
   branding hits → hold/narrow); the README "marketplace" is customer-facing = Roy's call, NOT a leak per specs, do NOT scrub.
   Deferred (critical-path #49 first); the private gateway-product guard stays hard+green meanwhile.
