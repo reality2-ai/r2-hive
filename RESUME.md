@@ -3,8 +3,9 @@
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
 - **r2-hive (platform-trait) PUSHED 972d131..e027edd:**
-  - `56a9458` SCRUB (Roy ruling; r2-hive is PUBLIC): Wairoa→pilot-site, kaitiaki→guardian, marae→central across RESUME
-    + docs/** + docs/field-results/**. DATA INTEGRITY preserved (only location LABELS changed; no measurements/hashes/
+  - `56a9458` SCRUB (Roy ruling; r2-hive is PUBLIC): the location name + 2 te-reo terms → neutral tokens (conventions
+    recorded ONLY in gitignored `.r2-local/scrub-provenance.txt`) across RESUME + docs/** + docs/field-results/**.
+    DATA INTEGRITY preserved (only location LABELS changed; no measurements/hashes/
     offsets; all JSON re-parses). 2 identifiers PRESERVED+FLAGGED: `wairoa_as923_nz` (r2-sx1262 fn), `wairoa.reading`
     (wire event-name) — need coordinated code/wire renames, not a doc-scrub. Provenance in gitignored `.r2-local/`.
     HEAD-scrub only (no history rewrite).
@@ -20,12 +21,23 @@
   (carrier,multitg,routetest,viz,benchdist,otal2cap) compiles green — role machinery is field-INDEPENDENT.
 - **NEXT (owed):** (1) ★ firmware SECURITY RE-VENDOR r2-cbor(§7.4 dup-key)/r2-dataplane(140da84)/r2-trust(persona dup-key)
   /r2-update(apply.rs) + r2-route/r2-sx1262 (mariko-03 SF10) to ONE consistent core HEAD — asked core for the sha.
-  (2) rebuild+stage the field-DROPPED weave ELF. (3) P2 CI hygiene guard (scrub-term grep, fail-on-hit). (4) canon:
-  R2-ROUTE v0.48 §5.2 directed-relay single-transport (bites BRIDGE builds, M-ESPNOW-3); dedup-16 io_task (msg_id,origin)
-  key (coord core). (5) dedup-13 PROVISION-ACK firmware line (low pri). (6) push `4ce04c4` with the re-vendor.
-- **Do-not-assume:** field-drop for the weave is MY decision (flagged supervisor, proceeding). benchdist-split (§2.3B VBLK
-  dual-use vs §2.3C bench) DEFERRED. The 2 pre-existing non-mine dfr1195-fw items still owner-pending; the patch was
-  scrubbed as HEAD+scrub-only, its refresh preserved in `.r2-local/`.
+  (2) beacon anti_collision LE→BE flip in the combined-ELF window (core 8c28d4f; firmware has a bespoke no_std beacon
+  codec — flip it, land BE together with core+composer). (3) rebuild+stage the field-DROPPED weave ELF
+  (carrier,multitg,routetest,viz,benchdist,otal2cap). (4) canon: R2-ROUTE v0.48 §5.2 directed-relay single-transport
+  (bites BRIDGE builds, M-ESPNOW-3); dedup-16 io_task (msg_id,origin) key (coord core). (5) dedup-13 PROVISION-ACK
+  firmware line (low pri). (6) push `4ce04c4` with the re-vendor.
+- **DONE since the block above:** P2 CI hygiene guard SEEDED (`ci/public-hygiene.sh` + `.github/workflows/
+  public-content-hygiene.yml` — greps Wairoa/kaitiaki/marae + macrons, allowlists the 2 identifiers; verified pass-clean
+  + fail-on-inject; r2-hive's FIRST hosted workflow). marae→'site' realigned (was 'central'; BLE-role 'central' preserved).
+- **REFUTED (conjecture-and-refutation):** "wairoa.reading is a firmware WIRE EVENT" is FALSE — the firmware sensor emits
+  `r2.tn.routetest` (ROUTETEST_HASH = fnv1a_32(b"r2.tn.routetest")); NO `.reading` event exists in the firmware. So the
+  ELF is NOT gated on an event-rename; pilot.reading vs mariko.reading is purely composer's catalogue naming. Reported.
+- **BACKLOG (named; canon pre-authorized via §3.2.5 exemption):** SPLIT `benchdist` into `reachblock` (§2.3B VBLK,
+  dual-use, field-OK) + `benchdist` (§2.3C + viz, bench-only, field-forbidden) WHEN a field build needs VBLK. Deferred.
+- **HOLD (core open fork):** core added `has_authenticated_viable(dest)` (47204cb) for the FW SCF trigger, but whether
+  the SCF FLUSH must require auth is an OPEN fork (core→supervisor). HOLD flush-gate wiring (moot: field/fr4/SCF dropped).
+- **Do-not-assume:** field-drop for the weave is RATIFIED (supervisor). The 2 pre-existing non-mine dfr1195-fw items
+  still owner-pending; the patch was scrubbed as HEAD+scrub-only, its refresh preserved in `.r2-local/`.
 
 ## ✅ 2026-07-02T08:46:52+12:00 — CLEANUP VERIFY: pushed state confirmed; non-owned firmware WIP preserved
 - **Current objective:** finish the interrupted cleanup without losing work: verify r2-hive push/cache hygiene and
@@ -2568,7 +2580,7 @@ current, don't wait per-conjecture.
     bridging works WITHOUT it (broadcast both + dedup), so a flood-first proof is the lower-risk first run.
   composer's FR-2 DEFS (RECEIVED, locked; full defs catalogue/topologies/pilot-site-fr4/, this = fr4 minus the
   WiFi-router): **D1=origin (480e900e), D2=LoRa-router (2cab5f69), D3=BRIDGE (f91c8911, SX1262 LoRa + onboard
-  WiFi), RECEIVER=PI5 (ssh pi5, Linux r2-hive over WiFi/Internet = the central hub).** PATH: D1 ->(LoRa)-> D2
+  WiFi), RECEIVER=PI5 (ssh pi5, Linux r2-hive over WiFi/Internet = the site hub).** PATH: D1 ->(LoRa)-> D2
   ->(LoRa)-> D3[bridge] ->(WiFi)-> PI5. MASK: D1->[D2]; D2->[D1,D3]; D3->[D2(LoRa),PI5(WiFi)]; PI5->[D3]. ONE
   TG 'pilot-site' spanning both islands (gateway test, not isolation — the bridge carries the GroupHmac across;
   keys ~/.r2/group-keys.json#pilot-site, composer provisions/hands over). composer PROVISIONS + builds the gateway

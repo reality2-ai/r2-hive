@@ -1,0 +1,16 @@
+name: public-content-hygiene
+
+# Roy's ruling as a green check: r2-hive is PUBLIC and the pilot-site location name + te-reo terms are
+# scrubbed at HEAD pending the Māori-reviewer gate. This is the SEED hosted workflow for r2-hive (the
+# audit found none existed); it guards against accidental reintroduction via a re-vendor or careless commit.
+on:
+  push:
+  pull_request:
+
+jobs:
+  scrub-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No scrubbed location / te-reo terms outside the allowlist
+        run: bash ci/public-hygiene.sh

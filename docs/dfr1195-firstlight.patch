@@ -2684,7 +2684,7 @@ index 894910e..4823185 100644
 +# (A={B} B={A,C} C={B}) forcing multi-hop, and flashes the LED on message RECEIPT (not the heartbeat).
 +# Implies routetest (the BL-200 io_task path → ble) + lora. Gates the ESP-NOW carrier off.
 +loraroute = ["lora", "routetest", "r2-transport/alloc"]
-+# TN-FR-2 (LoRa<->WiFi/ESP-NOW gateway, DG-2 #16, the central bridge) — the BRIDGE node runs BOTH carriers
++# TN-FR-2 (LoRa<->WiFi/ESP-NOW gateway, DG-2 #16, the site bridge) — the BRIDGE node runs BOTH carriers
 +# (lora_route_task over LoRa + espnow_task over ESP-NOW) on the per-transport TX channels, so io_task's
 +# r2-route forwards an Event ACROSS transports (LoRa island -> bridge -> ESP-NOW island). Dedup is transport-
 +# agnostic (keys on frame-carried origin+msg_id) so the crossing is delivered EXACTLY-ONCE (core: DG-2/BL-300).
