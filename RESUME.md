@@ -1,5 +1,32 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
+- **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
+- **r2-hive (platform-trait) PUSHED 972d131..e027edd:**
+  - `56a9458` SCRUB (Roy ruling; r2-hive is PUBLIC): Wairoa→pilot-site, kaitiaki→guardian, marae→central across RESUME
+    + docs/** + docs/field-results/**. DATA INTEGRITY preserved (only location LABELS changed; no measurements/hashes/
+    offsets; all JSON re-parses). 2 identifiers PRESERVED+FLAGGED: `wairoa_as923_nz` (r2-sx1262 fn), `wairoa.reading`
+    (wire event-name) — need coordinated code/wire renames, not a doc-scrub. Provenance in gitignored `.r2-local/`.
+    HEAD-scrub only (no history rewrite).
+  - `1ec7938` FAIL-CLOSED deliver-gate (R2-TRUST §7.5.4; default-OPEN was FORBIDDEN): bin (`HiveState.deliver_unkeyed_open`,
+    env `R2_DELIVER_UNKEYED_OPEN`, `gate_should_deliver` 3-arg + 2 new tests) + wasm (`WasmHive.unkeyed_open` +
+    `setUnkeyedOpen(bool)`; verify_frame None→`deliver:false` unless opted-in). 106 bin + 12 wasm tests green; wasm32 ok.
+  - `0afb7a2` ws-mesh bindings: keyless HiveWs auto `setUnkeyedOpen(true)` (preserve pure-routing sim). Pkgs re-staged
+    (web wasm sha `4e709d9f`). Composer flagged to re-pull + add the opt-in on any direct keyless WasmHive.
+  - `e027edd` EXPOSURE gate: `/routes` + `/stats` now behind `mgmt::ws::authorize_upgrade` (same-origin + web-auth
+    cookie), fail-closed. Was an unauthenticated topology leak, publicly reverse-proxied.
+- **dfr1195-fw (dfr1195-fw) committed `4ce04c4` — NOT pushed yet (fold with the re-vendor):** R2-RUNTIME v0.18 §3.2.5
+  compile_error guard (`field` + `viz`/`benchdist` = build fails). VERIFIED old weave set now fails; field-DROPPED weave
+  (carrier,multitg,routetest,viz,benchdist,otal2cap) compiles green — role machinery is field-INDEPENDENT.
+- **NEXT (owed):** (1) ★ firmware SECURITY RE-VENDOR r2-cbor(§7.4 dup-key)/r2-dataplane(140da84)/r2-trust(persona dup-key)
+  /r2-update(apply.rs) + r2-route/r2-sx1262 (mariko-03 SF10) to ONE consistent core HEAD — asked core for the sha.
+  (2) rebuild+stage the field-DROPPED weave ELF. (3) P2 CI hygiene guard (scrub-term grep, fail-on-hit). (4) canon:
+  R2-ROUTE v0.48 §5.2 directed-relay single-transport (bites BRIDGE builds, M-ESPNOW-3); dedup-16 io_task (msg_id,origin)
+  key (coord core). (5) dedup-13 PROVISION-ACK firmware line (low pri). (6) push `4ce04c4` with the re-vendor.
+- **Do-not-assume:** field-drop for the weave is MY decision (flagged supervisor, proceeding). benchdist-split (§2.3B VBLK
+  dual-use vs §2.3C bench) DEFERRED. The 2 pre-existing non-mine dfr1195-fw items still owner-pending; the patch was
+  scrubbed as HEAD+scrub-only, its refresh preserved in `.r2-local/`.
+
 ## ✅ 2026-07-02T08:46:52+12:00 — CLEANUP VERIFY: pushed state confirmed; non-owned firmware WIP preserved
 - **Current objective:** finish the interrupted cleanup without losing work: verify r2-hive push/cache hygiene and
   classify the remaining sibling `dfr1195-fw-wt` dirty items.
