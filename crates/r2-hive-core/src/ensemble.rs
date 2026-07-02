@@ -68,6 +68,68 @@ impl Sentant for HbSentant {
     }
 }
 
+// ───────────────────────────── sensor sentant (SENSOR role) ─────────────────────────────
+//
+// The SENSOR ensemble role as a portable sentant (R2-HIVE north-star: the SAME role code on wasm,
+// host, and firmware). Emits a reading to the trust group on each host TICK — the wasm/host analogue
+// of the DFR1195 firmware's config-activated SENSOR role. Router role = the route core's normal
+// forward; receiver role = the §7.5.4 deliver-gate + record (no extra sentant needed). This makes a
+// wasm hive run the full sensor→router→receiver ensemble with real sentants + real routing, no mocks.
+
+/// Reading event a SENSOR emits — the SAME wire event the DFR1195 firmware SENSOR emits
+/// (`r2.tn.routetest`), so a wasm sensor and a hardware sensor interoperate in ONE heterogeneous TG
+/// mesh. (Composer's catalogue `pilot.reading`/`mariko.reading` is the UX label for this wire event.)
+pub const READING_HASH: u32 = r2_fnv::fnv1a_32(b"r2.tn.routetest");
+
+const SENSOR_CLASS: u32 = r2_fnv::fnv1a_32(b"ai.reality2.sentant.sensor");
+const SENSOR_SUBS: [u32; 1] = [TICK_HASH];
+
+/// Sensor sentant — emits a trust-group reading on every `TICK`. Payload = origin `hive_id` BE32 ++
+/// reading counter BE32 (origin-FIRST so both the (msg_id,origin) dedup and the firmware routetest
+/// `payload[..4]`-origin read hold across the heterogeneous mesh).
+pub struct SensorSentant {
+    hive_id: u32,
+    readings: u32,
+}
+
+impl SensorSentant {
+    pub fn new(hive_id: u32) -> Self {
+        Self { hive_id, readings: 0 }
+    }
+    /// Readings emitted so far (sim/telemetry).
+    pub fn readings(&self) -> u32 {
+        self.readings
+    }
+}
+
+impl Sentant for SensorSentant {
+    fn handle_event(&mut self, event: &Event, actions: &mut ActionBuf) {
+        if event.hash == TICK_HASH {
+            self.readings = self.readings.wrapping_add(1);
+            let mut p = [0u8; 8];
+            p[..4].copy_from_slice(&self.hive_id.to_be_bytes());
+            p[4..].copy_from_slice(&self.readings.to_be_bytes());
+            actions.push(Action::Send {
+                target: Target::TrustGroup,
+                event_hash: READING_HASH,
+                payload: PayloadBuf::from_slice(&p),
+            });
+        }
+    }
+    fn state(&self) -> StateId {
+        0
+    }
+    fn class_hash(&self) -> u32 {
+        SENSOR_CLASS
+    }
+    fn name(&self) -> &str {
+        "sensor"
+    }
+    fn subscriptions(&self) -> &[u32] {
+        &SENSOR_SUBS
+    }
+}
+
 // ───────────────────────────── OTA plugin + sentant ─────────────────────────────
 //
 // The PURE OTA form (R2-HIVE increment-3): the PLUGIN does the complex work

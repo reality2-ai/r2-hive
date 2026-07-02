@@ -26,8 +26,8 @@ use wasm_bindgen::prelude::*;
 use r2_engine::queue::QueuedEvent;
 use r2_engine::EventBus;
 use r2_hive_core::ensemble::{
-    HbSentant, MemSink, OtaConfig, OtaSentant, OCM_HASH, ODT_HASH, OST_HASH, PROGRESS_HASH,
-    TICK_HASH,
+    HbSentant, MemSink, OtaConfig, OtaSentant, SensorSentant, OCM_HASH, ODT_HASH, OST_HASH,
+    PROGRESS_HASH, TICK_HASH,
 };
 use r2_hive_core::sync_host::{
     provisional_hive_id, route_inbound_sync, InboundFrame, SyncRouteOutcome, SyncTransport,
@@ -273,6 +273,18 @@ impl WasmHive {
     #[wasm_bindgen(js_name = setUnkeyedOpen)]
     pub fn set_unkeyed_open(&mut self, open: bool) {
         self.unkeyed_open = open;
+    }
+
+    /// Enable the SENSOR ensemble role: registers a real [`SensorSentant`] that emits a trust-group
+    /// reading (`r2.tn.routetest` — the SAME wire event the DFR1195 firmware SENSOR emits, so wasm and
+    /// hardware nodes interoperate in ONE heterogeneous TG mesh) on every `tick()`. Composes with any
+    /// role — call after construction (± `setGroupHmac`). Router role = the route core's normal forward;
+    /// receiver role = the §7.5.4 deliver-gate + record. A wasm node now runs the full sensor→router→
+    /// receiver ensemble with real sentants + real routing, no mocks.
+    #[wasm_bindgen(js_name = enableSensor)]
+    pub fn enable_sensor(&mut self) {
+        self.bus
+            .register_sentant(Box::new(SensorSentant::new(self.self_hive_id)));
     }
 
     /// New OTA-CAPABLE node: the basic ensemble PLUS the OTA plugin+sentant (the pure
@@ -969,6 +981,37 @@ mod tests {
         let mut b = WasmHive::new(0x0000_00BB);
         let out = b.deliver_event(&bytes);
         assert!(out.starts_with("{\"frames\":["), "valid JSON: {out}");
+    }
+
+    #[test]
+    fn sensor_role_emits_reading_on_tick() {
+        // A hive with the SENSOR role emits a trust-group reading (r2.tn.routetest — firmware-interop)
+        // on TICK, alongside the heartbeat: a wasm node running the real ensemble sensor role, no mocks.
+        let mut a = WasmHive::new(0x0000_00CC);
+        a.enable_sensor();
+        let out = a.tick(1);
+        let mut reading_origin: Option<[u8; 4]> = None;
+        for tok in out.split('"') {
+            if tok.len() >= 2 && tok.len() % 2 == 0 && tok.bytes().all(|c| c.is_ascii_hexdigit()) {
+                let bytes: Vec<u8> = (0..tok.len() / 2)
+                    .map(|i| u8::from_str_radix(&tok[i * 2..i * 2 + 2], 16).unwrap())
+                    .collect();
+                if let Ok(m) = r2_wire::extended::decode_extended(&bytes) {
+                    if m.header.event_hash == r2_hive_core::ensemble::READING_HASH {
+                        let mut o = [0u8; 4];
+                        o.copy_from_slice(&m.payload[..4]);
+                        reading_origin = Some(o); // own it before `bytes` drops (payload is borrowed)
+                    }
+                }
+            }
+        }
+        // Payload is origin-FIRST (hive_id BE32) so (msg_id,origin) dedup + the firmware routetest
+        // payload[..4]-origin read both hold across the heterogeneous mesh.
+        assert_eq!(
+            reading_origin.expect("sensor tick emits an r2.tn.routetest reading"),
+            0x0000_00CCu32.to_be_bytes(),
+            "reading payload is origin-first"
+        );
     }
 
     /// On-demand: mint a signed R2-UPDATE test package + tg_pk for composer's live

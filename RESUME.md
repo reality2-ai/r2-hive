@@ -1,10 +1,25 @@
 # RESUME — r2-hive (hive-worker)
 
-## ▶ 2026-07-02 — NEXT TRACK SCOPED: r2-hive-wasm production-hive + refutation-instrument (spec-first, blocked on specs)
+## ▶ 2026-07-02 — r2-hive-wasm production-hive track: composer's #1 (FULL ENSEMBLE) DONE; UDP model resolved
 - **Supervisor track (while Roy schedules the flash):** build r2-hive-wasm as the PRODUCTION no-radio hive + refutation
   instrument — full real TN+TG+OTA (mirror firmware flows, no mocks), WS + UDP-first-class-L1 transports, carrier-bridge
   unifying wasm + hardware into ONE heterogeneous TG mesh. I'm SOLE WRITER of r2-hive-wasm; composer builds the UX/
   orchestrator (re-pulls webapp/wasmhive/); spec-first; commit/push/hosted-green; dedup-16 stays deferred.
+- **✅ COMPOSER'S #1 FOUNDATIONAL GATE DONE — full ensemble in-wasm (SENSOR role):** added `SensorSentant` to
+  r2-hive-core/ensemble.rs (portable, mirrors HbSentant + the firmware SENSOR role) — emits a trust-group reading on each
+  TICK. Wire event = `r2.tn.routetest` (the SAME event the firmware SENSOR emits → wasm + hardware interoperate in ONE
+  heterogeneous TG mesh; composer's pilot.reading is the UX label). Payload origin-FIRST (hive_id BE32 ++ counter).
+  New wasm API `enableSensor()` (register the role post-construction; composes with setGroupHmac). ROUTER = route_frame,
+  RECEIVER = deliver-gate + record (existing, real). Behavioural test `sensor_role_emits_reading_on_tick` (13 wasm tests
+  green, wasm32 builds). Pkgs re-staged; web wasm sha 2b28fba63b194933 (enableSensor in the d.ts). Composer pinged.
+- **SPECS ANSWERED the transport forks:** (1) UDP-LAN bearer = MULTICAST group+port (R2-TRANSPORT v0.13 §2.6.1, first-
+  class L1 — mirror core's UdpLanTransport shape, NOT a WS gateway); BUT specs (a read-only fork) was UNSURE the exact
+  multicast addr/port is canon-pinned vs core's impl-default — ASK CORE for the on-wire addr/port + whether it needs a
+  one-line PROVISIONAL ratification. (NOTE: my read of core's udp_lan.rs showed UNICAST-per-peer+PeerTable — reconcile
+  with core: multicast vs unicast is unresolved; confirm before building hive-udp.js.) (2) Heterogeneous mesh = NO
+  gateway construct — each node runs its own route engine + TG membership; a bridging node = ordinary R2-ROUTE §5.4
+  multi-transport-relay + §5.2 directed-egress. dedup survives (frame-carried origin §3.3, transport-agnostic); GroupHmac
+  survives (signed span = frame content, SCF trust-agnostic below-L5, deliver-gate only at final dest). No new machinery.
 - **Baseline assessed (already DONE):** real-core TN+TG+OTA stack (r2_engine EventBus + HbSentant + OtaSentant +
   r2_route sync-route + r2_trust deliver-gate, NO mocks); WS bearer (ws-mesh: gateway.js broadcast relay + hive-ws.js +
   browser variant); carrier-bridge (Python + wasmhive-node: host <-> DFR1195-ESP-NOW carrier <-> wasm route core).
@@ -20,8 +35,13 @@
   so HOLDING for specs (per supervisor's spec-first).
 - **Coordinated composer** (peer-to-peer): asked what wasm API the refutation-UX needs beyond current WasmHive; confirmed
   split (me=wasm+bindings+gateway, composer=UX/orchestrator); pkg-sha ping on each bump.
-- **NEXT when specs answers:** build the conformant UDP bearer (hive-udp.js) + the heterogeneous-mesh gateway; then a
-  cross-transport TG-mesh test (WS+UDP+carrier, TG-isolation held) as the refutation instrument. Idle until specs/composer reply.
+- **NEXT:** (a) confirm composer's item-2 (the wasm OTA IS the real otal2cap flow — verify_header + PayloadVerifier +
+  slot semantics + pkg wire format) and reply; (b) ASK CORE the UDP on-wire model to RECONCILE specs-says-multicast vs
+  my-read-of-udp_lan.rs-says-unicast-PeerTable (+ the addr/port + PROVISIONAL-ratification need) BEFORE building
+  hive-udp.js; (c) then build the conformant UDP bearer + a cross-transport heterogeneous TG-mesh test (WS+UDP+carrier,
+  TG-isolation held, §5.2 per-neighbour egress) = the refutation instrument. No gateway construct (specs: §5.4+§5.2).
+  Composer's #1 unblocks its UX build now; UDP bearer waits on the core reconcile. Confirm composer's Q: emit_route_snapshot
+  IS the rt.* R2-DIAGNOSTICS snapshot (YES).
 
 ## ✅ 2026-07-02 — SECURITY RE-VENDOR + WEAVE ELF DONE + REFUTATION CLEARED (ready for Roy's flash)
 - **dfr1195-fw PUSHED 1811267..8ec1a6f:** re-vendored 8 crates BYTE-EXACT to core@1275732 (supervisor byte-verified,
@@ -78,8 +98,10 @@
   (bites BRIDGE builds, M-ESPNOW-3); dedup-16 io_task (msg_id,origin) key (coord core). (5) dedup-13 PROVISION-ACK
   firmware line (low pri). (6) push `4ce04c4` with the re-vendor.
 - **DONE since the block above:** P2 CI hygiene guard SEEDED (`ci/public-hygiene.sh` + `.github/workflows/
-  public-content-hygiene.yml` — greps Wairoa/kaitiaki/marae + macrons, allowlists the 2 identifiers; verified pass-clean
-  + fail-on-inject; r2-hive's FIRST hosted workflow). marae→'site' realigned (was 'central'; BLE-role 'central' preserved).
+  public-content-hygiene.yml` — greps the scrubbed location + te-reo terms + macrons, allowlists the 2 identifiers;
+  verified pass-clean + fail-on-inject; r2-hive's FIRST hosted workflow). The te-reo term realigned to 'site' (was
+  'central'; BLE-role 'central' preserved). NOTE: refer to "the scrubbed terms" not the raw words in this file — it's
+  public and the guard greps it.
 - **REFUTED (conjecture-and-refutation):** "wairoa.reading is a firmware WIRE EVENT" is FALSE — the firmware sensor emits
   `r2.tn.routetest` (ROUTETEST_HASH = fnv1a_32(b"r2.tn.routetest")); NO `.reading` event exists in the firmware. So the
   ELF is NOT gated on an event-rename; pilot.reading vs mariko.reading is purely composer's catalogue naming. Reported.
