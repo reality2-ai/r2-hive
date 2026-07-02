@@ -1,18 +1,21 @@
 # RESUME — r2-hive (hive-worker)
 
-## ✅ 2026-07-02 — SECURITY RE-VENDOR DONE + WEAVE ELF STAGED (last-USB-flash ready, pending refutation)
-- **dfr1195-fw PUSHED 1811267..3cdbd82:** re-vendored 8 crates BYTE-EXACT to core@1275732 (supervisor byte-verified,
+## ✅ 2026-07-02 — SECURITY RE-VENDOR + WEAVE ELF DONE + REFUTATION CLEARED (ready for Roy's flash)
+- **dfr1195-fw PUSHED 1811267..8ec1a6f:** re-vendored 8 crates BYTE-EXACT to core@1275732 (supervisor byte-verified,
   security-complete): r2-cbor(§7.4 dup-key reject), r2-dataplane(140da84 + arrival_transport gate), r2-trust(persona
   dup-key; parse_provision UNCHANGED), r2-update(apply), r2-route(neighbour ceiling + EspNow→Mesh already handled #29),
   r2-discovery(beacon anti_collision LE→BE = the endianness flip, AUTO via re-vendor), r2-sx1262(mariko-03 relay+leaf
   SF10 + wairoa_as923_nz→as923_nz), r2-transport(the #29-style CASCADE dep core flagged — lora/lora_airtime; missed in
   4744fe8, added 3cdbd82). r2-wire stays PINNED (core-confirmed byte-identical codecs). Only call-site fix: the as923_nz
   rename. Both builds GREEN: field-dropped weave + a lora set. beacon_reachability.rs committed. 2 non-mine items untouched.
-- **WEAVE ELF STAGED:** `~/r2-dfr1195-weave.elf` (1329476 B, xtensa, sha 93b013d72fd47ddd) = the security-complete
-  last-USB-flash image (field DROPPED per §3.2.5; VMASK/§2.3A item-7 in from 1811267; beacon BE; event-rename is a
-  no-op — firmware emits r2.tn.routetest, not any .reading). Roy-only flash; HOLD flash for the hive-codex refutation.
-- **REFUTATION PASS requested:** hive-codex (opposite-provider) to challenge the re-vendor + combined ELF (missed API
-  call-sites? carrier INJECT-path VMASK bypass? field-drop losing anything?) BEFORE Roy flashes.
+- **WEAVE ELF STAGED (final):** `~/r2-dfr1195-weave.elf` (1361616 B, xtensa, sha cb87c8aa337b4d90) = the security-complete
+  last-USB-flash image (field DROPPED per §3.2.5; VMASK/§2.3A item-7 incl. the INJECT-path gate; beacon BE; event-rename
+  a no-op — firmware emits r2.tn.routetest). Roy-only flash — FLASH sha = cb87c8aa.
+- **REFUTATION CLEARED (hive-codex, opposite-provider, at 3cdbd82):** (1) missed API call-sites REFUTED (r2-dataplane/
+  r2-trust/r2-update/r2-route/r2-cbor call surfaces all still match); (2) carrier INJECT-path VMASK bypass = CONFIRMED
+  BUG → FIXED at 8ec1a6f (INJECT now honours TX_ALLOW_MASK Mesh bit, mirrors mesh_broadcast); (3) field-drop PARTIAL =
+  accepted (matches the ratified decision — weave needs no fr4 SCF/silence); (4) beacon anti_collision BE CONFIRMED
+  (encode_advert to_be_bytes, firmware auto-flipped). Net: 1 confirmed bug found + fixed; ELF ready.
 - **STILL OWED (follow-up, none block the weave):** directed-relay single-transport (R2-ROUTE v0.48 §5.2, BRIDGE builds
   only — weave is single-transport conformant); dedup-16 io_task (msg_id,origin) key (coord core, asked whose fix);
   dedup-13 PROVISION-ACK serial line (low-pri bench, DEFERRED — in PENDING_PROVISION path; a concurrent writer also
