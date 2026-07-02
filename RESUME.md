@@ -107,9 +107,12 @@
   (relay does NOT append → a len-1 board re-broadcast is normal; TTL<8 on R2RX = proven board relay).
 - **DONE (composer live-weave support):** carrier-bridge control-verb passthrough (VMASK/VRSSI/VDIST/VCLR/VBLK → carrier
   serial verbatim, --participate-gated; 388b966) — restores the §2.3A Mesh bit + unblocks the §2.3C/§2.3B drag-to-inject
-  virtual-distance bench end-to-end (toward task#31). Needs re-scp to alfred:~/carrier-bridge/. Composer PROVED egress-over-
-  air (TX-inject → 11 c0ffee01 on R2RX) + board receipt/relay; wire has_route layout hardware-validated 7/7. Board VERIFY
-  (deliver-gate) close = Roy's LED-watch (RECEIPT ~400ms flash) — ready on cue.
+  virtual-distance bench end-to-end (toward task#31). Needs re-scp to alfred:~/carrier-bridge/. Board RECEIPT+RELAY+egress-
+  over-air now PROVEN on hardware (composer TTL proof: 8 TX-injects at ttl=8 → 28 c0ffee01 frames on R2RX ALL at ttl=7, ZERO
+  ttl=8 = definitive 1-hop board re-broadcast; route_stack stayed len=1 = firmware-no-append CONFIRMED on-air; validates my
+  TTL-is-the-hop-counter + no-TX-loopback calls). All surfacings 1-hop (no ttl=6) = relaying boards are direct carrier-
+  neighbours / 2-hop deduped. wire has_route layout hardware-validated 7/7. ONLY remaining = deliver-gate hmac VERIFY
+  (below-L5, relay does NOT prove it) = Roy's LED-watch (RECEIPT ~400ms flash) via TX-inject — ready on cue.
 
 ## ✅ 2026-07-02 — AUDIT P0 BATCH (HOLD lifted): scrub + §3.2.5 guard + fail-closed + exposure gate PUSHED
 - **Objective:** work the supervisor's post-audit P0 queue. Priority insert done FIRST: Roy's PUBLIC-CONTENT SCRUB.
