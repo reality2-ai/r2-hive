@@ -47,6 +47,11 @@
   authoritative reconciliation (answering my §4.5-vs-§8.4 ask): **'§8.4 GOVERNS. Hold at k=3 — do not revert [to the
   k=15 fix]. §4.5 row 4 is an UNDER-SPECIFIED table entry that needs reconciling, NOT a competing authoritative rule.'**
   ⇒ k=3 correct; §4.5:892 reconcile is SPECS' in-spec task, not mine. My state (k=3, reverted, clean tree) = correct.
+  **✅ TRULY CLOSED: specs LANDED the §4.5 fix (5afef2a, hosted-green) — R2-ROUTE §4.5:892 corrected to MATCH §8.4
+  (target==0 does NOT imply K=15; the 'Always flood' prose was unreconciled, now fixed). §4.5 + §8.4 AGREE; k=3 is
+  canonical; NOTHING pending on #26 broadcast-K.** Follow-on (optional, ready): explicit-K=15 build path → turns the
+  bridge D-leg into a genuine deliver-gate isolation test (critical frame floods to a wrong-key neighbour, rejected
+  at deliver). Deferred — not essential (isolation already proven in udp-test-mesh.js); #49 is the priority.
   NB a STALE supervisor 'HOLD your revert' arrived post-resolution (message-queue ordering bug; referenced core's
   WITHDRAWN §4.5 relay) — SUPERSEDED; I did not thrash. The core-vs-specs conflict RESOLVED: **core WITHDREW its
   '§4.5:892 target=0 = always-flood = K=15' relay** — it was specs' SUPERSEDED paraphrase;
