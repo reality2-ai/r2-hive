@@ -19,6 +19,28 @@
   quality-override UNCHANGED (my existing faked-distance/quality-override work stands — different axis). READY to
   build post-#49; NON-URGENT — #49 (task#35) first. ACK'd to specs.
 
+## ✅ 2026-07-03 — #49 FIXED FW BUILT + STAGED on Alfred (my side DONE; Roy flashes)
+- **BUILT the fixed ELF myself on Alfred** (my worker SSHes to Alfred): `~/r2-dfr1195-weave-fixed.elf`
+  sha256 `ab1f1cb6...` (1362388 B; old pre-fix weave = `cb87c8aa`). Accumulator confirmed compiled in
+  (framing-desync + receiver-up strings). `cargo +esp build --release --features carrier,multitg,routetest,
+  viz,benchdist,otal2cap` GREEN.
+- **BUILD RECIPE (for future fw builds from this box):** `ssh alfred`; the fw worktree
+  `~/Development/R2/dfr1195-fw-wt` is shared/synced with tuxedo (already at my commits); **source
+  `~/Development/homelab/export-esp.sh`** (this puts the xtensa-esp32s3-elf-gcc LINKER on PATH — WITHOUT it the
+  build compiles but fails at link); `cd platforms/dfr1195 && cargo +esp build --release --features <weave set>`;
+  output = `platforms/dfr1195/target/xtensa-esp32s3-none-elf/release/r2-dfr1195` (crate-local target, NOT
+  workspace root). `cargo +esp check` works on TUXEDO too (esp toolchain present; only the linker is Alfred-only).
+  `cargo build` does NOT trip the harness gate (only espflash/esptool do).
+- **PERSONA-PRESERVING FLASH for Roy** (09a07e47 = MAC F4:12:FA:50:23:E4), app-only, mirrors flash-weave.sh's
+  app step but SKIPS the persona write: `espflash flash --chip esp32s3 --partition-table ~/dfr1195-partitions.csv
+  --port /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_F4:12:FA:50:23:E4-if00
+  ~/r2-dfr1195-weave-fixed.elf` — do NOT `write-bin 0x12000 persona`, no `--erase-flash`. persona@0x12000 +
+  NVS@0x14000 sit in the unflashed 0x11000-0x20000 gap → weave identity intact.
+- **All three legs READY:** board fix built+staged (ab1f1cb6), composer client on the [len u16 LE] wire
+  (fb977ac, 360 tests green), composer mock models the re-chunk (duplex(1) byte-at-a-time). NEXT (not mine):
+  Roy flashes 09a07e47 → composer re-runs the push → OTA e2e. OTA-payload choice is composer's (push signed
+  cb87c8aa = proves delivery; or sign new ab1f1cb6 app = fix-preserving). Reported to supervisor.
+
 ## ⚠ 2026-07-03 — #49 ROOT CAUSE CONFIRMED (SOCK_STREAM byte-stream) + fix LOCKED, implementing
 - **CONFIRMED (composer socket-type ground truth, commit 9c461bf):** composer's client is a bluer `SOCK_STREAM`
   L2CAP socket (Socket::<Stream>::new_stream, reused from the proven provisioning connect) = BYTE-STREAM, NO
