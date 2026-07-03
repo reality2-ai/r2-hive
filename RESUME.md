@@ -1,5 +1,20 @@
 # RESUME — r2-hive (hive-worker)
 
+## 📌 2026-07-03 — SCOPE (fleet-#36 = my task#31): multi-transport bench stress — NON-URGENT, awaiting specs
+- Supervisor requirement (then SUPERSEDED to the cleaner form): multi-transport TN testing needs varying
+  distance + radio restriction to FORCE traffic across transports (prove the mesh reroutes when a radio drops),
+  on the REAL bench boards (can't physically move/block them).
+- **CORRECTED scope (supervisor supersede):** RADIO-restriction = **BUILD-TIME TRANSPORT COMPOSITION** — Cargo
+  feature-select which ConnectionlessRadio / L1 bearers compile in (ONE unified stack, pick-and-choose L1, NO
+  fork) → REAL device variants (LoRa-only, WiFi+BLE, …) as precompiled hive artifacts, re-flash/OTA reconfigured
+  = my build-artifact role. A LoRa-only variant is a GENUINE LoRa-only device (radios not faked-off) → 'boards
+  stay real' holds honestly. **NOT a runtime radio-disable hook** (= the banned #39 bench-override, a field-build
+  contaminant — do NOT build it). Virtual-DISTANCE / mobility MAY stay runtime (TBD) — drag → RSSI/reachability
+  via the §2.3B is_reachability_blocked path (vendored), command-driven over the --control channel (task#30).
+- **specs is CANONIZING this + will hand me the spec.** WAIT for it before building the composition variants; do
+  NOT build the runtime radio-silence hook. NON-URGENT — finish #49 (task#35) first. May pull core for
+  transport-layer composition support.
+
 ## ⚠ 2026-07-03 — #49 FIRST METAL OTA reached the receiver but STALLED (0 bytes) — board-side diagnosed
 - **Event (supervisor):** first metal OTA push to 09a07e47 (C4:C9:E0:71:BB:30) — BLE L2CAP link UP on 0x00D3
   (RBID identity-verified), but 0 bytes then STALLED; OST→RESP_OK didn't proceed on metal though it PASSED
