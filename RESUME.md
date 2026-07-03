@@ -19,6 +19,45 @@
   quality-override UNCHANGED (my existing faked-distance/quality-override work stands — different axis). READY to
   build post-#49; NON-URGENT — #49 (task#35) first. ACK'd to specs.
 
+## ⚠ 2026-07-03 — #49 ATTEMPT 3c: composer proved divergence is BOARD-SIDE → refined to COEX; pre-read guard STAGED
+- **composer's DECISIVE input:** the CLIENT path is NOT the divergence — provisioning (provision_handshake.rs:396)
+  does the IDENTICAL device.connect()+l2cap_connect on PSM 0x00D2 and WORKS on real HW; address type is correct
+  (OTA passes LeRandom, l2cap_connect tries both). ⇒ the divergence IS board-side. composer re-raised the ADV
+  hypothesis (does the weave build keep advertising during the CoC?).
+- **ADV hypothesis REFUTED 3 ways (answered composer):**
+  1. SOURCE: trouble-host 0.6.0 `Advertiser::accept(mut self)` CONSUMES the advertiser; a LEGACY
+     ConnectableScannableUndirected adv auto-stops at the controller on connect (BLE LL). No re-advertise until
+     `ota_receive_over_coc` returns.
+  2. SHARED CODE: provisioning (serve_coc) + OTA (ota_receive) use the IDENTICAL accept+advertise loop
+     (main.rs:3021-3074) — only the served fn differs. If ADV-during-CoC dropped the link, provisioning would drop
+     too. It doesn't. composer's own provisioning-works evidence refutes ADV-contention.
+  3. EMPIRICAL: the metal serial showed NO repeated 'BEACON adv up' during the stall = advertising never restarted.
+- **REAL board-side divergence = WiFi/BLE COEX (source-grounded, leading):** provisioning(0x00D2) and OTA-weave(0x00D3)
+  are DIFFERENT BUILDS — serve_coc is compiled OUT under otal2cap. The `ble` feature bundles esp-radio/coex +
+  esp-radio/esp-now; the weave otal2cap build spawns the FULL stack (wifi_task/net_task + espnow_task actively TXing
+  HBs = the 'continuous heartbeats' on serial) CONCURRENT with the BLE OTA CoC. And OTA_ACTIVE does NOT pause the
+  mesh — it is checked ONLY at main.rs:661 (LED breathe). ⇒ the WiFi radio hammers ESP-NOW HB TX during the BLE CoC =
+  coex contention in the await-OST window. Provisioning is stable because it is BLE-only-early (the 'BLE-triggered
+  WiFi join' comes AFTER — see the `nobt` feature comment: "no radio coex contending with the mesh").
+  - **HONEST COUNTERPOINT (not refuted):** cocbench (task#18) sustained 1.3MB with `ble`/coex compiled in — BUT it
+    TUNED conn params (2M PHY + 7.5ms interval + DLE, main.rs:3046-3048) that ride through coex gaps; the OTA path
+    uses Alfred's DEFAULT params (board is peripheral, can't tune). So coex severity is param-dependent, not refuted.
+- **DECISION TREE (btmon Disconnection reason code, still the decisive datum — asked composer):**
+  - 0x08 supervision / 0x22 LMP-timeout / 0x3E conn-failed ⇒ COEX (board fix = gate espnow HB TX on OTA_ACTIVE so the
+    WiFi radio goes quiet during OTA). Also asked composer: was 'provisioning works' the FULL weave image or BLE-only?
+    (full-stack-provisioning working ⇒ coex REFUTED, pivot.)
+  - 0x05/0x06 auth-enc / 0x3B params ⇒ CLIENT-side handshake/security (setsockopt BT_SECURITY_LOW; zero board change).
+- **STAGED (supervisor-approved, NOT flashed) — dfr1195-fw 69a2d90 (pushed, cargo +esp check green):** the pre-read
+  HALF-OPEN GUARD — `select(rx.receive, Timer(15s))`; on no-OST-in-15s → log 'no OST ... re-advertising' +
+  OTA_ACTIVE=false + return, so the accept loop re-advertises instead of blocking forever silently. Pure
+  observability/robustness; never fires on the happy path. Rides the NEXT board-update whenever the reason code
+  forces one.
+- **HELD pending reason-code (coex fix, NOT yet written):** OTA_ACTIVE-gated mesh-TX-pause. Deliberately NOT
+  implemented — (a) unconfirmed cause, (b) pausing HB TX has §2.5 neighbour-eviction implications that need care
+  (maybe rate-reduce not full-mute; possible specs input). Write it ONLY if the reason code confirms coex.
+- **NEXT (mine):** idle awaiting composer's btmon reason code + BLE-only-vs-full-stack-provisioning answer. Then:
+  coex ⇒ write+stage the mesh-TX-pause (rides with 69a2d90); handshake ⇒ zero board change, composer sets BT_SECURITY.
+
 ## ⚠ 2026-07-03 — #49 ATTEMPT 3b: DEFER FLASHED, BRANCH 1 confirmed (OST never reached board) → NOT board-side
 - **METAL RESULT (supervisor):** defer build (296017c4/7a40bed) flashed + running (beats reset ~17, weave intact).
   Client: scanner-stop RAN ('scan stopped; radio freed') → resolved 09a07e47 (RPA rotated AGAIN → D0:A8:C5:DC:50:C5)
