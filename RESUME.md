@@ -59,6 +59,17 @@
   + core's relayed seed-fix) — both superseded by ground-truth traces; supervisor confirmed the discipline. I ALREADY
   seed Direct(0.9), so the seed-fix is a no-op; the cause is k=3. NEXT once canon rules broadcast-K: if flood →
   build_frame sets FLOOD_SENTINEL_K for target=0 (1-line, show uncommitted); if spray-K intended → no bug.
+  - **✅ EMPIRICALLY CONFIRMED (core's requested k=15 re-run) — candidate fix DEMONSTRATED, UNCOMMITTED:** implemented
+    build_frame branch `target_hive==0 → r2_route::constants::FLOOD_SENTINEL_K` (lib.rs:523+), rebuilt the wasm-node pkg
+    (`wasm-pack build --target nodejs --out-dir ws-mesh/wasmhive-node`, clean). bridge-flood-control.js NOW: route_frame
+    sends = [{k6,C},{k6,E},{k6,F}] — ALL THREE flood (was [C] only). F(wrong-key) ALSO floods = TG-agnostic relay
+    empirically confirmed. No regression (udp-test-mesh + bridge-test-mesh PASS). **UNCOMMITTED STATE: lib.rs 1-liner in
+    the working tree + wasmhive-node rebuilt (gitignored).** core doubly-vindicated (best_transport never the issue).
+    **HELD** for specs' broadcast-K canon (supervisor+core both LEAN flood: §8.4 defends K=15 floods, dedup+TTL bound
+    amplification; but canon-tension at R2-ROUTE line 889/1410 default replication_budget:3 → specs rules). do-not-assume:
+    the wasmhive-node pkg is now the k=15-FIX build; if specs rules spray-K, REVERT lib.rs + rebuild to restore.
+    **SCOPE flag:** the same 'broadcast(target=0) should flood' logic likely belongs in the sentant emit path AND the
+    FIRMWARE build_frame (real mesh broadcasts), not just the wasm — surface when committing the fix.
 - **⚠ (SUPERSEDED framings, kept for the audit trail) SEPARATE REAL GAP — earlier layers:**
   - **DECISIVE (2026-07-04): fleet converged on 'your UdpBearer collapses core's N hops → fix fan-out' + specs LANDED
     §2.6.1a (ff5555c: unicast bearers MUST iterate the full PeerMap). BUT my evidence CONTRADICTS that for MY bug.**
