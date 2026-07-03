@@ -19,6 +19,44 @@
   quality-override UNCHANGED (my existing faked-distance/quality-override work stands — different axis). READY to
   build post-#49; NON-URGENT — #49 (task#35) first. ACK'd to specs.
 
+## ⚠ 2026-07-03 — #49 ATTEMPT 3b: DEFER FLASHED, BRANCH 1 confirmed (OST never reached board) → NOT board-side
+- **METAL RESULT (supervisor):** defer build (296017c4/7a40bed) flashed + running (beats reset ~17, weave intact).
+  Client: scanner-stop RAN ('scan stopped; radio freed') → resolved 09a07e47 (RPA rotated AGAIN → D0:A8:C5:DC:50:C5)
+  → CoC 'phase up' → OST write → ENOTCONN (os 107). BOARD serial: 'CoC up' + 'receiver up' then NOTHING — NO
+  'OTA(L2CAP) start seq=' line (count 0). = my DISCRIMINATOR BRANCH 1: OST never reached the board. My defer-refutation
+  HELD (defer did not fix it; not OtaUpdater setup starvation — defer moved new() off that window + there is NO flash
+  op in the idle-await-OST window).
+- **BOARD-SIDE GROUND TRUTH (trouble-host 0.6.0 SOURCE re-read) — TWO supervisor/self hypotheses REFUTED:**
+  1. CONCURRENT ADVERTISING (supervisor's lead) — REFUTED. peripheral.rs:340 `Advertiser::accept(mut self)` CONSUMES
+     the advertiser (self by value); a LEGACY connectable adv auto-stops at the controller on connect. The board is
+     NOT advertising during the CoC. It never printed a fresh 'BEACON adv up' or 'CoC closed', so `ota_receive_over_coc`
+     has NOT returned = no re-advertise. The ~2s 'beaconing' the supervisor saw = the LoRa/§7 indicator or a client
+     scan-cache artifact, NOT a BLE re-advertise.
+  2. BOARD-INITIATED TEARDOWN — REFUTED. trouble-host built with NO security manager (Cargo.toml features =
+     central,peripheral,scan,default-packet-pool — no SMP/encryption) and `HostResources<_,1,1>` (1 conn + 1 CoC).
+     The board serves the CoC UNENCRYPTED and blocks FOREVER in the pre-read `rx.receive` (main.rs:4970, half-open) —
+     it never surfaces the disconnect.
+- **REFRAME (the load-bearing new insight):** this is the FIRST board-CoC test against a LINUX/bluer CENTRAL. EVERY
+  prior CoC success (cocbench 1.3MB, task#18) was board-to-board = trouble-host on BOTH ends. ⇒ the fault is almost
+  certainly the trouble-host-peripheral ↔ bluer-central L2CAP/SECURITY handshake, NOT the board OTA logic. The
+  sub-second ENOTCONN (client) + no board 'CoC closed' = a HALF-OPEN active teardown: client loses the ACL, board
+  link-layer has not surfaced it. Sub-second + 10s debugfs timeout SET already rules OUT 0x08 supervision timeout.
+- **DECISIVE DATUM requested (asked composer + told supervisor):** the HCI Disconnection Complete REASON CODE from
+  btmon -w on hci0 (Alfred), + any SMP pairing / LE Start Encryption between LE Connection Complete and the drop:
+  - reason 0x05/0x06 or SMP-timeout ⇒ BlueZ enforcing LE-CoC security the board CANNOT do ⇒ CLIENT FIX =
+    setsockopt BT_SECURITY = BT_SECURITY_LOW (level 1) before connect. **LEADING HYPOTHESIS.**
+  - reason 0x3B (unacceptable params) or an L2CAP command ⇒ credit/MPS/conn-param mismatch ⇒ I dig
+    `L2capChannelConfig::default()` (main.rs:3051, no explicit credits) vs the client's requested MTU/credits.
+- **⚠ DO-NOT-ASSUME (honest caveat — one board-side path NOT yet refuted):** WiFi/BLE COEXISTENCE. The board runs
+  `esp-radio/coex` with the SoftAP up AND BLE (main.rs:476-477 net/wifi tasks + ble_task). Coex can starve BLE
+  connection events post-CoC and drop the link. This is NOT refuted. The reason code still discriminates: 0x08
+  (supervision) / 0x22 (LMP timeout) / 0x3E (connection failed) ⇒ controller/coex (board, hard to fix in fw — a
+  coex-config/scheduling matter); 0x05/0x06 (auth/enc) / 0x3B (params) / an L2CAP cmd ⇒ handshake (client-side). So
+  'almost certainly client-side' is my leading read, NOT a closed verdict — the reason code settles it.
+- **STAGING POSTURE:** NO board reflash from me — leading cause is client-side; a board change now = premature churn.
+  Offered to stage a board pre-read TIMEOUT (detect half-open, log 'no OST', re-advertise) purely for observability +
+  retry, on request. Awaiting composer's reason-code + BT_SECURITY answer (fleet ask out, off-thread reply pending).
+
 ## ⚠ 2026-07-03 — #49 ATTEMPT 3: client-combo did NOT hold → defer reflashing NOW + REFUTATION of the defer hypothesis
 - **RESULT (supervisor):** the NO-REFLASH combo FAILED. Both client mitigations were CONFIRMED active — scanner-stop
   in-build (wrapper checkout HEAD 5dabe5f incl 61ad26d + stop/join) AND the 10s supervision timeout SET (echo 1000
