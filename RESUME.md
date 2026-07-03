@@ -19,7 +19,18 @@
 - **wasm-OTA design question = ✅ ALREADY ANSWERED (8ceb4c6, delivered to supervisor last turn)** — confirmed shared
   OtaSentant + platform sink backend; wasm = verify+stage only. If a re-ask lands it's a crossed/stale message. [[ota-per-platform-sink]]
 
-## 🔧 2026-07-04 — FIRMWARE TRACK RESUMED (Part D2 / task#7) — greenlit; NEXT = INCREMENT 2 (OTA PLUGIN), design grounded
+## 🔧 2026-07-04 — FIRMWARE TRACK RESUMED (Part D2 / task#7) — greenlit; INCR-2 MILESTONE reached (FlashSink xtensa-green)
+- **✅ INCR-2 CI-GREEN MILESTONE (dfr1195-fw 01b8620, pushed):** wrote `FlashSink` (an `r2_update::apply::ImageSink` over the
+  ESP inactive OTA slot — the MCU realization of the shared OTA seam, same trait wasm drives with MemSink) + `ota_apply_signed`
+  (drives core's canonical `SignedOtaApply<FlashSink>` start→feed→finish). Security-critical crypto ordering stays CORE-owned
+  (SignedOtaApply — Ed25519/payload-hash/capacity/§5.5-pending/commit-TOCTOU); my new surface = FlashSink only (Design-C
+  transient OtaUpdater per flush = no self-ref borrow + FlashRegion bounds-check for free; capacity cached at new();
+  activate stages seq/floor PENDING, defers durable floor to confirmed-boot = §5.5 anti-brick). Additive behind `otaengine`;
+  the #49-staged `ota_receive_over_coc` (otal2cap) UNTOUCHED. VERIFIED xtensa-green: `cargo +esp check --features
+  otaengine,routetest` (no new warnings). NB: default features do NOT compile (pre-existing got.3, gated by `routetest`);
+  use a routetest-inclusive set. **NOT DONE (before INCR-2 = done):** (1) transport feed — wire the L2CAP-CoC / bus OST/ODT/OCM
+  stream into ota_apply_signed; (2) EventBus (INCR-1) plugin/sentant registration; (3) **PEER-REFUTE FlashSink** (does it write
+  the right slot? bounds? activate/anti-rollback-defer correct?) — supervisor requires this before "done". Then stage for Roy metal.
 - **Supervisor GO** (TN design ratified, impl greenlit, order core→hive→composer). Doctrine (re-stated): integrate core's
   no_std crates (r2-engine + r2-update — do NOT reimplement); core platforms/esp32 + workshop firmware = PATTERNS only;
   **implementation-as-refutation** (if no_std/hw refutes a spec claim, surface it → spec re-eval, don't silently work around);
