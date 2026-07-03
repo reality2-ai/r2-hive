@@ -1,5 +1,32 @@
 # RESUME — r2-hive (hive-worker)
 
+## ▶ 2026-07-03 — #26 wasm HETEROGENEOUS CROSS-TRANSPORT BRIDGE built + local-green (HELD uncommitted per posture)
+- **Context:** while #49 is Roy-gated (bench trip, indefinite — I stay first-responder on the serial), supervisor
+  cleared me to advance the non-#49 wasm track (#26). Standing posture: DEVELOP but HOLD commit/push/hosted-green
+  until greenlight; spec-first. The #26 NEXT was the heterogeneous cross-transport TG-mesh bridge (WS+UDP+carrier
+  in ONE TG) = R2-ROUTE §5.4 multi-transport-relay + §5.2 directed-egress (specs: NO gateway construct).
+- **Conformance verified BEFORE building (route-core read):** `route_frame` returns `sends[]` each tagged with the
+  next-hop's transport `kind` (lib.rs:352-400 — one CaptureTransport per medium 0-6; each chosen hop captured on the
+  neighbour's learned-transport CaptureTransport). ⇒ a multi-bearer node CAN do §5.2 DIRECTED egress (dispatch each
+  send to the bearer matching `s.kind`), no route-core change. dedup/GroupHmac survive by construction (frame-carried
+  origin §3.3 transport-agnostic; signed span = content, route_stack excluded; deliver-gate only at final dest).
+- **BUILT (NEW files, UNCOMMITTED in the working tree per the HOLD):**
+  `crates/r2-hive-wasm/ws-mesh/hive-bridge.js` — `HiveBridge` (ONE WasmHive + N bearers) + `WsBearer`/`UdpBearer`
+  (socket-only). Inbound on bearer X → deliver-gate (verifyFrame) → route_frame(0, X.kind, …) → dispatch each send
+  to `bearerByKind[send.kind].sendTo(target, frame)`. Originate = broadcast on every bearer. Reuses the proven
+  hive-ws.js/hive-udp.js patterns without touching them.
+  `crates/r2-hive-wasm/ws-mesh/bridge-test-mesh.js` — e2e: A(sensor, WS-only) → gateway → BRIDGE(WS+UDP) → C(receiver,
+  UDP-only) same TG; D wrong-key. Topology IS the proof (A↔C share no direct transport).
+- **LOCAL-GREEN + REFUTATION-TESTED (node v25.8.1 on Alfred):** `node bridge-test-mesh.js` PASS. My FIRST claim
+  (D=0 proves the deliver-gate) was REFUTED by my own instrumentation: brRelayUdp=5 (not 10) prompted a received-vs-
+  delivered probe → D received=0/delivered=0 ⇒ TG-isolation is by NEIGHBOUR-EXCLUSION (D's wrong-key announce is
+  unauthenticated → A1 verify-then-record never LEARNS it as a neighbour → never relayed to), a STRONGER isolation
+  than the deliver-gate. C received=6/delivered=5 ⇒ cross-transport relay + dedup-survives-hop both proven. Claims in
+  the test corrected to the verified mechanism. Existing udp-test-mesh.js still PASS (no regression).
+- **Follow-ons (not built):** (1) the pure deliver-gate (relay-for-TG-X, deliver-only-to-TG-Y) needs a multi-TG
+  bridge; (2) the carrier (ESP-NOW) bearer as a 3rd transport (needs the serial bridge — #49-entangled); (3) pkg
+  re-stage. **HELD:** nothing committed/pushed for this track; awaiting supervisor greenlight (spec-first posture).
+
 ## 📌 2026-07-03 — SCOPE (fleet-#36 = my task#31): multi-transport bench stress — NON-URGENT, awaiting specs
 - Supervisor requirement (then SUPERSEDED to the cleaner form): multi-transport TN testing needs varying
   distance + radio restriction to FORCE traffic across transports (prove the mesh reroutes when a radio drops),
