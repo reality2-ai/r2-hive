@@ -43,7 +43,19 @@
   with SINGLE-key nodes (a node relays a foreign-TG frame TG-agnostically + its deliver-gate drops it). Multi-device
   multi-TG = the ratified multi-PROCESS pattern (§13.2/13.3 = N isolated hives), not one hive holding N keys. (specs
   drafted docs/proposals/MULTI-TG-RELAY-AUTHENTICATE.md, uncommitted.)
-- **⚠ SEPARATE REAL GAP (routing completeness) — ROOT-CAUSED to the SEED path; HOLDING the greenlit bearer fix:**
+- **✅ #26 flood-under-reach — FINAL ROOT CAUSE (2026-07-04, code-traced): K-SPRAY BUDGET, not best_transport, not
+  the bearer.** build_frame sets **k=3** (lib.rs:530-531). enforce_ttl_k (r2-route hop.rs): only k==15
+  (FLOOD_SENTINEL_K) is flood mode; else forwarded_k = k/2 = **1**. So build_flood_plan sets limit=forwarded_k=1,
+  collects ALL viable hops (best_transport FINE for C,E,F — core's ruling VINDICATED: rssi unused, Direct(0.9) works,
+  proven by core test 33780e0), then confidence-ranked-TRUNCATES to 1 (engine.rs:841-848); all conf 0.5 → C survives.
+  ⇒ sent:1, C-first, fully explained by arithmetic. **E was K-TRUNCATED, NOT best_transport=None — my best_transport
+  read was my 5th (all self-caught) refinement.** THE REAL QUESTION (flagged core, spec/design): should a BROADCAST
+  (target=0) FLOOD (k=15, reach all) or SPRAY-K (k=3→forwarded 1, bounded = §8.4 amplification defense)? If flood →
+  1-line hive fix (build_frame sets FLOOD_SENTINEL_K for target=0). If spray-K intended → k=3 correct + my test just
+  needed a k=15 frame = NO bug. HOLDING for core/specs canon on broadcast-K semantics. Bridge relay/dedup/bidirectional
+  STAND (reached the 1 sprayed neighbour). do-not-assume: earlier 'best_transport(E)=None' / 'bearer collapse' framings
+  below are SUPERSEDED.
+- **⚠ (SUPERSEDED framings, kept for the audit trail) SEPARATE REAL GAP — earlier layers:**
   - **DECISIVE (2026-07-04): fleet converged on 'your UdpBearer collapses core's N hops → fix fan-out' + specs LANDED
     §2.6.1a (ff5555c: unicast bearers MUST iterate the full PeerMap). BUT my evidence CONTRADICTS that for MY bug.**
     Measured `bridge.hive.route_frame(...)` DIRECTLY (UdpBearer NOT invoked) with TWO CORRECT-KEY viable neighbours
