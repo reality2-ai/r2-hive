@@ -43,11 +43,19 @@
   with SINGLE-key nodes (a node relays a foreign-TG frame TG-agnostically + its deliver-gate drops it). Multi-device
   multi-TG = the ratified multi-PROCESS pattern (§13.2/13.3 = N isolated hives), not one hive holding N keys. (specs
   drafted docs/proposals/MULTI-TG-RELAY-AUTHENTICATE.md, uncommitted.)
-- **⚠ SEPARATE REAL GAP (routing completeness, not security — asked specs):** route_frame emits one Flooded send per
-  transport with a SPECIFIC target; on a SHARED-BROADCAST bearer (WS/ESP-NOW) the bearer rebroadcasts (correct), but
-  a UNICAST bearer (UDP §4.4) that unicasts to that single target UNDER-REACHES (flood hits only the representative,
-  not all peers). Affects my UdpBearer AND hive-udp.js's relay path. Q to specs: must a Flooded send on a unicast
-  bearer be FANNED OUT to all peers (bearer broadcasts), or should route_frame emit N sends? FIX HELD pending answer.
+- **⚠ SEPARATE REAL GAP (routing completeness, not security) — ESCALATED, fix location PENDING:** route_frame emits
+  one Flooded send per transport with a SPECIFIC target; on a SHARED-BROADCAST bearer (WS/ESP-NOW) the bearer
+  rebroadcasts (correct), but a UNICAST bearer (UDP §4.4) that unicasts to that single target UNDER-REACHES (flood
+  hits only the representative, not all peers). Affects my UdpBearer AND hive-udp.js's relay path.
+  - **specs hop-4 VERDICT: 'core implementation bug, R2-ROUTE §3.4 settles it, flag to core'** — BUT written against
+    my v3 (auth-gate) framing, before the collapse. My v4 (flood-one-per-transport, control-proven not-auth) reframes
+    the core question, which I sent + clarified to the supervisor (who is looping core; route_frame = core's domain).
+  - **THE PENDING QUESTION (fix location):** is route_frame's one-send-per-transport INTENDED (transport-agnostic
+    shared-broadcast model → the BEARER owns fan-out → fix = my UdpBearer, matching hive-udp.js originate's N-unicast),
+    OR a §3.4 bug (route_frame should emit N sends per viable neighbour → fix = CORE)? route_frame being
+    transport-agnostic argues bearer-fan-out; §3.4 may argue core. HELD until core rules under the corrected framing.
+  - **NEXT (supervisor's steer), both gated on that ruling:** (a) the single-key PURE DELIVER-GATE test (needs the
+    flood to actually reach the foreign neighbour = needs the fan-out fix first); (b) the unicast-bearer fan-out fix.
 - **BIDIRECTIONAL strengthening (2a53111):** post-commit I spotted the test proved only WS→UDP. Added a reverse leg
   (after A's WS readings teach the bridge A is a WS neighbour, C emits on UDP → bridge → relay out WS → A delivers).
   PASS: WS→UDP sends=5, UDP→WS sends=4; C delivered 5 of A's, A delivered 4 of C's; D still 0-received. A real
