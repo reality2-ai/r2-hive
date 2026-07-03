@@ -31,8 +31,10 @@
   69a2d90); built at HEAD 3aae196 ⇒ the coex mesh-TX-gate is in. Worktree clean except the 2 known pre-existing
   non-mine items (docs/dfr1195-firstlight.patch, tools/xbuild.sh — neither compiled into the ELF).
 - **TURNKEY SEQUENCE (all on Alfred; espflash = Roy-only, human gate):**
-  1. APPLY (persona-preserving app-only re-flash of the OTA board; port = 50:23:E4 per the prior contingency flash —
-     Roy/composer confirm it is the OTA-target board 09a07e47):
+  1. APPLY (persona-preserving app-only re-flash of the OTA board; port = 50:23:E4 = board 09a07e47 — CONFIRMED by
+     supervisor: this session's defer-build flash went to exactly this port and booted as 09a07e47's weave persona,
+     so the mapping is ESTABLISHED, not a guess. app-only is non-destructive even if a port were wrong; Roy also sees
+     the hive_id in the monitor boot banner to reconfirm before the push):
      `espflash flash --chip esp32s3 --partition-table ~/dfr1195-partitions.csv --port /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_F4:12:FA:50:23:E4-if00 ~/r2-dfr1195-weave-coex.elf`
      (NO --erase-flash, NO persona write ⇒ persona@0x12000 + anti-rollback PRESERVED. app@0x20000.)
   2. RE-RUN composer's client bounded-retry push.
