@@ -19,6 +19,34 @@
   quality-override UNCHANGED (my existing faked-distance/quality-override work stands — different axis). READY to
   build post-#49; NON-URGENT — #49 (task#35) first. ACK'd to specs.
 
+## ⚠ 2026-07-03 — #49 ATTEMPT 2: framing fix WORKS; NEW seam = CoC drops before OST (executor starvation)
+- **Framing fix VALIDATED on metal:** client sent the framed [len u16 LE] OST (no stall), board reached the
+  main.rs:4958 "receiver up" print ⇒ OtaUpdater::new SUCCEEDED (refutes the old silent-return theory). But the
+  L2CAP CoC DROPS between "receiver up" and the first OST read: board then shows only mesh heartbeats (healthy,
+  no OST/desync/ODT); client OST write ⇒ ENOTCONN (os 107). NEW seam = CoC LIFECYCLE.
+- **DIAGNOSED (source): (a) EXECUTOR STARVATION — confirmed.** The board runs `join3(runner.run(), work, refresh)`
+  on ONE embassy executor (main.rs:3083); `runner.run()` = the trouble-host BLE event processor that MUST be
+  polled continuously to service the connection/supervision. `ota_receive_over_coc` does a SYNCHRONOUS BLOCKING
+  flash read — `OtaUpdater::new()` esp_storage partition-table read (main.rs:4944), STILL EAGER (my prior change
+  only added the error log, did NOT defer) — right after "receiver up". That block STARVES `runner.run()` → board
+  stops servicing BLE → supervision timeout → CoC/ACL drops before the OST. "receiver up" prints (init done) but
+  the conn is dead → `rx.receive` blocks half-open → no OST. **(b) REFUTED:** `refresh` (3077) is roster-keepalive
+  only (no BLE addr change); advertiser consumed by accept() ⇒ no rotation during the CoC; the C4:C9→EF:55 addr
+  change is BETWEEN attempts (RBID rotates over time/reboot). **(c) REFUTED:** under otal2cap ONLY
+  ota_receive_over_coc runs (serve_coc cfg-off); "serving control plane" (COC_PLANE="control plane", 3456) is a
+  stale log label, not a 2nd handler.
+- **FIX two-pronged (sent supervisor + composer):** QUICK (client, NO reflash — composer): request a LONGER BLE
+  supervision timeout (5-10s) on connect so the flash stall is tolerated → OST gets through on the CURRENT board
+  (the MORE COMPLETE mitigation — covers the transfer-window ODT-write stalls too). PROPER (board, needs reflash —
+  me): DEFER the eager OtaUpdater::new() (+ move persona/anti-rollback flash reads) off the connect-setup path so
+  the read loop starts immediately (no flash before the first rx.receive) → runner not starved during setup.
+- **HOLD (do-not-rush):** the board defer is a borrow-checker-risky refactor of the security-critical async OTA
+  path AND only fixes the setup-window stall (transfer-window ODT-write stalls remain — the client timeout covers
+  those). So HOLDING the board impl pending composer's client-timeout result: if it unblocks #49, the board defer
+  is a robustness follow-up; if not, I implement it (and address the transfer stalls). AWAITING: can bluer set the
+  supervision timeout + the result. Fixed-fw ELF (ab1f1cb6) still valid + staged; the CoC-drop is a SEPARATE seam
+  from the framing (which is proven working).
+
 ## ✅ 2026-07-03 — #49 FIXED FW BUILT + STAGED on Alfred (my side DONE; Roy flashes)
 - **BUILT the fixed ELF myself on Alfred** (my worker SSHes to Alfred): `~/r2-dfr1195-weave-fixed.elf`
   sha256 `ab1f1cb6...` (1362388 B; old pre-fix weave = `cb87c8aa`). Accumulator confirmed compiled in
