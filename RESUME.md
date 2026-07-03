@@ -57,15 +57,24 @@
     write OtaPlugin behind `otaengine`, check-green, then peer-refute, then stage for Alfred/Roy metal. (Minor papercut: the
     default-feature build break — the io_task ingress `got` type should be made feature-consistent or the `.3` access
     cfg-gated; low-pri, real builds unaffected; can clean it in the same write pass since it's the firmware I'm touching.)
-  - **★ DESIGN CROSS-CHECK (from the 2026-07-04 OTA-for-wasm investigation — EVALUATE FIRST in the write pass):** core ALREADY
-    has the OTA control abstraction the wasm hive uses — `OtaSentant` + `OtaApplier<Sink>` + the `ImageSink`/`FirmwareSink`
-    trait (r2-hive-core ensemble.rs:197 / ota.rs:138); wasm plugs in `MemSink`, MCU would plug in a `FlashSink`. So the
-    UNIFIED (one-hive-codebase) INCR-2 = a `FlashSink`/`FirmwareSink` impl over OtaUpdater/flash + register the SHARED
-    OtaSentant — NOT a bespoke Design-C plugin re-implementing OST/ODT/OCM (which just duplicates ota_receive_over_coc).
-    FIRST STEP of the write pass: read r2-hive-core ota.rs (FirmwareSink trait shape + OtaApplier) and decide — does the
-    FirmwareSink/OtaApplier model fit the OtaUpdater/flash-slot + verify-before-write + anti-rollback-at-confirmed-boot
-    reality (then MCU = FlashSink, maximally unified with wasm's MemSink), or must the inline ota_receive_over_coc logic stay
-    bespoke (then Design C)? Prefer the sink-trait unification if it fits — it's the [[ota-per-platform-sink]] canon shape.
+  - **★ DESIGN RESOLVED (evaluated the FlashSink unification, 2026-07-04 — the supervisor-endorsed FlashSink direction, refined
+    by a RAM-constraint refutation).** Two OTA abstractions exist in r2-hive-core: (1) `ota.rs` FirmwareSink/OtaReceiver =
+    SHA-256-hash-only (NOT my model — no Ed25519/anti-rollback); (2) `ensemble.rs` `ImageSink` + `OtaApplier` + `OtaSentant` =
+    r2_update Ed25519 + anti-rollback (MY model; wasm plugs `MemSink` into it). Unify with (2)'s **`ImageSink`** trait
+    (capacity/current_seq_floor/begin(total_len)/write(chunk)/activate(&AppliedUpdate)/abort — the anti-rollback FLOOR lives IN
+    the sink, advanced by activate). **★ REFUTATION (implementation-as-refutation):** `OtaApplier` (the event-model orchestrator
+    OtaSentant wraps) BUFFERS the ENTIRE unverified payload in a RAM `Vec` (buf) before applying on OCM — INFEASIBLE on the MCU
+    (~1.5 MB image vs constrained SRAM). The code ITSELF documents the fix (ensemble.rs:281-284): the MCU drives the SAME
+    verify ordering in a STREAMING loop, NOT buffer-then-apply. ⇒ **DO NOT reuse OtaApplier/OtaSentant on the MCU.**
+    **LOCKED INCR-2 DESIGN:** (a) write a `FlashSink` impl of **`ImageSink`** (begin→open inactive slot via OtaUpdater [Design-C
+    transient-updater for the borrow]; write→stream to the slot; activate→activate_next_partition + set New + write_ota_pending,
+    **DEFERRING the NVS floor commit to CONFIRMED-BOOT** per the ensemble.rs:216-222 warning — matches my ota_receive_over_coc;
+    current_seq_floor→read_anti_rollback; capacity→slot size) — same trait as wasm's MemSink = the unified storage seam; (b)
+    drive it with the STREAMING OST/ODT/OCM loop = the EXISTING ota_receive_over_coc logic (2a), refactored so its per-chunk
+    flash write goes through `FlashSink::write` (+ verify_header/PayloadVerifier still inline per-chunk = streaming
+    verify-before-write). So unification is at the ImageSink SEAM + r2_update crypto, NOT the RAM-buffering orchestrator.
+    Register the FlashSink-backed streaming receiver on the INCR-1 EventBus (as a plugin/sentant). This is the
+    [[ota-per-platform-sink]] canon shape, MCU-correct. Design LOCKED → the write is now mechanical-but-security-critical.
   - Command mapping: OST/ODT/OCM/ABORT → either a PluginCommand u8 (1/2/3/4) with the 3-byte tag stripped, or keep the ASCII
     tag inside `data`. Decide at impl. Register on the INCR-1 EventBus (register_plugin). Gate behind `otaengine` (+ maybe a
     new `otaplugin` feature) so default/otal2cap builds are unaffected; xtensa links-green is the gate.
