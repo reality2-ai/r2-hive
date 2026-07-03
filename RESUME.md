@@ -1,5 +1,36 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔵 2026-07-04 — task#31 (§2.2B build-time transport composition) UNBLOCKED + verified NON-BREAKING; HOLDING post-#49
+- **Core landed §2.2B** (r2-core 5f7a0b2, present in local r2-core HEAD 5e22766): r2-transport now has 7 build-time
+  features — transport-ble/wifi/lora/internet/usb/mesh/udp — + a `compose` empty-set-guard marker; **default = none**.
+  `HostUdpRadio` is now gated behind `all(std, transport-udp)` (core flagged this as breaking IF a consumer uses it).
+- **VERIFIED non-breaking for hive (ground-truth):** hive does NOT consume `HostUdpRadio`. The Linux hive-bin gets its
+  bearers from **r2_discovery bindings** — `udp_lan::UdpLanTransport` (hive.rs:11), `ble::BleTransport` (hive.rs:12-13,
+  gated by hive's OWN `feature="ble"`), `lora::LoraTransport` (hive.rs:14-15, `feature="lora"`), `WebSocketTransport`
+  (hive.rs:10). `cargo check -p r2-hive` CLEAN against 5e22766 (pkg name is `r2-hive`, dir is r2-hive-bin). So the new
+  gate has ZERO impact. r2-hive-wasm already sets `default-features=false` on r2-transport (+ no HostUdpRadio) — also fine.
+- **task#31 (hive side) scope** = align hive-bin's ad-hoc `ble`/`lora` cargo features to core's `transport-*` contract
+  + gate the currently-UNGATED spawns (`UdpLanTransport` hive.rs:11 → `transport-udp`; `WebSocketTransport` hive.rs:10 →
+  `transport-wifi`/internet). 6 of the 7 features are pure markers (bearers are hive's). Feature NAMES now fixed by core,
+  so composer-coordination on naming is largely resolved.
+- **POSTURE: HOLDING** — reported unblocked+scoped to supervisor (delivered) + core (queued); per the standing post-#49
+  steer I did NOT start the refactor unilaterally. Will pick it up if the supervisor pulls it forward. Ground-truth-first
+  discipline applied: verified the breaking-change claim against the actual build BEFORE acting (no thrash, no premature edit).
+- Memory: [[transport-composition-2-2b]]. Core FYI on r2-wire #wifi ttl 5→1 (6c47ed1) also handled — no hive #wifi encoder,
+  no ttl=5 #wifi test; non-issue (acked to core).
+
+## ✅ 2026-07-04 — #26 DELIVER-GATE ISOLATION TEST — DONE (supervisor-directed follow-on; committed 9ec2960, pushed, hygiene-green)
+- The previously-deferred follow-on is BUILT + PASS + committed on platform-trait (`9ec2960`). Three pieces:
+  (1) `WasmHive::build_critical_frame` (lib.rs, after build_frame) — canonical §8.4 explicit-flood originate path,
+  k = FLOOD_SENTINEL_K (15); build_frame stays k=3 (ordinary spray). (2) `buildCriticalFrame` JS wrapper (hive-udp.js).
+  (3) `ws-mesh/bridge-deliver-gate.js` — GENUINE TG-isolation proof on ONE topology (bridge + UDP C=correct/D=WRONG key):
+  (a) flood-plan discriminator (synchronous): k=3 sprays `[0xc3]` (count 1) vs k=15 floods `[0xc3,0xd4]` (both);
+  (b) async e2e: D received=1 the k=15 flood yet delivered=0 → r2_trust deliver-gate REJECTED the wrong key AT the
+  reached node; C received=2 delivered=1 is the delivers-control (rules out relay-corruption). Deterministic x3; 4
+  sibling mesh tests still PASS. Ground-truthed the mechanism in core BEFORE relying on it (hop.rs:112 k=15⇒flood_mode;
+  engine.rs:836 truncation guarded by !flood_mode). Closes bridge-test-mesh.js's "D=0 is NOT an isolation proof" caveat
+  (its comment+log now point here). Supervisor confirmed: "the deliver-gate genuinely proven." Task #26 marked complete.
+
 ## ✅ 2026-07-03 — #26 wasm HETEROGENEOUS CROSS-TRANSPORT BRIDGE — GREENLIT + COMMITTED (bidirectional, refutation-tested)
 - **STATUS: supervisor GREENLIT → committed a382f47 (bridge) + 2a53111 (bidirectional) on platform-trait; pushed;
   hosted CI (public-content-hygiene) green. 3 greenlight conditions MET:** (1) CI green post-push (ci.yml is
