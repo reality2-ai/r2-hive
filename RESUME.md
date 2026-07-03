@@ -18,8 +18,16 @@
   ad-hoc feature-gates to core transport-* + gate the ungated UdpLan + WS spawns. Safe (host/wasm only; does NOT touch the
   dfr1195 board build or #49 staged state). **(b) 31b = dfr1195 BOARD esp-hal radio-gating — KEEP POST-#49** (touches the
   board build #49 is mid-flight on). Stay #49 FIRST-RESPONDER — drop 31a the instant Roy's serial lands. Show uncommitted +
-  hosted-verify(hygiene) per posture. **HELD on: (1) composer's feature-naming answer (asked — off-thread reply pending;
-  composer is the contract owner); (2) ~80% ctx — supervisor advised fresh headroom before the substantial edit.**
+  hosted-verify(hygiene) per posture. **GATE STATE (2026-07-04, supervisor-confirmed): (2) fresh-ctx = CLEARED (auto-compact
+  fired at idle 80%→14%, so fresh headroom is available — I cannot self-/compact but the harness did it). (1) composer's
+  feature-naming ruling = REMAINS, NON-BLOCKING (holding correctly, plan ready). Composer's off-thread fleet-ask copy
+  reoriented to its own read-only nature and did NOT rule; supervisor won't interrupt composer's focused sim-matrix block
+  for this non-blocking Q — composer rules when it surfaces. DO-NOT-ASSUME: this is NOT purely cosmetic — supervisor+core
+  flagged a UNIFY-vs-BRIDGE boundary question composer owns (my plan is BRIDGE-flavoured: each hive-bin transport-* maps to
+  BOTH the r2-transport marker AND the r2-discovery binding; composer's ruling may adjust that mapping). Fallback if composer
+  stays silent long: core's transport-* names are already published/authoritative, so verbatim adoption (+ ble/lora aliases,
+  reversible) is the contract-faithful default — but WAIT for composer's ruling per supervisor steer.** ⇒ On composer's ruling:
+  execute the committed plan (below) at fresh 14% ctx.
 - **task#31a EXECUTION PLAN (self-contained — a fresh context can run this once composer answers):**
   Two parallel feature systems: core `r2-transport/transport-*` (§2.2B markers; 6 of 7 pure) + `r2-discovery`'s own binding
   gates (`websocket`/`mdns`/`udp-lan`/`ble`/`lora`). Each hive-bin `transport-*` feature must map to BOTH.
