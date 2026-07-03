@@ -44,6 +44,7 @@ async function main() {
 
   const has = (id) => udpTargets.includes(id);
   console.log(`neighbour links formed: ${nbrs.map((n) => '0x' + n.toString(16)).join(',')}`);
+  console.log(`route_frame FULL sends: ${JSON.stringify((routed.sends || []).map((s) => ({ kind: s.kind, target: '0x' + (s.target >>> 0).toString(16) })))}`);
   console.log(`route_frame outcome=${routed.outcome}  kind-6 targets=[${udpTargets.map((t) => '0x' + t.toString(16)).join(',')}]`);
   console.log(`  C(correct)=${has(C)}  E(correct)=${has(E)}  F(wrong)=${has(F)}`);
   console.log('');
