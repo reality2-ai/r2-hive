@@ -280,7 +280,7 @@ async fn main() {
             log::info!("  --auto: enabling LAN (networking present)");
         }
         if !args.ble && report.should_run_ble() {
-            #[cfg(feature = "ble")]
+            #[cfg(feature = "transport-ble")]
             {
                 args.ble = true;
                 if report.ble.qca {
@@ -292,7 +292,7 @@ async fn main() {
                     log::info!("  --auto: enabling BLE (hci0 present, driver {})", report.ble.driver);
                 }
             }
-            #[cfg(not(feature = "ble"))]
+            #[cfg(not(feature = "transport-ble"))]
             {
                 log::warn!(
                     "  --auto: BLE present on host but binary built without `--features ble`"
@@ -300,7 +300,7 @@ async fn main() {
             }
         }
         if !args.lora && report.should_run_lora() {
-            #[cfg(feature = "lora")]
+            #[cfg(feature = "transport-lora")]
             {
                 args.lora = true;
                 log::info!(
@@ -308,7 +308,7 @@ async fn main() {
                     report.lora.socket_path.display()
                 );
             }
-            #[cfg(not(feature = "lora"))]
+            #[cfg(not(feature = "transport-lora"))]
             {
                 log::warn!(
                     "  --auto: LoRa socket present but binary built without `--features lora`"
@@ -367,7 +367,7 @@ async fn main() {
     }
 
     // BLE transport
-    #[cfg(feature = "ble")]
+    #[cfg(feature = "transport-ble")]
     if args.ble {
         match start_ble(&args, &state, self_hive_id).await {
             Ok(()) => active_plugins.push("ble"),
@@ -376,7 +376,7 @@ async fn main() {
     }
 
     // LoRa transport via arduino-router IPC
-    #[cfg(feature = "lora")]
+    #[cfg(feature = "transport-lora")]
     if args.lora {
         match start_lora(&args, &state, self_hive_id).await {
             Ok(()) => active_plugins.push("lora"),
@@ -669,7 +669,7 @@ async fn start_lan_discovery(args: &Args, state: &Arc<HiveState>, _self_hive_id:
     Ok(())
 }
 
-#[cfg(feature = "ble")]
+#[cfg(feature = "transport-ble")]
 async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Result<(), String> {
     use r2_discovery::bindings::ble::BleTransport;
     use r2_discovery::discovery::ble_beacon::BleBeaconScanner;
@@ -773,7 +773,7 @@ async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Re
     Ok(())
 }
 
-#[cfg(feature = "lora")]
+#[cfg(feature = "transport-lora")]
 async fn start_lora(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> Result<(), String> {
     use r2_discovery::bindings::lora::LoraTransport;
     use r2_discovery::{AsyncTransport, PeerMap};

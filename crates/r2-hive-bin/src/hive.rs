@@ -9,9 +9,9 @@ use std::sync::Arc;
 use r2_discovery::AsyncTransport;
 use r2_discovery::WebSocketTransport;
 use r2_discovery::bindings::udp_lan::UdpLanTransport;
-#[cfg(feature = "ble")]
+#[cfg(feature = "transport-ble")]
 use r2_discovery::bindings::ble::BleTransport;
-#[cfg(feature = "lora")]
+#[cfg(feature = "transport-lora")]
 use r2_discovery::bindings::lora::LoraTransport;
 use r2_route::engine::RouteEngine;
 use r2_route::transport::{Transport, TransportSet};
@@ -126,11 +126,11 @@ pub struct HiveState {
     pub udp_transport: RwLock<Option<Arc<UdpLanTransport>>>,
     /// BLE transport (compact format, L2CAP CoC).
     /// None until --ble is enabled.
-    #[cfg(feature = "ble")]
+    #[cfg(feature = "transport-ble")]
     pub ble_transport: RwLock<Option<Arc<BleTransport>>>,
     /// LoRa transport via arduino-router IPC (compact format).
     /// None until --lora is enabled.
-    #[cfg(feature = "lora")]
+    #[cfg(feature = "transport-lora")]
     pub lora_transport: RwLock<Option<Arc<LoraTransport>>>,
     /// R2-ROUTE engine — Layer 2-4 routing decisions.
     pub route_engine: Mutex<RouteEngine<64, 64, 64>>,
@@ -229,9 +229,9 @@ impl HiveState {
             self_hive_id,
             ws_transport: WebSocketTransport::new(4096),
             udp_transport: RwLock::new(None),
-            #[cfg(feature = "ble")]
+            #[cfg(feature = "transport-ble")]
             ble_transport: RwLock::new(None),
-            #[cfg(feature = "lora")]
+            #[cfg(feature = "transport-lora")]
             lora_transport: RwLock::new(None),
             route_engine: Mutex::new(RouteEngine::new()),
             transport_policy_lease: RwLock::new(None),
@@ -302,13 +302,13 @@ impl HiveState {
     }
 
     /// Set the BLE transport (called when --ble is enabled).
-    #[cfg(feature = "ble")]
+    #[cfg(feature = "transport-ble")]
     pub async fn set_ble_transport(&self, ble: Arc<BleTransport>) {
         *self.ble_transport.write().await = Some(ble);
     }
 
     /// Set the LoRa transport (called when --lora is enabled).
-    #[cfg(feature = "lora")]
+    #[cfg(feature = "transport-lora")]
     pub async fn set_lora_transport(&self, lora: Arc<LoraTransport>) {
         *self.lora_transport.write().await = Some(lora);
     }
@@ -607,7 +607,7 @@ impl HiveState {
                 self.try_send_via_dongle(transport, frame, false).await
             }
             Transport::Ble => {
-                #[cfg(feature = "ble")]
+                #[cfg(feature = "transport-ble")]
                 if let Some(ble) = self.ble_transport.read().await.as_ref() {
                     if ble.send(hive_id, frame).await.is_ok() {
                         return true;
@@ -617,7 +617,7 @@ impl HiveState {
                 self.try_send_via_dongle(transport, frame, true).await
             }
             Transport::Lora => {
-                #[cfg(feature = "lora")]
+                #[cfg(feature = "transport-lora")]
                 if let Some(lora) = self.lora_transport.read().await.as_ref() {
                     // Frames on the engine's side are extended; LoRa carries
                     // compact. Transcode at the transport boundary per

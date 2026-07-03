@@ -66,8 +66,26 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 default = ["cloud"]
 cloud = []
 lan = []
-ble = ["r2-discovery/ble", "dep:bluer"]
-lora = ["r2-discovery/lora"]
+
+# §2.2B build-time transport composition — composer BRIDGE ruling (ae78be3): the device-binary
+# FORWARD-MAPS core's transport-* contract (r2-transport 5f7a0b2) onto PLATFORM-SPECIFIC bearers.
+# On the Linux host tier those bearers are r2-discovery bindings; the ESP board tier maps the same
+# transport-* names onto esp-hal radios (board-side, post-#49). No core rename can unify them
+# (different HALs) — core publishes the transport-*→bearer correspondence table for anti-drift.
+# transport-wifi/mesh/usb are host-tier MARKERS for now (no distinct Linux binding: SoftAP-UDP ≈
+# transport-udp kind=1; ESP-NOW mesh = board-side; R2-USB framer = future).
+transport-internet = ["r2-discovery/websocket"]   # WS relay/cloud bearer (Linux base bearer, always-on — see NOTE)
+transport-udp      = ["r2-discovery/udp-lan"]      # UDP LAN bearer (runtime --lan)
+transport-ble      = ["r2-discovery/ble", "dep:bluer"] # BLE L2CAP CoC bearer
+transport-lora     = ["r2-discovery/lora"]         # LoRa via arduino-router IPC
+transport-wifi     = []                             # marker (SoftAP-UDP ≈ transport-udp kind=1)
+transport-mesh     = []                             # marker (ESP-NOW = board-side esp-hal)
+transport-usb      = []                             # marker (R2-USB framer, future)
+
+# Legacy aliases — keep existing `--features ble/lora` invocations + CI working. Forward to the
+# contract names so the cfg(feature="transport-*") gates fire from either the legacy or new name.
+ble = ["transport-ble"]
+lora = ["transport-lora"]
 # Enable the libsecret/Keychain/wincred identity store via the `keyring`
 # crate. Off by default because Linux libsecret needs a running
 # gnome-keyring-daemon (or KWallet bridge) — operators opt in per
