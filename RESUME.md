@@ -11,11 +11,12 @@
 - **VERIFIED:** default = 175 tests pass (routing behaviour intact through the Wifi-arm refactor); --no-default-features
   = clean (UDP composed out; only pre-existing core r2-wire EXT_AUTH_MAX warning); --all-features + --no-default-features
   --features transport-ble build; legacy --features ble,lora still gate BLE/LoRa in. Hygiene exit 0 each commit.
-- **WS/transport-internet DEFERRED (flagged to supervisor):** WS is the Linux ALWAYS-ON base bearer — ws_transport is a
-  NON-Option field with 17 use-sites across 5 modules (hive.rs/main.rs/compat/handshake.rs/mgmt/primitive.rs). Compile-
-  gating it (Option-ify + cfg all 17) is a separate larger pass, not "the last host-tier piece". `websocket` stays
-  unconditional on the r2-discovery dep; transport-internet documents the correspondence. My approved RESUME fallback
-  sanctioned this deferral. Supervisor to rule: accept WS-always-on for the host tier, or schedule the 17-site pass.
+- **WS/transport-internet = RATIFIED §2.2B host-tier EXCEPTION (supervisor decision 2026-07-04 — NOT an open item):**
+  accept WS-always-on for the host tier; do NOT schedule the 17-site pass now. Rationale: WS is the host's always-on
+  base/observer bearer (not a radio) — the radio-restriction matrix gates the RADIO transports (BLE/LoRa/UDP = done),
+  not WS; WS is always present in the bench (the visualiser's transport) so it is never composed out; 17-non-Option-site
+  gating = marginal benefit (Occam). Documented as the known exception in Cargo.toml [features] NOTE. Schedule the
+  17-site pass ONLY IF a host variant later genuinely needs WS composed out. ⇒ task#31a HOST-TIER is COMPLETE.
 - **DO-NOT-ASSUME:** the 2 warnings under feature-on builds (LoRa unreachable-stmt main.rs:865; core EXT_AUTH_MAX) are
   PRE-EXISTING, not mine. random_rbid/active_plugins carry allow(dead_code)/allow(unused_mut) (conditionally used by
   transport-setup paths). task#31b (dfr1195 BOARD esp-hal radio-gating) remains POST-#49 (untouched — board build/#49 safe).

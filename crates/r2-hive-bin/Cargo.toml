@@ -79,11 +79,14 @@ lan = []
 # (different HALs) — core publishes the transport-*→bearer correspondence table for anti-drift.
 # transport-wifi/mesh/usb are host-tier MARKERS for now (no distinct Linux binding: SoftAP-UDP ≈
 # transport-udp kind=1; ESP-NOW mesh = board-side; R2-USB framer = future).
-# NOTE (WS deferral): transport-internet documents the transport-internet↔WS correspondence, but WS is
-# NOT compile-gated in this pass — it is the Linux ALWAYS-ON base bearer (ws_transport is a non-Option
-# field with 17 use-sites across 5 modules), so `websocket` stays unconditional on the r2-discovery dep.
-# Compile-gating WS out (Option-ify + cfg all 17 sites) is a separate larger pass; flagged to supervisor.
-transport-internet = ["r2-discovery/websocket"]   # WS relay/cloud bearer (Linux base bearer, always-on)
+# NOTE — RATIFIED §2.2B host-tier EXCEPTION (supervisor decision 2026-07-04): WS/transport-internet is the
+# host's ALWAYS-ON base/observer bearer (not a radio), so it is intentionally NOT compile-gated. The
+# radio-restriction matrix (the goal) gates the RADIO transports (transport-ble/lora/udp — done); WS is
+# always present in the bench (the visualiser's transport) so it is never composed out. `websocket` stays
+# unconditional on the r2-discovery dep; transport-internet documents the transport-internet↔WS
+# correspondence. The 17-non-Option-site WS compile-gating pass is scheduled ONLY IF a host variant later
+# genuinely needs WS composed out (Occam — no big delicate pass without a real need).
+transport-internet = ["r2-discovery/websocket"]   # WS relay/cloud bearer (Linux always-on base bearer)
 transport-udp      = ["r2-discovery/udp-lan"]      # UDP LAN bearer (runtime --lan)
 transport-ble      = ["r2-discovery/ble", "dep:bluer"] # BLE L2CAP CoC bearer
 transport-lora     = ["r2-discovery/lora"]         # LoRa via arduino-router IPC
