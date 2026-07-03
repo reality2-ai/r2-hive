@@ -47,6 +47,15 @@
     write OtaPlugin behind `otaengine`, check-green, then peer-refute, then stage for Alfred/Roy metal. (Minor papercut: the
     default-feature build break — the io_task ingress `got` type should be made feature-consistent or the `.3` access
     cfg-gated; low-pri, real builds unaffected; can clean it in the same write pass since it's the firmware I'm touching.)
+  - **★ DESIGN CROSS-CHECK (from the 2026-07-04 OTA-for-wasm investigation — EVALUATE FIRST in the write pass):** core ALREADY
+    has the OTA control abstraction the wasm hive uses — `OtaSentant` + `OtaApplier<Sink>` + the `ImageSink`/`FirmwareSink`
+    trait (r2-hive-core ensemble.rs:197 / ota.rs:138); wasm plugs in `MemSink`, MCU would plug in a `FlashSink`. So the
+    UNIFIED (one-hive-codebase) INCR-2 = a `FlashSink`/`FirmwareSink` impl over OtaUpdater/flash + register the SHARED
+    OtaSentant — NOT a bespoke Design-C plugin re-implementing OST/ODT/OCM (which just duplicates ota_receive_over_coc).
+    FIRST STEP of the write pass: read r2-hive-core ota.rs (FirmwareSink trait shape + OtaApplier) and decide — does the
+    FirmwareSink/OtaApplier model fit the OtaUpdater/flash-slot + verify-before-write + anti-rollback-at-confirmed-boot
+    reality (then MCU = FlashSink, maximally unified with wasm's MemSink), or must the inline ota_receive_over_coc logic stay
+    bespoke (then Design C)? Prefer the sink-trait unification if it fits — it's the [[ota-per-platform-sink]] canon shape.
   - Command mapping: OST/ODT/OCM/ABORT → either a PluginCommand u8 (1/2/3/4) with the 3-byte tag stripped, or keep the ASCII
     tag inside `data`. Decide at impl. Register on the INCR-1 EventBus (register_plugin). Gate behind `otaengine` (+ maybe a
     new `otaplugin` feature) so default/otal2cap builds are unaffected; xtensa links-green is the gate.
