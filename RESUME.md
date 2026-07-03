@@ -74,6 +74,10 @@
   KEYED same-TG HB does NOT seed via handleRx — `build_heartbeat`'s hive_id-BE32 payload fails the §12.6
   `parse_seq` the VERIFIED-liveness (`accept_keepalive`) path needs; only the unverified `ingest_observation`
   path forms the link. When the wasm/firmware fully adopt handle_rx_frame, the HB/keepalive must be §12.6.
+  **COMPOSER-VERIFIED CLOSE:** composer landed webapp/bench/amplification.selftest.mjs GREEN 2/2 (commit
+  1c0d980), reproducing my smoke EXACTLY (relay_on[1..6]=[1,1,1,1,1,0]; O2 isolated at 1 while O1-exhausted=0),
+  CI-wired; their bench suite now 46 tests (44 + forgery-700 + amplification). task#32 §12.6-HB flag recorded
+  in their test header. Free amplification-defense arm on the theater = CLOSED, peer-verified.
 - Clean close on the **wasm half of #32**; task#32 (firmware io_task→r2_dataplane) is the parallel migration this de-risks.
 
 ## ✅ 2026-07-03 — core UNBLOCKED the WS-binding HOLD → verified already-converged + closed the last drift-gap
