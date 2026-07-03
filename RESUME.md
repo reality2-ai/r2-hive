@@ -43,10 +43,16 @@
   with SINGLE-key nodes (a node relays a foreign-TG frame TG-agnostically + its deliver-gate drops it). Multi-device
   multi-TG = the ratified multi-PROCESS pattern (§13.2/13.3 = N isolated hives), not one hive holding N keys. (specs
   drafted docs/proposals/MULTI-TG-RELAY-AUTHENTICATE.md, uncommitted.)
-- **⚠ SEPARATE REAL GAP (routing completeness, not security) — ESCALATED, fix location PENDING:** route_frame emits
-  one Flooded send per transport with a SPECIFIC target; on a SHARED-BROADCAST bearer (WS/ESP-NOW) the bearer
-  rebroadcasts (correct), but a UNICAST bearer (UDP §4.4) that unicasts to that single target UNDER-REACHES (flood
-  hits only the representative, not all peers). Affects my UdpBearer AND hive-udp.js's relay path.
+- **⚠ SEPARATE REAL GAP (routing completeness) — ROOT-CAUSED to the SEED path; HOLDING the greenlit bearer fix:**
+  - **DECISIVE (2026-07-04): fleet converged on 'your UdpBearer collapses core's N hops → fix fan-out' + specs LANDED
+    §2.6.1a (ff5555c: unicast bearers MUST iterate the full PeerMap). BUT my evidence CONTRADICTS that for MY bug.**
+    Measured `bridge.hive.route_frame(...)` DIRECTLY (UdpBearer NOT invoked) with TWO CORRECT-KEY viable neighbours
+    C+E: outcome=Flooded, **sent:1**, sends=[{kind6,target:C}] — only C. So route_frame ITSELF emits 1 send; not the
+    bearer; not auth (both correct-key). ⇒ plan_forward returned 1 hop; my bearer/sync_host already dispatch every hop
+    core hands them (there is only 1 to dispatch). So core's contract + specs' §2.6.1a are valid GENERAL clarifications
+    but NEITHER is my bug — HELD the greenlit UdpBearer fan-out (would be a NO-OP here). Told supervisor + specs.
+  - Legacy framing (pre-tiebreaker): route_frame emits one Flooded send per transport; a UNICAST bearer that unicasts
+    to one target under-reaches. TRUE as a general MUST (specs §2.6.1a), but not my observed cause.
   - **CORE TIEBREAKER (2026-07-04): core's flood IS all-viable + TG-agnostic** (regression test
     `flood_relay_is_tg_agnostic_includes_unverified_neighbour`, r2-route tests.rs:1820 — floods authenticated C AND
     unverified D). So the D-exclusion is definitively HIVE-SIDE, and 'flood-one-per-transport' was MY layer's under-reach.
