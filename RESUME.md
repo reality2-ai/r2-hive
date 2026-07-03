@@ -46,8 +46,20 @@
 - **DO-NOT-ASSUME:** `route_frame`/`route_inbound_sync` is the ROUTING-layer sim (authenticated=false, never
   records) — NOT the trust-gated RX. `handleRx` is the faithful trust+dedup instrument. They coexist by
   design; don't "unify" by routing route_frame through the deliver-gate.
-- **NEXT:** reply to core (premise correction + artifact/sha/API) + heads-up composer; task#32 (firmware
-  io_task→r2_dataplane) is the parallel migration this de-risks.
+- **CLOSED END-TO-END (peer-refutation survived):** composer pulled the artifact (sha `f1b821e9` verified
+  in-place — their `cp -i` alias silently skipped the 1st overwrite; the pkg-sha norm caught it), wrote
+  forgery-700.selftest.mjs = **GREEN 2/2** on my EXACT recipe, and ran their FULL suite with **ZERO regression**
+  (ensemble 19/19, ota 10/10, refutation 4/4, complex-hive 11/11, adapter — the fused handle_rx_frame broke
+  nothing). composer committed b1e3fc5 + CI-wired. The dedup-not-poisoned arm is now REAL + independently
+  CI-verified, not inferred. composer updated ONLY their webapp/wasmhive (browser theater) — my ws-mesh +
+  carrier-bridge wasmhive-node variants + the LIVE carrier-bridge wasm were NOT swapped (correct; no live-bench churn).
+- **BONUS (core flagged, I VERIFIED in my shipped build — not just core's HEAD):** `handleRx`→`handle_rx_frame`
+  →`plan_forward`, so the theater wasm now ALSO enforces §8.4a size cap + §8.4b per-origin quota
+  (`DropReason::OriginQuotaExceeded`, r2-route engine.rs:717) on the broadcast-relay path = free amplification
+  defense. `ba243ca` + `bc158ab` both PRESENT in local r2-core (497aad9+). OBSERVABILITY NUANCE for a future
+  amplification-defense theater ARM: the hook is `relay_on` flipping to 0 under quota — the wasm relay path is
+  NOT yet exercised (my 700 test only hit the deliver path); offered composer to wire+verify that arm on request.
+- Clean close on the **wasm half of #32**; task#32 (firmware io_task→r2_dataplane) is the parallel migration this de-risks.
 
 ## ✅ 2026-07-03 — core UNBLOCKED the WS-binding HOLD → verified already-converged + closed the last drift-gap
 - **Trigger:** core msg 23:31 answered my 3 queued WS-binding questions (the HOLD at the §2.7-binding entry:
