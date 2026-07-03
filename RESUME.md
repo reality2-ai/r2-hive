@@ -1,5 +1,42 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔧 2026-07-04 — FIRMWARE TRACK RESUMED (Part D2 / task#7) — greenlit; NEXT = INCREMENT 2 (OTA PLUGIN), design grounded
+- **Supervisor GO** (TN design ratified, impl greenlit, order core→hive→composer). Doctrine (re-stated): integrate core's
+  no_std crates (r2-engine + r2-update — do NOT reimplement); core platforms/esp32 + workshop firmware = PATTERNS only;
+  **implementation-as-refutation** (if no_std/hw refutes a spec claim, surface it → spec re-eval, don't silently work around);
+  **peer-refute before 'done'** (security-critical); **#49 FIRST-RESPONDER paramount** (drop instantly on any OTA/L2CAP start
+  seq); **FLASHING = Roy-only** (I build+stage, never flash).
+- **VERIFIED state (dfr1195-fw worktree, HEAD 3aae196):** INCR 1 DONE (34fd380 = r2-engine EventBus on-device, feature
+  `otaengine`, `engine_bus_task` main.rs:4605, links-green xtensa, NO re-vendor). INCR 2a+2b DONE (8fb0010 `ota_receive_over_coc`
+  main.rs:4949 + b5e7abb harness, feature `otal2cap`, staged e2e ELF for #49). NO OtaPlugin/impl Plugin exists yet. Worktree
+  tree has ONLY the 2 known pre-existing NON-MINE items (docs/dfr1195-firstlight.patch M, tools/xbuild.sh ??) — LEAVE ALONE.
+  NB: dfr1195-fw-wt/RESUME.md is CORE's (r2-core worktree) — my firmware handoff is HERE (r2-hive/RESUME.md).
+- **NEXT = INCREMENT 2: `impl Plugin for OtaPlugin`** (refactor ota_receive_over_coc → an r2_engine Plugin; complex work
+  identical, only the control wrapper differs). Interfaces LOCKED:
+  - Plugin trait (r2-core crates/r2-engine/src/plugin.rs:111): `fn execute(&mut self, command: u8, data: &[u8]) -> PluginResult`
+    + name/id/init/poll. `PluginResult = Ok(PluginResponse[≤128B]) | Error(PluginError{code:u8,desc})`.
+  - Source logic (main.rs:4949-5185): OST → verify_header(header,sig,ctx from read_persona tg_pk + read_anti_rollback) →
+    PayloadVerifier::new + next_partition→region + payload_size=vh.payload_len; ODT → R3 bound (off+len ≤ payload_size),
+    off==written, pv.update BEFORE write (verify-before-write), sector-buffered (secbuf[4096]) write to region, OAK ack; OCM →
+    R3 (written==payload_size), flush partial sector, pv.finish() BEFORE activate_next_partition + set_current_ota_state(New)
+    + write_ota_pending(seq,floor) → reset (anti-rollback FLOOR commits at confirmed-boot, not activate). Reuse r2_update
+    crypto VERBATIM (verify_header/PayloadVerifier/reject_reason/DeviceContext/HEADER_LEN) — do NOT rewrite.
+  - **★ BORROW CHALLENGE (the one design problem to solve first):** `OtaUpdater::new(&mut flash,&mut tbl)` borrows both;
+    `next_partition()→region` borrows `ota`; `activate_next_partition()` needs `ota` → CANNOT hold OtaUpdater+region as
+    fields alongside owned flash+tbl (self-referential). RECOMMENDED: OtaPlugin OWNS flash(FlashStorage)+tbl+pv+cursor
+    (written/payload_size/secbuf/secfill/secbase/pend_seq/pend_floor)+partition_offset(u32); construct OtaUpdater TRANSIENTLY
+    inside execute(OST) [to read the partition offset] and execute(OCM) [to activate]; write ODT chunks via
+    embedded_storage::Storage::write on the owned flash at (partition_offset+cursor) — NO long-lived region field.
+    **UNKNOWN TO RESOLVE FIRST:** does `next_partition()`/FlashRegion expose a stable ABSOLUTE flash offset? (inspect
+    esp_bootloader_esp_idf partitions/ota_updater API). If not, hold OtaUpdater differently. Getting the offset WRONG = brick
+    → this is why it's a focused pass, not tail-of-turn work.
+  - Command mapping: OST/ODT/OCM/ABORT → either a PluginCommand u8 (1/2/3/4) with the 3-byte tag stripped, or keep the ASCII
+    tag inside `data`. Decide at impl. Register on the INCR-1 EventBus (register_plugin). Gate behind `otaengine` (+ maybe a
+    new `otaplugin` feature) so default/otal2cap builds are unaffected; xtensa links-green is the gate.
+- **THEN:** INCR 3 = OTA SENTANT (thin #ota_* control → PluginCall on the bus; event-hash via the canonical r2_engine/r2_wire
+  helper, NOT bare FNV — specs 27b7dec) + INCR 4 = network deliver_out→Event→sentant / drain_outbound→egress + L2CAP-0x00D3
+  feed → the OTA plugin's chunk input. e2e w/ composer's push_ota_l2cap = metal (Roy). Peer-refute the plugin before 'done'.
+
 ## ✅ 2026-07-04 — task#31a (§2.2B host-side transport-* alignment) EXECUTED (incr 1-3; WS gating deferred+flagged)
 - **DONE + pushed on platform-trait** after composer's BRIDGE forward-map ruling (ae78be3) cleared gate (1) and
   auto-compact cleared gate (2). Commits: `fe61de1` (incr 1-2: Cargo.toml transport-* namespace + retag 18
