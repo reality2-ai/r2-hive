@@ -19,6 +19,31 @@
   quality-override UNCHANGED (my existing faked-distance/quality-override work stands — different axis). READY to
   build post-#49; NON-URGENT — #49 (task#35) first. ACK'd to specs.
 
+## ⚠ 2026-07-03 — #49 ATTEMPT 3: client-combo did NOT hold → defer reflashing NOW + REFUTATION of the defer hypothesis
+- **RESULT (supervisor):** the NO-REFLASH combo FAILED. Both client mitigations were CONFIRMED active — scanner-stop
+  in-build (wrapper checkout HEAD 5dabe5f incl 61ad26d + stop/join) AND the 10s supervision timeout SET (echo 1000
+  printed 1000) — yet the CoC dropped IDENTICALLY: board serial = "CoC up" + "receiver up" then only heartbeats, NO
+  OST-start print, no ODT, no reboot; client push exited. → Roy reflashing ~/r2-dfr1195-weave-defer.elf (296017c4 =
+  worktree 7a40bed) NOW; timeout stays set, scanner-stop still frees the radio.
+- **⚠ HONEST REFUTATION I sent supervisor (grounded in a fresh code re-read, do-not-assume):** the defer may NOT be
+  the fix. Reasoning from THEIR evidence: in the eager build "receiver up" (main.rs:4966) already PRINTED ⇒
+  OtaUpdater::new COMPLETED before the drop; AND the 10s timeout was SET yet it dropped identically. A partition-table
+  read blocks ~2-4s (under 10s), so if the new()-block were the killer the 10s timeout should already have saved the
+  eager build — it did NOT. ⇒ the drop is likely in the idle-await-OST window BOTH builds share (no blocking flash op
+  there), and moving new() later may not change it.
+- **DISCRIMINATOR (watch the defer-build serial for ONE exact line):** "OTA(L2CAP) start seq=" (main.rs:5049) — fires
+  ONLY on OST received AND verified.
+  - receiver-up, drop, NO "start": OST never reached the board ⇒ NOT board flash-setup; suspect the client CoC write
+    path or a third concurrent board task blocking flash. The defer did NOT fix it.
+  - receiver-up, "start", then drop: OST verified ⇒ drop is during new() or the FIRST sector write. Real fix = move
+    flash writes off the shared executor (yields between sectors / separate task), NOT the setup defer.
+- **Per-chunk (verified from code 5088-5104):** the transfer loop ALREADY awaits (rx.receive @5008 + tx.send @5104)
+  around each 4096-byte r.write @5094, so steady-state = one bounded sector write per chunk (survivable under 10s)
+  UNLESS the FIRST write triggers a full-partition erase — that erase, if present, is the true ODT residual.
+- **NEXT (mine):** idle awaiting the defer-build serial from supervisor. If "start" appears → flash-during-transfer
+  fix (spawn flash writes on a separate task or yield). If no "start" → the drop is client/shared-window, escalate
+  back to composer's client path. Either branch, iterate immediately on the serial.
+
 ## ⚠ 2026-07-03 — #49 ATTEMPT 2: framing fix WORKS; NEW seam = CoC drops before OST (executor starvation)
 - **Framing fix VALIDATED on metal:** client sent the framed [len u16 LE] OST (no stall), board reached the
   main.rs:4958 "receiver up" print ⇒ OtaUpdater::new SUCCEEDED (refutes the old silent-return theory). But the
