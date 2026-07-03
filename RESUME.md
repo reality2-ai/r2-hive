@@ -21,15 +21,23 @@
     R3 (written==payload_size), flush partial sector, pv.finish() BEFORE activate_next_partition + set_current_ota_state(New)
     + write_ota_pending(seq,floor) → reset (anti-rollback FLOOR commits at confirmed-boot, not activate). Reuse r2_update
     crypto VERBATIM (verify_header/PayloadVerifier/reject_reason/DeviceContext/HEADER_LEN) — do NOT rewrite.
-  - **★ BORROW CHALLENGE (the one design problem to solve first):** `OtaUpdater::new(&mut flash,&mut tbl)` borrows both;
-    `next_partition()→region` borrows `ota`; `activate_next_partition()` needs `ota` → CANNOT hold OtaUpdater+region as
-    fields alongside owned flash+tbl (self-referential). RECOMMENDED: OtaPlugin OWNS flash(FlashStorage)+tbl+pv+cursor
-    (written/payload_size/secbuf/secfill/secbase/pend_seq/pend_floor)+partition_offset(u32); construct OtaUpdater TRANSIENTLY
-    inside execute(OST) [to read the partition offset] and execute(OCM) [to activate]; write ODT chunks via
-    embedded_storage::Storage::write on the owned flash at (partition_offset+cursor) — NO long-lived region field.
-    **UNKNOWN TO RESOLVE FIRST:** does `next_partition()`/FlashRegion expose a stable ABSOLUTE flash offset? (inspect
-    esp_bootloader_esp_idf partitions/ota_updater API). If not, hold OtaUpdater differently. Getting the offset WRONG = brick
-    → this is why it's a focused pass, not tail-of-turn work.
+  - **★ BORROW CHALLENGE — RESOLVED (design locked, 2026-07-04).** Crate = esp-bootloader-esp-idf **0.5.0** (NOT 0.2.0;
+    verified via firmware Cargo.lock). API: `OtaUpdater::next_partition(&mut self) -> (FlashRegion<'_,F>, AppPartitionSubType)`
+    (ota_updater.rs:147); `FlashRegion::write(offset,bytes)` is PARTITION-RELATIVE (writes at partition.offset()+offset, with
+    a built-in `contains()` bounds-check); `PartitionEntry::offset()/len()` + `PartitionTable::find_partition()` +
+    `read_partition_table()` are all PUB (partitions.rs:49/54/294/534). **CHOSEN = DESIGN C (simplest correct):** OtaPlugin
+    OWNS flash(FlashStorage)+tbl([u8;PARTITION_TABLE_MAX_LEN])+pv(Option<PayloadVerifier>)+streaming cursor
+    (written/payload_size/secbuf[4096]/secfill/secbase/pend_seq/pend_floor) as FIELDS, and does NOT store OtaUpdater/region.
+    Each execute() that touches flash reconstructs `OtaUpdater::new(&mut self.flash,&mut self.tbl)` TRANSIENTLY (a local scoped
+    to the call) → next_partition()→region for ODT writes / activate_next_partition() for OCM → the region/updater drop at
+    call end = NO self-referential borrow. next_partition deterministically returns the same inactive slot each call, so
+    region.write(self.secbase, chunk) is stable across calls. Keeps FlashRegion's partition-bounds check for FREE (no
+    brick-risk hand-rolled bound). COST: a read_partition_table per ODT chunk — a fast mmap flash READ in bus context (NOT
+    the connect-setup timing window that motivated 2a's deferral); if metal shows it's slow, optimize to Design D (own the
+    abs offset via find_partition().offset() + FlashStorage absolute write + a hand-rolled `secbase+len ≤ partition.len()`
+    bound). Design is LOCKED → the implementation is now a focused mechanical (but security-critical) write pass.
+  - **BUILD GATE for the impl pass:** xtensa links-green is the gate (firmware builds on Alfred via export-esp.sh per
+    [[dfr1195-firmware-bench-workflow]] — confirm local xtensa build capability first, else write-careful + stage for Alfred).
   - Command mapping: OST/ODT/OCM/ABORT → either a PluginCommand u8 (1/2/3/4) with the 3-byte tag stripped, or keep the ASCII
     tag inside `data`. Decide at impl. Register on the INCR-1 EventBus (register_plugin). Gate behind `otaengine` (+ maybe a
     new `otaplugin` feature) so default/otal2cap builds are unaffected; xtensa links-green is the gate.
