@@ -28,9 +28,12 @@
   + a §2.2B correspondence table. ⇒ the old names my hive-bin maps to are RETAINED, not removed → NO forced line-27 flip;
   31a builds correct (re-confirmed default + --no-default-features green against core's CURRENT on-disk r2-discovery).
   **OPTIONAL canon-alignment (flip hive-bin's internal mapping from r2-discovery old names → its transport-* aliases) =
-  DEFERRED:** core has UNCOMMITTED changes on r2-discovery/Cargo.toml+lib.rs right now (mid-edit, likely the "2-vs-4 alias
-  extension"); do NOT build on a peer's uncommitted state; it's cosmetic and the contract-facing hive-bin transport-*
-  surface is already correct. Coordinate the flip with core once its r2-discovery settles (asked core; post-#49 fine).
+  DONE:** core confirmed (a) old names REMAIN under LEAN B and (b) r2-discovery SETTLED + committed (2cce822, hosted-green,
+  synced) with all 4 canonical transport-* aliases + correspondence table. Flipped hive-bin's transport-* feature defs +
+  the r2-discovery dep line (line 29) to reference the canonical aliases (r2-discovery/transport-internet/udp/ble/lora)
+  1:1. Functionally transparent (aliases forward to the same bindings): re-verified default + --no-default-features +
+  transport-ble,lora + legacy ble,lora all build; 175 tests pass. Not a fix — the old names stay valid; this just aligns
+  hive-bin to the canonical correspondence-table names (removes latent drift risk).
   DO-NOT-ASSUME: r2-discovery transport-udp alias shares the name with r2-transport/transport-udp (HostUdpRadio) — my
   hive-bin transport-udp does NOT enable r2-transport/transport-udp, so HostUdpRadio stays absent (hive uses UdpLanTransport).
 

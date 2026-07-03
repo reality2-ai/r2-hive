@@ -24,9 +24,10 @@ r2-route = { path = "../../../r2-core/crates/r2-route" }
 # §7.5.4 deliver-gate: GroupHmac (HK-keyed HMAC-SHA256) for inbound verify (R2-TRUST §7.5.4).
 r2-trust = { path = "../../../r2-core/crates/r2-trust" }
 r2-transport = { path = "../../../r2-core/crates/r2-transport" }
-# websocket stays unconditional (WS = the always-on base bearer, see [features] NOTE); mdns always on;
-# udp-lan is now gated via the `transport-udp` feature (default-on to preserve current behaviour).
-r2-discovery = { path = "../../../r2-core/crates/r2-discovery", features = ["websocket", "mdns"] }
+# transport-internet (WS) stays unconditional (always-on base bearer, see [features] NOTE); mdns always on
+# (discovery, not a bearer); transport-udp (udp-lan) is gated via the `transport-udp` feature (default-on).
+# References r2-discovery's canonical transport-* forwarding aliases (core LEAN B 2cce822); old names valid too.
+r2-discovery = { path = "../../../r2-core/crates/r2-discovery", features = ["transport-internet", "mdns"] }
 r2-engine = { path = "../../../r2-core/crates/r2-engine" }
 r2-def = { path = "../../../r2-core/crates/r2-def" }
 r2-ensemble = { path = "../../../r2-core/crates/r2-ensemble" }
@@ -86,10 +87,13 @@ lan = []
 # unconditional on the r2-discovery dep; transport-internet documents the transport-internet↔WS
 # correspondence. The 17-non-Option-site WS compile-gating pass is scheduled ONLY IF a host variant later
 # genuinely needs WS composed out (Occam — no big delicate pass without a real need).
-transport-internet = ["r2-discovery/websocket"]   # WS relay/cloud bearer (Linux always-on base bearer)
-transport-udp      = ["r2-discovery/udp-lan"]      # UDP LAN bearer (runtime --lan)
-transport-ble      = ["r2-discovery/ble", "dep:bluer"] # BLE L2CAP CoC bearer
-transport-lora     = ["r2-discovery/lora"]         # LoRa via arduino-router IPC
+# Forward-map to r2-discovery's CANONICAL transport-* forwarding aliases (core LEAN B, 2cce822 +
+# correspondence table) — a clean 1:1 onto the §2.2B contract names. The old binding names (ble/lora/
+# udp-lan/websocket) remain valid under LEAN B, so this is cosmetic canon-alignment, not a fix.
+transport-internet = ["r2-discovery/transport-internet"]   # §2.2 id 3 — WS/TCP (Linux always-on base bearer)
+transport-udp      = ["r2-discovery/transport-udp"]        # §2.2 id 6 — UDP LAN (runtime --lan)
+transport-ble      = ["r2-discovery/transport-ble", "dep:bluer"] # §2.2 id 0 — BLE L2CAP CoC
+transport-lora     = ["r2-discovery/transport-lora"]       # §2.2 id 2 — LoRa via arduino-router IPC
 transport-wifi     = []                             # marker (SoftAP-UDP ≈ transport-udp kind=1)
 transport-mesh     = []                             # marker (ESP-NOW = board-side esp-hal)
 transport-usb      = []                             # marker (R2-USB framer, future)
