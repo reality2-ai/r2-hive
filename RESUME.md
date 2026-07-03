@@ -1,6 +1,12 @@
 # RESUME — r2-hive (hive-worker)
 
-## ▶ 2026-07-03 — #26 wasm HETEROGENEOUS CROSS-TRANSPORT BRIDGE built + local-green (HELD uncommitted per posture)
+## ✅ 2026-07-03 — #26 wasm HETEROGENEOUS CROSS-TRANSPORT BRIDGE — GREENLIT + COMMITTED (bidirectional, refutation-tested)
+- **STATUS: supervisor GREENLIT → committed a382f47 (bridge) + 2a53111 (bidirectional) on platform-trait; pushed;
+  hosted CI (public-content-hygiene) green. 3 greenlight conditions MET:** (1) CI green post-push (ci.yml is
+  main-only; my change is JS/Rust-neutral; node bridge test validated on Alfred like the sibling ws-mesh tests);
+  (2) #49 staged state INTACT (dfr1195-fw 3aae196, ELF fde30090 — the wasm commit touched only ws-mesh/); (3) specs
+  FLAGGED (fleet-ask out: does the neighbour-exclusion finding link to an existing TG-isolation conjecture or a new
+  one — formal lift = specs' call). BIDIRECTIONAL now proven (WS↔UDP both ways).
 - **Context:** while #49 is Roy-gated (bench trip, indefinite — I stay first-responder on the serial), supervisor
   cleared me to advance the non-#49 wasm track (#26). Standing posture: DEVELOP but HOLD commit/push/hosted-green
   until greenlight; spec-first. The #26 NEXT was the heterogeneous cross-transport TG-mesh bridge (WS+UDP+carrier
@@ -10,7 +16,7 @@
   neighbour's learned-transport CaptureTransport). ⇒ a multi-bearer node CAN do §5.2 DIRECTED egress (dispatch each
   send to the bearer matching `s.kind`), no route-core change. dedup/GroupHmac survive by construction (frame-carried
   origin §3.3 transport-agnostic; signed span = content, route_stack excluded; deliver-gate only at final dest).
-- **BUILT (NEW files, UNCOMMITTED in the working tree per the HOLD):**
+- **BUILT (committed a382f47 + 2a53111):**
   `crates/r2-hive-wasm/ws-mesh/hive-bridge.js` — `HiveBridge` (ONE WasmHive + N bearers) + `WsBearer`/`UdpBearer`
   (socket-only). Inbound on bearer X → deliver-gate (verifyFrame) → route_frame(0, X.kind, …) → dispatch each send
   to `bearerByKind[send.kind].sendTo(target, frame)`. Originate = broadcast on every bearer. Reuses the proven
@@ -23,9 +29,17 @@
   unauthenticated → A1 verify-then-record never LEARNS it as a neighbour → never relayed to), a STRONGER isolation
   than the deliver-gate. C received=6/delivered=5 ⇒ cross-transport relay + dedup-survives-hop both proven. Claims in
   the test corrected to the verified mechanism. Existing udp-test-mesh.js still PASS (no regression).
-- **Follow-ons (not built):** (1) the pure deliver-gate (relay-for-TG-X, deliver-only-to-TG-Y) needs a multi-TG
-  bridge; (2) the carrier (ESP-NOW) bearer as a 3rd transport (needs the serial bridge — #49-entangled); (3) pkg
-  re-stage. **HELD:** nothing committed/pushed for this track; awaiting supervisor greenlight (spec-first posture).
+- **BIDIRECTIONAL strengthening (2a53111):** post-commit I spotted the test proved only WS→UDP. Added a reverse leg
+  (after A's WS readings teach the bridge A is a WS neighbour, C emits on UDP → bridge → relay out WS → A delivers).
+  PASS: WS→UDP sends=5, UDP→WS sends=4; C delivered 5 of A's, A delivered 4 of C's; D still 0-received. A real
+  heterogeneous node must relay both ways — now proven.
+- **NEXT (supervisor's steer) = the MULTI-TG bridge** (exercises the PURE deliver-gate: relay-for-TG-X but
+  deliver-only-to-TG-Y = the ENTANGLE topology, connects to harness A5 entanglement). **PREREQ (spec-first, asked
+  specs):** the multi-TG relay model — can ONE node hold >1 TG key + relay a TG it AUTHENTICATES but is not a
+  delivering member of? (A1 auth-gates neighbour-learning, so relay seems to REQUIRE the TG key = membership; the
+  "relay-not-deliver" split may need a route-core/spec answer.) Do NOT build blind — wait for specs.
+- **Other follow-ons:** the carrier (ESP-NOW) bearer as a 3rd transport (needs the serial bridge — #49-entangled);
+  optionally add the ws-mesh node tests to CI (currently none are — they run on node-on-Alfred).
 
 ## 📌 2026-07-03 — SCOPE (fleet-#36 = my task#31): multi-transport bench stress — NON-URGENT, awaiting specs
 - Supervisor requirement (then SUPERSEDED to the cleaner form): multi-transport TN testing needs varying
