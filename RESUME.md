@@ -11,9 +11,13 @@
   stay real' holds honestly. **NOT a runtime radio-disable hook** (= the banned #39 bench-override, a field-build
   contaminant — do NOT build it). Virtual-DISTANCE / mobility MAY stay runtime (TBD) — drag → RSSI/reachability
   via the §2.3B is_reachability_blocked path (vendored), command-driven over the --control channel (task#30).
-- **specs is CANONIZING this + will hand me the spec.** WAIT for it before building the composition variants; do
-  NOT build the runtime radio-silence hook. NON-URGENT — finish #49 (task#35) first. May pull core for
-  transport-layer composition support.
+- **specs CANONIZED it — R2-TRANSPORT v0.29 §2.2B (commit 0193398, hosted-green):** which §2.2 transport IDs a
+  hive binary supports is a BUILD-TIME feature-select of ConnectionlessRadio bearers → device variants (LoRa-only
+  sensor / WiFi+BLE hub / UDP-only gateway) from ONE unified no_std core; re-flash/OTA to a different variant
+  build to reconfigure; NOT a runtime hook, NOT a fork. §2.3A `transport_allow_mask` stays RUNTIME, operating
+  WITHIN the §2.2B-compiled set (§2.2B is the universe §2.3A ranges over). §2.3B virtual-distance/mobility + §2.3C
+  quality-override UNCHANGED (my existing faked-distance/quality-override work stands — different axis). READY to
+  build post-#49; NON-URGENT — #49 (task#35) first. ACK'd to specs.
 
 ## ⚠ 2026-07-03 — #49 ROOT CAUSE CONFIRMED (SOCK_STREAM byte-stream) + fix LOCKED, implementing
 - **CONFIRMED (composer socket-type ground truth, commit 9c461bf):** composer's client is a bluer `SOCK_STREAM`
@@ -32,9 +36,16 @@
   (read [len u16 LE] → accumulate exactly len bytes across SDUs → parse OST/ODT/OCM); verify-before-write ordering
   UNCHANGED. Cheap add: log the OtaUpdater::new() Err instead of the silent return (main.rs:4946) so any init
   failure is diagnosable, not a mystery stall.
-- **DISCIPLINE:** security-critical async no_std; CANNOT compile-verify on this box (xtensa = Alfred). So I LOCKED
-  the wire with composer FIRST (sent), then implement carefully + Alfred build-verify + composer mock re-test
-  BEFORE staging for Roy's flash. Do NOT flash unverified. **NEXT (mine): implement the accumulator + Alfred build.**
+- **DISCIPLINE:** security-critical async no_std. UPDATE: `cargo +esp check` DOES work on this box (esp toolchain
+  present; only the xtensa LINKER is Alfred-only), so I compile-verified the Rust here.
+- **STAGED + COMPILE-VERIFIED (0f4e367 on dfr1195-fw):** rewrote `ota_receive_over_coc` into a length-prefixed
+  byte-stream accumulator — extracts each complete `[len u16 LE][message]` into `buf` before parsing (reassembles
+  across SDUs; the verify-before-write OST/ODT/OCM match is UNTOUCHED — reused buf/n, security logic verbatim).
+  Minimal-churn design (only the message-extraction prefix changed). `OtaUpdater::new()` failure now LOGS instead
+  of the silent `return`. `cargo +esp check` GREEN (weave feature set). **REMAINING before metal:** Alfred full
+  build (xtensa link) + Roy flash + composer mock re-test (composer reuses write_frame [len u16 LE] + tightens the
+  mock to a re-chunking byte-stream). Root cause was confirmed from composer's SOCK_STREAM socket type = a
+  confirmed fix, not a guess. Reported to supervisor + composer.
 
 ## ⚠ 2026-07-03 — #49 FIRST METAL OTA reached the receiver but STALLED (0 bytes) — board-side diagnosed
 - **Event (supervisor):** first metal OTA push to 09a07e47 (C4:C9:E0:71:BB:30) — BLE L2CAP link UP on 0x00D3
