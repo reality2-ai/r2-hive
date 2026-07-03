@@ -38,7 +38,11 @@
   failure is diagnosable, not a mystery stall.
 - **DISCIPLINE:** security-critical async no_std. UPDATE: `cargo +esp check` DOES work on this box (esp toolchain
   present; only the xtensa LINKER is Alfred-only), so I compile-verified the Rust here.
-- **STAGED + COMPILE-VERIFIED (0f4e367 on dfr1195-fw):** rewrote `ota_receive_over_coc` into a length-prefixed
+- **WIRE CONFIRMED (composer orchestrator ble_l2cap.rs):** [len u16 LE] (write_frame line 45 = le_bytes), len
+  EXCLUDES the 2 prefix bytes; write_frame/read_frame already loop over re-chunking (write_all/read_exact) ⇒
+  both directions reassemble by reuse. Board cap bumped 512→4096 (9240217) to match composer's MAX_INBOUND_FRAME
+  (future larger --chunk won't desync). My accumulator reads exactly this wire.
+- **STAGED + COMPILE-VERIFIED (0f4e367 + 9240217 on dfr1195-fw):** rewrote `ota_receive_over_coc` into a length-prefixed
   byte-stream accumulator — extracts each complete `[len u16 LE][message]` into `buf` before parsing (reassembles
   across SDUs; the verify-before-write OST/ODT/OCM match is UNTOUCHED — reused buf/n, security logic verbatim).
   Minimal-churn design (only the message-extraction prefix changed). `OtaUpdater::new()` failure now LOGS instead
