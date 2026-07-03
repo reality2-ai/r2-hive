@@ -1,5 +1,22 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-03 — #49 firmware re-read: weave-build OTA-CoC is CONNECTABLE + WIRED (source; metal-unproven)
+- Composer flagged two #49 open items (connectable-adv on 0x00D3 + exact L2CAP credits). SOURCE ground-truth
+  from the weave/otal2cap build (dfr1195-fw `8ec1a6f`; features carrier/multitg/routetest/viz/benchdist/otal2cap
+  = NOT blemesh, NOT cocbench):
+  1. **CONNECTABLE-ADV: YES.** `advertise_beacon = true` (main.rs:3013-3014, the non-blemesh/non-cocbench arm)
+     → airs `ConnectableScannableUndirected` (ADV_IND connectable+scannable, main.rs:3027) → `accept()`s the
+     ACL (3039). composer's `push_ota_l2cap` central CAN connect.
+  2. **0x00D3 OTA RECEIVER: WIRED (not dead-code).** `COC_PSM = R2_OTA_PSM = 0x00D3` (main.rs:3344); after
+     `L2capChannel::accept(&[COC_PSM])` (3058), `#[cfg(otal2cap)]` dispatches STRAIGHT to `ota_receive_over_coc`
+     (3073), and `serve_coc` is cfg-OFF under otal2cap (3066) ⇒ the weave CoC is DEDICATED to OTA (OST/ODT/OCM).
+     (The "allow(dead_code) until then" note at main.rs:4933 is stale — the 3073 wiring is live under otal2cap.)
+  3. **CREDITS/MTU:** weave uses `L2capChannelConfig::default()` (main.rs:3051, cfg not-cocbench) = trouble-host
+     DEFAULTS (1M PHY, default credits). The tuned config (flow Every(1) + `initial_credits: Some(32)` + 2M PHY
+     + DLE 251/2120) is **cocbench-ONLY** (3045-3056) = task#18, a DIFFERENT build. composer's 200B chunk is safe.
+- **HONEST CAVEAT (do-not-overclaim):** this is SOURCE truth (path wired + connectable in code). NOT metal-run
+  for OTA — the integrated BLE-CoC push is still unproven on metal (task#49/#35). Reported to composer.
+
 ## ✅ 2026-07-03 — 700 forged-attribution instrument: ADOPTED r2-dataplane handle_rx_frame in the wasm (task#36)
 - **Ask (core relaying composer):** surface `RxDisposition{authenticated,deliver,relay_on}` from
   `handle_rx_frame` so composer can write forgery-700.selftest.mjs (the dedup-not-poisoned arm). Core said
