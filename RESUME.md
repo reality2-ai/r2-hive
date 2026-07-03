@@ -1,5 +1,36 @@
 # RESUME — r2-hive (hive-worker)
 
+## ⚠ 2026-07-03 — #49 FIRST METAL OTA reached the receiver but STALLED (0 bytes) — board-side diagnosed
+- **Event (supervisor):** first metal OTA push to 09a07e47 (C4:C9:E0:71:BB:30) — BLE L2CAP link UP on 0x00D3
+  (RBID identity-verified), but 0 bytes then STALLED; OST→RESP_OK didn't proceed on metal though it PASSED
+  composer's mock of the b5e7abb receiver = MOCK-VS-METAL gap. Board fail-safe (nothing written).
+- **DIAGNOSIS (dfr1195-fw source, weave/otal2cap build 8ec1a6f):**
+  - Q1 RUNTIME STATE: **no mode-flip / prepare-for-OTA needed** — the board is OTA-ready ON ACCEPT. The weave
+    build routes EVERY accepted 0x00D3 CoC straight to `ota_receive_over_coc` (main.rs:3072-3073; `serve_coc`
+    cfg-OFF under otal2cap). The link coming up PROVES the accept loop is live; NOT mesh-vs-OTA gated.
+  - Q2 CREDITS/MTU **FINE (refuted as cause):** the accept uses `L2capChannelConfig::default()` = 8 initial
+    credits (trouble-host `L2CAP_RX_QUEUE_SIZE`, build.rs:10) + SDU MTU 245 (pool 251−6) + MPS 247. OST=190B =
+    ONE frame = 1 credit ⇒ client can send immediately.
+  - **LEADING CAUSE (mock-vs-metal):** `ota_receive_over_coc` builds `OtaUpdater::new()` EAGERLY at
+    **main.rs:4944** (reads the REAL partition table via esp_storage) BEFORE the read loop, and on `Err` it
+    **silently `return`s** (4946) — no OST read, no RESP, channel stays open = the exact 0-byte stall. The mock
+    has no flash/partition init so it never hits this. Root cause is either partition-table layout (missing
+    ota_1/otadata) OR esp_storage-vs-active-BLE contention.
+  - **DECISIVE DIAGNOSTIC:** the board serial print at **main.rs:4958** `OTA-over-L2CAP receiver up on CoC
+    0x00D3`. ABSENT ⇒ OtaUpdater::new() failed/hung = the board bug. PRESENT ⇒ receiver reached the read loop
+    (credits fine) ⇒ the OST isn't arriving as one ≥190B SDU ⇒ client-side or OST-framing.
+  - **2nd candidate (if 4958 PRESENT):** OST SDU framing — the board matches the OST arm only when a single
+    received SDU is n≥190 (main.rs:4973). If composer's client sends the OST as multiple writes/SDUs, the board
+    sees partials <190, silently loops, never RESPs. (Framing note sent to composer.)
+- **FIX (mine, staged — do NOT flash; Roy-only): defer `OtaUpdater::new()` until after the first VALID OST**
+  (region is already lazy at 4996) + replace the silent `return` with a logged RESP_ERR so an init failure is
+  diagnosable, never a mystery stall. RECOMMENDED: confirm via the 4958 print BEFORE writing the fix (don't fix
+  blind). Asked supervisor: write+stage now or after the print check. Sent supervisor the full diagnosis + sent
+  composer the client-side framing (OST = one 190B SDU) + the 4958 observable.
+- **DO-NOT-ASSUME:** flash reads DO work during BLE elsewhere in this fw (read_persona 4976 / read_anti_rollback
+  4978 run mid-session), so the OtaUpdater::new() failure is more likely a partition-table-layout issue than a
+  blanket flash-vs-BLE hang — but both are diagnosed by the same 4958-print observable.
+
 ## ✅ 2026-07-03 — #49 firmware re-read: weave-build OTA-CoC is CONNECTABLE + WIRED (source; metal-unproven)
 - Composer flagged two #49 open items (connectable-adv on 0x00D3 + exact L2CAP credits). SOURCE ground-truth
   from the weave/otal2cap build (dfr1195-fw `8ec1a6f`; features carrier/multitg/routetest/viz/benchdist/otal2cap
