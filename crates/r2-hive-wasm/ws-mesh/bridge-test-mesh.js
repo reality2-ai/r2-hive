@@ -10,11 +10,14 @@
 // Verified end-to-end properties (instrumented received-vs-delivered disambiguates the mechanism):
 //   • CROSS-TRANSPORT RELAY — C (same TG key, UDP-only) delivers A's WS-originated readings.
 //   • DEDUP survives the hop — C receives >deliveries (a duplicate arrives, is deduped, not re-delivered).
-//   • TG-ISOLATION via NEIGHBOUR-EXCLUSION — D (wrong key) receives 0 and delivers 0: its wrong-key announce
-//     is not authenticated, so the bridge's route core never LEARNS it as a neighbour (A1 verify-then-record
-//     gates the reachability record too), so wrong-key nodes never even receive relayed traffic. This is a
-//     STRONGER isolation than the per-dest deliver-gate — the outsider is excluded at the routing layer.
-//     (The pure deliver-gate — relay-for-TG-X but deliver-only-to-TG-Y — needs a multi-TG bridge; follow-on.)
+//   • TG-ISOLATION via RELAY-TARGETING EXCLUSION — D (wrong key) receives 0 and delivers 0. CORRECTED
+//     mechanism (bridge-neighbour-probe.js is the discriminator, per specs' AB-004 challenge): D DOES form a
+//     neighbour LINK entry (formation is TG-agnostic per AB-004 — verified: D appears in neighbours()), but
+//     route_frame's flood does NOT target D — relay-TARGET selection excludes the unauthenticated neighbour
+//     (only C, the correct-key neighbour, is a flood target). So the outsider is excluded at RELAY-TARGETING,
+//     a layer above formation. (Earlier drafts said "never learned" — WRONG; D is learned, just not forwarded
+//     toward.) Whether this relay-targeting-auth-gating is a security-positive or a tension with AB-003/004's
+//     TG-agnostic-relay principle (esp. for a multi-TG bridge) is an OPEN specs question.
 //
 // NB the wasm route core only forwards to a neighbour it has LEARNED on a transport (via an inbound
 // frame's arrival_kind), so C/D must announce themselves (a heartbeat) to the bridge over UDP BEFORE
@@ -115,7 +118,7 @@ async function main() {
   console.log(`ISOLATE  D(wrong-key, UDP-only) received=${dRecv} delivered=${dDelivers} (want deliver=0)`);
   console.log(dRecv > 0
     ? `  → TG-isolation MECHANISM = DELIVER-GATE: D received ${dRecv} relayed frame(s) but the r2_trust gate rejected all (wrong key).`
-    : `  → TG-isolation MECHANISM = NEIGHBOUR-EXCLUSION: D's wrong-key announce was not authenticated → not learned → never relayed to (0 received).`);
+    : `  → TG-isolation MECHANISM = RELAY-TARGETING EXCLUSION: D is LEARNED (forms a link, TG-agnostic per AB-004) but route_frame's flood does not target the unauthenticated neighbour → 0 received. (See bridge-neighbour-probe.js.)`);
   console.log(pass
     ? 'PASS bridge-mesh: heterogeneous BIDIRECTIONAL cross-transport relay (WS↔UDP) + dedup-survives-hop + TG-isolation (§5.4/§5.2)'
     : 'FAIL bridge-mesh');
