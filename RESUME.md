@@ -51,6 +51,17 @@
     bearer; not auth (both correct-key). ⇒ plan_forward returned 1 hop; my bearer/sync_host already dispatch every hop
     core hands them (there is only 1 to dispatch). So core's contract + specs' §2.6.1a are valid GENERAL clarifications
     but NEITHER is my bug — HELD the greenlit UdpBearer fan-out (would be a NO-OP here). Told supervisor + specs.
+  - **FIX-LOCATION pending core's ruling (supervisor RETRACTED the bearer-fix greenlight — hold confirmed right):**
+    best_transport delegates to `select_transport_with_policy(neighbour.transports, mask, &neighbour.link_quality, …)`
+    (engine.rs:870). The decision: (i) best_transport correctly None when rssi:None → 1-line hive fix (add synthetic
+    rssi/quality in sync_host ingest_observation) vs (ii) Direct(0.9) should suffice → core best_transport fix.
+    **KEY INSIGHT (leans CORE):** IP transports (WS/UDP) have NO RSSI by nature → my sync_host rssi:None is the FAITHFUL
+    value; quality is via Direct(0.9). If best_transport requires rssi, flood-RELAY is broken for the ENTIRE IP-transport
+    tier (core's passing test uses Lora+rssi Some(-40) = RADIO; the IP/rssi:None flood-relay path is UNTESTED). BUT the
+    C-floods/E-does-not ASYMMETRY (both rssi:None+Direct(0.9)) means it is NOT purely rssi — a stateful/ordering factor
+    in ingest_observation→NeighbourEntry only core can pin. **core ANSWERED (hop-2) but I CANNOT read it — fleet-inbox
+    dump is STALE (ends 11:31, before the reply); requested supervisor relay the ruling. Implement RIGHT fix + show
+    uncommitted on receipt.**
   - Legacy framing (pre-tiebreaker): route_frame emits one Flooded send per transport; a UNICAST bearer that unicasts
     to one target under-reaches. TRUE as a general MUST (specs §2.6.1a), but not my observed cause.
   - **CORE TIEBREAKER (2026-07-04): core's flood IS all-viable + TG-agnostic** (regression test
