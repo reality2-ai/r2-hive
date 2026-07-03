@@ -19,6 +19,19 @@
 - **DO-NOT-ASSUME:** the 2 warnings under feature-on builds (LoRa unreachable-stmt main.rs:865; core EXT_AUTH_MAX) are
   PRE-EXISTING, not mine. random_rbid/active_plugins carry allow(dead_code)/allow(unused_mut) (conditionally used by
   transport-setup paths). task#31b (dfr1195 BOARD esp-hal radio-gating) remains POST-#49 (untouched — board build/#49 safe).
+- **RECONCILIATION (2026-07-04, ground-truth over stale messages — Nth ordering symptom):** two messages arrived stale.
+  (a) Supervisor "proceed option a / hold WS" = ALREADY DONE (incr 1-3 pushed). (b) Composer "core will UNIFY/RENAME
+  r2-discovery bearer features → flip line 27" = SUPERSEDED. Verified in r2-core: `61e35f5` WITHDREW the unify-flip;
+  `35841f8` landed **LEAN B** = r2-discovery KEEPS its old binding names (ble/lora/udp-lan/websocket) AND adds transport-*
+  forwarding aliases (transport-ble=[ble], transport-lora=[lora], transport-internet=[websocket], transport-udp=[udp-lan])
+  + a §2.2B correspondence table. ⇒ the old names my hive-bin maps to are RETAINED, not removed → NO forced line-27 flip;
+  31a builds correct (re-confirmed default + --no-default-features green against core's CURRENT on-disk r2-discovery).
+  **OPTIONAL canon-alignment (flip hive-bin's internal mapping from r2-discovery old names → its transport-* aliases) =
+  DEFERRED:** core has UNCOMMITTED changes on r2-discovery/Cargo.toml+lib.rs right now (mid-edit, likely the "2-vs-4 alias
+  extension"); do NOT build on a peer's uncommitted state; it's cosmetic and the contract-facing hive-bin transport-*
+  surface is already correct. Coordinate the flip with core once its r2-discovery settles (asked core; post-#49 fine).
+  DO-NOT-ASSUME: r2-discovery transport-udp alias shares the name with r2-transport/transport-udp (HostUdpRadio) — my
+  hive-bin transport-udp does NOT enable r2-transport/transport-udp, so HostUdpRadio stays absent (hive uses UdpLanTransport).
 
 ## 🔵 2026-07-04 — task#31 (§2.2B build-time transport composition) — background/plan (superseded by the EXECUTED entry above)
 - **Core landed §2.2B** (r2-core 5f7a0b2, present in local r2-core HEAD 5e22766): r2-transport now has 7 build-time
