@@ -7,6 +7,15 @@
   ABOVE the ~60s route dedup). MY ASSEMBLY: build the `DispatchEnvelope` populating `trust_group [u8;8]` from deliver_group
   (own TG_PK / self-knowledge) + call `IdempotencyGuard` BEFORE the sentant handler + wire the sentant effect. Per the
   core-mechanism / hive-assembly per-gap split. No rush — AFTER OTA + #49.
+- **§3A congestion io_task integration (part of task#32; core landed the sensor d8c127f+d1b5977, LIVE in local r2-core):**
+  NO breaking change for hive (verified: hive/firmware/wasm do NOT exhaustively destructure RxDisposition — only a doc-comment
+  ref at r2-hive-wasm lib.rs:405; the new `hold` field is field-access-safe). 3 follow-ons for the FUTURE firmware io_task →
+  r2_dataplane wiring (task#32, still PENDING): (a) if you EXHAUSTIVELY destructure RxDisposition, add `hold: HoldReason
+  {None, SprayAndWait, BufferForWake}`; (b) call `dp.relay_backoff_ms(transport)` when SCHEDULING a relay TX (fires the §3A.2
+  back-off jitter damper on the broadcast PHY — without it K-halving is inert on LoRa's single-PHY mask); (c) when
+  `disp.hold != None` CUSTODY the frame for SCF instead of dropping (SprayAndWait = hold for direct delivery, BufferForWake =
+  hold for a sleeping dest's wake); feed queue depth via `dp.observe_queue_occupancy(current, capacity)` each tick (R2-RUNTIME
+  §7 tier capacity). No rush — AFTER OTA + #49; folds into task#32.
 - **wasm-OTA design question = ✅ ALREADY ANSWERED (8ceb4c6, delivered to supervisor last turn)** — confirmed shared
   OtaSentant + platform sink backend; wasm = verify+stage only. If a re-ask lands it's a crossed/stale message. [[ota-per-platform-sink]]
 
