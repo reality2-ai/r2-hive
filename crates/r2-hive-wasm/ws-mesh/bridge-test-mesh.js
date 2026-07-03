@@ -10,14 +10,15 @@
 // Verified end-to-end properties (instrumented received-vs-delivered disambiguates the mechanism):
 //   • CROSS-TRANSPORT RELAY — C (same TG key, UDP-only) delivers A's WS-originated readings.
 //   • DEDUP survives the hop — C receives >deliveries (a duplicate arrives, is deduped, not re-delivered).
-//   • TG-ISOLATION via RELAY-TARGETING EXCLUSION — D (wrong key) receives 0 and delivers 0. CORRECTED
-//     mechanism (bridge-neighbour-probe.js is the discriminator, per specs' AB-004 challenge): D DOES form a
-//     neighbour LINK entry (formation is TG-agnostic per AB-004 — verified: D appears in neighbours()), but
-//     route_frame's flood does NOT target D — relay-TARGET selection excludes the unauthenticated neighbour
-//     (only C, the correct-key neighbour, is a flood target). So the outsider is excluded at RELAY-TARGETING,
-//     a layer above formation. (Earlier drafts said "never learned" — WRONG; D is learned, just not forwarded
-//     toward.) Whether this relay-targeting-auth-gating is a security-positive or a tension with AB-003/004's
-//     TG-agnostic-relay principle (esp. for a multi-TG bridge) is an OPEN specs question.
+//   • D (wrong key) receives 0 / delivers 0 — but this is NOT a TG-isolation proof (twice-corrected, do NOT
+//     read it as one). bridge-neighbour-probe.js + bridge-flood-control.js pinned the real mechanism: D DOES
+//     form a neighbour link (formation is TG-agnostic, AB-004 ok), but route_frame emits exactly ONE flood-send
+//     per TRANSPORT (its shared-broadcast-bearer model — target = a representative neighbour, here C). The
+//     control proved this is NOT auth: with TWO correct-key UDP neighbours, the 2nd correct-key one is ALSO not
+//     targeted. So D=0 is FLOOD-UNDER-REACH on a unicast bearer (my UdpBearer unicasts to the single
+//     representative), not key-rejection. Genuine TG-isolation-via-deliver-gate is proven in udp-test-mesh.js
+//     (A directly unicasts to a wrong-key peer → its r2_trust deliver-gate rejects). OPEN (asked specs): should a
+//     Flooded send on a UNICAST bearer be fanned out to ALL peers? If so, UdpBearer under-delivers — a real gap.
 //
 // NB the wasm route core only forwards to a neighbour it has LEARNED on a transport (via an inbound
 // frame's arrival_kind), so C/D must announce themselves (a heartbeat) to the bridge over UDP BEFORE
@@ -115,12 +116,15 @@ async function main() {
   console.log(`bridge relayed WS→UDP sends=${brRelayUdp} (want >=1); UDP→WS sends=${brRelayWs} (want >=1)`);
   console.log(`FORWARD  A(WS-only)→C: C(same-key, UDP-only) received=${cRecv} delivered=${cDelivers} (want deliver>=1)`);
   console.log(`REVERSE  C(UDP-only)→A: A(same-key, WS-only)  delivered=${aDelivers} (want deliver>=1)`);
-  console.log(`ISOLATE  D(wrong-key, UDP-only) received=${dRecv} delivered=${dDelivers} (want deliver=0)`);
+  console.log(`UNDER-REACH  D(wrong-key, UDP-only) received=${dRecv} delivered=${dDelivers}  [NOT an isolation proof]`);
   console.log(dRecv > 0
-    ? `  → TG-isolation MECHANISM = DELIVER-GATE: D received ${dRecv} relayed frame(s) but the r2_trust gate rejected all (wrong key).`
-    : `  → TG-isolation MECHANISM = RELAY-TARGETING EXCLUSION: D is LEARNED (forms a link, TG-agnostic per AB-004) but route_frame's flood does not target the unauthenticated neighbour → 0 received. (See bridge-neighbour-probe.js.)`);
+    ? `  → D received ${dRecv} relayed frame(s); its r2_trust deliver-gate rejected all (wrong key) = genuine deliver-gate.`
+    : `  → D received 0: FLOOD-UNDER-REACH, not key-rejection — route_frame emits one flood-send/transport to a`
+      + ` representative (C); the UdpBearer unicasts to it. Control (bridge-flood-control.js) proved a 2nd CORRECT-key`
+      + ` neighbour is ALSO not reached, so this is NOT auth. Real TG-isolation-via-deliver-gate: see udp-test-mesh.js.`);
   console.log(pass
-    ? 'PASS bridge-mesh: heterogeneous BIDIRECTIONAL cross-transport relay (WS↔UDP) + dedup-survives-hop + TG-isolation (§5.4/§5.2)'
+    ? 'PASS bridge-mesh: heterogeneous BIDIRECTIONAL cross-transport relay (WS↔UDP) + dedup-survives-hop (§5.4/§5.2). '
+      + '[D=0 is flood-under-reach, NOT isolation — see notes; real deliver-gate isolation is udp-test-mesh.js]'
     : 'FAIL bridge-mesh');
   process.exit(pass ? 0 : 1);
 }
