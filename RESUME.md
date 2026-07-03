@@ -56,8 +56,16 @@
   otal2cap). cargo +esp check GREEN, built on Alfred. **TWO staged ELFs:** ~/r2-dfr1195-weave-fixed.elf (ab1f1cb6,
   framing-only = the client-combo-test build) + ~/r2-dfr1195-weave-defer.elf (296017c4, framing+defer =
   contingency). Same persona-preserving app-only flash cmd, just swap the ELF path.
-- **AWAITING:** composer's client-combo result on the current board (scanner-stop + ~6s supervision timeout). If
-  OST gets through → #49 unblocked (defer not reflashed); if not → Roy reflashes 296017c4.
+- **SUPERVISION-TIMEOUT LEVER (composer confirmed):** bluer 0.17 CANNOT set the LL supervision timeout (it's not
+  an L2CAP socket opt; no conn-param API) + the L2CAP conn-param-update direction is peripheral→central (wrong for
+  Alfred-as-central). Only lever = the KERNEL DEBUGFS default (root, BEFORE connect):
+  `sudo sh -c 'echo 1000 > /sys/kernel/debug/bluetooth/hci0/supervision_timeout'` (1000 = 10s; units 10ms;
+  non-destructive, resets on reboot; default ~42=420ms would trip the flash stall). The NO-REFLASH combo running
+  NOW on ab1f1cb6: composer scanner-stop (61ad26d) + the 10s debugfs timeout. **KEY:** the 10s timeout covers the
+  SETUP stall (OtaUpdater::new) TOO, so the combo may FULLY unblock #49 WITHOUT my defer reflash — the defer
+  (296017c4) becomes clean structural hygiene, kept as the fallback if the combo still drops. RESULT PENDING (Roy
+  running the combo; composer relays). Supervision timer resets per received packet, so the OAK-ack'd bulk
+  transfer keeps the link alive; only a single stall >10s would drop (a 4KB sector write is ~ms).
 
 ## ✅ 2026-07-03 — #49 FIXED FW BUILT + STAGED on Alfred (my side DONE; Roy flashes)
 - **BUILT the fixed ELF myself on Alfred** (my worker SSHes to Alfred): `~/r2-dfr1195-weave-fixed.elf`
