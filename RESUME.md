@@ -49,9 +49,25 @@
   ⇒ k=3 correct; §4.5:892 reconcile is SPECS' in-spec task, not mine. My state (k=3, reverted, clean tree) = correct.
   **✅ TRULY CLOSED: specs LANDED the §4.5 fix (5afef2a, hosted-green) — R2-ROUTE §4.5:892 corrected to MATCH §8.4
   (target==0 does NOT imply K=15; the 'Always flood' prose was unreconciled, now fixed). §4.5 + §8.4 AGREE; k=3 is
-  canonical; NOTHING pending on #26 broadcast-K.** Follow-on (optional, ready): explicit-K=15 build path → turns the
-  bridge D-leg into a genuine deliver-gate isolation test (critical frame floods to a wrong-key neighbour, rejected
-  at deliver). Deferred — not essential (isolation already proven in udp-test-mesh.js); #49 is the priority.
+  canonical; NOTHING pending on #26 broadcast-K.**
+- **✅ 2026-07-04 — DELIVER-GATE TEST DONE (supervisor-directed follow-on; explicit-K=15 CRITICAL frame).** The
+  previously-deferred follow-on is BUILT + PASS. Three pieces, committed on platform-trait:
+  (1) `WasmHive::build_critical_frame` (lib.rs, after build_frame) — canonical §8.4 explicit-flood originate path:
+  k = FLOOD_SENTINEL_K (15), the ONLY sanctioned full-mesh-reach path (K by-CRITICALITY, never by-target). build_frame
+  stays k=3 (ordinary spray); doc-comments cross-reference the two tiers. (2) `buildCriticalFrame` JS wrapper in
+  hive-udp.js. (3) `ws-mesh/bridge-deliver-gate.js` — the GENUINE TG-isolation proof bridge-test-mesh.js is NOT.
+  ONE topology (bridge + UDP neighbours C=correct-key, D=WRONG-key), two proofs: (a) FLOOD-PLAN DISCRIMINATOR
+  (synchronous route_frame inspection): k=3 sprays to [0xc3] (count=1, forwarded_k=1) vs k=15 floods [0xc3,0xd4]
+  (count=2, both) — the K-tier mechanism isolated from timing; (b) DELIVER-GATE UNDER FLOOD (async e2e): X floods a
+  k=15 CRITICAL frame → bridge relays to C AND D → **C received=2 delivered=1 (control: delivers, dedups dup); D
+  received=1 delivered=0 → the r2_trust deliver-gate REJECTED the wrong key AT the reached node.** Deterministic x3;
+  4 sibling mesh tests still PASS (no regression from the rebuild). Ground-truthed the mechanism in core BEFORE relying
+  on it: hop.rs:112 (k=15 ⇒ flood_mode=true) + engine.rs:836 (truncation guarded by !flood_mode ⇒ k=15 floods ALL viable).
+  Self-refuted (no hive-twin invocation available; recorded): C-is-control rules out relay-corruption; hive-udp onRoute
+  fires AFTER verifyFrame so dRecv=1&dDeliver=0 genuinely = gate-ran-and-rejected; a msg_id collision would fail loud.
+  Closes bridge-test-mesh.js's "D=0 is NOT an isolation proof" caveat (comment + log now point here). DO-NOT-ASSUME:
+  the extra 0xc3 in the e2e floodTargets is a benign relay duplicate (C dedups it → received=2, delivered=1), not a bug.
+  - **superseded note:** the old "Follow-on (optional, ready)" / "not needed now" lines below are now DONE (this entry).
   NB a STALE supervisor 'HOLD your revert' arrived post-resolution (message-queue ordering bug; referenced core's
   WITHDRAWN §4.5 relay) — SUPERSEDED; I did not thrash. The core-vs-specs conflict RESOLVED: **core WITHDREW its
   '§4.5:892 target=0 = always-flood = K=15' relay** — it was specs' SUPERSEDED paraphrase;

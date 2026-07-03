@@ -16,8 +16,10 @@
 //     per TRANSPORT (its shared-broadcast-bearer model — target = a representative neighbour, here C). The
 //     control proved this is NOT auth: with TWO correct-key UDP neighbours, the 2nd correct-key one is ALSO not
 //     targeted. So D=0 is FLOOD-UNDER-REACH on a unicast bearer (my UdpBearer unicasts to the single
-//     representative), not key-rejection. Genuine TG-isolation-via-deliver-gate is proven in udp-test-mesh.js
-//     (A directly unicasts to a wrong-key peer → its r2_trust deliver-gate rejects). RESOLVED (specs §8.4 ruling
+//     representative), not key-rejection. Genuine TG-isolation-via-deliver-gate is proven two ways: point-to-point
+//     in udp-test-mesh.js (A directly unicasts to a wrong-key peer → its r2_trust deliver-gate rejects), and — on
+//     THIS bridge topology, under a k=15 CRITICAL FLOOD that actually REACHES D — in bridge-deliver-gate.js
+//     (D received>0, delivered=0: the gate, not under-reach, is what stops it). RESOLVED (specs §8.4 ruling
 //     fa0ac1f): D=0 is CORRECT-BY-DESIGN, not a bug — build_frame k=3 = an ORDINARY broadcast → spray-and-wait
 //     (bounded, forwarded_k=k/2=1 → truncate to 1 next-hop). Full-mesh reach is a k=15/FLOOD_SENTINEL_K guarantee
 //     reserved for GROUP_MGMT/critical broadcasts, set EXPLICITLY. NO bearer-fanout gap; best_transport fine.
@@ -123,7 +125,8 @@ async function main() {
     ? `  → D received ${dRecv} relayed frame(s); its r2_trust deliver-gate rejected all (wrong key) = genuine deliver-gate.`
     : `  → D received 0: FLOOD-UNDER-REACH, not key-rejection — route_frame emits one flood-send/transport to a`
       + ` representative (C); the UdpBearer unicasts to it. Control (bridge-flood-control.js) proved a 2nd CORRECT-key`
-      + ` neighbour is ALSO not reached, so this is NOT auth. Real TG-isolation-via-deliver-gate: see udp-test-mesh.js.`);
+      + ` neighbour is ALSO not reached, so this is NOT auth. Real TG-isolation-via-deliver-gate: udp-test-mesh.js`
+      + ` (point-to-point) and bridge-deliver-gate.js (k=15 flood that REACHES D, then the gate rejects it).`);
   console.log(pass
     ? 'PASS bridge-mesh: heterogeneous BIDIRECTIONAL cross-transport relay (WS↔UDP) + dedup-survives-hop (§5.4/§5.2). '
       + '[D=0 is flood-under-reach, NOT isolation — see notes; real deliver-gate isolation is udp-test-mesh.js]'

@@ -117,6 +117,11 @@ class HiveUdp {
   buildFrame(targetHive, eventHash, payload, seq) {
     return this.hive.build_frame(targetHive >>> 0, eventHash >>> 0, Uint8Array.from(payload), (seq ?? this.seq++) >>> 0);
   }
+  /** Build a CRITICAL broadcast (k=15/FLOOD_SENTINEL_K) — full-mesh flood per §8.4, set EXPLICITLY.
+   *  Every relay floods to ALL viable neighbours (vs buildFrame's k=3 spray-to-1). */
+  buildCriticalFrame(targetHive, eventHash, payload, seq) {
+    return this.hive.build_critical_frame(targetHive >>> 0, eventHash >>> 0, Uint8Array.from(payload), (seq ?? this.seq++) >>> 0);
+  }
   buildHeartbeat(seq) { return this.hive.build_heartbeat((seq ?? this.seq++) >>> 0); }
   /** Enable the SENSOR ensemble role (emits an r2.tn.routetest reading each tick). */
   enableSensor() { this.hive.enableSensor(); }

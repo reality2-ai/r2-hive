@@ -519,6 +519,11 @@ impl WasmHive {
     /// Build a generic Event frame from this node to `target_hive` (0 = broadcast),
     /// carrying `payload`, discriminated by `event_hash`. `seq` = msg_id. Origin =
     /// self in the route stack. Returns raw R2-WIRE bytes (empty on encode error).
+    ///
+    /// k=3 = an ORDINARY broadcast → spray-and-wait (enforce_ttl_k forwarded_k=k/2=1,
+    /// build_flood_plan confidence-truncates to the best next-hop). For a full-mesh
+    /// critical broadcast set k EXPLICITLY via `build_critical_frame` — R2-ROUTE §8.4
+    /// K is by-CRITICALITY, never derived from target.
     #[wasm_bindgen]
     pub fn build_frame(&self, target_hive: u32, event_hash: u32, payload: &[u8], seq: u32) -> Vec<u8> {
         encode_frame(
@@ -530,6 +535,31 @@ impl WasmHive {
             payload,
             8,
             3,
+            seq,
+            self.group_hmac.as_ref(),
+        )
+    }
+
+    /// Build a CRITICAL/GROUP_MGMT broadcast Event frame with the flood budget set
+    /// EXPLICITLY (k = FLOOD_SENTINEL_K = 15) — the §8.4 "full-mesh reach" originate
+    /// path. Per R2-ROUTE §8.4, K is chosen by CRITICALITY, never derived from target:
+    /// an ORDINARY broadcast uses `build_frame` (k=3 spray-and-wait), whereas a critical
+    /// broadcast sets k=15 so enforce_ttl_k enters flood_mode and build_flood_plan skips
+    /// the confidence-truncation → every relay floods to ALL viable neighbours. This is
+    /// the ONLY sanctioned way to demand full-mesh reach; do NOT infer k from target.
+    /// It exercises the deliver-gate under full-mesh reach: a wrong-key neighbour then
+    /// RECEIVES the frame (vs k=3 under-reach) and its r2_trust gate rejects it locally.
+    #[wasm_bindgen]
+    pub fn build_critical_frame(&self, target_hive: u32, event_hash: u32, payload: &[u8], seq: u32) -> Vec<u8> {
+        encode_frame(
+            self.self_hive_id,
+            target_hive,
+            self.tg_hash,
+            r2_wire::MsgType::Event,
+            event_hash,
+            payload,
+            8,
+            r2_route::constants::FLOOD_SENTINEL_K,
             seq,
             self.group_hmac.as_ref(),
         )
