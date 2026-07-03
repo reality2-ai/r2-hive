@@ -19,6 +19,31 @@
   quality-override UNCHANGED (my existing faked-distance/quality-override work stands — different axis). READY to
   build post-#49; NON-URGENT — #49 (task#35) first. ACK'd to specs.
 
+## ✅ 2026-07-03 — #49 READY-FOR-ROY: coex ELF BUILT + LINKED + STAGED on Alfred (turnkey; flash = Roy-only)
+- **BUILD RESOLVED (answers supervisor's repeated 'who builds on Alfred'): my worker IS on Alfred** (hostname=Alfred)
+  and BUILT it here. `cargo +esp build --release --features carrier,multitg,routetest,viz,benchdist,otal2cap` at
+  dfr1195-fw HEAD **3aae196** → LINKED clean (release, exit 0, 17.4s, only the 12 pre-existing unused-item warnings).
+  The xtensa linker (xtensa-esp32s3-elf-gcc) is on THIS box at
+  ~/.rustup/toolchains/esp/xtensa-esp-elf/esp-15.2.0_20250920/xtensa-esp-elf/bin (tools/xbuild.sh helper).
+- **STAGED ELF:** `~/r2-dfr1195-weave-coex.elf` — sha256 `fde300906ae98610cd67c79c4f210486983ece0d5ab0141be7e437fa9b7e17d4`,
+  1362844 B (vs framing-only ab1f1cb6 1362388 B = +456 B, my two adds). BOTH fixes VERIFIED in the binary: the
+  pre-read-guard string ('OTA(L2CAP) no OST within ... CoC half-open/idle, re-advertising') is present (proves
+  69a2d90); built at HEAD 3aae196 ⇒ the coex mesh-TX-gate is in. Worktree clean except the 2 known pre-existing
+  non-mine items (docs/dfr1195-firstlight.patch, tools/xbuild.sh — neither compiled into the ELF).
+- **TURNKEY SEQUENCE (all on Alfred; espflash = Roy-only, human gate):**
+  1. APPLY (persona-preserving app-only re-flash of the OTA board; port = 50:23:E4 per the prior contingency flash —
+     Roy/composer confirm it is the OTA-target board 09a07e47):
+     `espflash flash --chip esp32s3 --partition-table ~/dfr1195-partitions.csv --port /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_F4:12:FA:50:23:E4-if00 ~/r2-dfr1195-weave-coex.elf`
+     (NO --erase-flash, NO persona write ⇒ persona@0x12000 + anti-rollback PRESERVED. app@0x20000.)
+  2. RE-RUN composer's client bounded-retry push.
+  3. MONITOR board serial: `espflash monitor --port <same port>` → expect 'receiver up' → **'OTA(L2CAP) start seq='**
+     (= the OST LANDED ⇒ coex fix worked) → OAK-acked bulk → 'staged' → reboot. btmon = OPPORTUNISTIC (root, for the
+     record only — supervisor demoted it; 0x3B L2CAP-reject already refuted by the source handler-diff, so nothing
+     left to gate on; if it ever still drops, expect 0x08/0x22/0x3E = coex).
+- **IF STILL DROPS:** composer's retry catches residual intermittent coex gaps; escalate to widening the mute (also
+  pause wifi_task SoftAP beacons during OTA) — but that is heavier (tears the AP) so hold unless needed.
+- **NEXT (mine):** idle awaiting Roy's bench result (OST-through or not). This is the definitive de-risk run for #49.
+
 ## ✅ 2026-07-03 — #49 ATTEMPT 3d: handler-diff CONFIRMS coex by elimination; BOTH board fixes STAGED (not flashed)
 - **HANDLER DIFF (composer+supervisor's requested async action) — DECISIVE, source-only:** the board's 0x00D3
   OTA-CoC config is BYTE-IDENTICAL to the PROVEN 0x00D2 provisioning CoC. Both use the SAME
