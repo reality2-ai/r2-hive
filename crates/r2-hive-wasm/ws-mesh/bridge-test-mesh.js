@@ -17,8 +17,10 @@
 //     control proved this is NOT auth: with TWO correct-key UDP neighbours, the 2nd correct-key one is ALSO not
 //     targeted. So D=0 is FLOOD-UNDER-REACH on a unicast bearer (my UdpBearer unicasts to the single
 //     representative), not key-rejection. Genuine TG-isolation-via-deliver-gate is proven in udp-test-mesh.js
-//     (A directly unicasts to a wrong-key peer → its r2_trust deliver-gate rejects). OPEN (asked specs): should a
-//     Flooded send on a UNICAST bearer be fanned out to ALL peers? If so, UdpBearer under-delivers — a real gap.
+//     (A directly unicasts to a wrong-key peer → its r2_trust deliver-gate rejects). RESOLVED (specs §8.4 ruling
+//     fa0ac1f): D=0 is CORRECT-BY-DESIGN, not a bug — build_frame k=3 = an ORDINARY broadcast → spray-and-wait
+//     (bounded, forwarded_k=k/2=1 → truncate to 1 next-hop). Full-mesh reach is a k=15/FLOOD_SENTINEL_K guarantee
+//     reserved for GROUP_MGMT/critical broadcasts, set EXPLICITLY. NO bearer-fanout gap; best_transport fine.
 //
 // NB the wasm route core only forwards to a neighbour it has LEARNED on a transport (via an inbound
 // frame's arrival_kind), so C/D must announce themselves (a heartbeat) to the bridge over UDP BEFORE

@@ -43,8 +43,18 @@
   with SINGLE-key nodes (a node relays a foreign-TG frame TG-agnostically + its deliver-gate drops it). Multi-device
   multi-TG = the ratified multi-PROCESS pattern (§13.2/13.3 = N isolated hives), not one hive holding N keys. (specs
   drafted docs/proposals/MULTI-TG-RELAY-AUTHENTICATE.md, uncommitted.)
-- **✅ #26 flood-under-reach — FINAL ROOT CAUSE (2026-07-04, code-traced): K-SPRAY BUDGET, not best_transport, not
-  the bearer.** build_frame sets **k=3** (lib.rs:530-531). enforce_ttl_k (r2-route hop.rs): only k==15
+- **✅✅ #26 flood-under-reach — CLOSED as NO BUG (specs §8.4 ruling fa0ac1f, 2026-07-04):** k=3 spray for an ORDINARY
+  broadcast is CORRECT-BY-DESIGN. K is an ORIGINATOR strategy choice (§8.4 item 1), NOT derived from target=0; flood
+  (k=15/FLOOD_SENTINEL_K = full-mesh reach) is RESERVED for GROUP_MGMT + critical broadcasts (item 4), set EXPLICITLY.
+  specs REFUTED the supervisor's dedup+TTL-auto-flood lean against the actual §8.4a/§8.4b text (quota scopes flood too).
+  ⇒ my candidate auto-promote fix (target=0 → FLOOD_SENTINEL_K) VIOLATED canon → **REVERTED (git checkout lib.rs +
+  rebuilt wasm-node → back to k=3 spray; flood-control shows [C] again; udp+bridge tests PASS).** best_transport never
+  the issue (core doubly-vindicated). The k=15 empirical test kept its value (confirmed the mechanism + full-reach IS a
+  k=15 guarantee). If the wasm ever needs a critical broadcast, add an EXPLICIT k=15 build path (marked critical), NOT
+  auto-promote. Net of the whole saga: 2 verify-first holds (bearer-fanout, seed-fix) + this canon-deferral = spec-first
+  working — did not commit a fix the §8.4 owner ruled canon-violating. Probe comments updated to the canon truth.
+  do-not-assume: the K-SPRAY diagnosis below is CORRECT (it IS spray) — just re-labelled from 'bug' to 'expected'.
+- **(detail) FINAL ROOT-CAUSE mechanism (2026-07-04, code-traced): K-SPRAY BUDGET, not best_transport, not the bearer.** build_frame sets **k=3** (lib.rs:530-531). enforce_ttl_k (r2-route hop.rs): only k==15
   (FLOOD_SENTINEL_K) is flood mode; else forwarded_k = k/2 = **1**. So build_flood_plan sets limit=forwarded_k=1,
   collects ALL viable hops (best_transport FINE for C,E,F — core's ruling VINDICATED: rssi unused, Direct(0.9) works,
   proven by core test 33780e0), then confidence-ranked-TRUNCATES to 1 (engine.rs:841-848); all conf 0.5 → C survives.

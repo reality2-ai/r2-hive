@@ -1,3 +1,10 @@
+// RESOLUTION (2026-07-04, specs §8.4 ruling fa0ac1f): the "under-reach" this probe surfaced is CORRECT-BY-DESIGN,
+// NOT a bug. build_frame's k=3 = an ORDINARY broadcast → spray-and-wait (enforce_ttl_k forwarded_k=k/2=1 →
+// build_flood_plan confidence-truncates to 1 next-hop). K is an originator STRATEGY choice (§8.4 item 1), NOT
+// derived from target=0; flood (k=15/FLOOD_SENTINEL_K = full-mesh reach) is RESERVED for GROUP_MGMT + critical
+// broadcasts (item 4) and must be set EXPLICITLY at build time. A k=15 re-run of this probe floods ALL of C/E/F
+// (empirically confirmed the mechanism); k=3 sprays to 1. best_transport was never the issue (core vindicated).
+//
 // bridge-flood-control — CONTROL experiment to falsify my "relay-targeting excludes the wrong-key
 // neighbour (auth-gated)" claim. specs' ruling: relay is UNCONDITIONALLY TG-agnostic and the relay layer
 // (r2_route) architecturally CANNOT hold/check a TG key (R2-RUNTIME §13.2). So route_frame (= route_inbound_sync,
