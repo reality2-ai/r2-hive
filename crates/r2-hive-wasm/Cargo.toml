@@ -35,6 +35,11 @@ r2-transport = { path = "../../../r2-core/crates/r2-transport", default-features
 # primitives (GroupHmac/derive_*/parse_persona), no keyholder/getrandom → wasm-clean
 # (the firmware's exact no_std dep). #26 real-r2-trust-in-wasm front half.
 r2-trust = { path = "../../../r2-core/crates/r2-trust", default-features = false }
+# The SHARED no_std RX data-plane: the REAL fused auth→classify→dedup-record→deliver→relay pipeline
+# (handle_rx_frame + RxDisposition) the firmware target runs. The wasm binds it so composer's
+# forged-attribution refutation (TN-L1-IT-BL-700) tests the IDENTICAL A1 verify-then-record dedup as
+# ships — not a wasm-only reimpl. no_std (heapless + r2-route/wire/cbor/trust default-off) → wasm-clean.
+r2-dataplane = { path = "../../../r2-core/crates/r2-dataplane", default-features = false }
 wasm-bindgen = "0.2"
 
 [dev-dependencies]

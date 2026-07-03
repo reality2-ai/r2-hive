@@ -1,5 +1,37 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ 2026-07-03 — 700 forged-attribution instrument: ADOPTED r2-dataplane handle_rx_frame in the wasm (task#36)
+- **Ask (core relaying composer):** surface `RxDisposition{authenticated,deliver,relay_on}` from
+  `handle_rx_frame` so composer can write forgery-700.selftest.mjs (the dedup-not-poisoned arm). Core said
+  "just serialize the 3 fields off the RxDisposition your handle_rx_frame call already returns."
+- **REFUTED core's premise (verify-then-record — checked my source, not the ask):** the wasm did NOT use
+  r2-dataplane / handle_rx_frame at all (no dep). `deliver_event` is APP-layer (decode→bus enqueue, no auth);
+  the RX path is `route_frame`→`route_inbound_sync` (r2-hive-core), which HARDCODES `authenticated: false`
+  (sync_host.rs:216, an explicit FLAG-FOR-CORE) ⇒ NEVER records dedup; the deliver-gate is a SEPARATE
+  `verify_frame` call. So the wasm could not model the 700 property either way — there was no fused call to
+  serialize from.
+- **FIX = adopt the REAL fused pipeline (the right architecture; aligns with task#32):** added `r2-dataplane`
+  dep (no_std; wasm32-clean incl the new r2-cbor — verified `cargo build --target wasm32-unknown-unknown`),
+  a `data_plane: Option<DataPlane>` field (lazy-built from the hive's id+`group_hmac`, reset on re-key), and
+  an ADDITIVE `handleRx(frame, rssi_dbm, ingress_phy, now_ms)` method → JSON
+  `{authenticated,deliver,relay_on,relay,delivered}`. One `classify` gates BOTH deliver AND the A1 dedup
+  RECORD (r2-dataplane lib.rs:404-447). `route_frame`/`deliver_event`/`verify_frame` UNCHANGED (additive).
+- **PROVEN (host cargo test + REAL nodejs wasm binary):** test `handle_rx_forgery_does_not_poison_dedup_700`
+  + a node smoke on the built pkg — forged wrong-key ⇒ `{authenticated:false,deliver:false}` (rejected +
+  A1-UNRECORDED); legit same-(origin,msg_id) ⇒ `{authenticated:true,deliver:true}` (DEDUP NOT POISONED —
+  still delivers); legit dup ⇒ `{deliver:false}` (deduped ⇒ authed frames ARE recorded). wasm lib 14/0/1-ig;
+  all 3 pkgs rebuilt; `handleRx` in the `.d.ts` (web + nodejs). **wasm sha `f1b821e90f6439fe`.**
+- **DELIVERY:** `pkg/` + `{ws-mesh,carrier-bridge}/wasmhive-node/` are GITIGNORED — composer pulls them from
+  my checkout into their `webapp/wasmhive/`; my commit carries SOURCE only. API for the selftest:
+  `handleRx(frame:Uint8Array, rssi_dbm:number, ingress_phy:number /*2=LoRa*/, now_ms:number)`; forge via
+  `WasmHive.withGroupHmac(victim, WRONG_hk, tg).build_frame(target, hash, payload, msg_id)`, legit via the
+  real hk + SAME msg_id (seq).
+- **DO-NOT-ASSUME:** `route_frame`/`route_inbound_sync` is the ROUTING-layer sim (authenticated=false, never
+  records) — NOT the trust-gated RX. `handleRx` is the faithful trust+dedup instrument. They coexist by
+  design; don't "unify" by routing route_frame through the deliver-gate.
+- **NEXT:** reply to core (premise correction + artifact/sha/API) + heads-up composer; task#32 (firmware
+  io_task→r2_dataplane) is the parallel migration this de-risks.
+
 ## ✅ 2026-07-03 — core UNBLOCKED the WS-binding HOLD → verified already-converged + closed the last drift-gap
 - **Trigger:** core msg 23:31 answered my 3 queued WS-binding questions (the HOLD at the §2.7-binding entry:
   "import THAT byte-exact — HOLD until core pings field names/path"). core HEAD `a6cf14a` (top commit literally

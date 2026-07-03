@@ -214,6 +214,12 @@ pub struct WasmHive {
     /// (`verify_frame` returns `deliver:false`) — "default-OPEN is FORBIDDEN". A pure-routing / TG-agnostic
     /// bench opts in explicitly via `setUnkeyedOpen(true)` to restore the legacy deliver-everything sim.
     unkeyed_open: bool,
+    /// The REAL fused RX data-plane (core's `r2_dataplane::handle_rx_frame`) — lazily built from this
+    /// hive's identity + `group_hmac` on first `handleRx`, and reset to `None` on re-key. Holds the
+    /// (origin,msg_id) dedup + relay-fingerprint state, so the A1 verify-then-record property is the
+    /// SAME code the firmware runs (the 700 forged-attribution instrument). `None` for hives that only
+    /// use the app/route layers (`deliver_event`/`route_frame`) — it costs nothing until called.
+    data_plane: Option<r2_dataplane::DataPlane>,
 }
 
 #[wasm_bindgen]
@@ -232,6 +238,7 @@ impl WasmHive {
             group_hmac: None,
             tg_hash: 0,
             unkeyed_open: false, // §7.5.4 fail-closed default; setUnkeyedOpen(true) for the pure-routing sim
+            data_plane: None,    // lazily built on first handleRx (from the hive's id + group key)
         }
     }
 
@@ -256,6 +263,9 @@ impl WasmHive {
     /// "leave" (clears the key → back to TG-agnostic).
     #[wasm_bindgen(js_name = setGroupHmac)]
     pub fn set_group_hmac(&mut self, hk: &[u8], tg_hash: u32) {
+        // Re-key discards any lazily-built data-plane so the next handleRx rebuilds it with the new key
+        // (fresh trust context ⇒ fresh dedup/neighbour state — correct for a TG join/leave).
+        self.data_plane = None;
         if hk.is_empty() {
             self.group_hmac = None;
             self.tg_hash = 0;
@@ -318,6 +328,7 @@ impl WasmHive {
             group_hmac: None,
             tg_hash: 0,
             unkeyed_open: false, // §7.5.4 fail-closed default; setUnkeyedOpen(true) for the pure-routing sim
+            data_plane: None,    // lazily built on first handleRx (from the hive's id + group key)
         }
     }
 
@@ -387,6 +398,61 @@ impl WasmHive {
         }
 
         format!("{{\"outcome\":\"{tag}\",\"sent\":{sent},\"sends\":[{sends}]}}")
+    }
+
+    /// Faithful FUSED RX pipeline: run core's REAL [`r2_dataplane::handle_rx_frame`] — the same
+    /// auth→classify→dedup-record→deliver→relay step the firmware ships — and surface its
+    /// `RxDisposition`. This is the forged-attribution instrument (TN-L1-IT-BL-700). Unlike
+    /// `route_frame` (routing-only; it hardcodes `authenticated=false` and so NEVER records dedup) plus
+    /// the SEPARATE `verify_frame` deliver-gate, here a SINGLE `classify` result gates BOTH the deliver
+    /// AND the dedup RECORD (A1 verify-then-record): an UNAUTHENTICATED frame is dedup-CHECKED but NOT
+    /// recorded, so a wrong-key / cross-TG forgery (victim origin + guessed msg_id) neither delivers NOR
+    /// poisons the (origin,msg_id) cache — the victim's real frame still delivers.
+    ///
+    /// `rssi_dbm` = arrival RSSI; `ingress_phy` = the r2-dataplane egress/ingress PHY mask the frame
+    /// arrived on (`2` = PHY_LORA leaf default); `now_ms` = sim clock (ms; JS Number → u64). Returns JSON
+    /// `{"authenticated":bool,"deliver":bool,"relay_on":N,"relay":"<hex>","delivered":"<hex>"}` —
+    /// `relay`/`delivered` are the frames the pipeline would forward / hand to the local consumer
+    /// (`delivered` is the plaintext payload iff `deliver`).
+    #[wasm_bindgen(js_name = handleRx)]
+    pub fn handle_rx(&mut self, frame: &[u8], rssi_dbm: i32, ingress_phy: u8, now_ms: f64) -> String {
+        use r2_dataplane::{handle_rx_frame, DataPlane, Frame, FrameInfo};
+        if self.data_plane.is_none() {
+            // Build from this hive's identity + group key. `group=None` ⇒ §7.5.4 fail-closed (deliver=false).
+            self.data_plane = Some(DataPlane::new(
+                self.self_hive_id,
+                self.tg_hash,
+                0, // boot_epoch: session-constant in the sim (H9 keepalive freshness only)
+                self.group_hmac.clone(),
+                r2_route::neighbour::DutyClass::Unknown,
+                30_000,    // keepalive period (ms) — irrelevant to the RX classify/dedup path
+                [0u8; 16], // fp_seed: unkeyed-but-sound relay fingerprint (sim; no HWRNG)
+            ));
+        }
+        let dp = self.data_plane.as_mut().unwrap();
+        let info = FrameInfo {
+            rssi_dbm: rssi_dbm as i16,
+            snr_db: 0,
+        };
+        let mut relay_out: Frame = Frame::new();
+        let mut deliver_out: Frame = Frame::new();
+        let rx = handle_rx_frame(
+            dp,
+            frame,
+            &info,
+            ingress_phy,
+            now_ms as u64,
+            &mut relay_out,
+            &mut deliver_out,
+        );
+        format!(
+            "{{\"authenticated\":{},\"deliver\":{},\"relay_on\":{},\"relay\":\"{}\",\"delivered\":\"{}\"}}",
+            rx.authenticated,
+            rx.deliver,
+            rx.relay_on,
+            hex(relay_out.as_slice()),
+            hex(deliver_out.as_slice()),
+        )
     }
 
     /// Run the REAL TG deliver-gate on an inbound frame — the firmware's exact check
@@ -865,6 +931,48 @@ mod tests {
         assert!(lora.contains("reference_path_loss_db"));
         assert!(lora.contains("path_loss_exponent"));
         assert!(lora.contains("decay_lambda"));
+    }
+
+    #[test]
+    fn handle_rx_forgery_does_not_poison_dedup_700() {
+        // TN-L1-IT-BL-700 forged-attribution: a wrong-key forgery of (victim origin + msg_id) must
+        // (a) NOT deliver (authenticated=false, §7.5.4 fail-closed) AND (b) NOT be dedup-recorded (A1
+        // verify-then-record), so the victim's REAL same-(origin,msg_id) frame STILL delivers. This runs
+        // the FUSED r2-dataplane handle_rx_frame — the exact pipeline the firmware ships, not a wasm reimpl.
+        let hk = [7u8; 32];
+        let wrong = [9u8; 32];
+        let tg = 0x04bc_57e7u32;
+        let node_id = 0x1234_5678u32;
+        let victim = 0x0900_0001u32;
+        let msg_id = 0x0000_4242u32;
+        let hash = 0x608f_02f8u32; // r2.tn.routetest — a non-HB Event hash
+
+        let mut node = WasmHive::with_group_hmac(node_id, &hk, tg); // receiver (holds the real key)
+        let legit = WasmHive::with_group_hmac(victim, &hk, tg); // the real victim: same key
+        let forger = WasmHive::with_group_hmac(victim, &wrong, tg); // attacker: victim's id, WRONG key
+
+        // Both frames: origin=victim, addressed to node, SAME msg_id; they differ only by signing key.
+        let legit_f = legit.build_frame(node_id, hash, b"real", msg_id);
+        let forged_f = forger.build_frame(node_id, hash, b"fake", msg_id);
+        assert!(!legit_f.is_empty() && !forged_f.is_empty());
+
+        // 1) Forgery FIRST: fails the auth gate, does not deliver, and (crucially) is NOT recorded.
+        let r1 = node.handle_rx(&forged_f, -60, 2, 1000.0);
+        assert!(r1.contains("\"authenticated\":false"), "forgery must fail §7.5.4 auth: {r1}");
+        assert!(r1.contains("\"deliver\":false"), "forgery must not deliver: {r1}");
+
+        // 2) The victim's REAL frame, same (origin,msg_id): STILL delivers — dedup was NOT poisoned.
+        let r2 = node.handle_rx(&legit_f, -60, 2, 1001.0);
+        assert!(r2.contains("\"authenticated\":true"), "legit frame authenticates: {r2}");
+        assert!(
+            r2.contains("\"deliver\":true"),
+            "DEDUP-NOT-POISONED: legit delivers after the forgery: {r2}"
+        );
+
+        // 3) The SAME legit frame again is now a genuine duplicate → dropped (authenticated frames ARE
+        //    recorded), proving the A1 gate records the real one while never recording the forgery.
+        let r3 = node.handle_rx(&legit_f, -60, 2, 1002.0);
+        assert!(r3.contains("\"deliver\":false"), "authenticated duplicate is deduped: {r3}");
     }
 
     // Real R2-WIRE extended frame builder (mirrors r2-hive-core's sync_host test).
