@@ -356,9 +356,13 @@ async fn main() {
         );
     }
 
+    // `mut` is used by the transport-gated `active_plugins.push(...)` calls below; when all such
+    // transports are composed out, no push remains, so allow the otherwise-unused `mut`.
+    #[allow(unused_mut)]
     let mut active_plugins = vec!["word-codes", "dashboard"];
 
     // LAN discovery: UDP beacon
+    #[cfg(feature = "transport-udp")]
     if args.lan {
         match start_lan_discovery(&args, &state, self_hive_id).await {
             Ok(()) => active_plugins.push("lan-discovery"),
@@ -573,6 +577,7 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
+#[cfg(feature = "transport-udp")]
 async fn start_lan_discovery(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> Result<(), String> {
     use r2_discovery::discovery::udp_beacon::UdpBeacon;
     use r2_discovery::bindings::udp_lan::UdpLanTransport;
@@ -1210,6 +1215,9 @@ fn hex_short(bytes: &[u8]) -> String {
     bytes.iter().take(4).map(|b| format!("{b:02x}")).collect::<String>() + "..."
 }
 
+// Used by the BLE/UDP transport-setup paths; unused when those transports are composed out
+// (e.g. --no-default-features), so allow dead_code rather than thread cfg(any(...)) through it.
+#[allow(dead_code)]
 fn random_rbid() -> [u8; 8] {
     use std::time::{SystemTime, UNIX_EPOCH};
     let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();

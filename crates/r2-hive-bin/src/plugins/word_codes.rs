@@ -82,6 +82,7 @@ async fn register_word_code(
     log::info!("word code registered: {} -> tg:{}", words, &tg_hash[..8.min(tg_hash.len())]);
 
     // Broadcast word code to LAN peers (proximity-limited, TTL=1)
+    #[cfg(feature = "transport-udp")]
     if let Some(udp) = state.udp_transport.read().await.as_ref() {
         let msg = format!("WC:{}:{}:{}", words, tg_hash, join_code);
         use r2_discovery::AsyncTransport;

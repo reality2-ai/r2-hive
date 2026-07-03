@@ -8,6 +8,7 @@ use tokio::sync::{mpsc, Mutex, RwLock};
 use std::sync::Arc;
 use r2_discovery::AsyncTransport;
 use r2_discovery::WebSocketTransport;
+#[cfg(feature = "transport-udp")]
 use r2_discovery::bindings::udp_lan::UdpLanTransport;
 #[cfg(feature = "transport-ble")]
 use r2_discovery::bindings::ble::BleTransport;
@@ -123,6 +124,7 @@ pub struct HiveState {
     pub ws_transport: WebSocketTransport,
     /// UDP LAN transport (Internet transport, extended format).
     /// None until --lan is enabled.
+    #[cfg(feature = "transport-udp")]
     pub udp_transport: RwLock<Option<Arc<UdpLanTransport>>>,
     /// BLE transport (compact format, L2CAP CoC).
     /// None until --ble is enabled.
@@ -228,6 +230,7 @@ impl HiveState {
         HiveState {
             self_hive_id,
             ws_transport: WebSocketTransport::new(4096),
+            #[cfg(feature = "transport-udp")]
             udp_transport: RwLock::new(None),
             #[cfg(feature = "transport-ble")]
             ble_transport: RwLock::new(None),
@@ -297,6 +300,7 @@ impl HiveState {
     }
 
     /// Set the UDP transport (called when --lan is enabled).
+    #[cfg(feature = "transport-udp")]
     pub async fn set_udp_transport(&self, udp: Arc<UdpLanTransport>) {
         *self.udp_transport.write().await = Some(udp);
     }
@@ -596,13 +600,11 @@ impl HiveState {
                 self.try_send_via_dongle(transport, frame, false).await
             }
             Transport::Wifi => {
-                let native = if let Some(udp) = self.udp_transport.read().await.as_ref() {
-                    udp.send(hive_id, frame).await.is_ok()
-                } else {
-                    false
-                };
-                if native {
-                    return true;
+                #[cfg(feature = "transport-udp")]
+                if let Some(udp) = self.udp_transport.read().await.as_ref() {
+                    if udp.send(hive_id, frame).await.is_ok() {
+                        return true;
+                    }
                 }
                 self.try_send_via_dongle(transport, frame, false).await
             }
