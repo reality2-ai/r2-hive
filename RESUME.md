@@ -5,8 +5,9 @@
   hosted CI (public-content-hygiene) green. 3 greenlight conditions MET:** (1) CI green post-push (ci.yml is
   main-only; my change is JS/Rust-neutral; node bridge test validated on Alfred like the sibling ws-mesh tests);
   (2) #49 staged state INTACT (dfr1195-fw 3aae196, ELF fde30090 — the wasm commit touched only ws-mesh/); (3) specs
-  FLAGGED (fleet-ask out: does the neighbour-exclusion finding link to an existing TG-isolation conjecture or a new
-  one — formal lift = specs' call). BIDIRECTIONAL now proven (WS↔UDP both ways).
+  FLAGGED — specs' AB-004 challenge triggered a discriminator that CORRECTED the finding to RELAY-TARGETING
+  exclusion + surfaced an open multi-TG tension (see below; second fleet-ask out for specs' ruling). BIDIRECTIONAL
+  proven (WS↔UDP both ways). Commits: a382f47 + 2a53111 + 856f176 (mechanism correction + discriminator probe).
 - **Context:** while #49 is Roy-gated (bench trip, indefinite — I stay first-responder on the serial), supervisor
   cleared me to advance the non-#49 wasm track (#26). Standing posture: DEVELOP but HOLD commit/push/hosted-green
   until greenlight; spec-first. The #26 NEXT was the heterogeneous cross-transport TG-mesh bridge (WS+UDP+carrier
@@ -23,12 +24,21 @@
   hive-ws.js/hive-udp.js patterns without touching them.
   `crates/r2-hive-wasm/ws-mesh/bridge-test-mesh.js` — e2e: A(sensor, WS-only) → gateway → BRIDGE(WS+UDP) → C(receiver,
   UDP-only) same TG; D wrong-key. Topology IS the proof (A↔C share no direct transport).
-- **LOCAL-GREEN + REFUTATION-TESTED (node v25.8.1 on Alfred):** `node bridge-test-mesh.js` PASS. My FIRST claim
-  (D=0 proves the deliver-gate) was REFUTED by my own instrumentation: brRelayUdp=5 (not 10) prompted a received-vs-
-  delivered probe → D received=0/delivered=0 ⇒ TG-isolation is by NEIGHBOUR-EXCLUSION (D's wrong-key announce is
-  unauthenticated → A1 verify-then-record never LEARNS it as a neighbour → never relayed to), a STRONGER isolation
-  than the deliver-gate. C received=6/delivered=5 ⇒ cross-transport relay + dedup-survives-hop both proven. Claims in
-  the test corrected to the verified mechanism. Existing udp-test-mesh.js still PASS (no regression).
+- **LOCAL-GREEN + REFUTATION-TESTED (node v25.8.1 on Alfred):** `node bridge-test-mesh.js` PASS. C received=6/
+  delivered=5 ⇒ cross-transport relay + dedup-survives-hop both proven. Existing udp-test-mesh.js still PASS.
+- **⚠ D-ISOLATION MECHANISM — TWICE-CORRECTED (do-not-assume; final = RELAY-TARGETING exclusion):** claim v1
+  (D=0 proves the deliver-gate) → REFUTED by brRelayUdp=5≠10 + a received-vs-delivered probe (D received=0). claim
+  v2 (neighbour-EXCLUSION: D never learned) → REFUTED by specs' AB-004 challenge + my discriminator
+  `bridge-neighbour-probe.js` (856f176): STEP1 shows D DOES form a neighbour link (both C+D in neighbours(),
+  viable:true — formation is TG-agnostic, AB-004 SATISFIED, no regression); STEP2 routes a broadcast → route_frame
+  floods to C ONLY (udp-targets=[0xc3]), NOT D. **FINAL v3 = RELAY-TARGETING EXCLUSION:** D is learned but the flood
+  does not target the unauthenticated neighbour — a layer ABOVE formation. Test comments + output corrected.
+- **⚠ OPEN SPECS TENSION (gates the multi-TG NEXT):** the relay-targeting exclusion is per-NEIGHBOUR-auth. In a
+  multi-TG mesh, bridge B(TG-Y) would see a foreign-TG neighbour M(TG-X)'s announce as UNauthenticated (B lacks
+  TG-X's key) → exclude M from relay → could BREAK cross-TG relay, contradicting AB-003/004 (relay TG-agnostic,
+  zero-key relay). ASKED specs to rule: separate-compatible-axis, or a relay-targeting-auth-gating BUG to flag core?
+  ⇒ multi-TG bridge HELD until specs rules (if forwarding-eligibility is per-neighbour-auth-gated, the multi-TG
+  bridge would need BOTH TG keys, contradicting zero-key relay).
 - **BIDIRECTIONAL strengthening (2a53111):** post-commit I spotted the test proved only WS→UDP. Added a reverse leg
   (after A's WS readings teach the bridge A is a WS neighbour, C emits on UDP → bridge → relay out WS → A delivers).
   PASS: WS→UDP sends=5, UDP→WS sends=4; C delivered 5 of A's, A delivered 4 of C's; D still 0-received. A real
