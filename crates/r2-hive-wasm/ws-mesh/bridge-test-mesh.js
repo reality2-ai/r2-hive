@@ -52,12 +52,13 @@ function startGateway() {
 }
 
 async function main() {
-  let cDelivers = 0, dDelivers = 0, brRelayUdp = 0;
+  let cDelivers = 0, dDelivers = 0, aDelivers = 0, brRelayUdp = 0, brRelayWs = 0;
 
   const gw = await startGateway();
 
   // A — WS-only sensor (drive its ensemble via the underlying hive; HiveWs has no tick wrapper).
-  const a = new HiveWs(A, `ws://127.0.0.1:${WS_PORT}`, { hk: HK, tgHash: TG });
+  // onDeliver counts what A delivers — used for the REVERSE leg (C's UDP reading relayed out WS to A).
+  const a = new HiveWs(A, `ws://127.0.0.1:${WS_PORT}`, { hk: HK, tgHash: TG, onDeliver: () => aDelivers++ });
   a.hive.enableSensor();
   const aTick = (t) => {
     const o = JSON.parse(a.hive.tick(t >>> 0));
@@ -68,7 +69,10 @@ async function main() {
   const bridge = new HiveBridge(BR, {
     hk: HK, tgHash: TG,
     onRoute: (_id, out, arrivalKind) => {
-      for (const s of out.sends || []) if ((s.kind >>> 0) === 6 && arrivalKind !== 6) brRelayUdp++;
+      for (const s of out.sends || []) {
+        if ((s.kind >>> 0) === 6 && arrivalKind !== 6) brRelayUdp++; // relayed onto UDP from a non-UDP arrival
+        if ((s.kind >>> 0) === 1 && arrivalKind !== 1) brRelayWs++;  // relayed onto WS  from a non-WS arrival
+      }
     },
   });
   bridge.addBearer(new WsBearer(`ws://127.0.0.1:${WS_PORT}`, 1));
@@ -90,22 +94,30 @@ async function main() {
   d.originate(d.buildHeartbeat(1));
   await sleep(100);
 
-  // (2) A emits sensor readings on WS → gateway → bridge(WS) → relay → UDP → C.
+  // (2) FORWARD leg (WS→UDP): A emits sensor readings on WS → gateway → bridge(WS) → relay → UDP → C.
+  //     This also teaches the bridge that A is a WS (kind 1) neighbour, enabling the reverse leg.
   for (let t = 1; t <= 5; t++) { aTick(t); await sleep(50); }
+  await sleep(120);
+
+  // (3) REVERSE leg (UDP→WS): C now emits on UDP → bridge (knows A on WS) → relay → WS → A delivers.
+  //     Proves the bridge is genuinely BIDIRECTIONAL, not just WS→UDP.
+  c.enableSensor();
+  for (let t = 2; t <= 5; t++) { c.tick(t); await sleep(50); }
   await sleep(150);
 
   a.close(); bridge.close(); c.close(); d.close();
   try { gw.kill('SIGTERM'); } catch (_) {}
 
-  const pass = cDelivers >= 1 && dDelivers === 0 && brRelayUdp >= 1;
-  console.log(`bridge relayed WS→UDP sends=${brRelayUdp} (want >=1)`);
-  console.log(`C(same-key, UDP-only) received=${cRecv} delivered=${cDelivers} (want deliver>=1)`);
-  console.log(`D(wrong-key, UDP-only) received=${dRecv} delivered=${dDelivers} (want deliver=0)`);
+  const pass = cDelivers >= 1 && aDelivers >= 1 && dDelivers === 0 && brRelayUdp >= 1 && brRelayWs >= 1;
+  console.log(`bridge relayed WS→UDP sends=${brRelayUdp} (want >=1); UDP→WS sends=${brRelayWs} (want >=1)`);
+  console.log(`FORWARD  A(WS-only)→C: C(same-key, UDP-only) received=${cRecv} delivered=${cDelivers} (want deliver>=1)`);
+  console.log(`REVERSE  C(UDP-only)→A: A(same-key, WS-only)  delivered=${aDelivers} (want deliver>=1)`);
+  console.log(`ISOLATE  D(wrong-key, UDP-only) received=${dRecv} delivered=${dDelivers} (want deliver=0)`);
   console.log(dRecv > 0
     ? `  → TG-isolation MECHANISM = DELIVER-GATE: D received ${dRecv} relayed frame(s) but the r2_trust gate rejected all (wrong key).`
     : `  → TG-isolation MECHANISM = NEIGHBOUR-EXCLUSION: D's wrong-key announce was not authenticated → not learned → never relayed to (0 received).`);
   console.log(pass
-    ? 'PASS bridge-mesh: heterogeneous WS→UDP cross-transport relay + dedup-survives-hop + TG-isolation (§5.4/§5.2)'
+    ? 'PASS bridge-mesh: heterogeneous BIDIRECTIONAL cross-transport relay (WS↔UDP) + dedup-survives-hop + TG-isolation (§5.4/§5.2)'
     : 'FAIL bridge-mesh');
   process.exit(pass ? 0 : 1);
 }
