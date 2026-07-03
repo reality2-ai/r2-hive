@@ -16,6 +16,12 @@
      + DLE 251/2120) is **cocbench-ONLY** (3045-3056) = task#18, a DIFFERENT build. composer's 200B chunk is safe.
 - **HONEST CAVEAT (do-not-overclaim):** this is SOURCE truth (path wired + connectable in code). NOT metal-run
   for OTA — the integrated BLE-CoC push is still unproven on metal (task#49/#35). Reported to composer.
+- **COMPOSER RESOLVED (their last #49 input):** confirmed all three; the load-bearing outcome = composer is
+  KEEPING the ODT chunk at the safe **200B (NOT raising to 240)** — the re-read prevented a real bug, since 240
+  assumed the cocbench-ONLY tuned MTU (251) but the weave build runs `L2capChannelConfig::default()`. ⇒ **#49 is
+  now gated SOLELY on Roy's .bin extraction (+ the separate metal-push GO)** — composer's technical inputs are all
+  cleared. (composer also confirmed BOTH wasm build variants work for the 700 selftest: --target web pkg + initSync
+  in a node .mjs, and my nodejs ws-mesh build — same sha f1b821e.)
 
 ## ✅ 2026-07-03 — 700 forged-attribution instrument: ADOPTED r2-dataplane handle_rx_frame in the wasm (task#36)
 - **Ask (core relaying composer):** surface `RxDisposition{authenticated,deliver,relay_on}` from
