@@ -27,9 +27,19 @@
   diagnosable, never a mystery stall. RECOMMENDED: confirm via the 4958 print BEFORE writing the fix (don't fix
   blind). Asked supervisor: write+stage now or after the print check. Sent supervisor the full diagnosis + sent
   composer the client-side framing (OST = one 190B SDU) + the 4958 observable.
-- **DO-NOT-ASSUME:** flash reads DO work during BLE elsewhere in this fw (read_persona 4976 / read_anti_rollback
-  4978 run mid-session), so the OtaUpdater::new() failure is more likely a partition-table-layout issue than a
-  blanket flash-vs-BLE hang — but both are diagnosed by the same 4958-print observable.
+- **REFINEMENT (partition-table source check):** `platforms/esp32/partitions.csv` has a VALID OTA layout
+  (ota_0@0x20000, ota_1@0x200000, otadata@0xf000) ⇒ the partition-LAYOUT root cause is REFUTED; and flash reads
+  work during BLE elsewhere (read_persona 4976 / read_anti_rollback 4978 run mid-session) ⇒ OtaUpdater::new()-fails
+  is now the WEAKER candidate. **LEADING candidate re-ranked → STREAM-vs-SDU FRAMING mismatch:** the board reads
+  ONE MESSAGE PER L2CAP SDU (main.rs:4960-4971 = one rx.receive → match the whole OST/ODT/OCM), but composer's
+  push (drive_ota_sequence, stream-generic) was verified against a `tokio::io::duplex` MOCK = a BYTE STREAM with
+  no SDU boundaries. The duplex mock passed BECAUSE it is a stream; real SDU-framed L2CAP mis-frames if the 190B
+  OST is not sent as exactly ONE SDU (one write). Two live candidates, cleanly disambiguated: (A) 4958 print
+  ABSENT ⇒ OtaUpdater flash-timing silent-return; (B) 4958 PRESENT + composer's first-SDU log shows the OST split
+  across >1 write ⇒ the framing mismatch. **BOARD-SIDE FIX for (B) [robust, mine]:** make ota_receive_over_coc
+  ACCUMULATE bytes across SDUs + parse by known message lengths (treat the CoC as a byte STREAM = the exact
+  contract the mock validated). Sent supervisor + composer the refinement. AWAITING: the 4958 print + composer's
+  first-SDU write-count, then I write+build(Alfred)+stage the confirmed fix (Roy flashes).
 
 ## ✅ 2026-07-03 — #49 firmware re-read: weave-build OTA-CoC is CONNECTABLE + WIRED (source; metal-unproven)
 - Composer flagged two #49 open items (connectable-adv on 0x00D3 + exact L2CAP credits). SOURCE ground-truth
