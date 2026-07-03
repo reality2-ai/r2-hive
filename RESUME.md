@@ -15,6 +15,27 @@
   NOT build the runtime radio-silence hook. NON-URGENT — finish #49 (task#35) first. May pull core for
   transport-layer composition support.
 
+## ⚠ 2026-07-03 — #49 ROOT CAUSE CONFIRMED (SOCK_STREAM byte-stream) + fix LOCKED, implementing
+- **CONFIRMED (composer socket-type ground truth, commit 9c461bf):** composer's client is a bluer `SOCK_STREAM`
+  L2CAP socket (Socket::<Stream>::new_stream, reused from the proven provisioning connect) = BYTE-STREAM, NO
+  SDU preservation. The OST has no length prefix + relies on SDU boundaries ⇒ even a single write() can be
+  kernel-rechunked ⇒ the board's message-per-SDU read (main.rs:4960-4971) mis-frames. Provisioning works over
+  the SAME socket ONLY because it length-prefixes (write_frame [len u16 LE]). So the byte-stream fix is correct
+  REGARDLESS of the metal write-count (the 4958 print/count only confirm the symptom).
+- **KEY REFINEMENT I surfaced:** a pure board accumulate can't delimit the VARIABLE-length ODT ("ODT"+4B off+
+  chunk, main.rs:5014-5016) in a byte stream (OST=190/OCM fixed, ODT not) ⇒ the accumulate NEEDS a length
+  prefix. Solution = mirror the board's OWN proven framing: `serve_coc` reads [len u16 LITTLE-ENDIAN][payload]
+  (main.rs:3187).
+- **FIX LOCKED (coordinated wire, both sides on the proven framing):** [len u16 LE][message], len = message.len()
+  excl. the 2 prefix bytes. COMPOSER: reuse write_frame ([len u16 LE] + existing OST/ODT/OCM) + tighten the mock
+  to a re-chunking byte-stream. ME: rewrite `ota_receive_over_coc` into a length-prefixed byte-stream ACCUMULATOR
+  (read [len u16 LE] → accumulate exactly len bytes across SDUs → parse OST/ODT/OCM); verify-before-write ordering
+  UNCHANGED. Cheap add: log the OtaUpdater::new() Err instead of the silent return (main.rs:4946) so any init
+  failure is diagnosable, not a mystery stall.
+- **DISCIPLINE:** security-critical async no_std; CANNOT compile-verify on this box (xtensa = Alfred). So I LOCKED
+  the wire with composer FIRST (sent), then implement carefully + Alfred build-verify + composer mock re-test
+  BEFORE staging for Roy's flash. Do NOT flash unverified. **NEXT (mine): implement the accumulator + Alfred build.**
+
 ## ⚠ 2026-07-03 — #49 FIRST METAL OTA reached the receiver but STALLED (0 bytes) — board-side diagnosed
 - **Event (supervisor):** first metal OTA push to 09a07e47 (C4:C9:E0:71:BB:30) — BLE L2CAP link UP on 0x00D3
   (RBID identity-verified), but 0 bytes then STALLED; OST→RESP_OK didn't proceed on metal though it PASSED
