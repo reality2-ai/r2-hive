@@ -1,6 +1,26 @@
 # RESUME — r2-hive (hive-worker)
 
-## 🔵 2026-07-04 — task#31 (§2.2B build-time transport composition) UNBLOCKED + verified NON-BREAKING; HOLDING post-#49
+## ✅ 2026-07-04 — task#31a (§2.2B host-side transport-* alignment) EXECUTED (incr 1-3; WS gating deferred+flagged)
+- **DONE + pushed on platform-trait** after composer's BRIDGE forward-map ruling (ae78be3) cleared gate (1) and
+  auto-compact cleared gate (2). Commits: `fe61de1` (incr 1-2: Cargo.toml transport-* namespace + retag 18
+  ble/lora cfgs → transport-ble/transport-lora + legacy aliases) + `9d91507` (incr 3: compile-gate UdpLan under
+  transport-udp — field/init/setter/Wifi-routing-arm/word_codes/start_lan_discovery+call-site; default-on to keep
+  the stock hive byte-identical; --no-default-features composes UDP out). Forward-map (each hive-bin transport-* →
+  r2-discovery binding): transport-internet→websocket, transport-udp→udp-lan, transport-ble→ble+bluer,
+  transport-lora→lora; transport-wifi/mesh/usb = host-tier markers.
+- **VERIFIED:** default = 175 tests pass (routing behaviour intact through the Wifi-arm refactor); --no-default-features
+  = clean (UDP composed out; only pre-existing core r2-wire EXT_AUTH_MAX warning); --all-features + --no-default-features
+  --features transport-ble build; legacy --features ble,lora still gate BLE/LoRa in. Hygiene exit 0 each commit.
+- **WS/transport-internet DEFERRED (flagged to supervisor):** WS is the Linux ALWAYS-ON base bearer — ws_transport is a
+  NON-Option field with 17 use-sites across 5 modules (hive.rs/main.rs/compat/handshake.rs/mgmt/primitive.rs). Compile-
+  gating it (Option-ify + cfg all 17) is a separate larger pass, not "the last host-tier piece". `websocket` stays
+  unconditional on the r2-discovery dep; transport-internet documents the correspondence. My approved RESUME fallback
+  sanctioned this deferral. Supervisor to rule: accept WS-always-on for the host tier, or schedule the 17-site pass.
+- **DO-NOT-ASSUME:** the 2 warnings under feature-on builds (LoRa unreachable-stmt main.rs:865; core EXT_AUTH_MAX) are
+  PRE-EXISTING, not mine. random_rbid/active_plugins carry allow(dead_code)/allow(unused_mut) (conditionally used by
+  transport-setup paths). task#31b (dfr1195 BOARD esp-hal radio-gating) remains POST-#49 (untouched — board build/#49 safe).
+
+## 🔵 2026-07-04 — task#31 (§2.2B build-time transport composition) — background/plan (superseded by the EXECUTED entry above)
 - **Core landed §2.2B** (r2-core 5f7a0b2, present in local r2-core HEAD 5e22766): r2-transport now has 7 build-time
   features — transport-ble/wifi/lora/internet/usb/mesh/udp — + a `compose` empty-set-guard marker; **default = none**.
   `HostUdpRadio` is now gated behind `all(std, transport-udp)` (core flagged this as breaking IF a consumer uses it).
