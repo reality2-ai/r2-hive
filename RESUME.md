@@ -13,9 +13,41 @@
   + gate the currently-UNGATED spawns (`UdpLanTransport` hive.rs:11 → `transport-udp`; `WebSocketTransport` hive.rs:10 →
   `transport-wifi`/internet). 6 of the 7 features are pure markers (bearers are hive's). Feature NAMES now fixed by core,
   so composer-coordination on naming is largely resolved.
-- **POSTURE: HOLDING** — reported unblocked+scoped to supervisor (delivered) + core (queued); per the standing post-#49
-  steer I did NOT start the refactor unilaterally. Will pick it up if the supervisor pulls it forward. Ground-truth-first
-  discipline applied: verified the breaking-change claim against the actual build BEFORE acting (no thrash, no premature edit).
+- **POSTURE: PULL-FORWARD APPROVED for task#31a (HOST-side), edits held on 2 gates.** Supervisor (2026-07-04) said pull
+  task#31 forward as good use of bench-gated idle, split by SAFETY: **(a) 31a = HOST-side wiring — DO NOW:** align hive-bin
+  ad-hoc feature-gates to core transport-* + gate the ungated UdpLan + WS spawns. Safe (host/wasm only; does NOT touch the
+  dfr1195 board build or #49 staged state). **(b) 31b = dfr1195 BOARD esp-hal radio-gating — KEEP POST-#49** (touches the
+  board build #49 is mid-flight on). Stay #49 FIRST-RESPONDER — drop 31a the instant Roy's serial lands. Show uncommitted +
+  hosted-verify(hygiene) per posture. **HELD on: (1) composer's feature-naming answer (asked — off-thread reply pending;
+  composer is the contract owner); (2) ~80% ctx — supervisor advised fresh headroom before the substantial edit.**
+- **task#31a EXECUTION PLAN (self-contained — a fresh context can run this once composer answers):**
+  Two parallel feature systems: core `r2-transport/transport-*` (§2.2B markers; 6 of 7 pure) + `r2-discovery`'s own binding
+  gates (`websocket`/`mdns`/`udp-lan`/`ble`/`lora`). Each hive-bin `transport-*` feature must map to BOTH.
+  - **CURRENT STATE:** Cargo.toml:27 `r2-discovery = {…, features=["websocket","mdns","udp-lan"]}` — WS+UdpLan compiled
+    UNCONDITIONALLY. hive-bin features (Cargo.toml:65-70): default=["cloud"], cloud=[], lan=[], ble=["r2-discovery/ble",
+    "dep:bluer"], lora=["r2-discovery/lora"]. Spawn sites: WS = `WebSocketTransport::new(4096)` hive.rs:230 (NON-Option
+    field ws_transport hive.rs:123 — ALWAYS present); UdpLan = main.rs:591 set_udp_transport (Option field hive.rs:126,
+    runtime --lan gated, compile-ungated); Ble = main.rs:679/697 (cfg feature="ble", field hive.rs:130); Lora (feature="lora",
+    field hive.rs:134).
+  - **EDITS (default plan; adjust to composer's naming ruling):**
+    1. Cargo.toml [features]: add `transport-internet=["r2-discovery/websocket"]`, `transport-udp=["r2-discovery/udp-lan"]`,
+       `transport-ble=["r2-discovery/ble","dep:bluer"]`, `transport-lora=["r2-discovery/lora"]`; markers-only
+       `transport-wifi`/`transport-mesh`/`transport-usb` (no hive binding yet — wifi≈SoftAP-UDP, confirm w/ composer).
+       Optionally add `r2-transport/transport-*` to each for contract-completeness (hive-bin's r2-transport dep is
+       default-features today). Keep LEGACY ALIASES `ble=["transport-ble"]`, `lora=["transport-lora"]` so callers/CI unbroken.
+       Remove `"websocket"`,`"udp-lan"` from the line-27 unconditional list (keep `"mdns"`); set
+       `default=["cloud","transport-internet","transport-udp"]` to PRESERVE current always-on WS+UDP behaviour.
+    2. hive.rs: cfg-gate udp_transport field(126)+setter(300) under feature="transport-udp"; ws_transport — TRICKY (non-Option,
+       used widely): gate field(123)+ctor(230) under feature="transport-internet" and audit every ws_transport use (Option-ify
+       or cfg). If WS-gating proves too invasive for 31a, keep WS always-on as the base bearer and gate only udp/ble/lora +
+       ADD the transport-internet feature name as a no-op alias — flag the deviation to supervisor.
+    3. main.rs: gate UdpLan block(591) under transport-udp; retag Ble(679/697) feature="ble"→"transport-ble" (via alias, no
+       behaviour change); gate the WS spawn under transport-internet.
+  - **VERIFY:** `cargo check -p r2-hive` for feature combos: default (WS+UDP), --no-default-features + each transport-* alone,
+    all-transports; hygiene gate; commit incrementally (Cargo.toml+aliases first = safe no-op, then spawn gates).
+- **31a SAFETY INVARIANTS (do-not-assume):** host/wasm ONLY — do NOT touch dfr1195-fw or the #49 staged ELF (fde30090 on
+  Alfred, dfr1195-fw 3aae196). The board esp-hal radio-gating is 31b, explicitly POST-#49. Legacy ble/lora aliases MUST stay
+  so no existing build/CI invocation breaks.
 - Memory: [[transport-composition-2-2b]]. Core FYI on r2-wire #wifi ttl 5→1 (6c47ed1) also handled — no hive #wifi encoder,
   no ttl=5 #wifi test; non-issue (acked to core).
 
