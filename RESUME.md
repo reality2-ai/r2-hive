@@ -43,8 +43,17 @@
   with SINGLE-key nodes (a node relays a foreign-TG frame TG-agnostically + its deliver-gate drops it). Multi-device
   multi-TG = the ratified multi-PROCESS pattern (§13.2/13.3 = N isolated hives), not one hive holding N keys. (specs
   drafted docs/proposals/MULTI-TG-RELAY-AUTHENTICATE.md, uncommitted.)
-- **✅✅ #26 flood-under-reach — CLOSED as NO BUG (specs §8.4 ruling fa0ac1f, 2026-07-04):** k=3 spray for an ORDINARY
-  broadcast is CORRECT-BY-DESIGN. K is an ORIGINATOR strategy choice (§8.4 item 1), NOT derived from target=0; flood
+- **⚠ #26 flood-under-reach — RE-OPENED: core-vs-specs CANON CONFLICT (2026-07-04); HELD at k=3, NOT thrashing.**
+  core relays 'specs ruled Option A — R2-ROUTE §4.5 (R2-ROUTE.md:892) Broadcast target=0 = Always flood = K=15; your
+  k=3 is a HIVE BUG; fix target==0 → FLOOD_SENTINEL_K.' BUT specs' DIRECT ruling (fa0ac1f) + supervisor relay say
+  '§8.4 K=originator-choice, spray-K correct, REVERT.' These CONTRADICT (§4.5-always-flood vs §8.4-originator-K).
+  CRUX asked to specs: does §4.5:892 'Always flood' mean K=15 full-reach (core → k=3 is a bug) or flood-CLASS routing
+  with the originator's spray-K (specs → k=3 correct)? **HELD at k=3 (reverted, clean tree) until specs+core give the
+  SINGLE reconciling ruling — will NOT flip-flop on contradictory relays.** The 1-liner fix (target=0 → FLOOD_SENTINEL_K)
+  is READY + empirically verified (floods C,E,F) if §4.5 governs; else stay k=3. NEXT: apply-or-hold on specs' reconcile.
+  do-not-assume: this is a canon-internal §4.5-vs-§8.4 conflict, not my error — my code trace (k=3→forwarded_k=1) stands
+  either way; only the canon question 'should target=0 auto-set K=15' is open.
+- **(prior, now-contested) closure attempt (specs §8.4 fa0ac1f):** k=3 spray for an ORDINARY broadcast is CORRECT-BY-DESIGN. K is an ORIGINATOR strategy choice (§8.4 item 1), NOT derived from target=0; flood
   (k=15/FLOOD_SENTINEL_K = full-mesh reach) is RESERVED for GROUP_MGMT + critical broadcasts (item 4), set EXPLICITLY.
   specs REFUTED the supervisor's dedup+TTL-auto-flood lean against the actual §8.4a/§8.4b text (quota scopes flood too).
   ⇒ my candidate auto-promote fix (target=0 → FLOOD_SENTINEL_K) VIOLATED canon → **REVERTED (git checkout lib.rs +
