@@ -36,8 +36,17 @@
     the connect-setup timing window that motivated 2a's deferral); if metal shows it's slow, optimize to Design D (own the
     abs offset via find_partition().offset() + FlashStorage absolute write + a hand-rolled `secbase+len ≤ partition.len()`
     bound). Design is LOCKED → the implementation is now a focused mechanical (but security-critical) write pass.
-  - **BUILD GATE for the impl pass:** xtensa links-green is the gate (firmware builds on Alfred via export-esp.sh per
-    [[dfr1195-firmware-bench-workflow]] — confirm local xtensa build capability first, else write-careful + stage for Alfred).
+  - **BUILD GATE — CHARACTERIZED (2026-07-04):** LOCAL `cargo +esp check` WORKS (esp toolchain installed, channel="esp",
+    env sufficient — no export-esp.sh needed for a check). BUT **default features do NOT compile at HEAD 3aae196**: 2 errors
+    at main.rs:1787/1793 — `arrival_transport_of(got.3)` / `got.3`, where the io_task ingress `got` is a FEATURE-CONDITIONAL
+    4-tuple (DATA_RX channel path), but under DEFAULT features `got` resolves to embassy-net `recv_from`'s
+    `Result<(usize,UdpMetadata),RecvError>` (no `.3`). NOT a real-build regression — Alfred builds FEATURE-SETS
+    (field/loraroute/multitg/staota/otal2cap) where `got` is the 4-tuple, and the 3aae196 ELF (fde30090) is staged+green.
+    ⇒ **OtaPlugin verify MUST use a valid feature set incl `otaengine` (e.g. --features otaengine,otal2cap + the radio/mesh
+    set), NOT default.** First step of the write pass: confirm a valid feature set `cargo +esp check`-compiles locally, then
+    write OtaPlugin behind `otaengine`, check-green, then peer-refute, then stage for Alfred/Roy metal. (Minor papercut: the
+    default-feature build break — the io_task ingress `got` type should be made feature-consistent or the `.3` access
+    cfg-gated; low-pri, real builds unaffected; can clean it in the same write pass since it's the firmware I'm touching.)
   - Command mapping: OST/ODT/OCM/ABORT → either a PluginCommand u8 (1/2/3/4) with the 3-byte tag stripped, or keep the ASCII
     tag inside `data`. Decide at impl. Register on the INCR-1 EventBus (register_plugin). Gate behind `otaengine` (+ maybe a
     new `otaplugin` feature) so default/otal2cap builds are unaffected; xtensa links-green is the gate.
