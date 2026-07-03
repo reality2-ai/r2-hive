@@ -54,7 +54,11 @@
   1-line hive fix (build_frame sets FLOOD_SENTINEL_K for target=0). If spray-K intended → k=3 correct + my test just
   needed a k=15 frame = NO bug. HOLDING for core/specs canon on broadcast-K semantics. Bridge relay/dedup/bidirectional
   STAND (reached the 1 sprayed neighbour). do-not-assume: earlier 'best_transport(E)=None' / 'bearer collapse' framings
-  below are SUPERSEDED.
+  below are SUPERSEDED. **Trace VERIFIED end-to-end** (encode_frame arg8 IS k, lib.rs:786; build_frame passes 3;
+  sync_host:218 k=header.k; hop.rs forwarded=k/2; engine.rs:841 truncate). **HELD 2 no-op directives** (bearer fan-out
+  + core's relayed seed-fix) — both superseded by ground-truth traces; supervisor confirmed the discipline. I ALREADY
+  seed Direct(0.9), so the seed-fix is a no-op; the cause is k=3. NEXT once canon rules broadcast-K: if flood →
+  build_frame sets FLOOD_SENTINEL_K for target=0 (1-line, show uncommitted); if spray-K intended → no bug.
 - **⚠ (SUPERSEDED framings, kept for the audit trail) SEPARATE REAL GAP — earlier layers:**
   - **DECISIVE (2026-07-04): fleet converged on 'your UdpBearer collapses core's N hops → fix fan-out' + specs LANDED
     §2.6.1a (ff5555c: unicast bearers MUST iterate the full PeerMap). BUT my evidence CONTRADICTS that for MY bug.**
