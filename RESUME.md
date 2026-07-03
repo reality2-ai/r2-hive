@@ -62,9 +62,18 @@
 - **BONUS (core flagged, I VERIFIED in my shipped build — not just core's HEAD):** `handleRx`→`handle_rx_frame`
   →`plan_forward`, so the theater wasm now ALSO enforces §8.4a size cap + §8.4b per-origin quota
   (`DropReason::OriginQuotaExceeded`, r2-route engine.rs:717) on the broadcast-relay path = free amplification
-  defense. `ba243ca` + `bc158ab` both PRESENT in local r2-core (497aad9+). OBSERVABILITY NUANCE for a future
-  amplification-defense theater ARM: the hook is `relay_on` flipping to 0 under quota — the wasm relay path is
-  NOT yet exercised (my 700 test only hit the deliver path); offered composer to wire+verify that arm on request.
+  defense. `ba243ca` + `bc158ab` both PRESENT in local r2-core (497aad9+). §8.4b amplification-defense ARM
+  now **WIRED + VERIFIED** (composer took the offer; test `handle_rx_broadcast_relay_respects_8_4b_origin_quota`
+  + node smoke through the real wasm f1b821e9). RECIPE: `handleRx`'s DataPlane engine is SEPARATE from
+  `route_frame`'s → seed a viable relay TARGET via an UNVERIFIED heartbeat (unkeyed peer's `build_heartbeat`
+  is unsigned → HB path `ingest_observation` → provisional conf ≤0.6 > the 0.1 forwarding floor); the target
+  must DIFFER from the flood origin (F2 source_hop exclude); then flood authenticated broadcasts (target_hive=0)
+  from one origin — 5 relay (`ORIGIN_QUOTA_CAPACITY`), the 6th → `OriginQuotaExceeded` ⇒ `relay_on:0`, a 2nd
+  origin still relays (per-origin isolation; refill 1/12s so keep `now` fixed). Uses ONLY already-exported
+  methods ⇒ NO new artifact (f1b821e9 already has handleRx+build_heartbeat+build_frame). **task#32 FLAG:** a
+  KEYED same-TG HB does NOT seed via handleRx — `build_heartbeat`'s hive_id-BE32 payload fails the §12.6
+  `parse_seq` the VERIFIED-liveness (`accept_keepalive`) path needs; only the unverified `ingest_observation`
+  path forms the link. When the wasm/firmware fully adopt handle_rx_frame, the HB/keepalive must be §12.6.
 - Clean close on the **wasm half of #32**; task#32 (firmware io_task→r2_dataplane) is the parallel migration this de-risks.
 
 ## ✅ 2026-07-03 — core UNBLOCKED the WS-binding HOLD → verified already-converged + closed the last drift-gap

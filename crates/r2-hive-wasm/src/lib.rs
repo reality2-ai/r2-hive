@@ -975,6 +975,46 @@ mod tests {
         assert!(r3.contains("\"deliver\":false"), "authenticated duplicate is deduped: {r3}");
     }
 
+    #[test]
+    fn handle_rx_broadcast_relay_respects_8_4b_origin_quota() {
+        // §8.4b amplification-defense arm (the free bonus: handleRx→handle_rx_frame→plan_forward). With a
+        // VIABLE relay neighbour seeded, an authenticated BROADCAST relays (relay_on != 0). One origin may
+        // burst ORIGIN_QUOTA_CAPACITY (=5) broadcasts; the 6th exhausts its per-origin token bucket →
+        // Drop(OriginQuotaExceeded) → relay_on flips to 0. A SECOND origin still relays (per-origin
+        // isolation). Exercises the wasm RELAY path (the 700 test only hit deliver — hence composer saw
+        // relay_on:0 with no neighbours). Recipe is the answer to composer's "how do I make relay_on true".
+        let hk = [7u8; 32];
+        let tg = 0x04bc_57e7u32;
+        let now = 2000.0; // fixed now_s=2 for the whole test ⇒ the 12s-refill bucket never refills mid-test
+
+        let mut node = WasmHive::with_group_hmac(0x1000_0001, &hk, tg);
+
+        // Seed a viable relay TARGET via an UNVERIFIED heartbeat: an unkeyed peer's build_heartbeat is
+        // UNSIGNED, so handle_rx_frame's HB path forms the routing LINK via ingest_observation (provisional,
+        // confidence ≤0.6 > the 0.1 forwarding floor). NOTE for task#32: a KEYED same-TG HB would NOT seed
+        // here — its hive_id-BE32 payload fails the §12.6 parse_seq the VERIFIED-liveness path needs.
+        let nbr = WasmHive::new(0x2000_0002);
+        let hb = nbr.build_heartbeat(1);
+        let _ = node.handle_rx(&hb, -55, 2, now);
+
+        let hash = 0x608f_02f8u32;
+        let mut relays = |node: &mut WasmHive, origin: &WasmHive, msg_id: u32| -> bool {
+            let f = origin.build_frame(0 /* broadcast (target_hive=0) */, hash, b"x", msg_id);
+            !node.handle_rx(&f, -55, 2, now).contains("\"relay_on\":0,")
+        };
+        let o1 = WasmHive::with_group_hmac(0x3000_0003, &hk, tg);
+        let o2 = WasmHive::with_group_hmac(0x4000_0004, &hk, tg);
+
+        // Origin o1: the 5 broadcasts within the burst allowance all relay…
+        for i in 0..5u32 {
+            assert!(relays(&mut node, &o1, 0x1_0000 + i), "o1 broadcast {i} should relay (within §8.4b quota)");
+        }
+        // …the 6th exhausts o1's per-origin bucket → OriginQuotaExceeded → relay suppressed.
+        assert!(!relays(&mut node, &o1, 0x1_00FF), "o1 6th broadcast must be §8.4b quota-dropped (relay_on 0)");
+        // Per-origin ISOLATION: a fresh origin o2 still relays from its own full bucket.
+        assert!(relays(&mut node, &o2, 0x2_0000), "o2 (fresh origin) still relays — quota is per-origin");
+    }
+
     // Real R2-WIRE extended frame builder (mirrors r2-hive-core's sync_host test).
     fn ext_frame(origin_hive: u32, target_hive: u32, ttl: u8, k: u8, msg_id: u32) -> Vec<u8> {
         use r2_wire::{
