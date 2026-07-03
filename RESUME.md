@@ -5,9 +5,10 @@
   hosted CI (public-content-hygiene) green. 3 greenlight conditions MET:** (1) CI green post-push (ci.yml is
   main-only; my change is JS/Rust-neutral; node bridge test validated on Alfred like the sibling ws-mesh tests);
   (2) #49 staged state INTACT (dfr1195-fw 3aae196, ELF fde30090 — the wasm commit touched only ws-mesh/); (3) specs
-  FLAGGED — specs' AB-004 challenge triggered a discriminator that CORRECTED the finding to RELAY-TARGETING
-  exclusion + surfaced an open multi-TG tension (see below; second fleet-ask out for specs' ruling). BIDIRECTIONAL
-  proven (WS↔UDP both ways). Commits: a382f47 + 2a53111 + 856f176 (mechanism correction + discriminator probe).
+  FLAGGED — specs' AB-004 + §13.2 challenges drove 3 refutations that FULLY COLLAPSED the "security-positive" finding
+  to a benign FLOOD-UNDER-REACH (see below); specs also RULED the multi-TG question (not needed). BIDIRECTIONAL
+  proven. Commits: a382f47 + 2a53111 + 856f176 + 52262f0 (bridge + bidirectional + 2 discriminator probes + the
+  finding-collapse correction). The bridge's relay/dedup/bidirectional results STAND; only the D-isolation reading was wrong.
 - **Context:** while #49 is Roy-gated (bench trip, indefinite — I stay first-responder on the serial), supervisor
   cleared me to advance the non-#49 wasm track (#26). Standing posture: DEVELOP but HOLD commit/push/hosted-green
   until greenlight; spec-first. The #26 NEXT was the heterogeneous cross-transport TG-mesh bridge (WS+UDP+carrier
@@ -26,19 +27,27 @@
   UDP-only) same TG; D wrong-key. Topology IS the proof (A↔C share no direct transport).
 - **LOCAL-GREEN + REFUTATION-TESTED (node v25.8.1 on Alfred):** `node bridge-test-mesh.js` PASS. C received=6/
   delivered=5 ⇒ cross-transport relay + dedup-survives-hop both proven. Existing udp-test-mesh.js still PASS.
-- **⚠ D-ISOLATION MECHANISM — TWICE-CORRECTED (do-not-assume; final = RELAY-TARGETING exclusion):** claim v1
-  (D=0 proves the deliver-gate) → REFUTED by brRelayUdp=5≠10 + a received-vs-delivered probe (D received=0). claim
-  v2 (neighbour-EXCLUSION: D never learned) → REFUTED by specs' AB-004 challenge + my discriminator
-  `bridge-neighbour-probe.js` (856f176): STEP1 shows D DOES form a neighbour link (both C+D in neighbours(),
-  viable:true — formation is TG-agnostic, AB-004 SATISFIED, no regression); STEP2 routes a broadcast → route_frame
-  floods to C ONLY (udp-targets=[0xc3]), NOT D. **FINAL v3 = RELAY-TARGETING EXCLUSION:** D is learned but the flood
-  does not target the unauthenticated neighbour — a layer ABOVE formation. Test comments + output corrected.
-- **⚠ OPEN SPECS TENSION (gates the multi-TG NEXT):** the relay-targeting exclusion is per-NEIGHBOUR-auth. In a
-  multi-TG mesh, bridge B(TG-Y) would see a foreign-TG neighbour M(TG-X)'s announce as UNauthenticated (B lacks
-  TG-X's key) → exclude M from relay → could BREAK cross-TG relay, contradicting AB-003/004 (relay TG-agnostic,
-  zero-key relay). ASKED specs to rule: separate-compatible-axis, or a relay-targeting-auth-gating BUG to flag core?
-  ⇒ multi-TG bridge HELD until specs rules (if forwarding-eligibility is per-neighbour-auth-gated, the multi-TG
-  bridge would need BOTH TG keys, contradicting zero-key relay).
+- **⚠ D-ISOLATION FINDING — FULLY COLLAPSED after 3 refutations (do-not-assume; NOT a security mechanism):**
+  v1 "D=0 proves deliver-gate" → refuted (D received=0). v2 "neighbour-exclusion, D never learned" → refuted by
+  specs' AB-004 challenge + `bridge-neighbour-probe.js` (D DOES form a link — formation TG-agnostic, AB-004 ok).
+  v3 "relay-targeting auth-gate" → refuted by specs' §13.2 ruling (relay CANNOT authenticate — the relay layer is
+  barred from a trust-crate dep) + my CONTROL `bridge-flood-control.js` (52262f0): 3 UDP neighbours
+  C(correct)/E(correct)/F(wrong), all form links, route_frame flood targets [0xc3] ONLY — even the 2nd CORRECT-key
+  neighbour E is NOT reached. **FINAL v4: route_frame emits ONE flood-send per TRANSPORT** (shared-broadcast-bearer
+  model, target=representative); my UdpBearer unicasts to it ⇒ D=0 is FLOOD-UNDER-REACH on a unicast bearer, NOT
+  key-rejection. No security mechanism, no AB-003/004 tension. Test claims corrected (52262f0). Lesson: I over-claimed
+  a security-positive twice; the instrument + specs' challenge caught it both times = conjecture-refutation working.
+- **specs' MULTI-TG RULING (closes the NEXT):** R2-TRUST §2.3 = EXCLUSIVE one-TG membership (hard MUST); relay is
+  UNCONDITIONALLY TG-agnostic (R2-ROUTE §8.1/§13.8.2); R2-RUNTIME §13.2 architecturally bars the relay layer from
+  any trust-crate dep (CANNOT hold a key). ⇒ the multi-TG bridge is NOT needed; the PURE deliver-gate is testable
+  with SINGLE-key nodes (a node relays a foreign-TG frame TG-agnostically + its deliver-gate drops it). Multi-device
+  multi-TG = the ratified multi-PROCESS pattern (§13.2/13.3 = N isolated hives), not one hive holding N keys. (specs
+  drafted docs/proposals/MULTI-TG-RELAY-AUTHENTICATE.md, uncommitted.)
+- **⚠ SEPARATE REAL GAP (routing completeness, not security — asked specs):** route_frame emits one Flooded send per
+  transport with a SPECIFIC target; on a SHARED-BROADCAST bearer (WS/ESP-NOW) the bearer rebroadcasts (correct), but
+  a UNICAST bearer (UDP §4.4) that unicasts to that single target UNDER-REACHES (flood hits only the representative,
+  not all peers). Affects my UdpBearer AND hive-udp.js's relay path. Q to specs: must a Flooded send on a unicast
+  bearer be FANNED OUT to all peers (bearer broadcasts), or should route_frame emit N sends? FIX HELD pending answer.
 - **BIDIRECTIONAL strengthening (2a53111):** post-commit I spotted the test proved only WS→UDP. Added a reverse leg
   (after A's WS readings teach the bridge A is a WS neighbour, C emits on UDP → bridge → relay out WS → A delivers).
   PASS: WS→UDP sends=5, UDP→WS sends=4; C delivered 5 of A's, A delivered 4 of C's; D still 0-received. A real
