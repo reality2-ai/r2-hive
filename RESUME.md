@@ -19,6 +19,35 @@
   quality-override UNCHANGED (my existing faked-distance/quality-override work stands — different axis). READY to
   build post-#49; NON-URGENT — #49 (task#35) first. ACK'd to specs.
 
+## ✅ 2026-07-03 — #49 ATTEMPT 3d: handler-diff CONFIRMS coex by elimination; BOTH board fixes STAGED (not flashed)
+- **HANDLER DIFF (composer+supervisor's requested async action) — DECISIVE, source-only:** the board's 0x00D3
+  OTA-CoC config is BYTE-IDENTICAL to the PROVEN 0x00D2 provisioning CoC. Both use the SAME
+  `L2capChannel::accept(&stack, &conn, &[COC_PSM], &l2cfg)` (main.rs:3058) + SAME `L2capChannelConfig::default()`
+  (3051); the ONLY delta is the `COC_PSM` const value (R2_PSM 0x00D2 vs R2_OTA_PSM 0x00D3, main.rs:3342/3344) + the
+  served fn (both read-first). trouble-host default is HEALTHY (channel_manager.rs:185-202): MTU=P::MTU-6=245,
+  MPS=P::MTU-4=247, initial_credits=L2CAP_RX_QUEUE_SIZE.min(capacity)=NON-ZERO. ⇒ composer's credit/MPS hypothesis
+  REFUTED two ways: config identical between PSMs + provisioning WORKS with this exact default (proven-good). By
+  elimination the ONLY board-side divergence is RUNTIME MESH STATE = **COEX confirmed**.
+- **composer self-corrected + pivoted to coex:** its 'provisioning works on real HW' note attests only the CLIENT
+  connect (ble_l2cap provenance); the R2 lifecycle FORCES provisioning to precede mesh-join (a board is provisioned
+  to GET its TG identity, which it needs to join the mesh) ⇒ provisioning is PRE-MESH ⇒ matches the BLE-only-early
+  model ⇒ does NOT refute coex. Also: client coex-tune NOT viable — bluer has a PHY getter but NO setter, and the
+  7.5ms interval (cocbench's coex-ride) is BlueZ-managed/unsettable. ⇒ the BOARD ESP-NOW-TX-gate is THE fix;
+  composer's client bounded retry (reconnect+re-OST on ENOTCONN) COMPLEMENTS it for residual intermittent gaps.
+- **BOTH BOARD FIXES STAGED (dfr1195-fw, pushed, cargo +esp check green, NOT flashed):**
+  1. **69a2d90** — pre-read HALF-OPEN GUARD: `select(rx.receive, Timer(15s))`; no-OST-in-15s → log + re-advertise
+     (observability/robustness; NO-OP on happy path).
+  2. **3aae196** — COEX MESH-TX-PAUSE (the fix): `espnow_task` tx loop skips the physical BROADCAST send while
+     OTA_ACTIVE (still DRAINS DATA_TX so io_task try_send never backs up). NO-OP outside OTA (OTA_ACTIVE set only by
+     ota_receive_over_coc; OTA ends in reboot+re-beacon). RX stays live. Eviction tradeoff: ~60s TX-mute «
+     NEIGHBOUR_HARD_TIMEOUT 1800s, recovered on post-OTA reboot — acceptable for a deliberate OTA.
+- **NEXT (Roy-at-bench, ONE trip):** flash a fresh otal2cap image built on Alfred at dfr1195-fw HEAD 3aae196 (both
+  fixes) + composer's client bounded-retry build, capture btmon (root) during the push. btmon reason code = now
+  CONFIRMATION: 0x08 supervision / 0x22 LMP-timeout / 0x3E conn-failed ⇒ coex confirmed. If the OST+bulk get through
+  ⇒ #49 UNBLOCKED. do-not-assume: the mesh-pause is a NO-OP if OTA_ACTIVE never sets (i.e. if the CoC drops BEFORE
+  'receiver up') — but attempt-3b proved 'receiver up' DOES print, so OTA_ACTIVE=true is reached before the drop ⇒
+  the gate is active in the exact window that matters.
+
 ## ⚠ 2026-07-03 — #49 ATTEMPT 3c: composer proved divergence is BOARD-SIDE → refined to COEX; pre-read guard STAGED
 - **composer's DECISIVE input:** the CLIENT path is NOT the divergence — provisioning (provision_handshake.rs:396)
   does the IDENTICAL device.connect()+l2cap_connect on PSM 0x00D2 and WORKS on real HW; address type is correct
