@@ -43,8 +43,13 @@
   with SINGLE-key nodes (a node relays a foreign-TG frame TG-agnostically + its deliver-gate drops it). Multi-device
   multi-TG = the ratified multi-PROCESS pattern (§13.2/13.3 = N isolated hives), not one hive holding N keys. (specs
   drafted docs/proposals/MULTI-TG-RELAY-AUTHENTICATE.md, uncommitted.)
-- **✅✅✅ #26 flood-under-reach — FULLY CLOSED, NO BUG (2026-07-04, canon reconciled).** The core-vs-specs conflict
-  RESOLVED: **core WITHDREW its '§4.5:892 target=0 = always-flood = K=15' relay** — it was specs' SUPERSEDED paraphrase;
+- **✅✅✅ #26 flood-under-reach — FULLY CLOSED, NO BUG (2026-07-04, canon reconciled + specs AUTHORITATIVE).** specs'
+  authoritative reconciliation (answering my §4.5-vs-§8.4 ask): **'§8.4 GOVERNS. Hold at k=3 — do not revert [to the
+  k=15 fix]. §4.5 row 4 is an UNDER-SPECIFIED table entry that needs reconciling, NOT a competing authoritative rule.'**
+  ⇒ k=3 correct; §4.5:892 reconcile is SPECS' in-spec task, not mine. My state (k=3, reverted, clean tree) = correct.
+  NB a STALE supervisor 'HOLD your revert' arrived post-resolution (message-queue ordering bug; referenced core's
+  WITHDRAWN §4.5 relay) — SUPERSEDED; I did not thrash. The core-vs-specs conflict RESOLVED: **core WITHDREW its
+  '§4.5:892 target=0 = always-flood = K=15' relay** — it was specs' SUPERSEDED paraphrase;
   specs re-read the committed §8.4 + landed the canonical MUST (R2-WIRE §8.4 v0.31, fa0ac1f). FINAL CANON: **K is
   by-CRITICALITY, NEVER by-target** — an ordinary broadcast (target=0) uses bounded spray K=2-5; flood K=15 is RESERVED
   for GROUP_MGMT/critical + set EXPLICITLY; the relay MUST NOT promote K=15 by target. ⇒ my unconditional k=3 is
