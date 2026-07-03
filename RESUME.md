@@ -40,12 +40,24 @@
   (the MORE COMPLETE mitigation — covers the transfer-window ODT-write stalls too). PROPER (board, needs reflash —
   me): DEFER the eager OtaUpdater::new() (+ move persona/anti-rollback flash reads) off the connect-setup path so
   the read loop starts immediately (no flash before the first rx.receive) → runner not starved during setup.
-- **HOLD (do-not-rush):** the board defer is a borrow-checker-risky refactor of the security-critical async OTA
-  path AND only fixes the setup-window stall (transfer-window ODT-write stalls remain — the client timeout covers
-  those). So HOLDING the board impl pending composer's client-timeout result: if it unblocks #49, the board defer
-  is a robustness follow-up; if not, I implement it (and address the transfer stalls). AWAITING: can bluer set the
-  supervision timeout + the result. Fixed-fw ELF (ab1f1cb6) still valid + staged; the CoC-drop is a SEPARATE seam
-  from the framing (which is proven working).
+- **UPDATE (supervisor): composer FOUND the PRIMARY cause = CLIENT-SIDE** — the btleplug rbid-resolve scanner
+  never stops, so it active-scans hci0 while bluer's L2CAP connect runs on the SAME radio → scan-vs-connect
+  contention → CoC drops right after connect. Board serial fits (no board-side close log). My executor-starvation
+  is a REAL COMPLEMENTARY cause (both drop the CoC). PLAN: composer applies BOTH client mitigations (scanner-stop
+  + longer supervision timeout) → Roy re-runs on the CURRENT board FIRST (no reflash); I stage the board defer IN
+  PARALLEL (apply via reflash only if the client-combo isn't enough). The ODT-write residual means the longer
+  supervision timeout is needed for the transfer regardless.
+- **BOARD DEFER IMPLEMENTED + STAGED (contingency), commit 7a40bed on dfr1195-fw:** the eager `OtaUpdater::new()`
+  is deferred off the connect-setup path — a PRE-READ of the first inbound SDU (its rx.receive await services the
+  BLE runner while the conn stabilises) runs BEFORE the partition-table flash read, so no blocking flash starves
+  the runner during the fragile post-accept window. (Lazy-Option first attempt FAILED the borrow-checker —
+  flash/tbl can't be re-borrowed inside the loop, E0499; the pre-read-then-plain-value approach is clean.)
+  verify-before-write UNCHANGED. Also fixed the stale COC_PLANE label ('control plane'→'OTA receiver' under
+  otal2cap). cargo +esp check GREEN, built on Alfred. **TWO staged ELFs:** ~/r2-dfr1195-weave-fixed.elf (ab1f1cb6,
+  framing-only = the client-combo-test build) + ~/r2-dfr1195-weave-defer.elf (296017c4, framing+defer =
+  contingency). Same persona-preserving app-only flash cmd, just swap the ELF path.
+- **AWAITING:** composer's client-combo result on the current board (scanner-stop + ~6s supervision timeout). If
+  OST gets through → #49 unblocked (defer not reflashed); if not → Roy reflashes 296017c4.
 
 ## ✅ 2026-07-03 — #49 FIXED FW BUILT + STAGED on Alfred (my side DONE; Roy flashes)
 - **BUILT the fixed ELF myself on Alfred** (my worker SSHes to Alfred): `~/r2-dfr1195-weave-fixed.elf`
