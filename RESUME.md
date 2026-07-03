@@ -47,15 +47,21 @@
   one Flooded send per transport with a SPECIFIC target; on a SHARED-BROADCAST bearer (WS/ESP-NOW) the bearer
   rebroadcasts (correct), but a UNICAST bearer (UDP §4.4) that unicasts to that single target UNDER-REACHES (flood
   hits only the representative, not all peers). Affects my UdpBearer AND hive-udp.js's relay path.
-  - **specs hop-4 VERDICT: 'core implementation bug, R2-ROUTE §3.4 settles it, flag to core'** — BUT written against
-    my v3 (auth-gate) framing, before the collapse. My v4 (flood-one-per-transport, control-proven not-auth) reframes
-    the core question, which I sent + clarified to the supervisor (who is looping core; route_frame = core's domain).
-  - **THE PENDING QUESTION (fix location):** is route_frame's one-send-per-transport INTENDED (transport-agnostic
-    shared-broadcast model → the BEARER owns fan-out → fix = my UdpBearer, matching hive-udp.js originate's N-unicast),
-    OR a §3.4 bug (route_frame should emit N sends per viable neighbour → fix = CORE)? route_frame being
-    transport-agnostic argues bearer-fan-out; §3.4 may argue core. HELD until core rules under the corrected framing.
-  - **NEXT (supervisor's steer), both gated on that ruling:** (a) the single-key PURE DELIVER-GATE test (needs the
-    flood to actually reach the foreign neighbour = needs the fan-out fix first); (b) the unicast-bearer fan-out fix.
+  - **CORE TIEBREAKER (2026-07-04): core's flood IS all-viable + TG-agnostic** (regression test
+    `flood_relay_is_tg_agnostic_includes_unverified_neighbour`, r2-route tests.rs:1820 — floods authenticated C AND
+    unverified D). So the D-exclusion is definitively HIVE-SIDE, and 'flood-one-per-transport' was MY layer's under-reach.
+  - **ROOT-CAUSE NARROWED (5a5c792) — it is NOT a bearer fan-out issue:** ruled out both my layers — CaptureTransport::send
+    APPENDS (lib.rs:169) + my sync_host Flood loop iterates ALL hops (sync_host.rs:243-253). route_frame FULL sends =
+    ONE {kind6,target:C}; E/F absent on EVERY kind ⇒ `plan_forward` returned exactly 1 Flood hop, despite neighbours()
+    showing C,E,F all viable:true conf 0.5. Per engine.rs:816-835 (is_viable + best_transport gate), E/F pass is_viable
+    (viable:true) → so **best_transport(E/F)=None while best_transport(C)=Some, with IDENTICAL seeding** (my sync_host
+    ingest_observation: Direct(0.9), **rssi:None**, Mesh/6). core's passing all-viable test seeds Direct(1.0)+**rssi
+    Some(-40)**+Lora. ⇒ the FIX is upstream (engine seed path / best_transport sensitivity), NOT my UdpBearer; the
+    specs FAN-OUT-CONTRACT question is likely MOOT (if plan_forward returns all hops, my existing code delivers all).
+  - **ASKED CORE (core↔hive direct, took up their offer):** why best_transport asymmetrically drops the 2nd/3rd
+    same-quality neighbours; suspect rssi:None vs Some(-40) or Direct 0.9-vs-1.0 in the sync_host seed. HELD pending
+    core. **NEXT (once core pinpoints):** likely a 1-line sync_host.rs ingest_observation fix (rssi/quality) → then the
+    single-key pure-deliver-gate test becomes possible (flood reaches the foreign neighbour → deliver-gate drops it).
 - **BIDIRECTIONAL strengthening (2a53111):** post-commit I spotted the test proved only WS→UDP. Added a reverse leg
   (after A's WS readings teach the bridge A is a WS neighbour, C emits on UDP → bridge → relay out WS → A delivers).
   PASS: WS→UDP sends=5, UDP→WS sends=4; C delivered 5 of A's, A delivered 4 of C's; D still 0-received. A real
