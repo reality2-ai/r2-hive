@@ -1,5 +1,15 @@
 # RESUME — r2-hive (hive-worker)
 
+## 📋 2026-07-04 — QUEUED FOLLOW-ONS (behind #49 first-responder > INCR-2 OTA plugin; do NOT context-switch)
+- **PRIORITY ORDER (supervisor): #49 first-responder > INCR-2 OTA plugin > these follow-ons.**
+- **deliver→effect ASSEMBLY (hive half; core landed the MECHANISM fbee20d, CI-green):** core added `RxDisposition.deliver_group`
+  {Unattributed / OwnGroup / Peering(u8)} (surfaces WHICH key verified) + `IdempotencyGuard<64>` in r2-engine (effect-layer,
+  ABOVE the ~60s route dedup). MY ASSEMBLY: build the `DispatchEnvelope` populating `trust_group [u8;8]` from deliver_group
+  (own TG_PK / self-knowledge) + call `IdempotencyGuard` BEFORE the sentant handler + wire the sentant effect. Per the
+  core-mechanism / hive-assembly per-gap split. No rush — AFTER OTA + #49.
+- **wasm-OTA design question = ✅ ALREADY ANSWERED (8ceb4c6, delivered to supervisor last turn)** — confirmed shared
+  OtaSentant + platform sink backend; wasm = verify+stage only. If a re-ask lands it's a crossed/stale message. [[ota-per-platform-sink]]
+
 ## 🔧 2026-07-04 — FIRMWARE TRACK RESUMED (Part D2 / task#7) — greenlit; NEXT = INCREMENT 2 (OTA PLUGIN), design grounded
 - **Supervisor GO** (TN design ratified, impl greenlit, order core→hive→composer). Doctrine (re-stated): integrate core's
   no_std crates (r2-engine + r2-update — do NOT reimplement); core platforms/esp32 + workshop firmware = PATTERNS only;
