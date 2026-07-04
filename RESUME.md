@@ -236,6 +236,22 @@
   reality): drag → VDIST peer t range (VBLK beyond max; VMASK whole-radio) → board RouteEngine → rt.nbr confidence/viable shifts next
   cycles → UI renders the BOARD'S truth, never its own model.** Non-aggregation (§6A.2): bench-scoped only, viz never in a field image.
 
+## 🛤️ 2026-07-04 — QUEUED (task #40): TrailReinforcer → wasm/sync rx path (supervisor; spec-first; SEAM-AGREE WITH CORE FIRST)
+- **WHY:** composer's bidirectional probe (8 rounds A↔D line): paths() EMPTY on all wasm nodes under ANY traffic — CONFIRMED in-repo
+  (zero call sites for note_forwarded/on_received/reply_marker/record_indirect in my crates; sync_host rx = only ingest_observation
+  (sync_host.rs:182) + plan_forward (:198)). A tier that can never narrow can't falsify §4.3/§4.5 in sim → breaks "everything above
+  radio = real both tiers". Canon: R2-ROUTE §4.3.4 (reply = strong trail + weak reverse record_indirect α=0.05) + §4.5.
+- **GROUNDED INTEGRATION POINTS:** (i) on_received(&mut engine, originator, payload, immediate_source, now) after the neighbour-observe
+  (~:190); (ii) note_forwarded(originator, msg_id) at match advice.action forward arms (:234+); (iii) reinforcer state = WasmHive field
+  → route_inbound_sync signature change (my crates); (iv) wasm replyMarker export (core's trail.rs:194 helper) for composer reply sends.
+- **★ API-SEAM CATCH (blocks coding, sent to core):** trail.rs is u16-msg_id era (note_forwarded(origin,u16); parse_reply_marker→(u32,u16))
+  but header.msg_id = u32 since F3 — truncation would REINTRODUCE the F3 collision class. Asked core: bump trail.rs to u32 (my pref;
+  marker is text so wire survives) vs truncate; + CAP/set_effective_cap policy for wasm (trail.rs:275: small-CAP fails to converge
+  silently); + what remains of core's earlier bounded-check note; + whether to fold the 2 pre-existing same-function flags (sync_host:206
+  arrival_transport/§2.3B, :216 authenticated/A1) into this pass. **HOLDING code until core's split-ack + msg_id ruling.**
+- **ACCEPTANCE:** TN-L1-IT-BL-100 flood-then-converge IN WASM (reply:true → later directed sends; copy_count 0 at off-path node) + weak
+  toward-origin trails one-way; then wasm bump for composer. Spec-first if any canon reading needed (e.g. if the u16 marker is ratified).
+
 ## 📋 2026-07-04 — QUEUED FOLLOW-ONS (behind #49 first-responder > INCR-2 OTA plugin; do NOT context-switch)
 - **PRIORITY ORDER (supervisor): #49 first-responder > INCR-2 OTA plugin > these follow-ons.**
 - **deliver→effect ASSEMBLY (hive half; core landed the MECHANISM fbee20d, CI-green):** core added `RxDisposition.deliver_group`
