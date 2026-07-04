@@ -125,6 +125,14 @@
   **+ MASK forwarding (d2a7a6a, sha e7fd1e6a…):** the fork-specified SENDTO+MASK pair complete — MASK <mac>… (≤8, routetest
   can_hear topology shaping, NVS-persisted, main.rs:4337) same guard; MASK-SET + NVS-restore acks forward (match-tested, no
   VMASK collision). ONE re-scp = four fixes (DTR + ack + SENDTO + MASK). Composer redeploys at Roy's acceptance window.
+- **🔎 ACM3 IDENTITY READ (supervisor-tasked, 2026-07-05; steady-DTR clean attach, 124 lines/18s, board untouched): #49-board
+  flash = NOT YET HAPPENED.** Decisive: FIRE seq=53103 ≈ 29.5h continuous uptime (flash reboots + resets the counter → nothing
+  flashed today). Old image ALSO emits rt.* (viz) → telemetry-presence is NOT the discriminator on this board; UPTIME is.
+  Persona console-truth = 0x09A07E47 — MATCHES the historical label (this board was NOT in the re-provision wave, unlike D1/D2)
+  + not the clobber fallback (0x005023E4). Healthy: 4 viable nbrs (incl D1/D2 ~0.6 conf), 2 paths; port FREE. **POST-FLASH
+  VERIFY PROTOCOL (standing offer to Roy): I re-run the same 15s read on his word — success = fresh boot banner + beats≈0 +
+  persona still 09a07e47.** My safe-read tooling: vendored pyserial at crates/r2-hive-wasm/carrier-bridge (PYTHONPATH=that dir,
+  `import serial`), stty -hupcl first, dtr=True/rts=False before open.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
