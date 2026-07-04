@@ -59,9 +59,21 @@
   Roy-only. **(2b) HONEST FINDING:** CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE is NOT a simple flag in the no_std esp-hal flow —
   NO sdkconfig (runner = espflash default bootloader; enabling rollback needs a CUSTOM rollback-built bootloader = non-trivial).
   NOT blocking the #49 bench (the OTA'd image is the same known-good firmware → boots fine → my software ota_confirm_or_rollback
-  gate handles the health check). It is a PRODUCTION-HARDENING follow-on (crash-on-boot + the 2a-window brick-safety need the
-  bootloader-level rollback). **AWAITING to fully close INCR-2/#49-fix: (i) core + hive-codex RE-REFUTE the fixed path clean,
-  (ii) then Roy benches ELF 29e250cf.** ALSO recommended to supervisor: core add an xtensa
+  gate handles the health check). It is a PRODUCTION-HARDENING follow-on.
+  **★ 2a CORRECTED (core follow-up refute — I OVERCLAIMED "2b closes 2a"):** the window slot inherits a NON-New ota_state
+  (set_current_app_partition ota.rs:236 reads the OTHER otadata slot + overwrites only ota_seq+crc → inherits its historical
+  Valid/Undefined state, never New) → the standard bootloader arms rollback on New→PendingVerify ONLY → a Valid-inheriting
+  window slot boots CONFIRMED = NO rollback armed → 2b does NOT reliably close the window. The 2a window SPLITS: (a)
+  BOOTS-BUT-UNHEALTHY = closable NOW at APP level (fix-1 stages OTA_PENDING BEFORE activate so the record SURVIVES the window)
+  — **FOLLOW-ON FIX (next focused firmware pass): extend write_ota_pending to store the target slot; make
+  ota_confirm_or_rollback_on_boot ALSO health-gate when read_ota_pending().target == the RUNNING partition (distinguishes the
+  2a-window [new slot running + pending] from a pre-activate stale pending [old slot running → line-2782 clear]); a window-boot
+  then health-gates + can software-rollback an unhealthy image even at state Valid.** (b) CRASH-ON-BOOT-in-window = IRREDUCIBLE
+  narrow residual (verified image + crash-on-boot + sub-ms two-write window; bootloader-dependent, uncovered if inherits Valid)
+  — documented honestly, NOT claimed closed by 2b. **#49 BENCH: ELF 29e250cf (fix-1 §5.1) is SUFFICIENT** (the OTA'd image is
+  the SAME known-good firmware → boots healthy → the 2a residual doesn't trigger); the app-level engage + 2b are PRODUCTION
+  hardening, not bench blockers. **AWAITING to close: (i) core + hive-codex RE-REFUTE the fixed path clean, (ii) Roy benches
+  29e250cf. NEXT firmware pass = the app-level running-partition health-gate engage.** ALSO recommended to supervisor: core add an xtensa
   firmware CI job to r2-core ci.yml (esp-rs/xtensa-toolchain action) — no-hosted-CI is a regression risk. Then stage for Roy metal.
 - **★ TRANSPORT-FEED DESIGN + 2 findings (2026-07-04; implementation-as-refutation):** (F1) `SignedOtaApply` MUST be driven in a
   SINGLE-FUNCTION streaming loop — it borrows `&mut sink` and `finish` consumes it (core apply.rs:165-174) → it CANNOT be held
