@@ -1,6 +1,27 @@
 # RESUME — r2-hive (hive-worker)
 
-## 🔨 TASK #34 UNDERWAY — increment 1 LANDED (fw ea3d2f0): r2-hw §4.2 bus codec crate, all 4 vectors byte-exact green
+## 🔨 TASK #34: increments 1–3 of 4 LANDED (fw ea3d2f0 → f05e0d3 → a239123, all pushed + xtensa-verified)
+- **inc2 (f05e0d3) — bus plumbing:** `radiofrontend` feature (implies ble + r2-hw). The §4.2 binary decoder rides uart_rx_task's
+  byte stream ALONGSIDE the console line parser (coexistence: provisioning verbs stay alive; frame bytes land in the line buffer
+  as garbage, benign — next newline flushes). bus_tx_task keeps the TX half as the ONLY binary writer: COMPLEX_HIVE_PEER (0,
+  "SENTINEL") at boot, 30 s STATUS (swap-to-zero since-last counters per §4.2), queued ACKs. **TRANSMIT wired for real** (verbatim
+  DATA_TX broadcast, INJECT-parity egress gate under benchdist). CONFIG parses + HW4 reject-unknown-via-ACK; known-but-unwired ids
+  ACK generic-fail (an OK would claim an apply that didn't happen); BEACON_AD/SLEEP/SET_TIMER/READ_LOG → ERR_UNSUPPORTED;
+  unknown CMD → audible reject. **Honest-ACK doctrine throughout — never silent, never falsely-OK.**
+- **inc3 (a239123) — radio-RX → PACKET forward:** espnow_task rx mirrors every over-the-air R2-WIRE frame to the brain through
+  the §8.4-lite pipeline: structural decode_extended (keyless stage 3) + global token bucket 32/s burst 64 (stage 5, sub-token
+  credit preserved). NO trust filter yet (zero TG state by design — brain gates). io_task DATA_RX dual-feed kept until inc4.
+- **inc4 REMAINS:** verbatim BEACON_AD BLE advertiser (cold boot = NOT advertising until first feed — MUST-NOT-originate) +
+  io_task/DATA_RX gate-off (zero key material by construction). **SPEC SEAM found + sent to specs:** v0.4 pins the current/next
+  slots but NOT the trigger by which the keyless front-end knows the RBID epoch boundary arrived (ad_bytes opaque, schedule is
+  brain-side); my inc4 will promote NEXT only on a slot-0 arrival (correct under every reading) pending their pin.
+- **Branch-debt note (pre-existing, NOT mine):** the DEFAULT (no-feature/UDP-infra) build is broken at fw HEAD — `got.3` at the
+  v0.18 arrival-transport seam only exists on the ble DATA_RX tuple (verified present at HEAD~ before my edits). No load-bearing
+  build uses it; fix candidate = infra-path Udp fallback. Every landed increment re-proved the canonical bench set
+  (carrier,multitg,routetest,viz,benchdist,otal2cap) green.
+
+## (superseded by the block above — original increment-1 record kept for the audit trail)
+## OLD: TASK #34 — increment 1 LANDED (fw ea3d2f0): r2-hw §4.2 bus codec crate, all 4 vectors byte-exact green
 - **What landed:** `crates/r2-hw` on the dfr1195-fw branch — no_std zero-dep codec for the R2-HW §4.2 MCU-SBC bus:
   CRC-16/CCITT-FALSE (0x1021/0xFFFF/no-reflect, check 0x29B1 asserted), `encode_frame`, streaming resync `Decoder`
   (tolerates interleaved ASCII console noise — tested), full §5.4 command table (legacy + cohort 0x90–0x9A + BEACON_AD 0xC0),
