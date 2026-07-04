@@ -74,6 +74,13 @@
   read tables — real leak caught); (2) reply key 5 build_class (v0.7: 1=dev; ★ ENUM-ALIGNMENT pending — my beacon proposal used
   0/1/2 with dev=2; asked specs to pin ONE table for both surfaces); (3) CBOR ratified; (4) reply msg_id = reply_msg_id_ext(query)
   MANDATORY (R2-WIRE §4.2.2 partition — even before core's trail.rs header-recognition lands; weak-only-trails seam in canon).
+- **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
+  bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
+  pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
+  the reserved default, never emitted; dev builds MUST write 2; prod builds write nothing). UNIFIED ENUM on both surfaces: reply
+  key 5 amended v0.7's 1=dev → **2=dev** (composer flagged the same discrepancy independently — caught before anyone shipped).
+  LoRa-only-dev gap honestly recorded flagged-not-covered. Beacon-vectors co-bumped 0.22. NOTHING deferred except core's trail.rs
+  header-recognition half. **#41 builds against: §6.1-6.4 + R2-BEACON §7.4 + the v0.8 key maps, SameGroup-only gate, key5=2-dev.**
 - **📐 v0.5 REFINEMENT (specs 8dcc598, Roy): DEV/PROD = WHICH CODE WAS FLASHED → TWO composed images (no dormant dev code in any
   prod build). BEACON DEV-DECLARE CALL (mine, sent): do NOT repurpose §7.2 bit 4 mcu_mode** — audit: zero production emit/read
   (r2-discovery codec+tests only; fw never touches it) BUT it's PRE-ALLOCATED for the custom-sensor MCU-sleeps-SBC signal (flagship
