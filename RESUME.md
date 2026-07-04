@@ -28,9 +28,17 @@
   activate stages seq/floor PENDING, defers durable floor to confirmed-boot = §5.5 anti-brick). Additive behind `otaengine`;
   the #49-staged `ota_receive_over_coc` (otal2cap) UNTOUCHED. VERIFIED xtensa-green: `cargo +esp check --features
   otaengine,routetest` (no new warnings). NB: default features do NOT compile (pre-existing got.3, gated by `routetest`);
-  use a routetest-inclusive set. **NOT DONE (before INCR-2 = done):** (1) transport feed — wire the L2CAP-CoC / bus OST/ODT/OCM
-  stream into ota_apply_signed; (2) EventBus (INCR-1) plugin/sentant registration; (3) **PEER-REFUTE FlashSink** (does it write
-  the right slot? bounds? activate/anti-rollback-defer correct?) — supervisor requires this before "done". Then stage for Roy metal.
+  use a routetest-inclusive set. **★ CLAIM CORRECTION (supervisor, verify-hosted-not-just-local):** this is LOCAL-xtensa-verified,
+  NOT hosted-CI — dfr1195-fw is an EXCLUDED r2-core branch (Cargo.toml:35, xtensa-esp32s3-none-elf), r2-core ci.yml has NO xtensa
+  job → firmware has NO hosted CI. The SHARED SignedOtaApply/ImageSink contract IS hosted-covered (r2-update/tests.rs +
+  r2-hive-core MemSink + wasm ota e2e via MemSink); only FlashSink's esp-specific impl is local-xtensa-only. See [[local-check-vs-hosted-ci]].
+  **NOT DONE (before INCR-2 = done):** (1) transport feed — wire the L2CAP-CoC / bus OST/ODT/OCM stream into ota_apply_signed;
+  (2) EventBus (INCR-1) plugin/sentant registration; (3) **PEER-REFUTE FlashSink — INITIATED (fleet ask core, off-thread,
+  awaiting reply):** attack vectors = wrong-slot / bounds-escape / activate-before-verify / ★ MID-OTA POWER-LOSS BRICK
+  (my activate does activate_next_partition→set New→write_ota_pending; power-loss between op-1 and op-3 boots the new slot with
+  no pending record — maybe write_ota_pending must come FIRST; note: this ordering MIRRORS the proven #49 ota_receive_over_coc
+  OCM, so any finding applies to BOTH — core adjudicates, do NOT guess-fix). ALSO recommended to supervisor: core add an xtensa
+  firmware CI job to r2-core ci.yml (esp-rs/xtensa-toolchain action) — no-hosted-CI is a regression risk. Then stage for Roy metal.
 - **Supervisor GO** (TN design ratified, impl greenlit, order core→hive→composer). Doctrine (re-stated): integrate core's
   no_std crates (r2-engine + r2-update — do NOT reimplement); core platforms/esp32 + workshop firmware = PATTERNS only;
   **implementation-as-refutation** (if no_std/hw refutes a spec claim, surface it → spec re-eval, don't silently work around);
