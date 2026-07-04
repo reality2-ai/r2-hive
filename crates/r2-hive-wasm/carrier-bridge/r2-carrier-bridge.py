@@ -155,6 +155,17 @@ def render_rx(line):
             print(line.strip(), flush=True)
         else:
             log(f"RT {line.strip()}")
+    elif line.startswith("r2-dfr1195: V") and any(
+        line.startswith("r2-dfr1195: " + v) for v in ("VMASK", "VRSSI", "VDIST", "VCLR", "VBLK")
+    ):
+        # Bench-control ACK echo (benchdist verbs — the board confirms each applied
+        # override, e.g. "r2-dfr1195: VMASK tx_allow=0xdf"). Forward as a structured
+        # ack so the theatre can CONFIRM a control took effect (closed-loop drag)
+        # instead of inferring it from the mesh effect alone.
+        if JSON_MODE:
+            jline(kind="ack", line=line)
+        else:
+            log(f"ACK    {line}")
     elif not JSON_MODE:
         log(line)
 
