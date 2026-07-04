@@ -78,6 +78,33 @@
     build_delivery_frame (hive.rs:936, R2-HOST-API §3.2 keys 0-7); new state.deny_inbound; router.rs reject-branch call sites. **BUILD only
     AFTER specs ratifies the contract; then re-verify the emit against specs' committed R2-HOST-API.md before B2b=done.** GREEN routing demo
     lands FIRST (config-only, composer building now); B2b RED is the completing half, NOT a blocker (supervisor + composer: no rush).
+  - **★ SPECS RULING RECEIVED (2026-07-04, via inbox; specs is TOOLING-BLOCKED — Bash-writes + fleet-send + Read need approval that isn't
+    coming, so specs gave the full ruling in TEXT and will land it into R2-HOST-API.md + broadcast when write access returns):**
+    (1) class name r2.api.event.delivery.denied + separate-class + 3-field payload = **RATIFIED as proposed** (matches r2.mgmt.event.error
+    dotted-subclass precedent). (2) reason encoding = **RATIFIED as a TEXT STRING, not int-enum** (grounded in event.error's text error-code).
+    (3) not-emitted-on-relay/transit = **confirmed**. (4) TWO OPEN Qs specs needs FROM ME before it finalizes → **I ANSWERED both from ground
+    truth (queued to specs):**
+  - **★ OQ1 ANSWER — Unauthenticated semantics (r2-wire hmac.rs:366-397, classify_extended_full):** at the CLASSIFIER level `Unauthenticated`
+    = `hmac_tag.is_none()`, checked FIRST + UNCONDITIONALLY (no key-possession dependency) → specs' spec-text reading "no tag" is CORRECT.
+    My "untagged WHILE HOLDING KEYS" was the ROUTER emission precondition, NOT the classifier: the router only INVOKES the classifier when
+    group_hmacs is NON-empty (router.rs:206 — the zero-keys case short-circuits to the separate fail_closed path), so a reason=unauthenticated
+    deny only fires when the hive holds ≥1 key AND receives an untagged frame. Load-bearing operationally (router), not in the classifier.
+  - **★ PRECISE REASON TAXONOMY (corrected specs' slight imprecision; the emit map I will BUILD):** `forgery` ↔ classifier None (tag present,
+    hive HOLDS THAT tg's own key, nothing verifies; router.rs:241); `unauthenticated` ↔ classifier Unauthenticated (no tag, group_hmacs
+    non-empty; router.rs:245); `fail_closed` ↔ hive holds **ZERO** keys group_hmacs.is_empty() && !deliver_unkeyed_open (router.rs:232) —
+    NOT "no key for this specific tg" (specs phrased it "no-own-key" — clarify: fail_closed = zero keys TOTAL). **NOT a deny → NO event:**
+    classifier Relay (tag present, hive holds no key for THAT tg → honest transit) + SameGroup/CrossGroup (deliver = GREEN).
+  - **★ OQ2 ANSWER — my existing build_delivery_frame CBOR key map (hive.rs:952-967), sent specs to pin the numbered table:** key 0=cid(0,
+    notification); 1=sub_id(u64); 2=event_class(text); 3=event_hash(u32); 4=payload(bytes); 5=from_hive(u64); 6=from_tg(bytes, OPTIONAL);
+    7=msg_id(u64). Outer wire header.event_hash = r2_hash of the NOTIFICATION class string. PROPOSED delivery.denied layout (final numbers =
+    specs' call): reuse 0=cid, 2=event_class="r2.api.event.delivery.denied", 3=event_hash(of denied frame if decodable), 5=from_hive, 7=msg_id;
+    ADD target_group(u32) + reason(text) at new keys (proposed 8, 9). sub_id(1)/payload(4)/from_tg(6) likely omitted (a deny is not a per-sub
+    delivery + the forged payload is untrusted) — specs to bless.
+  - **★★ DEMO-CORRECTNESS CATCH (sent composer — prevents a silent no-render RED):** composer said forge "wrong target_group OR wrong HK" to
+    REJECT. But per the classifier, a **WRONG target_group (a tg NO hive holds a key for) → Relay/transit → NO deny → NO RED** (honest
+    non-member relay, correct behaviour). Only **wrong HK on the CORRECT/held shared tg (→ forgery)** OR **untagged on the held tg (→
+    unauthenticated)** produces a real reject/RED. ⇒ composer's forge for the RED must target the SHARED throwaway TG with a bad/absent tag,
+    NOT a foreign target_group. (Without this, the wrong-tg forge renders nothing = re-introduces the absence-inference trap.)
   - **★ B2b IMPLEMENTATION-READY DESIGN (grounded now so build is instant once composer+specs resolve):** add `state.deny_inbound(frame,
     source_hive, reason)` MIRRORING deliver_inbound (hive.rs:438) — decode extended header, extract msg_id + target_group, re-fan to matching
     mgmt-API subscribers as the RATIFIED deny event. Reason enum = {Forgery, Unauthenticated, FailClosed}. Call sites = router.rs reject
