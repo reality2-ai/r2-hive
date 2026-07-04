@@ -153,11 +153,16 @@
   finding-ID convention adopted; verified zero live code identifiers/strings pre-edit → compile-neutral. The
   re-vendor-before-public-artifact constraint is MOOT (branch clean as of this push). Ledger note to core: scrub sweeps must
   grep the WHOLE branch worktree, all file types, not just vendored crate paths.
-- **⚖️ ROUTE-STACK APPEND LABEL = CONTESTED (supervisor-codex, 2026-07-05; recorded WITHOUT a conformance verdict per its
-  directive):** whether the fw relay path's non-appending re-encode conforms to §8.5 is DISPUTED — specs asked to reconcile in
-  one view (resolving the §8.5 inconsistency if they choose SHOULD/ratify-reality). NON-BLOCKING: no immediate reflash; the fix
-  stays as already scoped in task #32 (adopt prepare_relay_extended — TTL--, K-split, route-stack append — next firmware cycle).
-  Do NOT reclassify firmware conformance in durable docs until specs rules.
+- **⚖️→✅ ROUTE-STACK APPEND = RESOLVED (specs authoritative reconciliation, R2-WIRE v0.35 b66f887, 2026-07-05 — supersedes the
+  CONTESTED label):** **(A) governs — the §8.5 item-3 append was ALWAYS a MUST**; the SHOULD/ratify-reality off-thread answer was
+  WRONG (ratify-reality = design-ground refutations only, not explicit load-bearing canon). **dfr1195 = officially NON-CONFORMANT
+  pending task #32** (adopt prepare_relay_extended) — non-blocking, no immediate reflash; fix unchanged from what was scoped.
+  DOUBLY load-bearing: Roy ruled R2-ROUTE v0.64 §4.6.1 — replies MUST retrace the forward path via route-stack reversal +
+  reinforce by RECORDED SUCCESSOR; a non-appending relay silently breaks the retrace for every upstream node. Clarity sentence
+  pinned in §8.5 item 3 (cannot fork again). **HEADS-UP folded into #32: §4.3.3 rescoped — overheard TX MUST NOT create/reinforce
+  path entries; core implements the engine side; fw side arrives via #32's re-vendor (broadcast-medium overhear distinction
+  matters on metal). My landed #40 sync wiring UNAFFECTED today (sim = explicit receptions, no overhear model) — but watch core's
+  engine push heads-up: weak-trail semantics may shift under the rescope (composer's HB-ambient trails calibration could move).**
 - **💡 LED-WATCH: L5 DELIVER-GATE PROVEN on 3/4 boards (Roy observed, composer's signed c0ffee01) — WEAVE bidirectional +
   TG-verified. ONE dark board; I'm standing deliver-gate authority. HYPOTHESIS PRE-POSITIONED (sent supervisor-codex): dark =
   09a07e47 or D4 (both old-persona candidates — 09a07e47 PROVEN not re-provisioned by my console read) → if c0ffee01 is signed
