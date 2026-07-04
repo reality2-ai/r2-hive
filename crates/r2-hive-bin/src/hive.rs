@@ -626,7 +626,7 @@ impl HiveState {
             Transport::Ble,
             Transport::Lora,
             Transport::Usb,
-            Transport::Mesh,
+            Transport::WifiMesh,
             Transport::Udp,
         ];
         let mut order: Vec<Transport> = Vec::with_capacity(Transport::COUNT);
@@ -663,15 +663,16 @@ impl HiveState {
     ) -> bool {
         use r2_route::transport::Transport;
         match transport {
-            // r2-route gained Usb/Mesh/Udp (R2-TRANSPORT §2.2 7-transport canon; Mesh = the v0.18
-            // rename of EspNow, discriminant 5 unchanged). Host-side handling per specs steer (these are
+            // r2-route gained Usb/WifiMesh/Udp (R2-TRANSPORT §2.2 7-transport canon; WifiMesh = the
+            // v0.37 §2.2A rename of Mesh — the "R2-Mesh" proper noun is RETIRED; canonical display label
+            // "wifi-mesh"; discriminant 5 unchanged). Host-side handling per specs steer (these are
             // HOST-IMPL, not spec; conform to the refs when built out):
-            //  - Mesh (R2-Mesh, ESP-NOW ref PHY): correctly UNAVAILABLE on a Linux/cloud host (peer radio) —
-            //    leave stubbed ("not available on this platform", R2-TRANSPORT §2.2 role).
+            //  - WifiMesh (ESP-NOW is the reference PHY): correctly UNAVAILABLE on a Linux/cloud host
+            //    (peer radio) — leave stubbed ("not available on this platform", R2-TRANSPORT §2.2 role).
             //  - Udp: the IP/global transport + the WiFi-UDP critical path — SHOULD become real next
             //    (route via udp_transport, R2-ROUTE §5.7.1 selection); compile-stub false for now.
             //  - Usb: implement the R2-USB framer + R2-PROVISION §5.3.x pairing when built out.
-            Transport::Usb | Transport::Mesh | Transport::Udp => false,
+            Transport::Usb | Transport::WifiMesh | Transport::Udp => false,
             Transport::Internet => {
                 if self.ws_transport.send(hive_id, frame).await.is_ok() {
                     return true;
@@ -1231,7 +1232,7 @@ fn transport_to_caps_kind(
         Transport::Wifi => 3,
         Transport::Internet => 4,
         Transport::Usb => 5,
-        Transport::Mesh => 6,
+        Transport::WifiMesh => 6,
         Transport::Udp => 7,
     };
     TransportKind::Enumerated(id)

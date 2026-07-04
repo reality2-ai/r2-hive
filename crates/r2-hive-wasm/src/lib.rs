@@ -69,7 +69,7 @@ pub fn quality_from_rssi(rssi_dbm: f32) -> f32 {
 }
 
 /// §2.2 medium ids → the canonical [`r2_transport::TransportId`] (single-source; same order as
-/// `kind_from_u8`): 0 Ble / 1 Wifi / 2 Lora / 3 Internet / 4 Usb / 5 Mesh / 6 Udp.
+/// `kind_from_u8`): 0 Ble / 1 Wifi / 2 Lora / 3 Internet / 4 Usb / 5 WifiMesh / 6 Udp.
 fn transport_id_from_u8(k: u8) -> r2_transport::TransportId {
     use r2_transport::TransportId;
     match k {
@@ -78,7 +78,7 @@ fn transport_id_from_u8(k: u8) -> r2_transport::TransportId {
         2 => TransportId::Lora,
         3 => TransportId::Internet,
         4 => TransportId::Usb,
-        5 => TransportId::Mesh,
+        5 => TransportId::WifiMesh,
         _ => TransportId::Udp,
     }
 }
