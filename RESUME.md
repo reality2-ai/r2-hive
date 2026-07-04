@@ -1,5 +1,38 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🛰️ 2026-07-04 — PILLAR 2: REAL LINUX HIVES MOVING REAL DATA (supervisor heads-up; AWAIT composer coordination — do NOT start solo)
+- **Roy's steer:** refutation theatre = his CONFIDENCE surface. He wants REAL r2-hive instances sending REAL data through the REAL
+  transport bridge, observable live, refutations holding on the REAL hives — NOT the in-browser wasm sim. Fastest no-bench path =
+  multiple real Linux r2-hive processes meshing over the WS<->TCP bridge. **composer LEADS the surface; I OWN the hive runtime/data path.**
+  Posture: AWAIT composer's reach-out; scope on request; flag supervisor on any blocker.
+- **★ GROUND-TRUTH SCOUT (done, verify-then-record, 2026-07-04):**
+  - **✅ Real Linux hive IS standable-up NOW (no hardware):** `r2-hive` binary builds+runs (debug binary built today target/debug/r2-hive).
+    Real core stack, NOT a sim: Ed25519-authenticated HELLO/WELCOME handshake (compat/handshake.rs, relay-proto v0.1 single-HELLO OR
+    v0.2 challenge-response, JSON msgs, sig over `<tg>:<device_id>:<timestamp>`) → REAL RouteEngine `router::route_frame` (r2-route) →
+    Local/Flooded + intra-TG enrichment (broadcast_to_tg / flood_tg_peers_not_in) → r2-trust GroupHmac deliver-gate (§7.5.4).
+  - **✅ Headless identity auto-provisions:** mgmt/identity.rs `FileStore::load_or_create` (idempotent mint+persist master secret on
+    first run) → each hive stands up with its own Ed25519 identity, no bench.
+  - **MESH SEAM (composer owns; I supply the contract):** hives are WS SERVERS on `--port`; there is NO hive→hive WS CLIENT in hive-bin
+    (grep confirms only server-side ws_handler + peers().connect for INBOUND). ⇒ meshing = composer's bench-bridge acts as a WS CLIENT to
+    each hive's /r2 and relays frames hive↔hive (+ taps telemetry for live viz). The bridge MUST speak the Ed25519 HELLO/WELCOME handshake
+    with a real identity + the shared throwaway TG.
+  - **★ B1 (CORRECTION — flag if anyone assumes UDP auto-mesh):** UDP-LAN auto-mesh is NOT a working path today. `UdpLanTransport::send`
+    (r2-discovery bindings/udp_lan.rs:77) is UNICAST-ONLY — needs a registered hive_id→"ip:port" peer (else NotConnected); there is NO
+    broadcast/multicast. AND hive-bin's beacon SCANNING + discovered-peer registration is RETIRED (main.rs:667-672; blocked on r2-discovery
+    v0.1 API — UdpBeacon advertiser-only, no add_peer, rbid→hive_id needs a PeerRegistry). beacon EMIT is a scaffold returning Unsupported.
+    ⇒ WS<->TCP bridge is the real path (matches supervisor framing). A `--peer hive_id@ip:port` static-registration flag would make UDP a
+    real 2nd path (small hive-bin add I own) — but not needed if the bridge is WS.
+  - **★ B2 (REAL GAP — most likely to need a small hive-bin build; needs composer design call):** hive-bin has NO first-class form/join
+    throwaway-TG flow (hive.rs:58 "v0.1: populated by future TG creation/join flows"; hive.rs:159 None = detached/no-TG). TG membership
+    today is populated REACTIVELY from a connecting peer's authenticated handshake tg_hash (register_tg_peer). For a clean N-hive real-data
+    bench with the deliver-gate ACTUALLY holding, all hives + the bridge need to share ONE throwaway TG + its GroupHmac HK. Linux analog of
+    task #27 (one throwaway TG). Options to design WITH composer: (a) `--tg <hex>` / `--join <code>` seed flag on hive-bin; (b) composer drives
+    TG formation over the mgmt API/socket; (c) bridge-as-TG-member relays for all. AWAIT composer before building.
+  - **B3 (optional):** if composer wants hives to SELF-mesh without a central bridge, add a `--uplink ws://peer/r2` WS-client to hive-bin
+    (clean, small). Depends on composer's bridge design — do not pre-build.
+  - **bench-mirrors-reality:** LIVE surface must mirror real hive state; sim must NEVER leak into live. (composer's invariant; I keep the
+    hive data path real end-to-end.)
+
 ## 📋 2026-07-04 — QUEUED FOLLOW-ONS (behind #49 first-responder > INCR-2 OTA plugin; do NOT context-switch)
 - **PRIORITY ORDER (supervisor): #49 first-responder > INCR-2 OTA plugin > these follow-ons.**
 - **deliver→effect ASSEMBLY (hive half; core landed the MECHANISM fbee20d, CI-green):** core added `RxDisposition.deliver_group`
