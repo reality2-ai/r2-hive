@@ -67,11 +67,17 @@
     ⇒ **only a structured deliver-gate DENY event counts.** (This CORRECTS my prior guidance to composer that (a) stderr-scrape was real-code
     — it is NOT; propagated the correction.) Net: **GREEN routing demo = config-only + real NOW; the forge-reject RED completes when the
     deny-event lands = both halves real.** B2b = my lane, small, correctly scoped, ENDORSED.
-  - **★ B2b PROCESS (spec-first, supervisor-set order): composer states UX need (shape) → specs RATIFIES the contract (class name/shape) →
-    I build.** A new HOST-API `delivery.denied` (or a `denied` flag on event.delivery) is a SPEC SURFACE — do NOT finalize the class
-    name/shape unilaterally; route past specs (supervisor already gave specs a heads-up). Shape options for composer to choose as consumer:
-    (a) `denied:true` + `reason` field on the SAME r2.api.event.delivery (one subscription sees green+red, flag-distinguished); (b) a separate
-    `r2.api.event.delivery.denied` class. AWAITING composer's shape statement; then specs ratify; then I build. NO build started.
+  - **★ B2b PROCESS (spec-first, supervisor-set order): composer states UX need → specs RATIFIES contract → I build.**
+    **✅ COMPOSER STATED (2026-07-04): SHAPE = a SEPARATE class `r2.api.event.delivery.denied`** (NOT a denied-flag on event.delivery),
+    carrying msg_id + target_group + reason (forgery|unauthenticated|fail_closed), mirroring deliver_inbound. Composer's rationale: a deny is
+    semantically NOT a delivery → distinct class is the honest observable + aligns with the r2.mgmt.event.error precedent; its live view
+    subscribes to delivery + delivery.denied trivially. Composer = consumer only; spec OWNS the class.
+    **→ NOW AWAITING SPECS RATIFY (asked, 2026-07-04):** routed the class name + payload schema past specs (spec surface = R2-HOST-API.md:142
+    event table row + the §3.2 payload-key assignment + a testing/test-vectors/r2-host-api-vectors.json entry; precedent r2.mgmt.event.error
+    EV_ERROR). Build edit-sites already located: new const beside EV_EVENT_DELIVERY (mgmt/api.rs:55); new build_denied_frame mirroring
+    build_delivery_frame (hive.rs:936, R2-HOST-API §3.2 keys 0-7); new state.deny_inbound; router.rs reject-branch call sites. **BUILD only
+    AFTER specs ratifies the contract; then re-verify the emit against specs' committed R2-HOST-API.md before B2b=done.** GREEN routing demo
+    lands FIRST (config-only, composer building now); B2b RED is the completing half, NOT a blocker (supervisor + composer: no rush).
   - **★ B2b IMPLEMENTATION-READY DESIGN (grounded now so build is instant once composer+specs resolve):** add `state.deny_inbound(frame,
     source_hive, reason)` MIRRORING deliver_inbound (hive.rs:438) — decode extended header, extract msg_id + target_group, re-fan to matching
     mgmt-API subscribers as the RATIFIED deny event. Reason enum = {Forgery, Unauthenticated, FailClosed}. Call sites = router.rs reject
