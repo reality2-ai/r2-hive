@@ -37,7 +37,10 @@
   awaiting reply):** attack vectors = wrong-slot / bounds-escape / activate-before-verify / ★ MID-OTA POWER-LOSS BRICK
   (my activate does activate_next_partition→set New→write_ota_pending; power-loss between op-1 and op-3 boots the new slot with
   no pending record — maybe write_ota_pending must come FIRST; note: this ordering MIRRORS the proven #49 ota_receive_over_coc
-  OCM, so any finding applies to BOTH — core adjudicates, do NOT guess-fix). ALSO recommended to supervisor: core add an xtensa
+  OCM, so any finding applies to BOTH — core adjudicates, do NOT guess-fix). **STATUS (2026-07-04): core's verdict ARRIVED
+  off-thread but the fleet INBOX is STALE (recurring bug, newest entries days-old) so the text did NOT surface — re-requested
+  core RE-SEND as a plain in-thread fleet send (readable). AWAITING: (i) core's re-sent verdict, (ii) hive-codex refute
+  (supervisor-routed), (iii) supervisor's transport-feed sequencing call (a dup-now vs b post-#49-unify). All 3 async.** ALSO recommended to supervisor: core add an xtensa
   firmware CI job to r2-core ci.yml (esp-rs/xtensa-toolchain action) — no-hosted-CI is a regression risk. Then stage for Roy metal.
 - **★ TRANSPORT-FEED DESIGN + 2 findings (2026-07-04; implementation-as-refutation):** (F1) `SignedOtaApply` MUST be driven in a
   SINGLE-FUNCTION streaming loop — it borrows `&mut sink` and `finish` consumes it (core apply.rs:165-174) → it CANNOT be held
