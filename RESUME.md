@@ -158,6 +158,13 @@
   one view (resolving the §8.5 inconsistency if they choose SHOULD/ratify-reality). NON-BLOCKING: no immediate reflash; the fix
   stays as already scoped in task #32 (adopt prepare_relay_extended — TTL--, K-split, route-stack append — next firmware cycle).
   Do NOT reclassify firmware conformance in durable docs until specs rules.
+- **💡 LED-WATCH: L5 DELIVER-GATE PROVEN on 3/4 boards (Roy observed, composer's signed c0ffee01) — WEAVE bidirectional +
+  TG-verified. ONE dark board; I'm standing deliver-gate authority. HYPOTHESIS PRE-POSITIONED (sent supervisor-codex): dark =
+  09a07e47 or D4 (both old-persona candidates — 09a07e47 PROVEN not re-provisioned by my console read) → if c0ffee01 is signed
+  with the demo TG hk, an old-TG board CORRECTLY rejects → dark = the gate WORKING (reject renders as nothing until task #33
+  builds the LED trichotomy) = an accidental live RED exhibit. DISCRIMINATOR: composer names the signing TG; dark∈{09a07e47,D4}
+  → config-not-fault (choice: prov2 re-provision into demo TG, or keep as the standing cross-TG-reject exhibit); dark∈{D1,D2} →
+  REAL triage, I dig immediately. Attribution gap = #32 route-stack append (CONTESTED respected) + HB-only peer_mapped — scoped.**
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
