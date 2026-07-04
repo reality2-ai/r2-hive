@@ -87,6 +87,13 @@
   (D1 0x8900955E nbrs=4, conf decaying per beat); rolling to D2. Full pipeline live: adapter + my DTR=1 bridge + RT_FORWARD env.
   THE BENCH VIEW IS LIT with the boards' true route-engine tables = bench-mirrors-reality on screen. No bridge fix needed
   (bonus: my bridge correctly REJECTED the pass-through --rt-forward unknown arg — validation worked).**
+- **⚖️ IDENTITY ADJUDICATED (supervisor ask): verdict (a) — legit re-provision, records stale, NO clobber.** Three legs: (1) DECISIVE:
+  clobber yields the UNPROVISIONED fallback (0x00+mac_low3 + '!! UNPROVISIONED' boot line) — D1 fallback would be 0x00502698 vs actual
+  0x8900955E, D2 0x00B79010 vs 0xB14B07D8 → personas PRESENT+VALID; (2) app-only flash cannot change ids → these ids predate today's
+  flashing; (3) cross-board coherence (same-TG neighbour rows). **NEAR-MISS owned + rule corrected everywhere (triage sheet, bench
+  memory): id-mismatch-vs-records = STALE RECORDS, not clobber; only the fallback pattern = clobber.** New truth table: 50:26:98 =
+  0x8900955E, B7:90:10 = 0xB14B07D8; 480e900e/2cab5f69 RETIRED. Composer reminded to persist the map (board-details policy) + verify
+  the #49 board's/D4's console-truth ids on their post-flash boots (09a07e47 may itself be stale-era — do not assume). Wiring SAFE.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
