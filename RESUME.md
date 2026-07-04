@@ -1,5 +1,15 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔒 is_reply TYPE GATE ABSORBED (2026-07-05, third+final trail step, core 3d43838 codex-HIGH; mine = 4a51717 pushed)
+- Reply-ness now rides the frame TYPE field: on_received gained in-signature `is_reply` (no call site can omit it) — kills
+  the trail-poisoning lever where an authenticated Event with a marker-shaped payload spoofed a retraced reply,
+  strong-reinforced, and CONSUMED a pending forwarded record. My one call site passes `header.msg_type == Reply`.
+- My strong-reinforce invariant test WAS the exact masking (Event-typed reply frame) — switched to MsgType::Reply; it now
+  doubles as the gate's regression falsifier on this tier. 37/37 + 15/15 + wasm32 clean; **wasm 0.6.1** (pkg sha 293f9144…)
+  rebuilt; composer told (its sim replies must be Reply-typed / msg_type 2 or trails converge slower).
+- `reply_marker_auto(origin, msg_id, stack, bearer_budget)` (v0.67 centralized bearer-budget fallback: full marker if it
+  fits, else bare, never truncate — SF10/BW125 = 51 B bites) noted on task #45 for the emit side.
+
 ## 📬 BATCH-2 CLOSURE (2026-07-05 night): #49 correction ACCEPTED both supervisors; ADV theory refuted at source; specs WRITE-DARK (escalated); v0.65 = already aligned; BEACON_AD ruling in hand
 - **#49 SETTLED:** my stale-artifact correction ACCEPTED by supervisor-codex AND supervisor (its 'sign ab1f1cb6' recommendation
   explicitly WITHDRAWN as stale-premise). Standing plan: Roy flashes ACM3 with `~/r2-dfr1195-weave-coex.elf` **29e250cf** (turnkey
