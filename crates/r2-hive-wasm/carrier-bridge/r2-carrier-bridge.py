@@ -155,13 +155,15 @@ def render_rx(line):
             print(line.strip(), flush=True)
         else:
             log(f"RT {line.strip()}")
-    elif line.startswith("r2-dfr1195: V") and any(
-        line.startswith("r2-dfr1195: " + v) for v in ("VMASK", "VRSSI", "VDIST", "VCLR", "VBLK")
+    elif any(
+        line.startswith("r2-dfr1195: " + v)
+        for v in ("VMASK", "VRSSI", "VDIST", "VCLR", "VBLK", "SENDTO")
     ):
-        # Bench-control ACK echo (benchdist verbs — the board confirms each applied
-        # override, e.g. "r2-dfr1195: VMASK tx_allow=0xdf"). Forward as a structured
-        # ack so the theatre can CONFIRM a control took effect (closed-loop drag)
-        # instead of inferring it from the mesh effect alone.
+        # Bench-control ACK echo — the board confirms each applied control
+        # (e.g. "r2-dfr1195: VMASK tx_allow=0xdf", "r2-dfr1195: SENDTO-SET
+        # dest=…"). Forward as a structured ack so the theatre can CONFIRM a
+        # control took effect (closed-loop drag / origin arming) instead of
+        # inferring it from the mesh effect alone.
         if JSON_MODE:
             jline(kind="ack", line=line)
         else:
@@ -234,11 +236,12 @@ def control_reader(router, ser, participate):
                 log(f"CTRL TX> {hexstr[:24]}… (verbatim -> mesh)")
             else:
                 log(f"CTRL TX  {hexstr[:24]}… (read-only; --participate to send)")
-        elif verb in ("VMASK", "VRSSI", "VDIST", "VCLR", "VBLK"):
-            # Carrier-firmware BENCH CONTROL verbs (feature `benchdist`): §2.3A egress mask (VMASK <hex>) +
-            # §2.3C/§2.3B virtual-distance overrides (VRSSI/VDIST/VCLR/VBLK). Forward the raw line VERBATIM to
-            # the carrier serial — its uart_rx_task parses them. Enables restoring the Mesh bit (VMASK ff) and
-            # driving the drag-to-inject virtual-distance bench through the bridge.
+        elif verb in ("VMASK", "VRSSI", "VDIST", "VCLR", "VBLK", "SENDTO"):
+            # Board BENCH CONTROL verbs, forwarded VERBATIM to the serial — the board's uart_rx_task parses
+            # them. benchdist five: §2.3A egress mask (VMASK <hex>) + §2.3C/§2.3B virtual-distance overrides
+            # (VRSSI/VDIST/VCLR/VBLK) = the drag levers. SENDTO <dest_hex> (routetest): makes THIS board the
+            # BL-200 origin emitting directed requests to <dest> every ~6s (SENDTO 0 clears; NVS-persisted) —
+            # the one traffic source that lights BOTH the VDIST gradient and rt.path narrowing on metal.
             sent = bool(participate and ser)
             if sent:
                 ser.write((line + "\n").encode())
@@ -249,7 +252,7 @@ def control_reader(router, ser, participate):
             else:
                 log(f"CTRL {verb}  {line} (read-only; --participate to send)")
         elif not JSON_MODE:
-            log(f"# control: unknown verb {verb!r} (use 'RX <hex>' | 'TX <hex>' | VMASK/VRSSI/VDIST/VCLR/VBLK)")
+            log(f"# control: unknown verb {verb!r} (use 'RX <hex>' | 'TX <hex>' | VMASK/VRSSI/VDIST/VCLR/VBLK/SENDTO)")
 
 
 def run_live(args):
