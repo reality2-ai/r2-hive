@@ -200,6 +200,17 @@
   --control commands (composer holds the bench ttys → composer's dashboard drives the lever). ⇒ bench tier lights when Roy flashes
   29e250cf, zero further firmware build. No new work queued (supervisor: none beyond what's queued).
 
+## 🔧 2026-07-04 — WifiMesh RENAME APPLIED (core heads-up said "on next bump" — path-deps meant it bit IMMEDIATELY)
+- **r2-hive FIXED (d8f2ece):** local r2-core checkout was ALREADY at 1673691 (R2-TRANSPORT v0.37 §2.2A, R2-Mesh proper noun retired) →
+  path-dep build broken NOW (3× E0599), not "on next bump." Renamed all 5 sites: hive.rs 629/674/1234 Transport::Mesh→WifiMesh +
+  comment 666-671 re-worded to ratified canon (wifi-mesh label; ESP-NOW = reference PHY only); hive-wasm lib.rs:81
+  TransportId::Mesh→WifiMesh. Wire-safe (id=5, bitmask 0x20 unchanged). transport-mesh cargo feature UNCHANGED (ratified §2.2B name).
+  Verified: workspace check clean + 107 lib tests green (local; hosted on push).
+- **dfr1195-fw UNAFFECTED NOW (verified):** its r2-route is the BRANCH-LOCAL vendored copy (path ../../crates/r2-route on the dfr1195-fw
+  branch) → pinned until re-vendor. **RE-VENDOR GREP-MAP (fold into the next re-vendor, cf. task #20's 0df6feb gate):** main.rs:805
+  `5 => Some(Transport::Mesh)`, :1560 `unwrap_or(Transport::Mesh)`, :3493 `Transport::Mesh as u8` + full grep for Mesh/mesh_weight/
+  MESH_MAX_PAYLOAD/MESH_* consts + "R2-Mesh" label strings (tooling MUST display wifi-mesh, never ESP-NOW or R2-Mesh).
+
 ## 📋 2026-07-04 — QUEUED FOLLOW-ONS (behind #49 first-responder > INCR-2 OTA plugin; do NOT context-switch)
 - **PRIORITY ORDER (supervisor): #49 first-responder > INCR-2 OTA plugin > these follow-ons.**
 - **deliver→effect ASSEMBLY (hive half; core landed the MECHANISM fbee20d, CI-green):** core added `RxDisposition.deliver_group`
