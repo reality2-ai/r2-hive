@@ -9,7 +9,16 @@
   TN READY → rt.snap/rt.nbr flowing; hive_id MISMATCH = persona clobber → composer prov2 re-provision (NOT a reflash); stale
   OTA_PENDING self-clears on boot (by design); boot-loop/panic → capture lines → I map to source. 2a-window residual does NOT apply
   to USB flashes (otadata untouched). **PARAMOUNT trigger when ACM3 runs: serial line `OTA(L2CAP) start seq=` → drop everything.**
-- **⚡ MID-FLASH UPDATE: D1+D2 DONE; Roy proceeding (D3 B6:0A:A0, #49 50:23:E4, D4 52:99:28).** URGENT answers delivered:
+- **⚡⚡ FLASH-SET CORRECTED (Roy): FOUR boards — D1✓ D2✓ + #49-board 50:23:E4 + D4 52:99:28. B6:0A:A0 EXCLUDED** (= the
+  Alfred-conjoined MCU half; composer's adapter stays on it; gets radiofrontend later ⇒ **it is task #34's physical target** —
+  recorded). My D3 port-busy catch = MOOT; composer told to DISREGARD the release request, keep carrier adapter attached.
+  **D4 RESOLVED by Roy at the bench: ALL boards are DFR1195s (physical confirmation) → standard csv everywhere; 8mb staging stays
+  in ~ as unneeded insurance.** **#49-board standard command CONFIRMED safe: 09a07e47 is the exact board the original recipe was
+  authored for (byte-identical command; by-id path unchanged, machine now tuxedo).** **✅ D1+D2 HEALTHY BOOT (composer): correct
+  personas 480e900e/2cab5f69 (NO clobber), radios up, mesh forming; heard-list incl 09a07e47 still on its OLD image (banner will
+  change post-flash); monitor-only attach done right (participate=False, DTR=0 RTS=0 no-reset) on :21062/:21064; rt.* flow confirm
+  next; NOT touching unflashed ACM3/ACM4.**
+- **⚡ MID-FLASH UPDATE (superseded above): D1+D2 DONE; Roy proceeding (D3 B6:0A:A0, #49 50:23:E4, D4 52:99:28).** URGENT answers delivered:
   (a) **8mb csv STAGED ~/dfr1195-partitions-8mb.csv** (verified vs repo canon) — D4-if-XIAO uses it; (b) safe type-check =
   `espflash board-info` (INTENTIONAL bootloader entry, safe pre-flash; task#14 hazard = accidental console-opens on a running
   board — not applicable seconds before reflash); flash-size line decides csv: 4MB→standard, 8MB→8mb; (c) ELF-on-XIAO CORRECT,
