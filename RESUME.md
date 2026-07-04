@@ -37,10 +37,19 @@
   awaiting reply):** attack vectors = wrong-slot / bounds-escape / activate-before-verify / ★ MID-OTA POWER-LOSS BRICK
   (my activate does activate_next_partition→set New→write_ota_pending; power-loss between op-1 and op-3 boots the new slot with
   no pending record — maybe write_ota_pending must come FIRST; note: this ordering MIRRORS the proven #49 ota_receive_over_coc
-  OCM, so any finding applies to BOTH — core adjudicates, do NOT guess-fix). **STATUS (2026-07-04): core's verdict ARRIVED
-  off-thread but the fleet INBOX is STALE (recurring bug, newest entries days-old) so the text did NOT surface — re-requested
-  core RE-SEND as a plain in-thread fleet send (readable). AWAITING: (i) core's re-sent verdict, (ii) hive-codex refute
-  (supervisor-routed), (iii) supervisor's transport-feed sequencing call (a dup-now vs b post-#49-unify). All 3 async.** ALSO recommended to supervisor: core add an xtensa
+  OCM, so any finding applies to BOTH — core adjudicates, do NOT guess-fix). **CORE VERDICT RECEIVED + ACTIONED (472e1d4):**
+  (1) MID-OTA POWER-LOSS ordering = CONFIRMED real §5.1 gap (my instinct right) → FIXED: write_ota_pending now BEFORE
+  activate_next_partition in FlashSink::activate (xtensa-green). wrong-slot / bounds-escape / activate-before-verify all
+  REFUTED (core-owned SignedOtaApply verifies before sink.activate). (2a) CONFIRMED a real WINDOW against 0.5.0 source:
+  activate_next_partition→set_current_app_partition (ota.rs:236) writes only ota_SEQ + inherits ota_state — does NOT set New
+  atomically; my set_current_ota_state(New) is a SEPARATE write with a window between → power-loss there boots the new slot
+  non-New → the SOFTWARE confirmed-boot gate (New/PendingVerify only) does not engage. CANNOT be reordered (set-New targets the
+  post-activate current slot). **(2b) = THE OTA BRICK-SAFETY LINCHPIN (ROY/DEPLOYMENT confirm):** CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE
+  must be set in the STAGED 2nd-stage bootloader — it covers the 2a window + any crash-on-boot regardless of ota_state. No
+  sdkconfig in the no_std tree (external bootloader) → flash-setup config, NOT my Rust source → routed to Roy via supervisor.
+  Two PRE-EXISTING receiver OCM sites (main.rs ~5082 + ~5334) share the (1) bug → DEFERRED (retired in the post-#49 unification
+  onto this fixed FlashSink; #49-staged ELF fde30090 is a binary = unaffected). **AWAITING: (i) hive-codex refute, (ii) Roy's
+  2b bootloader-config confirm, (iii) then INCR-2 FlashSink closes.** ALSO recommended to supervisor: core add an xtensa
   firmware CI job to r2-core ci.yml (esp-rs/xtensa-toolchain action) — no-hosted-CI is a regression risk. Then stage for Roy metal.
 - **★ TRANSPORT-FEED DESIGN + 2 findings (2026-07-04; implementation-as-refutation):** (F1) `SignedOtaApply` MUST be driven in a
   SINGLE-FUNCTION streaming loop — it borrows `&mut sink` and `finish` consumes it (core apply.rs:165-174) → it CANNOT be held
