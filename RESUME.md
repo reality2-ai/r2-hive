@@ -165,6 +165,12 @@
   builds the LED trichotomy) = an accidental live RED exhibit. DISCRIMINATOR: composer names the signing TG; dark∈{09a07e47,D4}
   → config-not-fault (choice: prov2 re-provision into demo TG, or keep as the standing cross-TG-reject exhibit); dark∈{D1,D2} →
   REAL triage, I dig immediately. Attribution gap = #32 route-stack append (CONTESTED respected) + HB-only peer_mapped — scoped.**
+- **⚖️ L5 REVISED (supervisor-codex): deliver-gate NOT closed by the partial LED result — likely fail-closed key mismatch;
+  serial DELIVERED/dlv = the decisive check (LED = inference, dlv = structured truth — Roy's rule applied correctly).** MY DATUM
+  SENT: ACM3's own status line (from the safe read) = `dlv=0 blk=0 @ beats=53103` — ZERO delivered in ~29.5h while hearing the
+  mesh fine → consistent with key-mismatch on the old-persona board. Caveat recorded: blk-counter semantics UNVERIFIED (don't
+  over-read blk=0). OFFERED: same safe read on ACM4/D4 on their word. FRAMING left to Roy/composer: zero-delivery on old-persona
+  boards = provisioning gap (if all 4 were meant in-TG → prov2) vs isolation-holding (if not) — intent call, not mine.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
