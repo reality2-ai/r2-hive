@@ -211,6 +211,31 @@
   `5 => Some(Transport::Mesh)`, :1560 `unwrap_or(Transport::Mesh)`, :3493 `Transport::Mesh as u8` + full grep for Mesh/mesh_weight/
   MESH_MAX_PAYLOAD/MESH_* consts + "R2-Mesh" label strings (tooling MUST display wifi-mesh, never ESP-NOW or R2-Mesh).
 
+## 🖱️ 2026-07-04 — DRAG-DEMO SUPPORT STAGED (Roy's next theatre ask: bench boards draggable in the same canvas)
+- **BOARDS ON TUXEDO USB NOW (verified via /dev/serial/by-id + udev; identities from field-results records):**
+  ttyACM0 = Arduino Leonardo (arduino-router, NOT a flash target); **ttyACM1** = F4:12:FA:B6:0A:A0 = D3 f91c8911 (router+bridge
+  LoRa+ESP-NOW); **ttyACM2** = F4:12:FA:50:26:98 = D1 480e900e (DFR1195 SX1262, 4MB confirmed first-light); **ttyACM3** =
+  F4:12:FA:50:23:E4 = **09a07e47 = THE #49 OTA BOARD (moved from Alfred — now local!)**; **ttyACM4** = F4:12:FA:52:99:28 = D4 06ae082b
+  (ESP-NOW receiver; board TYPE unconfirmed — if XIAO-S3/8MB use the 8mb csv); **ttyACM5** = F4:12:FA:B7:90:10 = D2 2cab5f69
+  (DFR1195 SX1262). "Both DFR1195s" (supervisor phrasing) most plausibly = D1(ACM2)+D2(ACM5), the SX1262-verified pair — Roy picks.
+- **FLASH STAGING VERIFIED (artifacts were already on tuxedo ~, checked not clobbered):** `~/r2-dfr1195-weave-coex.elf` sha-verified
+  **29e250cf** (bit-exact vs Alfred copy + local build) + `~/dfr1195-partitions.csv` diff-identical to docs/dfr1195-partitions.csv.
+  **COPY-PASTE COMMAND (per board, differs only in --port; persona-preserving app-only, persona@0x12000 raw untouched):**
+  `espflash flash --chip esp32s3 --partition-table ~/dfr1195-partitions.csv --port /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_<SERIAL>-if00 ~/r2-dfr1195-weave-coex.elf`
+  (D1: SERIAL=F4:12:FA:50:26:98; D2: SERIAL=F4:12:FA:B7:90:10; OTA board #49: F4:12:FA:50:23:E4.) **FLASHING=Roy-only — the harness
+  gate BLOCKS espflash for agents (verified live: even espflash --version is refused). ⚠️ task#14: opening a USB-Serial-JTAG console
+  RESETS a running board into ROM download mode — nobody cats/opens ttys casually; monitor = Roy's espflash monitor or composer's
+  adapter only.**
+- **rt.* TELEMETRY SEMANTICS (briefed to composer; R2-DIAGNOSTICS v0.1 shape, specs a47ab32; feature `viz` = in 29e250cf):** emission
+  is PERIODIC per route-tick in io_task (no polling; println → serial → carrier-r2-adapter.js → viz-events WS :21060 per-device).
+  `rt.snap {dev,now,nbr,path}` = cycle header; (dev,now) = frame key, new now = fresh cycle, hive_id present-last-cycle-absent-now =
+  EVICTED (decay→evict→rediscover must render); counts = completeness check; empty snapshot still emits (eviction-to-zero observable).
+  `rt.nbr {hive_id,viable,confidence,last_seen,class:infra|mobile,duty:always_on|intermittent|unknown,fade_remaining:f|null}` — viable
+  = confidence≥FORWARDING_CONFIDENCE_FLOOR (the link's on/off truth); fade_remaining = seconds to eviction while silent (render as
+  fading link). `rt.path {destination,next_hop,confidence,last_updated,sample_count}` = routed edges. **DRAG LOOP (bench-mirrors-
+  reality): drag → VDIST peer t range (VBLK beyond max; VMASK whole-radio) → board RouteEngine → rt.nbr confidence/viable shifts next
+  cycles → UI renders the BOARD'S truth, never its own model.** Non-aggregation (§6A.2): bench-scoped only, viz never in a field image.
+
 ## 📋 2026-07-04 — QUEUED FOLLOW-ONS (behind #49 first-responder > INCR-2 OTA plugin; do NOT context-switch)
 - **PRIORITY ORDER (supervisor): #49 first-responder > INCR-2 OTA plugin > these follow-ons.**
 - **deliver→effect ASSEMBLY (hive half; core landed the MECHANISM fbee20d, CI-green):** core added `RxDisposition.deliver_group`
