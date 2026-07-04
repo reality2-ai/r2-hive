@@ -62,13 +62,25 @@
     a **DECIMAL** string of the u32 target_group → a 64-hex-char HK (32 bytes). **BUG-TRAP: the tg key is parsed via u32 FromStr = DECIMAL,
     NOT hex** — a hex key SILENTLY skips (parse Err → continue), the gate then holds no key for that tg and FAIL-CLOSED drops even the
     LEGIT frame (GREEN would not render either). Injected frame header.target_group must equal that decimal u32.
-  - **★ B2b RED-SOURCE = OPEN QUESTION back to composer (bears on Roy's no-simulated-red rule):** composer's 'forge → REJECT = my RED' has
-    an unstated dependency I verified against ground truth — the reject is LOG-ONLY (§7.5.4 DROP warn on stderr, router.rs:241-248); NO
-    structured deny event to a subscriber (grep empty). So a subscriber sees NOTHING on a forged frame. Gave composer 3 options: (a) scrape
-    the §7.5.4 DROP stderr line = real-code, ZERO build (composer's carrier-bridge already does stdout JSON ingest, task #24 — plausible);
-    (b) I emit a structured deny event = the B2b build, small, on composer's word; (c) infer red from absence-of-delivery = FORBIDDEN (fails
-    Roy's real-code rule). AWAITING composer's (a)/(b) choice. If (a): Pillar-2 truly zero-build. If (b): build B2b (deny-event emit +
-    possible specs nod on the HOST-API class name). No build started.
+  - **★ B2b RULING (supervisor, 2026-07-04) — ENDORSED as THE ONE REAL PILLAR-2 BUILD; (a) stderr-scrape RULED OUT:** supervisor ruled
+    BOTH absence-of-delivery inference AND stderr-scrape are INFERENCES, not a real observable red → they FAIL Roy's no-simulated-red bar.
+    ⇒ **only a structured deliver-gate DENY event counts.** (This CORRECTS my prior guidance to composer that (a) stderr-scrape was real-code
+    — it is NOT; propagated the correction.) Net: **GREEN routing demo = config-only + real NOW; the forge-reject RED completes when the
+    deny-event lands = both halves real.** B2b = my lane, small, correctly scoped, ENDORSED.
+  - **★ B2b PROCESS (spec-first, supervisor-set order): composer states UX need (shape) → specs RATIFIES the contract (class name/shape) →
+    I build.** A new HOST-API `delivery.denied` (or a `denied` flag on event.delivery) is a SPEC SURFACE — do NOT finalize the class
+    name/shape unilaterally; route past specs (supervisor already gave specs a heads-up). Shape options for composer to choose as consumer:
+    (a) `denied:true` + `reason` field on the SAME r2.api.event.delivery (one subscription sees green+red, flag-distinguished); (b) a separate
+    `r2.api.event.delivery.denied` class. AWAITING composer's shape statement; then specs ratify; then I build. NO build started.
+  - **★ B2b IMPLEMENTATION-READY DESIGN (grounded now so build is instant once composer+specs resolve):** add `state.deny_inbound(frame,
+    source_hive, reason)` MIRRORING deliver_inbound (hive.rs:438) — decode extended header, extract msg_id + target_group, re-fan to matching
+    mgmt-API subscribers as the RATIFIED deny event. Reason enum = {Forgery, Unauthenticated, FailClosed}. Call sites = router.rs reject
+    branches where gate_deliver=false: (i) fail-closed no-keys drop (router.rs:232-238 → FailClosed); (ii) class==None forgery drop
+    (router.rs:241-244 → Forgery); (iii) class==Some(Unauthenticated) untagged drop (router.rs:245-248 → Unauthenticated).
+    **★ SUBTLETY (must not false-red): class==Some(Relay) (router.rs:249) is TRANSIT (we hold no key, relay forwards opaquely) = NOT a reject
+    — it must NOT emit a deny event, else legit cross-TG relay traffic renders a false RED (worse than a missing red).** Fields on the event:
+    msg_id (u32), target_group (u32), reason (enum). Subscription-match semantics (match by filter like deliver, vs a dedicated deny sub) =
+    part of the contract specs ratifies.
   - **bench-mirrors-reality:** LIVE surface must mirror real hive state; sim must NEVER leak into live. (composer's invariant; I keep the
     hive data path real end-to-end.)
 
