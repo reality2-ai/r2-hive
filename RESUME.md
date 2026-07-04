@@ -107,6 +107,13 @@
   narrowing — one source, two scenes; serial surface already in 29e250cf, nothing to build).** Bridge ACK-forwarding SHIPPED
   (1e258ec, sha 8de0ffa7…): five benchdist verb echoes → jline kind:"ack" (confirm-by-ack not infer-by-effect); other r2-dfr1195:
   lines stay out (match-tested). Folds into composer's next scene-safe redeploy.
+- **✅ SENDTO FORWARDING SHIPPED (814650b, supervisor-endorsed; composer's half 247915c) — BENCH PLUMBING COMPLETE:** SENDTO
+  <dest_hex8> forwarded verbatim via the same whitelist + --participate guard as the benchdist five; board-side (ground-truthed
+  main.rs:4356): routetest-gated (IN 29e250cf), arms the board as BL-200 origin (directed request ~6s, NVS-persisted; 0 clears);
+  ack echoes SENDTO-SET + boot NVS-restore forward as jline kind:"ack" (SENSOR-role line correctly excluded, match-tested).
+  Demo recipe to composer: D1 SENDTO b14b07d8 → requests D1→D2 → replies lay strong trails → rt.path lights + VDIST gradients
+  get traffic (ONE source, TWO scenes; console-truth ids only). Roy's bench demo now plumbing-complete my side: rt.* read +
+  proven drag write + traffic source + id truth-table + ack loop. One bridge redeploy carries DTR+ack+SENDTO (scene-safe).
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
