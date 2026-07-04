@@ -40,7 +40,9 @@
   OCM, so any finding applies to BOTH — core adjudicates, do NOT guess-fix). **CORE VERDICT RECEIVED + ACTIONED (472e1d4):**
   (1) MID-OTA POWER-LOSS ordering = CONFIRMED real §5.1 gap (my instinct right) → FIXED: write_ota_pending now BEFORE
   activate_next_partition in FlashSink::activate (xtensa-green). wrong-slot / bounds-escape / activate-before-verify all
-  REFUTED (core-owned SignedOtaApply verifies before sink.activate). (2a) CONFIRMED a real WINDOW against 0.5.0 source:
+  REFUTED (core-owned SignedOtaApply verifies before sink.activate; bounds-escape DEFINITIVELY refuted — FlashRegion::write
+  0.5.0 partitions.rs runs `if !self.in_range(address, len) return OutOfBounds` on EVERY write, not just the core §5.5
+  precheck = defense-in-depth). (2a) CONFIRMED a real WINDOW against 0.5.0 source:
   activate_next_partition→set_current_app_partition (ota.rs:236) writes only ota_SEQ + inherits ota_state — does NOT set New
   atomically; my set_current_ota_state(New) is a SEPARATE write with a window between → power-loss there boots the new slot
   non-New → the SOFTWARE confirmed-boot gate (New/PendingVerify only) does not engage. CANNOT be reordered (set-New targets the
