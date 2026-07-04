@@ -299,6 +299,16 @@
   r2-hive-core incl 3 new; 107 hive-bin) + wasm crate 15 host tests + wasm32-unknown-unknown check green; hosted CI = on the push.
   **REMAINING for #40-done: composer re-runs its bidirectional probe on 0.5.0 (paths() should now be NON-empty + narrowing =
   the TN-L1-IT-BL-100 shape) — its render is the live acceptance. Also flagged: composer counters must expect dup-drops (§8.2).**
+- **✅✅ #40 = DONE — COMPOSER LIVE ACCEPTANCE PASS (2026-07-04, on 0.5.0 rebuilt from d24721d, re-vendored composer 085db9c, ZERO
+  changes to its 14 route_frame sites):** (1) paths() NON-EMPTY — and the HEARTBEAT feed ALONE lays weak trails → the shipped
+  drawTrails render lights in NORMAL theatre use (ambient, not scene-gated — better than the bench tier!); (2) trails toward ORIGIN,
+  strengthening per calibration EXACTLY (line A-B-C-D: B=A-via-A, C=A-via-B; 0.05→0.71 over rounds); black-hole guard HOLDS (nothing
+  toward dest until replies); (3) NARROWING REAL: strong trail → outcome=Directed, sent=1, sends[0].target = trailed next-hop only
+  (diamond: D→A directs via B; off-path C gets 0 copies) = flood→directed; (4) §8.2 dedup-DROP active — composer adjusted its
+  flood-footprint viz + fixed one selftest that shared (origin,msg_id) between seed+cap frames; (5) replyMarker/replyMsgIdExt work,
+  mutating build_frame transparent. Composer full CI selftest suite GREEN on 0.5.0. Composer next: wiring theatre SEND to the reply
+  flow so Roy watches flood→reply→narrow live. ⇒ **task #40 closed: spec-first (canon §4.3.4/§4.5 + specs msg_id ruling) → core
+  rulings → wired → invariant-tested → LIVE-ACCEPTED.**
 - **✅ MIXED-PATH COHERENCE (d10cac6):** core landed its DataPlane trail internalization (bf6562f: private ring + pub note_originated;
   on_received internal post-dedup + AUTH-ONLY per F2 — unauth frames lay NO trail; note_forwarded at final relay truth; origin from
   route_stack[0] per my flag). My complement: build_frame/build_critical_frame now ALSO dp.note_originated(seq) when the fused
