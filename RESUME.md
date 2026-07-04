@@ -53,6 +53,17 @@
   UNIFICATION — refactor ota_receive_over_coc to drive SignedOtaApply<FlashSink> once #49 metal-validates it (one receiver, no
   throwaway, no #49-risk); vs (a) write a duplicated interim plugin receiver NOW behind all(otaengine,otal2cap). Awaiting the
   supervisor's sequencing call + BOTH refuters (core + hive-codex) before proceeding. FlashSink itself unaffected by either.
+- **SEQUENCING = (b) POST-#49 UNIFICATION (supervisor-confirmed):** the transport-feed = refactor ota_receive_over_coc to drive
+  SignedOtaApply<FlashSink> once #49 metal-validates it (one receiver, no throwaway, no #49-risk). Supervisor flagged to Roy
+  (he may override to (a) pre-#49). F1 = a platform-realization delta the supervisor will fold into R2-UPDATE §5.6 when the
+  plugin lands. INCR-3/4 narrowed: bus = progress SINK, not control plane.
+- **✅ INCR-3 DONE (dfr1195-fw 7839ace, xtensa-green):** `emit_ota_progress(phase,done,total,reason)` — a DIRECT-render
+  progress helper (r2.update.progress JSON line → composer stdout ingest, cf. task#24), behind otaengine. **★ 3rd
+  implementation-as-refutation finding:** Sentant::handle_event MUST NOT do I/O + MCU OTA is a streaming task (F1) → progress
+  RENDER is a direct host-side call, NOT a bus sentant (unlike wasm's buffer-then-apply sentant). The bus stays an OPTIONAL
+  subscription point for a future reactive sentant (LED/duty-cycle), not the render path. The post-#49 streaming receiver
+  calls emit_ota_progress per phase. (Composer coordination: the dashboard needs to ingest the r2.update.progress JSON line —
+  fold into the post-#49 wiring / flag composer when the receiver lands.)
 - **Supervisor GO** (TN design ratified, impl greenlit, order core→hive→composer). Doctrine (re-stated): integrate core's
   no_std crates (r2-engine + r2-update — do NOT reimplement); core platforms/esp32 + workshop firmware = PATTERNS only;
   **implementation-as-refutation** (if no_std/hw refutes a spec claim, surface it → spec re-eval, don't silently work around);
