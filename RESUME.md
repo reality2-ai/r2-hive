@@ -299,6 +299,13 @@
   r2-hive-core incl 3 new; 107 hive-bin) + wasm crate 15 host tests + wasm32-unknown-unknown check green; hosted CI = on the push.
   **REMAINING for #40-done: composer re-runs its bidirectional probe on 0.5.0 (paths() should now be NON-empty + narrowing =
   the TN-L1-IT-BL-100 shape) — its render is the live acceptance. Also flagged: composer counters must expect dup-drops (§8.2).**
+- **✅ MIXED-PATH COHERENCE (d10cac6):** core landed its DataPlane trail internalization (bf6562f: private ring + pub note_originated;
+  on_received internal post-dedup + AUTH-ONLY per F2 — unauth frames lay NO trail; note_forwarded at final relay truth; origin from
+  route_stack[0] per my flag). My complement: build_frame/build_critical_frame now ALSO dp.note_originated(seq) when the fused
+  DataPlane exists — a hive originating via build_* + receiving via handleRx has in-flight entries in BOTH rings, so origin-side
+  strong-reinforce works on either rx path. Option-gated no-op for pure-sync hives. Composer's C2b render is PRE-SHIPPED + CI-guarded
+  (computeTrails/drawTrails from real paths(), 9/9 selftest vs my calibration — "renders nothing today, lights on the bump") and its
+  ping-me-on-bump crossed my 0.5.0-ready message = already answered. Verified: wasm 15 tests + repo workspace + wasm32 check + hygiene.
 - **★ URGENT SUPERVISOR Q ANSWERED (2026-07-04): does STAGED 29e250cf lay trails? PRECISE: YES-but-scene-gated.** routetest is in the
   ELF set and the reinforcer compiles in, BUT both rx-side hooks are gated `h.event_hash == ROUTETEST_HASH` (on_received 1704-1718;
   relay-side note_forwarded 1859-1864 inside do_relay; code comment: "routetest only; live demo untouched"). ⇒ Roy-facing truth:
