@@ -116,8 +116,18 @@
     **IMPL NOTE for specs (flagged): key 5 from_hive** — spec text says "the hive that attempted delivery (same field as
     event.delivery)"; implemented as the denied frame's ORIGINATOR (route_stack[0], the same value event.delivery's key 5 would
     have carried had it delivered — the "same field" reading; the local-daemon-id reading would be redundant). One-line confirm
-    requested. **REFUTE STATUS: NOT yet peer-refuted (requested from core — router/§7.5.4 is its seam); composer's live RED wiring
+    requested. **✅ SPECS CONFIRMED (2026-07-04): originator IS intended — NO change my side.** Specs fixed its own v0.4 wording
+    ambiguity → R2-HOST-API **v0.5** (hosted-green ca6c4f7): key-5 row now states originator explicitly + same unverified-claim
+    caveat as key 8. ROUTE-ORIGIN-1 scoping ALSO confirmed correct + changelogged (route-less early-drop = pre-gate malformed-frame
+    drop, correctly no deny; surfacing that drop class someday = a separate observability question). **✅ HOSTED-CI GREEN on eb7fa0e
+    (supervisor verified its side)** — so B2b is local-green AND hosted-green, stated distinctly.
+    **REFUTE STATUS: NOT yet peer-refuted (requested from core — router/§7.5.4 is its seam); composer's live RED wiring
     = the e2e. Not "done" until one of those passes or the absence is recorded.**
+  - **★ ROY UX RULING (via supervisor, 2026-07-04): the radio control on BOTH tiers = DRAG (moving hives in/out of range).** My bench
+    half of the primary demo gesture = the benchdist virtual-distance lever, and **VDIST <peer_hex> <t_ord> <range> is RANGE-NATIVE**
+    (converts range→RSSI via the §2.7 log-distance model in-firmware) → composer's drag-UI maps 1:1: drag distance → VDIST range
+    updates on the tty; VBLK for hard out-of-range; VMASK for whole-radio silence. Composer already has the full syntax cheat-sheet.
+    Zero further firmware work — wire-up-only when Roy flashes 29e250cf.
   - **★★ DEMO-CORRECTNESS CATCH (sent composer — prevents a silent no-render RED):** composer said forge "wrong target_group OR wrong HK" to
     REJECT. But per the classifier, a **WRONG target_group (a tg NO hive holds a key for) → Relay/transit → NO deny → NO RED** (honest
     non-member relay, correct behaviour). Only **wrong HK on the CORRECT/held shared tg (→ forgery)** OR **untagged on the held tg (→
