@@ -38,6 +38,15 @@
   branch that pulses the LED each ~2s beat → LED = the instant physical discriminator (sent to Roy via supervisor): LEDs pulsing =
   fw emitting, gap is composer's host ingest; LEDs dark = io_task stuck pre-fire = my dig (init-await hang map). Also flagged: D1
   (50:26:98) absent from the carrier-heard a200-space while D2 present — second look once serial truth flows. Not flash-blocking.**
+- **✅ rt.* MYSTERY SOLVED (part 3; composer's branch = NO r2-dfr1195: lines = host-ingest gap confirmed):** composer's no-reset
+  open held **DTR=0** → the S3 USB-Serial-JTAG console gates TX on TERMINAL-READY → firmware saw no-host, suppressed console
+  output. **FIX: steady DTR=1, RTS=0 at open, never toggled** (espflash-monitor-equivalent). **PRECISE TRAP RULE (corrects my own
+  earlier OVERBROAD "console-open resets" warning, which drove composer's DTR=0 workaround — owned to supervisor+composer): the
+  ROM-drop hazard is the DTR/RTS TOGGLE DANCE (esptool reset sequences), NOT a steady attach.** PROOF attach is safe mid-run:
+  FR-4 + TN-L2-XT-BL-001 field captures = raw-serial espflash-monitor on these exact boards/firmware family. DOUBLE WIN: console
+  INPUT rides the same attach (#14 persona-receiver proves it) → drag --control (VMASK/VDIST) unblocked by the same fix. Composer
+  test ladder: D1 first, banner-replay = abort signal; then D2. Options (a) over-air rt.* relay / (b) BLE characteristic = NOT
+  built + wrong path for bench. No firmware change, no reflash.
 - **✅ COMPOSER ALL-CLEAR (lsof/fuser verified):** ACM2/ACM5/ACM3 all FREE — its only serial procs sit on the CARRIER (by-id
   B6:0A:A0, hive a1f5ed00), not the flash targets → no port-busy risk. RELAY CHAIN SET: flash-done signal → I ping composer →
   composer attaches carrier-r2-adapters (by-id, sanctioned) to D1+D2 → watches healthy-boot sequence (persona→radios→TN READY→rt.*)
