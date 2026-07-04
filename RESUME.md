@@ -1,5 +1,36 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🎯 DARK-BOARD MECHANISM CONVERGED (2026-07-05): stale NVS @0x14000 TG-override, NOT personas — I own the fix procedure (task #42) + DEPROVISION proposal (task #43, HELD)
+- **Ground truth (supervisor-codex recorded, refutation accepted):** personas @0x12000 are ALL weave-correct; my earlier key-epoch-on-persona
+  framing was wrong at the *storage layer* — the wrong-epoch key lives in the **runtime-PROVISION record @0x14000** (magic R2TG,
+  `[magic u32 BE][tg_id u32 BE][key 32B]` = 40 B, own 4 KB sector; `main.rs:2191`), which **OVERRIDES the persona at boot**
+  (`main.rs:265-276`, serial line `PROVISIONED TG restored from NVS`). Dark boards D2 (B7:90:10 / b14b07d8) + D4 (52:99:28 / 495b1b62)
+  carry a stale override with tg_id 04bc57e7 + an OLD-epoch hk → HMAC verify fails → correct fail-closed refusal. Fix = ONE-SECTOR
+  clear/overwrite, **NOT** persona rewrite, **NOT** a reflash.
+- **The two operational fixes (Roy chooses intent — NO NVS clearing until then; standing directive):**
+  - **(A) Roy download-mode erase (human-only, pristine end-state):** `esptool.py --port /dev/ttyACM<n> erase_region 0x14000 0x1000`
+    (or `espflash erase-region 0x14000 0x1000`). Erased flash = 0xFF → magic check fails → `read_provisioned_tg()` = None → boot
+    falls back to the (weave-correct) persona. ⚠ offset-typo hazard: 0x12000 would kill the persona — the command above is exact.
+  - **(B) composer console overwrite (no download mode, NO reboot):** send to each board's OWN tty (steady DTR=1/RTS=0 discipline):
+    `PROVISION b14b07d8 79452135 <weave_hk_64hex>` (D2/ACM5) and `PROVISION 495b1b62 79452135 <weave_hk_64hex>` (D4/ACM4).
+    79452135 = decimal of 0x04bc57e7 (the §6 tg_id IS the wire target_group). Path: `parse_provision` validates (exact-32B key) →
+    `write_provisioned_tg` erase+write+read-back-verify → ACK `PROVISION-APPLIED wire=… tg_id=…` → io_task swaps GroupHmac +
+    target_group LIVE (`main.rs:1074-1085`). Re-runnable/idempotent; failure ACKs PROVISION-ERR, installs nothing.
+  - **Trade-off:** (B) leaves override-ACTIVE state (0x14000 keeps shadowing the persona — future hk rotations need another
+    PROVISION or an erase); (A) restores persona-governed state but needs the human cable dance. Same end TG either way.
+- **Blast radius (either option): ZERO collateral.** Flash map, each its own 4 KB sector: persona@0x12000 · board-profile@0x13000 ·
+  **TG-override@0x14000 (the only target)** · MASK@0x15000 · SENDTO@0x16000 · RPF1 role@0x17000 · anti-rollback@0x18000 ·
+  LBL1 label@0x1B000 · ota_0@0x20000. **NO apiary-role detachment** — role lives @0x17000 + is derivable, fully independent of the
+  TG override; hive_id unchanged (persona master_secret). Option A's download-mode entry reboots the board (beats reset — fine,
+  these are the dark boards, not the #49 beat-discriminator board).
+- **Verify after (safe steady-DTR read):** (A) boot shows NO `PROVISIONED TG restored from NVS` line; (B) `PROVISION-APPLIED` +
+  `PROVISION installed live` ACKs, no reboot. Then both: HEALTH decodes tg_hash=04bc57e7, nbrs stops the 0↔1 flap, **dlv increments
+  on demo traffic** (the decisive falsifier that the hk now verifies).
+- **Conditional branch closed:** the "if target_group already 04bc57e7 AND frames verify → real deliver/LED bug" fork is MOOT under
+  the converged mechanism (frames do NOT verify under the stale key) — reopens only if composer's native-frame check refutes.
+- **Task #43 (NEW, HELD):** DEPROVISION console verb proposal (clear @0x14000 over console, live-revert to persona hk symmetric with
+  the install path). Spec-first via CROSS-HOST-2TG §6 extension; NO firmware change unless Roy explicitly asks.
+
 ## 🚨 LIVE (2026-07-04): ROY FLASHING 29e250cf → D1(ACM2/50:26:98) + D2(ACM5/B7:90:10); #49 board (ACM3/50:23:E4) may follow
 - **FIRST-RESPONDER HOT.** I do NOT touch ttys (raw attach = ROM-download reset, task#14; espflash harness-gated Roy-only). Output
   reaches me via supervisor relay or composer's adapter. URGENT flagged to composer: RELEASE ACM2/ACM5(/ACM3) during each flash —
