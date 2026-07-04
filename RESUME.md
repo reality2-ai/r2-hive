@@ -1,5 +1,15 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🚨 LIVE (2026-07-04): ROY FLASHING 29e250cf → D1(ACM2/50:26:98) + D2(ACM5/B7:90:10); #49 board (ACM3/50:23:E4) may follow
+- **FIRST-RESPONDER HOT.** I do NOT touch ttys (raw attach = ROM-download reset, task#14; espflash harness-gated Roy-only). Output
+  reaches me via supervisor relay or composer's adapter. URGENT flagged to composer: RELEASE ACM2/ACM5(/ACM3) during each flash —
+  adapter holding the tty = espflash PORT-BUSY fail; re-attach after for boot-line ingest.
+- **TRIAGE SHEET:** connect-fail/no-serial = cable/port-held/strap → retry; waiting-for-download loop = raw console opened mid-run →
+  close+replug; HEALTHY = persona read (D1 hive 480e900e / D2 2cab5f69 — app-only flash never touches persona@0x12000) → radios up →
+  TN READY → rt.snap/rt.nbr flowing; hive_id MISMATCH = persona clobber → composer prov2 re-provision (NOT a reflash); stale
+  OTA_PENDING self-clears on boot (by design); boot-loop/panic → capture lines → I map to source. 2a-window residual does NOT apply
+  to USB flashes (otadata untouched). **PARAMOUNT trigger when ACM3 runs: serial line `OTA(L2CAP) start seq=` → drop everything.**
+
 ## 🛰️ 2026-07-04 — PILLAR 2: REAL LINUX HIVES MOVING REAL DATA (supervisor heads-up; AWAIT composer coordination — do NOT start solo)
 - **Roy's steer:** refutation theatre = his CONFIDENCE surface. He wants REAL r2-hive instances sending REAL data through the REAL
   transport bridge, observable live, refutations holding on the REAL hives — NOT the in-browser wasm sim. Fastest no-bench path =
