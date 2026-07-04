@@ -245,7 +245,18 @@ pub fn route_inbound_sync(
     // only SELECTS among fan-out records). Caller contract unchanged: carried frames only, and
     // this post-dedup sync ingest is carried by construction.
     if !matches!(advice.action, ForwardAction::Drop(DropReason::Duplicate)) {
-        reinforcer.on_received(engine, originator, msg.payload, immediate_source, self_hive_id, now);
+        // is_reply rides the frame TYPE field (3d43838, codex HIGH): a marker-shaped
+        // payload inside an Event/GroupMgmt frame must NOT spoof a retraced reply
+        // (strong-reinforce + consume a forwarded record = trail-poisoning lever).
+        reinforcer.on_received(
+            engine,
+            originator,
+            msg.payload,
+            immediate_source,
+            self_hive_id,
+            header.msg_type == r2_wire::MsgType::Reply,
+            now,
+        );
     }
 
     // Relay frames mutate the header per R2-WIRE §8.3/§8.4/§9.2 (TTL--, K split,
@@ -629,7 +640,9 @@ mod tests {
             let msg = ExtendedMessage {
                 header: ExtendedHeader {
                     version: 0,
-                    msg_type: MsgType::Event,
+                    // Reply-ness MUST ride the type field (3d43838): an Event-typed
+                    // frame with a marker payload now yields weak evidence at most.
+                    msg_type: MsgType::Reply,
                     flags: Flags {
                         has_route: true,
                         ..Flags::default()
