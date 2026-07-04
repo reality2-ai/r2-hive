@@ -9,6 +9,15 @@
   TN READY → rt.snap/rt.nbr flowing; hive_id MISMATCH = persona clobber → composer prov2 re-provision (NOT a reflash); stale
   OTA_PENDING self-clears on boot (by design); boot-loop/panic → capture lines → I map to source. 2a-window residual does NOT apply
   to USB flashes (otadata untouched). **PARAMOUNT trigger when ACM3 runs: serial line `OTA(L2CAP) start seq=` → drop everything.**
+- **⚡ MID-FLASH UPDATE: D1+D2 DONE; Roy proceeding (D3 B6:0A:A0, #49 50:23:E4, D4 52:99:28).** URGENT answers delivered:
+  (a) **8mb csv STAGED ~/dfr1195-partitions-8mb.csv** (verified vs repo canon) — D4-if-XIAO uses it; (b) safe type-check =
+  `espflash board-info` (INTENTIONAL bootloader entry, safe pre-flash; task#14 hazard = accidental console-opens on a running
+  board — not applicable seconds before reflash); flash-size line decides csv: 4MB→standard, 8MB→8mb; (c) ELF-on-XIAO CORRECT,
+  do NOT skip D4 — one config-activated image, board-profile byte @0x13000 (0x00=no-screen XIAO) + persona both PRESERVED by
+  app-only flash; D4 ran this family as FR-4 receiver. **★ CATCH: composer's adapter+bridge HOLD B6:0A:A0's tty → D3 flash would
+  port-busy-fail; urgent release request sent; Roy sequences D3 after composer confirms. D3 boots back into its CURRENT role
+  (carrier a1f5ed00 per composer — NOT FR-era f91c8911; persona-preservation = role continuity).** Composer also told: attach
+  monitors to D1+D2 NOW (flash done) and start the healthy-boot watch.
 - **✅ COMPOSER ALL-CLEAR (lsof/fuser verified):** ACM2/ACM5/ACM3 all FREE — its only serial procs sit on the CARRIER (by-id
   B6:0A:A0, hive a1f5ed00), not the flash targets → no port-busy risk. RELAY CHAIN SET: flash-done signal → I ping composer →
   composer attaches carrier-r2-adapters (by-id, sanctioned) to D1+D2 → watches healthy-boot sequence (persona→radios→TN READY→rt.*)
