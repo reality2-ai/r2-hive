@@ -240,8 +240,12 @@ pub fn route_inbound_sync(
     // (forward ⇒ record_indirect toward origin) / strong (reply-marker for a msg
     // we forwarded ⇒ record_delivery toward the replier) internally — no trail
     // policy lives in this glue (core invariant (d)).
+    // v0.64 (core 1cc8cd1): on_received now takes my_hive for §4.6.1 retrace — strong credit goes
+    // to the RECORDED successor from the forward ring, never the radio immediate-sender (sender
+    // only SELECTS among fan-out records). Caller contract unchanged: carried frames only, and
+    // this post-dedup sync ingest is carried by construction.
     if !matches!(advice.action, ForwardAction::Drop(DropReason::Duplicate)) {
-        reinforcer.on_received(engine, originator, msg.payload, immediate_source, now);
+        reinforcer.on_received(engine, originator, msg.payload, immediate_source, self_hive_id, now);
     }
 
     // Relay frames mutate the header per R2-WIRE §8.3/§8.4/§9.2 (TTL--, K split,
@@ -256,9 +260,10 @@ pub fn route_inbound_sync(
                 let sent = send_via_kind(transports, hop.transport, hop.neighbour, &bytes);
                 if sent {
                     // §4.3.4: relaying puts us on this msg's forward path — note
-                    // (origin, msg_id) so the returning reply strong-reinforces
-                    // the trail through us (used-path-wins).
-                    reinforcer.note_forwarded(originator, header.msg_id);
+                    // (origin, msg_id, successor) so the returning reply strong-
+                    // reinforces the RECORDED successor (v0.64 §4.6.1: this copy's
+                    // actual next-hop, never the reply's radio sender).
+                    reinforcer.note_forwarded(originator, header.msg_id, hop.neighbour);
                 }
                 SyncRouteOutcome::Directed { sent }
             }
@@ -272,11 +277,11 @@ pub fn route_inbound_sync(
                         && send_via_kind(transports, hop.transport, hop.neighbour, &bytes)
                     {
                         sent += 1;
+                        // v0.64 fan-out rule: one note PER FORWARDED COPY, each with
+                        // its own recorded successor — the returning reply's sender
+                        // then SELECTS which record earns the strong credit.
+                        reinforcer.note_forwarded(originator, header.msg_id, hop.neighbour);
                     }
-                }
-                if sent > 0 {
-                    // As above: a flood-relay is also on the forward path.
-                    reinforcer.note_forwarded(originator, header.msg_id);
                 }
                 SyncRouteOutcome::Flooded { sent }
             }

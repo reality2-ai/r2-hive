@@ -541,7 +541,9 @@ impl WasmHive {
         // §4.3.4 invariant (b): the ORIGINATOR notes its own (origin, msg_id) too —
         // else the reply arriving back at the origin fails the in-flight check and
         // the origin never strong-reinforces toward the replier (used-path-wins).
-        self.reinforcer.note_forwarded(self.self_hive_id, seq);
+        // v0.64: originations record NO_SUCCESSOR (the reply then lays weak carried
+        // evidence at the origin instead of a phantom strong successor credit).
+        self.reinforcer.note_forwarded(self.self_hive_id, seq, r2_route::trail::NO_SUCCESSOR);
         // Mixed-path coherence: a hive that originates here but RECEIVES via the
         // fused handleRx path needs the same note in the DataPlane's internal ring
         // (core's one TX-side platform duty, r2-dataplane `note_originated`) — else
@@ -575,8 +577,8 @@ impl WasmHive {
     #[wasm_bindgen]
     pub fn build_critical_frame(&mut self, target_hive: u32, event_hash: u32, payload: &[u8], seq: u32) -> Vec<u8> {
         // §4.3.4 invariant (b): originator notes its own (origin, msg_id) — see
-        // build_frame (incl. the mixed-path DataPlane note).
-        self.reinforcer.note_forwarded(self.self_hive_id, seq);
+        // build_frame (incl. the mixed-path DataPlane note). v0.64: NO_SUCCESSOR.
+        self.reinforcer.note_forwarded(self.self_hive_id, seq, r2_route::trail::NO_SUCCESSOR);
         if let Some(dp) = self.data_plane.as_mut() {
             dp.note_originated(seq);
         }

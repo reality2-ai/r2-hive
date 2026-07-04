@@ -335,7 +335,7 @@ dependencies = [
 
 [[package]]
 name = "r2-hive-wasm"
-version = "0.4.12"
+version = "0.6.0"
 dependencies = [
  "ed25519-dalek",
  "r2-dataplane",
