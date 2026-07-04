@@ -102,6 +102,22 @@
     specs' call): reuse 0=cid, 2=event_class="r2.api.event.delivery.denied", 3=event_hash(of denied frame if decodable), 5=from_hive, 7=msg_id;
     ADD target_group(u32) + reason(text) at new keys (proposed 8, 9). sub_id(1)/payload(4)/from_tg(6) likely omitted (a deny is not a per-sub
     delivery + the forged payload is untrusted) — specs to bless.
+  - **★★★ B2b BUILT (d1afb97, 2026-07-04) — specs LANDED the contract first (R2-HOST-API v0.4 §3.2.1, specs-repo d057780: my proposed
+    key numbers 8=target_group/9=reason BLESSED as-is; 0/2/3/5/7 reused; 1/4/6 omitted; reason=text; event.delivery's own map also
+    formally registered). BUILT against the COMMITTED doc (read §3.2.1 from the specs repo before coding, verify-then-build):**
+    (i) EV_EVENT_DELIVERY_DENIED const (mgmt/api.rs); (ii) build_denied_frame = exact ratified key map (hive.rs, after
+    build_delivery_frame); (iii) HiveState::deny_inbound mirrors deliver_inbound (same subscriber filter-match + backpressure +
+    closed-channel idiom; frame built once/cloned per match; from_tg-filtered subs NEVER match a deny — §3.2.1 omits key 6);
+    (iv) router.rs emits at EXACTLY the 3 non-delivery sites (fail_closed / forgery / unauthenticated); Relay/transit silent
+    (no false-red); keyless-opt-in-open branch DELIVERS → no deny (verified against gate_should_deliver's pinned tests — the 3
+    emit sites are 1:1 with actual non-delivery, false-red impossible); (v) test denied_frame_matches_ratified_key_map pins the
+    key map. **VERIFIED: cargo test -p r2-hive --lib = 107 passed, 0 failed (LOCAL host tests — this crate also has hosted CI;
+    hosted status = whatever CI says on push, do not conflate).** Deadlock-checked: deny sites hold no locks.
+    **IMPL NOTE for specs (flagged): key 5 from_hive** — spec text says "the hive that attempted delivery (same field as
+    event.delivery)"; implemented as the denied frame's ORIGINATOR (route_stack[0], the same value event.delivery's key 5 would
+    have carried had it delivered — the "same field" reading; the local-daemon-id reading would be redundant). One-line confirm
+    requested. **REFUTE STATUS: NOT yet peer-refuted (requested from core — router/§7.5.4 is its seam); composer's live RED wiring
+    = the e2e. Not "done" until one of those passes or the absence is recorded.**
   - **★★ DEMO-CORRECTNESS CATCH (sent composer — prevents a silent no-render RED):** composer said forge "wrong target_group OR wrong HK" to
     REJECT. But per the classifier, a **WRONG target_group (a tg NO hive holds a key for) → Relay/transit → NO deny → NO RED** (honest
     non-member relay, correct behaviour). Only **wrong HK on the CORRECT/held shared tg (→ forgery)** OR **untagged on the held tg (→
