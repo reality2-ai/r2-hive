@@ -146,6 +146,22 @@
     unaffected — but "real hives sending real data" eventually wants hive-originated frames = event.send needs route_stack[0]=self +
     GroupHmac tag from group_hmacs. Surfaced to supervisor as a Pillar-2 follow-on question (spec/design call, not a solo build).
     **REFUTE STATUS: core = GO (verdict above). REMAINING for "done": composer's live-RED e2e.**
+  - **★ COMPOSER INJECTOR PLAN CONFIRMED (2026-07-04) + MY BYTE-LEVEL VERIFY:** composer applies all 4 (route_stack[0]=origin on EVERY
+    frame green+red via WasmHive build_frame; RED = corrupt trailing 32B HMAC → forgery / strip tag + clear 0x02 → unauthenticated, route
+    intact, never route-less, never foreign tg; scene copy = THIS-hive-refused-local-delivery; dedicated deny-filtered sub + separate
+    delivery-class sub, no unfiltered; GREEN-run stderr log-watch for untagged-warns, expect zero). **I verified the bit technique against
+    r2-wire types.rs:84-86: has_hmac IS 0x02, has_route 0x04 (composer's byte0=0x6 = route|hmac, correct); decode gates tag-read on the
+    flag (extended.rs:117) → strip+clear-0x02 decodes clean-untagged; corrupt-with-flag-set → Some(garbage) → forgery. No trap #4.**
+    Composer rebuilds its release binary from 62e155d and locks the deny renderer.
+  - **★ CORE CANON PRECISION (2026-07-04) — event.send finding RECLASSIFIED: EXISTING NON-CONFORMANCE (MUST-violation TODAY), not
+    future-capability work.** R2-WIRE §6.2.1: the originator MUST stamp route_stack[0] (§5 + §9.5 repeat it); ROUTE-ORIGIN-1 has two
+    halves — relays MUST drop route-less (I implement, router.rs:146-149) AND originators MUST stamp (handle_event_send VIOLATES this
+    half, hmac_tag:None + route:None). Invisible only because no current flow pushes a hive-originated app event onto the mesh.
+    **FIX SHAPE (when picked up, task #39): origination-side ONLY — handle_event_send stamps route_stack[0]=self_hive_id (R flag) +
+    GroupHmac-tags with the target TG's key (§7.5.4 counterpart, else keyed peers deny unauthenticated). Zero relay/gate changes; zero
+    core API work (encode_extended already carries route+tag). SUPERVISOR TRACKING: post-demo spec-first item — injector-through-real-
+    engines demo meets Roy's need NOW (badged plainly: composer-injected at A, real routing A→B→C); hive-SELF-origination = the natural
+    completion, specs+me scope it when the demo lands.**
   - **★ ROY UX RULING (via supervisor, 2026-07-04): the radio control on BOTH tiers = DRAG (moving hives in/out of range).** My bench
     half of the primary demo gesture = the benchdist virtual-distance lever, and **VDIST <peer_hex> <t_ord> <range> is RANGE-NATIVE**
     (converts range→RSSI via the §2.7 log-distance model in-firmware) → composer's drag-UI maps 1:1: drag distance → VDIST range
