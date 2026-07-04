@@ -94,6 +94,13 @@
   memory): id-mismatch-vs-records = STALE RECORDS, not clobber; only the fallback pattern = clobber.** New truth table: 50:26:98 =
   0x8900955E, B7:90:10 = 0xB14B07D8; 480e900e/2cab5f69 RETIRED. Composer reminded to persist the map (board-details policy) + verify
   the #49 board's/D4's console-truth ids on their post-flash boots (09a07e47 may itself be stale-era — do not assume). Wiring SAFE.
+- **📇 ID-MAP FOLLOW-THROUGH:** composer persisted the truth map (its 3c2d955) + recorded the stale-vs-clobber rule verbatim with
+  the D1/D2 worked example; #49-board/D4 console-verifies ARMED for their post-flash boots. **CARRIER B6:0A:A0 id = OPEN (composer
+  found f91c8911-vs-655a9e5f discrepancy): my candidate hygiene sent — a1f5ed00 is the BRIDGE'S wasm ROUTER identity (a1f5edxx =
+  composer's sim namespace), NOT a board persona — never lock it in a board column; f91c8911 = FR-era presumptively stale;
+  655a9e5f = strongest candidate, UNVERIFIED. Verify method: the carrier runs the radio-modem image (likely NO rt.snap — no
+  engine/viz) → read the boot 'hive=<8hex>' banner or HEALTH key0 at the next natural tty-cycle window (NOT mid-demo); fallback
+  clobber-check vs 0x00b60aa0.**
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
