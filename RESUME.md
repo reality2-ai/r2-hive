@@ -50,8 +50,18 @@
   must be set in the STAGED 2nd-stage bootloader — it covers the 2a window + any crash-on-boot regardless of ota_state. No
   sdkconfig in the no_std tree (external bootloader) → flash-setup config, NOT my Rust source → routed to Roy via supervisor.
   Two PRE-EXISTING receiver OCM sites (main.rs ~5082 + ~5334) share the (1) bug → DEFERRED (retired in the post-#49 unification
-  onto this fixed FlashSink; #49-staged ELF fde30090 is a binary = unaffected). **AWAITING: (i) hive-codex refute, (ii) Roy's
-  2b bootloader-config confirm, (iii) then INCR-2 FlashSink closes.** ALSO recommended to supervisor: core add an xtensa
+  onto this fixed FlashSink; #49-staged ELF fde30090 is a binary = unaffected).
+  **★ ROY RULED FIX-FIRST (hold on fde30090 LIFTED) — DONE (2026-07-04):** applied the same §5.1 reorder to BOTH pre-existing
+  receiver OCM sites (UDP ota_receiver + the #49-staged CoC ota_receive_over_coc) — dfr1195-fw `0225ceb`, xtensa-green. **REBUILT
+  the #49 weave-coex ELF locally** (`xbuild.sh carrier,multitg,routetest,viz,benchdist,otal2cap`) = **NEW brick-safe sha
+  `29e250cfeed00192e393f7ec79bd614b12988bd0d8cb11b72babd12bd334f820`** (1362756 B; old fde30090 retired). **STAGED on Alfred +
+  sha-verified:** `~/r2-dfr1195-weave-coex.elf` = 29e250cf (Roy's espflash recipe RESUME:461 unchanged = turnkey). FLASHING =
+  Roy-only. **(2b) HONEST FINDING:** CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE is NOT a simple flag in the no_std esp-hal flow —
+  NO sdkconfig (runner = espflash default bootloader; enabling rollback needs a CUSTOM rollback-built bootloader = non-trivial).
+  NOT blocking the #49 bench (the OTA'd image is the same known-good firmware → boots fine → my software ota_confirm_or_rollback
+  gate handles the health check). It is a PRODUCTION-HARDENING follow-on (crash-on-boot + the 2a-window brick-safety need the
+  bootloader-level rollback). **AWAITING to fully close INCR-2/#49-fix: (i) core + hive-codex RE-REFUTE the fixed path clean,
+  (ii) then Roy benches ELF 29e250cf.** ALSO recommended to supervisor: core add an xtensa
   firmware CI job to r2-core ci.yml (esp-rs/xtensa-toolchain action) — no-hosted-CI is a regression risk. Then stage for Roy metal.
 - **★ TRANSPORT-FEED DESIGN + 2 findings (2026-07-04; implementation-as-refutation):** (F1) `SignedOtaApply` MUST be driven in a
   SINGLE-FUNCTION streaming loop — it borrows `&mut sink` and `finish` consumes it (core apply.rs:165-174) → it CANNOT be held
