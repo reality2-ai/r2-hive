@@ -40,6 +40,20 @@
     (b) `--tg`/`--join` ergonomic seed flag as an alias for the env file. AWAIT composer's design call before building either.
   - **B3 (optional):** if composer wants hives to SELF-mesh without a central bridge, add a `--uplink ws://peer/r2` WS-client to hive-bin
     (clean, small). Depends on composer's bridge design — do not pre-build.
+  - **★ B2b (THE ONE REAL PILLAR-2 BUILD — deliver-gate REJECT is currently INVISIBLE; blocks Roy's real-code-only RED):** verified the
+    asymmetry — the DELIVER path emits an observable event (`deliver_inbound` hive.rs:426 re-fans matching frames to mgmt-API subscribers
+    as `r2.api.event.delivery` via build_delivery_frame → composer renders GREEN from a REAL event), but the deliver-gate REJECT path is
+    LOG-ONLY (`log::warn!` at router.rs:241-248 for forgery-DROP / untagged-DROP / fail-closed-DROP). NO deny/reject/denied event constant
+    exists anywhere in hive-bin (grep empty). ⇒ Roy's rule (red-bar = REAL-code-only + badged counterfactual, NO simulated-red) CANNOT be
+    satisfied for the forge-wrong-TG scene TODAY: composer could only INFER a reject from the ABSENCE of a delivery (a non-event) or scrape
+    stderr — neither is a real-code red signal. **FIX (small, in-lane, mirrors deliver_inbound): emit a deliver-gate DENY event to
+    subscribers on the reject branches, carrying {msg_id, target_group, reason: forgery|unauthenticated|fail_closed}.** Shape = composer's
+    call: (a) a `denied:true` + `reason` field on the SAME r2.api.event.delivery (one subscription sees green+red, distinguished by flag),
+    or (b) a separate `r2.api.event.delivery.denied` class. Same deliver/reject/no-receive trichotomy as task #33 (MCU LED legibility) —
+    this is its Linux-hive telemetry twin. **SPEC-TOUCH FLAG (spec-first):** a new R2-HOST-API §3.2 event (delivery.denied) may need a specs
+    ratify — event.error exists for backpressure so a deny is analogous/additive, but route it past specs/core before finalizing the class
+    name. AWAIT composer's shape call + a spec nod; then build (this IS the one real Pillar-2 hive-bin build, distinct from the OPTIONAL
+    --tg/--join ergonomics).
   - **bench-mirrors-reality:** LIVE surface must mirror real hive state; sim must NEVER leak into live. (composer's invariant; I keep the
     hive data path real end-to-end.)
 
