@@ -22,6 +22,13 @@
   **task #45** (replyMarkerWithStack in wasm; non-blocking — stackless markers lay weak evidence, nothing breaks).
 - **Inbox hygiene note:** `fleet inbox` retains months of processed history (the consolidation/relay-v0.2 era) — read the TAIL
   for new items; do not re-action old arcs (relay v0.2 handshake work etc. was a PRIOR era, largely superseded).
+- **Flood D-exclusion tiebreaker: hive layers CLEAN (evidence sent).** Core proved its flood is not auth-gated; my inspection
+  refuted the hive-wrapper-filter option on BOTH paths: route_inbound_sync ingests the sender Observation on every
+  structurally-valid frame (unconditional, pre-plan_forward; only ROUTE-ORIGIN-1 drops earlier, auth-independent), and the
+  green test handle_rx_broadcast_relay_respects_8_4b_origin_quota seeds its relay target from an UNVERIFIED heartbeat.
+  Remaining forks are harness-side: (b) sim JS pre-gating routing calls on verifyFrame (a conflation of the documented
+  route-vs-deliver split) or (c) the dark-board signature misread (D floods fine, dlv=0 is the DELIVERY refusing).
+  Discriminator sent: assert on the router's sends[]/relay_on output, never on D's dlv counter. Composer owns the wiring.
 - **Multi-TG relay key-awareness: CLOSED from hive's side (no Roy fork).** Specs answered an off-thread fork's question: canon
   says relay stays TG-agnostic/keyless (R2-RUNTIME §13.2 L4/L5 isolation), one hive = one TG. My in-thread authoritative
   position (sent, supersedes the fork): NO concrete scenario needs relay-layer keys — two-TG bench transit is metal-proven;
