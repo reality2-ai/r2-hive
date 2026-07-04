@@ -1,5 +1,28 @@
 # RESUME — r2-hive (hive-worker)
 
+## 📬 BATCH-2 CLOSURE (2026-07-05 night): #49 correction ACCEPTED both supervisors; ADV theory refuted at source; specs WRITE-DARK (escalated); v0.65 = already aligned; BEACON_AD ruling in hand
+- **#49 SETTLED:** my stale-artifact correction ACCEPTED by supervisor-codex AND supervisor (its 'sign ab1f1cb6' recommendation
+  explicitly WITHDRAWN as stale-premise). Standing plan: Roy flashes ACM3 with `~/r2-dfr1195-weave-coex.elf` **29e250cf** (turnkey
+  command in this file, by-id F4:12:FA:50:23:E4; `~/dfr1195-partitions.csv` verified present Jul 1); composer wrapper pre-flight =
+  pull phase-3-hardware-tier ≥ fc817b3 (bounded retry + scanner-stop 61ad26d), then pushes `~/cb87c8aa-app.bin`. **Both open
+  diagnostic branches answered from source and sent:** (1) ADV-contention REFUTED — ONE advertising set, consumed at accept(),
+  serve runs inside the loop, re-advertise only after 'CoC closed' ⇒ no advertising while an OTA CoC is open, by construction
+  (main.rs:3033-3083). (2) Coex claim true ONLY of the old running image — 3aae196 (ESP-NOW TX mute under OTA_ACTIVE) is inside
+  29e250cf. Interim artifacts ab1f1cb6 (framing-only) + 296017c4 (defer-only, `~/r2-dfr1195-weave-defer.elf`) = superseded, do
+  not flash. My first-responder watch unchanged: serial `OTA(L2CAP) start seq=` on ACM3 post-flash.
+- **🚨 SPECS WRITE-DARK (escalated to supervisor pair):** python3/Read/Edit/fleet-send all prompt for approval on specs' side;
+  reads OK; tree clean at 0ae1bd5; it reached me only via the ask-reply channel. The resident-gateway spec's **v0.5 edit is
+  fully drafted** in its scratchpad and lands on access restoration. Needs Roy/fleet-root.
+- **BEACON_AD SWITCH-TRIGGER RULED (content complete despite the outage; task #34 metadata carries the full text):** inc4
+  plan BLESSED conformant-degraded (ship current-slot + stage-only 0x01); eventual pin = staged countdown `promote_after_ms`
+  u32 LE on the slot-0x01 layout (local monotonic, 0 = stage-only, promotion consumes the slot, survives a sleeping brain =
+  the literal no-round-trip promise); add the parse+countdown when v0.5 text lands. (b)-as-definition/(c)/(a) rejected.
+- **v0.65 trail step (core f3b0715, supersedes v0.64): ALREADY ALIGNED** — my fc08e7a was built against the landed tree (the
+  6-arg on_received I adapted to WAS the v0.65 shape; 37/37 re-verified green at f3b0715). Emit-side follow-up =
+  **task #45** (replyMarkerWithStack in wasm; non-blocking — stackless markers lay weak evidence, nothing breaks).
+- **Inbox hygiene note:** `fleet inbox` retains months of processed history (the consolidation/relay-v0.2 era) — read the TAIL
+  for new items; do not re-action old arcs (relay v0.2 handshake work etc. was a PRIOR era, largely superseded).
+
 ## ⚡ TURN CONSOLIDATION (2026-07-05 late): v0.64 break absorbed; #49 STALE-ARTIFACT correction sent; 4/4 PROVISION verify armed; RAK4630 task opened
 - **core v0.64 trail break absorbed SAME-HOUR (fc08e7a pushed):** core landed 1cc8cd1 on the shared checkout (the instant-bite
   path-dep coupling, as normed — heads-up honored). Fixes: `on_received` gained `my_hive` (§4.6.1 retrace — heads-up said
