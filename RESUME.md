@@ -27,6 +27,13 @@
   port-busy-fail; urgent release request sent; Roy sequences D3 after composer confirms. D3 boots back into its CURRENT role
   (carrier a1f5ed00 per composer — NOT FR-era f91c8911; persona-preservation = role continuity).** Composer also told: attach
   monitors to D1+D2 NOW (flash done) and start the healthy-boot watch.
+- **🔍 rt.* EMISSION GAP TRIAGE (live):** composer saw ZERO rt.snap/rt.nbr on D1/D2 serial post-boot. GROUND-TRUTHED: the emit is
+  AUTOMATIC (io_task fire tail, ~2s beat, viz compiled in 29e250cf; empty table still emits nbr:0 header; NO trigger/TG-precondition;
+  INERT n/a — field feature not in this ELF). **KEY: composer's quoted banner "[router] wasm-hive v0.1.0 …" is NOT a firmware string
+  (grep: no wasm-hive anywhere; ALL fw console lines are `r2-dfr1195:`-prefixed) → it's composer's adapter-synthesized line; its
+  healthy-boot verdict likely came from ON-AIR observation (carrier radio), not board serial.** DISCRIMINATING TEST sent: any raw
+  r2-dfr1195: lines on :21062/:21064? NO → host-side ingest gap (boards fine — their beacons are heard on air, loops running,
+  rt.* printing into an unread console); YES-but-no-rt.* → board-state, I dig the fire-tail gating with 30s of raw lines.
 - **✅ COMPOSER ALL-CLEAR (lsof/fuser verified):** ACM2/ACM5/ACM3 all FREE — its only serial procs sit on the CARRIER (by-id
   B6:0A:A0, hive a1f5ed00), not the flash targets → no port-busy risk. RELAY CHAIN SET: flash-done signal → I ping composer →
   composer attaches carrier-r2-adapters (by-id, sanctioned) to D1+D2 → watches healthy-boot sequence (persona→radios→TN READY→rt.*)
