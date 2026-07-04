@@ -101,6 +101,12 @@
   655a9e5f = strongest candidate, UNVERIFIED. Verify method: the carrier runs the radio-modem image (likely NO rt.snap — no
   engine/viz) → read the boot 'hive=<8hex>' banner or HEALTH key0 at the next natural tty-cycle window (NOT mid-demo); fallback
   clobber-check vs 0x00b60aa0.**
+- **✅✅ DRAG WRITE-PATH PROVEN (composer live test): VMASK df on D1 → SILENT in ~2s (0 heard) while D2 stayed heard (falsifier
+  held); VMASK ff → D1 returned. theatre→adapter→bridge→serial = end-to-end REAL reversible mesh effect. BENCH_TX_ORD=5 (WifiMesh/
+  ESP-NOW) confirmed; VMASK = binary drag today; VDIST-gradient needs the routetest loop (same flow that lights bench rt.path
+  narrowing — one source, two scenes; serial surface already in 29e250cf, nothing to build).** Bridge ACK-forwarding SHIPPED
+  (1e258ec, sha 8de0ffa7…): five benchdist verb echoes → jline kind:"ack" (confirm-by-ack not infer-by-effect); other r2-dfr1195:
+  lines stay out (match-tested). Folds into composer's next scene-safe redeploy.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
