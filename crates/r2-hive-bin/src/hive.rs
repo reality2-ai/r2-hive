@@ -517,6 +517,82 @@ impl HiveState {
         }
     }
 
+    /// Report a §7.5.4 deliver-gate REJECT to matching mgmt-API subscribers as
+    /// an `r2.api.event.delivery.denied` notification (R2-HOST-API §3.2.1) —
+    /// the observable counterpart of `deliver_inbound`, so a rejected frame is
+    /// a real event, not just a log line. The denied frame's payload is never
+    /// forwarded (unverified attacker-controlled bytes, §3.2.1 omits key 4).
+    ///
+    /// `reason` is the ratified text taxonomy: `"forgery"` |
+    /// `"unauthenticated"` | `"fail_closed"`. Never called for Relay/transit
+    /// (not a local reject) or for a frame that was actually delivered (the
+    /// keyless operator-opt-in path delivers, so it must not deny).
+    pub async fn deny_inbound(
+        &self,
+        msg_id: u64,
+        target_group: u32,
+        reason: &str,
+        from_hive: u64,
+    ) {
+        let denied_hash =
+            r2_fnv::r2_hash(crate::mgmt::api::EV_EVENT_DELIVERY_DENIED).expect("known event");
+
+        let subscribers = self.subscribers.lock().await;
+        if subscribers.is_empty() {
+            return;
+        }
+
+        // A denial is not tied to a subscription (§3.2.1 omits sub_id), so the
+        // frame is identical for every match — build once, clone per send.
+        let denied_frame = build_denied_frame(from_hive, msg_id, target_group, reason);
+
+        for subscriber in subscribers.iter() {
+            let registry = subscriber.subs.lock().await;
+            for sub in registry.iter() {
+                // Filter match mirrors deliver_inbound, with the notification's
+                // own class standing in as the event: a subscription naming the
+                // denied class (by hash or string) matches; an unfiltered
+                // subscription matches everything, denies included
+                // (distinguishable by the event_class at key 2).
+                let f = &sub.filter;
+                if let Some(h) = f.event_hash {
+                    if h != denied_hash {
+                        continue;
+                    }
+                }
+                if let Some(class) = &f.event_class {
+                    if r2_fnv::r2_hash(class).ok() != Some(denied_hash) {
+                        continue;
+                    }
+                }
+                if let Some(h) = f.from_hive {
+                    if h != from_hive {
+                        continue;
+                    }
+                }
+                // A denied frame's from_tg claim is exactly what's untrusted
+                // (§3.2.1 omits key 6) — a from_tg-filtered subscription never
+                // matches a deny.
+                if f.from_tg.is_some() {
+                    continue;
+                }
+
+                match subscriber.tx.try_send(denied_frame.clone()) {
+                    Ok(()) => {}
+                    Err(mpsc::error::TrySendError::Full(_)) => {
+                        // Best-effort backpressure error (same as deliveries).
+                        let err_frame = build_backpressure_error(sub.sub_id);
+                        let _ = subscriber.tx.try_send(err_frame);
+                    }
+                    Err(mpsc::error::TrySendError::Closed(_)) => {
+                        // Connection has closed; the handler will unregister.
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     /// Send a frame to a hive via any transport that can reach it.
     /// Tries WebSocket first, then UDP, then BLE. Used when the caller has
     /// no route-engine hint (broadcasts, legacy paths).
@@ -910,6 +986,56 @@ fn parse_bench_group_hmacs(data: &str) -> HashMap<u32, GroupHmac> {
 }
 
 #[cfg(test)]
+mod denied_frame_tests {
+    use super::*;
+    use r2_cbor::{Decoder, Item};
+
+    /// Pin the ratified R2-HOST-API §3.2.1 `event.delivery.denied` key map:
+    /// keys 0/2/3/5/7 reused verbatim from `event.delivery`; 8=target_group,
+    /// 9=reason; 1 (sub_id), 4 (payload), 6 (from_tg) omitted.
+    #[test]
+    fn denied_frame_matches_ratified_key_map() {
+        let frame = build_denied_frame(0x00AB_CD12, 42, 0xDEAD_BEEF, "forgery");
+        let msg = r2_wire::decode_extended(&frame).expect("decodes as extended");
+        let denied_hash = r2_fnv::r2_hash("r2.api.event.delivery.denied").unwrap();
+        assert_eq!(msg.header.event_hash, denied_hash, "outer wire class hash");
+
+        let mut dec = Decoder::new(msg.payload);
+        let entries = match dec.next().expect("map header") {
+            Item::Map(n) => n,
+            _ => panic!("payload is not a CBOR map"),
+        };
+        assert_eq!(entries, 7, "exactly the 7 ratified entries (0,2,3,5,7,8,9)");
+
+        let mut seen: std::collections::BTreeMap<u64, String> = std::collections::BTreeMap::new();
+        for _ in 0..entries {
+            let key = dec.next().expect("cbor key");
+            let val = dec.next().expect("cbor val");
+            let k = match key {
+                Item::UInt(k) => k,
+                _ => panic!("non-uint key"),
+            };
+            let rendered = match (k, val) {
+                (0 | 3 | 5 | 7 | 8, Item::UInt(v)) => v.to_string(),
+                (2 | 9, Item::Text(bytes)) => String::from_utf8(bytes.to_vec()).unwrap(),
+                _ => panic!("unexpected key {k} or wrong value type"),
+            };
+            seen.insert(k, rendered);
+        }
+        assert_eq!(seen[&0], "0", "cid=0 (unsolicited notification)");
+        assert_eq!(seen[&2], "r2.api.event.delivery.denied");
+        assert_eq!(seen[&3], u64::from(denied_hash).to_string(), "event_hash");
+        assert_eq!(seen[&5], 0x00AB_CD12u64.to_string(), "from_hive");
+        assert_eq!(seen[&7], "42", "msg_id");
+        assert_eq!(seen[&8], 0xDEAD_BEEFu64.to_string(), "claimed target_group");
+        assert_eq!(seen[&9], "forgery", "reason (ratified text taxonomy)");
+        for omitted in [1u64, 4, 6] {
+            assert!(!seen.contains_key(&omitted), "key {omitted} must be omitted");
+        }
+    }
+}
+
+#[cfg(test)]
 mod group_key_tests {
     use super::*;
 
@@ -964,6 +1090,57 @@ fn build_delivery_frame(
             enc.kv(6, &Value::Bytes(&tg)).expect("from_tg");
         }
         enc.kv(7, &Value::UInt(msg_id)).expect("msg_id");
+        enc.len()
+    };
+
+    let outbound = ExtendedMessage {
+        header: ExtendedHeader {
+            version: 0,
+            msg_type: MsgType::Event,
+            flags: Flags::default(),
+            ttl: 0,
+            k: 0,
+            msg_id: 0,
+            event_hash: event_class_hash,
+            payload_len: used as u32,
+            target_group: 0,
+            target_hive: 0,
+        },
+        route: None,
+        payload: &payload_buf[..used],
+        hmac_tag: None,
+    };
+    let mut wire = vec![0u8; used + 64];
+    let n = encode_extended(&outbound, &mut wire).expect("encode_extended fits");
+    wire.truncate(n);
+    wire
+}
+
+/// Build an `r2.api.event.delivery.denied` notification frame per the ratified
+/// R2-HOST-API §3.2.1 key map: keys 0/2/3/5/7 reused verbatim from
+/// `event.delivery`; keys 1 (`sub_id`), 4 (`payload`) and 6 (`from_tg`)
+/// deliberately omitted (a denial is not tied to a subscription, and a denied
+/// frame's payload/TG claim is unverified by definition); new keys
+/// 8 = `target_group` (uint32, the denied frame's *claimed* target group) and
+/// 9 = `reason` (text: `"forgery"` | `"unauthenticated"` | `"fail_closed"`).
+fn build_denied_frame(from_hive: u64, msg_id: u64, target_group: u32, reason: &str) -> Vec<u8> {
+    use r2_cbor::{Encoder, Value};
+    use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
+
+    let event_class = crate::mgmt::api::EV_EVENT_DELIVERY_DENIED;
+    let event_class_hash = r2_fnv::r2_hash(event_class).expect("known event");
+
+    let mut payload_buf = vec![0u8; 96 + event_class.len() + reason.len()];
+    let used = {
+        let mut enc = Encoder::new(&mut payload_buf);
+        enc.map(7).expect("map header");
+        enc.kv(0, &Value::UInt(0)).expect("cid=0 (notification)");
+        enc.kv(2, &Value::Text(event_class)).expect("event_class");
+        enc.kv(3, &Value::UInt(event_class_hash as u64)).expect("event_hash");
+        enc.kv(5, &Value::UInt(from_hive)).expect("from_hive");
+        enc.kv(7, &Value::UInt(msg_id)).expect("msg_id");
+        enc.kv(8, &Value::UInt(target_group as u64)).expect("target_group");
+        enc.kv(9, &Value::Text(reason)).expect("reason");
         enc.len()
     };
 

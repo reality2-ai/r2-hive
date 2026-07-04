@@ -53,6 +53,8 @@ pub const EV_EVENT_SEND: &str = "r2.api.event.send";
 pub const EV_EVENT_SUBSCRIBE: &str = "r2.api.event.subscribe";
 pub const EV_EVENT_UNSUBSCRIBE: &str = "r2.api.event.unsubscribe";
 pub const EV_EVENT_DELIVERY: &str = "r2.api.event.delivery";
+/// §7.5.4 deliver-gate reject as a real, observable notification (R2-HOST-API §3.2.1).
+pub const EV_EVENT_DELIVERY_DENIED: &str = "r2.api.event.delivery.denied";
 pub const EV_PEER_LIST: &str = "r2.api.peer.list";
 pub const EV_PEER_QUERY: &str = "r2.api.peer.query";
 pub const EV_CAP_QUERY: &str = "r2.api.cap.query";

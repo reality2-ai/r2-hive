@@ -234,19 +234,52 @@ pub async fn route_frame(
                  (configure a sealed HK, or set R2_DELIVER_UNKEYED_OPEN=1 for a keyless dev daemon only)",
                 header.msg_id, header.target_group
             );
+            // R2-HOST-API §3.2.1: report the reject as a real observable event
+            // (the opt-in branch above DELIVERS, so it must not deny).
+            state
+                .deny_inbound(
+                    header.msg_id as u64,
+                    header.target_group,
+                    "fail_closed",
+                    originator as u64,
+                )
+                .await;
             false
         }
     } else {
         match class {
-            None => log::warn!(
-                "§7.5.4 DROP: forgery — tag present, no key verifies for tg={:08x} (msg_id={})",
-                header.target_group, header.msg_id
-            ),
-            Some(FrameClass::Unauthenticated) => log::warn!(
-                "§7.5.4 drop: untagged frame for tg={:08x} while holding keys (msg_id={})",
-                header.target_group, header.msg_id
-            ),
-            Some(FrameClass::Relay) => {} // transit (no key for this TG) — relay forwards, don't deliver
+            None => {
+                log::warn!(
+                    "§7.5.4 DROP: forgery — tag present, no key verifies for tg={:08x} (msg_id={})",
+                    header.target_group, header.msg_id
+                );
+                // R2-HOST-API §3.2.1: a real observable deny, not just a log line.
+                state
+                    .deny_inbound(
+                        header.msg_id as u64,
+                        header.target_group,
+                        "forgery",
+                        originator as u64,
+                    )
+                    .await;
+            }
+            Some(FrameClass::Unauthenticated) => {
+                log::warn!(
+                    "§7.5.4 drop: untagged frame for tg={:08x} while holding keys (msg_id={})",
+                    header.target_group, header.msg_id
+                );
+                state
+                    .deny_inbound(
+                        header.msg_id as u64,
+                        header.target_group,
+                        "unauthenticated",
+                        originator as u64,
+                    )
+                    .await;
+            }
+            // Transit (no key for this TG) — relay forwards, don't deliver. NOT a
+            // local reject, so NO deny event (§3.2.1 "not emitted on relay").
+            Some(FrameClass::Relay) => {}
             _ => {}
         }
         gate_should_deliver(false, state.deliver_unkeyed_open, class)
