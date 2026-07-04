@@ -542,6 +542,13 @@ impl WasmHive {
         // else the reply arriving back at the origin fails the in-flight check and
         // the origin never strong-reinforces toward the replier (used-path-wins).
         self.reinforcer.note_forwarded(self.self_hive_id, seq);
+        // Mixed-path coherence: a hive that originates here but RECEIVES via the
+        // fused handleRx path needs the same note in the DataPlane's internal ring
+        // (core's one TX-side platform duty, r2-dataplane `note_originated`) — else
+        // a reply arriving on the fused path finds no in-flight entry at the origin.
+        if let Some(dp) = self.data_plane.as_mut() {
+            dp.note_originated(seq);
+        }
         encode_frame(
             self.self_hive_id,
             target_hive,
@@ -567,8 +574,12 @@ impl WasmHive {
     /// RECEIVES the frame (vs k=3 under-reach) and its r2_trust gate rejects it locally.
     #[wasm_bindgen]
     pub fn build_critical_frame(&mut self, target_hive: u32, event_hash: u32, payload: &[u8], seq: u32) -> Vec<u8> {
-        // §4.3.4 invariant (b): originator notes its own (origin, msg_id) — see build_frame.
+        // §4.3.4 invariant (b): originator notes its own (origin, msg_id) — see
+        // build_frame (incl. the mixed-path DataPlane note).
         self.reinforcer.note_forwarded(self.self_hive_id, seq);
+        if let Some(dp) = self.data_plane.as_mut() {
+            dp.note_originated(seq);
+        }
         encode_frame(
             self.self_hive_id,
             target_hive,
