@@ -2,8 +2,14 @@
 //!
 //! See R2-HOST-API §4. A connection registers a subscription via
 //! `r2.api.event.subscribe` and receives matching events as
-//! `r2.api.event.delivery` notifications. Subscriptions are torn down
-//! when the connection closes.
+//! `r2.api.event.delivery` notifications — and §7.5.4 deliver-gate rejects as
+//! `r2.api.event.delivery.denied` (R2-HOST-API §3.2.1). Subscriptions are torn
+//! down when the connection closes.
+//!
+//! Channel-isolation guidance: an unfiltered subscription receives BOTH
+//! deliveries and denies on one bounded channel (a forged-frame flood can
+//! crowd deliveries out). Deny consumers should subscribe filtered to the
+//! denied class; delivery consumers should filter by their own event class.
 //!
 //! Phase 1 ships the registry skeleton with the data model and ID allocator;
 //! the actual delivery wiring lands when Phase 1 hooks into HiveState's

@@ -527,6 +527,14 @@ impl HiveState {
     /// `"unauthenticated"` | `"fail_closed"`. Never called for Relay/transit
     /// (not a local reject) or for a frame that was actually delivered (the
     /// keyless operator-opt-in path delivers, so it must not deny).
+    ///
+    /// Subscription hygiene (channel isolation): an UNFILTERED subscription
+    /// shares its bounded channel between denies and legit deliveries, so a
+    /// forged-frame flood can crowd deliveries out via try_send-Full.
+    /// Confidence-surface subscribers should use a dedicated deny-filtered
+    /// subscription (event_class = the denied class); delivery consumers
+    /// should filter by their own event class (a class-filtered deliveries-
+    /// only subscription never receives denies).
     pub async fn deny_inbound(
         &self,
         msg_id: u64,

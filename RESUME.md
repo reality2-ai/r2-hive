@@ -121,8 +121,31 @@
     caveat as key 8. ROUTE-ORIGIN-1 scoping ALSO confirmed correct + changelogged (route-less early-drop = pre-gate malformed-frame
     drop, correctly no deny; surfacing that drop class someday = a separate observability question). **✅ HOSTED-CI GREEN on eb7fa0e
     (supervisor verified its side)** — so B2b is local-green AND hosted-green, stated distinctly.
-    **REFUTE STATUS: NOT yet peer-refuted (requested from core — router/§7.5.4 is its seam); composer's live RED wiring
-    = the e2e. Not "done" until one of those passes or the absence is recorded.**
+    **★★ CORE REFUTE VERDICT = GO, no blocker (2026-07-04; ground-truthed classifier+my code+ratified spec):** (1) FALSE-RED refuted —
+    all 3 sites map 1:1 to the §3.2.1 taxonomy; forgery arm requires key-held (hmac.rs:392); keyless None-sentinel can't leak into the
+    forgery arm (disjoint if/else); opt-in-open delivers no-deny. ★ WORDING FIX (core nit, accepted): my "1:1 with gate_should_deliver
+    false" was LOOSE — Relay is also gate-false but ratified-silent; correct claim = "1:1 with the ratified §3.2.1 deny taxonomy."
+    (2) MISSED-RED refuted — ROUTE-ORIGIN-1 scoping HOLDS (v0.5-ratified; also structurally forced: route-less = no key-5 value).
+    (3) DoS ACCEPTABLE — no mesh egress (denies go ONLY to local mgmt subscribers), bounded channels, no growth; deny rate = the
+    pre-existing warn rate. ACTIONED core's doc ask: subscription-hygiene lines added (deny consumers = dedicated deny-filtered sub;
+    delivery consumers = own-class filter; unfiltered = shared-channel crowd-out risk) at deny_inbound + subscriptions.rs module doc.
+    Micro-nit (prebuild ~150B alloc before filter-match) DECLINED — negligible per core's own read, keeps code simple. (4) ENCODING
+    clean (independently checked vs ratified table; no panic path on key-5 since early-drop guarantees route_stack[0] pre-gate).
+    **★ CORE'S 2 HAND-OFFS: (a) E2E FOOTNOTE→composer (SENT): forged RED frames MUST carry a route stack (R>=1, route_stack[0] set) —
+    a route-less forgery EARLY-DROPS silently pre-gate (router.rs:146-149) = scene shows nothing (3rd silent-no-render trap caught:
+    decimal-key, wrong-tg-transit, now route-less). Scene copy: a deny = "LOCAL dispatch refused," NOT "frame died" — the frame may
+    still relay onward (gateless relay by design). (b) peering_hmacs FUTURE COUPLING → hard task #38: the live entanglement table MUST
+    land in the same change as the classify call-site update, else entangled-peer frames deny as forgery (false-red-in-waiting;
+    unreachable today).**
+    **★ EMPIRICAL Q ANSWERED (core asked: does legit untagged traffic hit route_frame?) — STATIC finding: hive-bin's OWN mgmt
+    event.send outbound (primitive.rs handle_event_send) builds frames with hmac_tag:None AND route:None** → (i) route-less ⇒ peers
+    EARLY-DROP them at ROUTE-ORIGIN-1 pre-gate ⇒ they produce NO denies ⇒ healthy-run deny volume ≈ 0 (no deny-spam; composer's GREEN-run
+    log-watch for the pre-existing "untagged frame…while holding keys" warn = the live confirm); (ii) ⇒ **PRE-EXISTING GAP (not mine, not
+    demo-blocking, flagged): Linux-hive-ORIGINATED event.send traffic cannot traverse a keyed real-hive mesh at all** (no route stack →
+    origin-drop; no tag → would deny even if routed). Composer's injector builds tagged+routed frames itself so the Pillar-2 demo is
+    unaffected — but "real hives sending real data" eventually wants hive-originated frames = event.send needs route_stack[0]=self +
+    GroupHmac tag from group_hmacs. Surfaced to supervisor as a Pillar-2 follow-on question (spec/design call, not a solo build).
+    **REFUTE STATUS: core = GO (verdict above). REMAINING for "done": composer's live-RED e2e.**
   - **★ ROY UX RULING (via supervisor, 2026-07-04): the radio control on BOTH tiers = DRAG (moving hives in/out of range).** My bench
     half of the primary demo gesture = the benchdist virtual-distance lever, and **VDIST <peer_hex> <t_ord> <range> is RANGE-NATIVE**
     (converts range→RSSI via the §2.7 log-distance model in-firmware) → composer's drag-UI maps 1:1: drag distance → VDIST range
