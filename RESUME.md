@@ -180,6 +180,15 @@
   (persona-only, no reflash).** HEALTH decode recipe (validated on 2 boards): hex after 'HEALTH' matches af001a<hive8>011a<tg8>.
   D2's verify = composer greps its own :21064 stream (no tty contention). Delivering-pair arithmetic closes: each shows nbrs=1
   stable = verifying exactly the other in-TG board.
+- **✅ WEAVE L5 FINAL (supervisor-codex/composer): 84-inject window clean, relays flowed (276 ttl=7 + ttl=6/5); L5 verified e2e on
+  MEMBERS {09a07e47, 8900955e} (Roy saw flashes); {495b1b62, b14b07d8} = correct fail-closed NON-MEMBERS of tg 04bc57e7
+  (provisioning gap). composer self-verified group-hmac.bin == weave-hk.bin, deliver=true.** MY DELIVERABLES SENT: (a) the full
+  console-verified id→MAC→tty map (member-vs-refused rendering unblocked TODAY for the four bench boards; carrier still open);
+  (b) provisioning side TAKEN = task #42 (regenerate personas for B7:90:10+52:99:28 with CURRENT weave-hk, SAME master_secret to
+  preserve ids, delivered via the #14 console PERSONA receiver — no reflash/esptool; composer executes, I verify: nbrs stabilizes
+  + dlv increments on next signed inject; GATED on Roy's 4/4 call); (c) task #32 ELEVATED (supervisor-codex: §9.2 conformance fix
+  + per-board relay-attribution observability in one; CONTESTED label still respected). Locator note recorded: LCD L2 hive id +
+  r2.hb.identify = safe physical-mapping paths; membership = runtime-NVS/boot-serial, never source-inferable.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
