@@ -22,6 +22,13 @@
   **task #45** (replyMarkerWithStack in wasm; non-blocking — stackless markers lay weak evidence, nothing breaks).
 - **Inbox hygiene note:** `fleet inbox` retains months of processed history (the consolidation/relay-v0.2 era) — read the TAIL
   for new items; do not re-action old arcs (relay v0.2 handshake work etc. was a PRIOR era, largely superseded).
+- **Unicast flood fan-out audit: hive CONFORMS everywhere (A/B/C answered: NONE — no Roy escalation).** Specs landed the
+  per-neighbour fan-out canon (ff5555c); audit of all four egress layers: hive-bin router.rs Flood arm sends per
+  DirectedHop.neighbour (send_to_hive_via, per-hop logging); hive-bin flood_tg_peers_not_in EXCEEDS the contract (per-peer WS
+  unicast to fresh TG peers the engine hasn't observed); sync_host Flood arm per hop.neighbour; wasm captures per-target sends.
+  (A) under-reach not present; (B) no concrete truncated-bridge scenario in bench records (Pillar-2 e2e passed) — if composer
+  surfaces one it becomes NEW elevated-trust wiring (§13.7.2 is NOT wired into spray ranking today, core confirmed); (C)
+  closed previously. Off-thread fork's bridge-problem framing = overstated; in-thread audits authoritative.
 - **Flood D-exclusion tiebreaker: hive layers CLEAN (evidence sent).** Core proved its flood is not auth-gated; my inspection
   refuted the hive-wrapper-filter option on BOTH paths: route_inbound_sync ingests the sender Observation on every
   structurally-valid frame (unconditional, pre-plan_forward; only ROUTE-ORIGIN-1 drops earlier, auth-independent), and the
