@@ -70,10 +70,12 @@ def jline(**fields):
 
 
 def open_safe(port, baud=115200):
-    """Open the port with DTR+RTS de-asserted BEFORE open and never toggled.
+    """Open the port with steady DTR=1/RTS=0 set BEFORE open and never toggled.
 
-    Aborts loudly if pyserial is missing or the safe state can't be requested —
-    a careless open can brick an unreachable board.
+    (Terminal-ready line discipline — see the block comment below. The old
+    DTR=0 'safe' open read zero console bytes on the S3 USB-Serial-JTAG.)
+    Aborts loudly if pyserial is missing or the state can't be held — a
+    toggle sequence can reset an unreachable board.
     """
     try:
         import serial  # vendored alongside this script (see run-bridge.sh PYTHONPATH)

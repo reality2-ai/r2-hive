@@ -74,6 +74,14 @@
   read tables — real leak caught); (2) reply key 5 build_class (v0.7: 1=dev; ★ ENUM-ALIGNMENT pending — my beacon proposal used
   0/1/2 with dev=2; asked specs to pin ONE table for both surfaces); (3) CBOR ratified; (4) reply msg_id = reply_msg_id_ext(query)
   MANDATORY (R2-WIRE §4.2.2 partition — even before core's trail.rs header-recognition lands; weak-only-trails seam in canon).
+- **🔍 BRIDGE-STALL TRIAGE (live):** composer: DTR=1 bridge OPENS perfectly but the adapter→bridge→router pipeline stalls at 13
+  lines (zero rt.* forwarded) while a bare DTR=1 monitor on the identical stream flows flawlessly. MY AUDIT: passthrough branch
+  exists+correct (render_rx rt.-JSON arm, flush=True; task#24); ALL stdout writes flush=True (no block-buffering); router path
+  IDLE on a hive console (no R2RX lines → no stdin writes → deadlock theory dead). ONLY stall mechanism my side = print(flush)
+  BLOCKING on a FULL pipe when the CONSUMER stops draining — and composer's stall point (line 13) is exactly where the FIRST
+  rt.snap would reach the adapter → prime suspect = the adapter's stream handler throwing/wedging on the first rt.* line.
+  ISOLATION TEST SENT (bridge standalone → file, 30s, count rt.snap): file fills → adapter's bug; empty → mine, fix-within-hour.
+  Composer's option-b bare-read reassembler = fine theatre-today fallback (its lane). Stale open_safe docstring fixed.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
