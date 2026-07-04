@@ -68,7 +68,17 @@
   — **FOLLOW-ON FIX (next focused firmware pass): extend write_ota_pending to store the target slot; make
   ota_confirm_or_rollback_on_boot ALSO health-gate when read_ota_pending().target == the RUNNING partition (distinguishes the
   2a-window [new slot running + pending] from a pre-activate stale pending [old slot running → line-2782 clear]); a window-boot
-  then health-gates + can software-rollback an unhealthy image even at state Valid.** (b) CRASH-ON-BOOT-in-window = IRREDUCIBLE
+  then health-gates + can software-rollback an unhealthy image even at state Valid.
+  **GROUNDED DESIGN (API resolved, implementation-ready — supervisor greenlit "proceed", doing it as a FRESH focused pass
+  because it is brick-critical BOOT-PATH code, not rushed at this session's tail):** (1) OTA_PENDING record 12B→16B at
+  0x1A000: MAGIC(4 BE)+seq(4 LE)+floor(4 LE)+target(1: ota_app_number Ota0=0/Ota1=1)+pad(3). (2) read_ota_pending→
+  Option<(u32,u32,u8)>; write_ota_pending(seq,floor,target). (3) 3 callers (FlashSink.activate + the 2 OCM sites) pass
+  target = `ota.next_partition()`'s AppPartitionSubType (write is now BEFORE activate, so next_partition = the slot about to
+  activate). (4) the confirm-commit site main.rs:2765 destructures the new 3-tuple. (5) ota_confirm_or_rollback_on_boot
+  `_` branch (main.rs:2783): read booted subtype via read_partition_table→`pt.booted_partition()`→`partition_type()`→
+  App(sub); if read_ota_pending() present AND target==booted-sub → run the SAME health-gate (health_check → set Valid +
+  commit floor + clear; else set Invalid + activate_next revert + clear + reboot); else → clear stale (unchanged). (6)
+  rebuild the #49 ELF + re-refute. New/PendingVerify branch unchanged.** (b) CRASH-ON-BOOT-in-window = IRREDUCIBLE
   narrow residual (verified image + crash-on-boot + sub-ms two-write window; bootloader-dependent, uncovered if inherits Valid)
   — documented honestly, NOT claimed closed by 2b. **#49 BENCH: ELF 29e250cf (fix-1 §5.1) is SUFFICIENT** (the OTA'd image is
   the SAME known-good firmware → boots healthy → the 2a residual doesn't trigger); the app-level engage + 2b are PRODUCTION
