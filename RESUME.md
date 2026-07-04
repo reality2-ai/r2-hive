@@ -47,6 +47,15 @@
   INPUT rides the same attach (#14 persona-receiver proves it) → drag --control (VMASK/VDIST) unblocked by the same fix. Composer
   test ladder: D1 first, banner-replay = abort signal; then D2. Options (a) over-air rt.* relay / (b) BLE characteristic = NOT
   built + wrong path for bench. No firmware change, no reflash.
+- **📐 R2-DIAGNOSTICS v0.4 §6 LANDED (specs 87dee82: DEV/PROD bench-mode + on-mesh TG-gated table query) — MY PROTOCOL PROPOSAL
+  SENT (task #41 gated on ratify):** classes nz.r2.diag.table.query {0:want bitmask nbr|path, 1:cursor} / .table.reply DIRECTED
+  {0:epoch(route_now_s), 1:kind, 2:total, 3:cursor, 4:entries[≤8]}; entries mirror rt.nbr/rt.path 1:1 (confidence_milli uints,
+  fade in ds); chunk≤8 fits BLE-200/LoRa-222 (MCU tables cap 16 → ≤2 chunks); snapshot-to-stack = one-epoch consistency; token
+  bucket 1/2s burst 3; TG-gate = the deliver-gate itself (no-response-to-unauth falls out free). LED §6.2: 30ms deliver pulse +
+  PROPOSED double-blink-on-reject (task#33 trichotomy, LED twin of delivery.denied) + 100ms beat, 20ms coalesce. **HONEST SEAM:
+  diag round-trips lay WEAK trails only today; STRONG needs trail.rs header-level reply detection (is_reply_id_ext + in-flight
+  match — cleaner than the ASCII-marker-prepend routetest convention); proposed to specs, core's crate. Composer's write-side drag
+  question ANSWERED: no over-mesh verb needed — the one steady-DTR=1 attached fd carries BOTH rt.* read AND --control writes.**
 - **✅ COMPOSER ALL-CLEAR (lsof/fuser verified):** ACM2/ACM5/ACM3 all FREE — its only serial procs sit on the CARRIER (by-id
   B6:0A:A0, hive a1f5ed00), not the flash targets → no port-busy risk. RELAY CHAIN SET: flash-done signal → I ping composer →
   composer attaches carrier-r2-adapters (by-id, sanctioned) to D1+D2 → watches healthy-boot sequence (persona→radios→TN READY→rt.*)
