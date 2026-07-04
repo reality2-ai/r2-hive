@@ -22,6 +22,13 @@
   **task #45** (replyMarkerWithStack in wasm; non-blocking — stackless markers lay weak evidence, nothing breaks).
 - **Inbox hygiene note:** `fleet inbox` retains months of processed history (the consolidation/relay-v0.2 era) — read the TAIL
   for new items; do not re-action old arcs (relay v0.2 handshake work etc. was a PRIOR era, largely superseded).
+- **RAK4630 gate LIFTED (core Phase-1 spike eef3baf: 42.3 KiB / 480 KiB slot, 8.8%, full TN stack, two-entry-point seam
+  verbatim, linker-enforced slot + in-platform-dir CI) — and the CORE-VERIFY cross-check CAUGHT A PRE-BENCH RADIO MISMATCH:**
+  spike literals 923.0 MHz / SF7 / sync 0x12 vs the DFR canon as923_nz = **916.8 MHz / SF12 / CR4:5 / sync 0x21** (vendored
+  r2-sx1262 lib.rs:112 — the metal-proven FR/18km config). Each of the three differences alone = zero cross-reception at
+  first light. Recommendation sent (core + Roy via supervisor): RAK Phase-2 adopts as923_nz verbatim (match the proven side;
+  SF12 ToA fine for the event-counting falsifier); SF7 bench plan only on Roy's explicit preference (touches proven DFR
+  config too). Task #44 updated with all Phase-1 facts; my Phase-2 shape = event-driven continuous-RX io_task.
 - **best_transport/RSSI tiebreaker: hive-bin seeding CONFORMS (no fix).** Core proved selection is quality-driven (rssi
   recorded, unused; falsifier 33780e0). My audit of all 3 hive-bin ingest sites: inbound-frame Direct(0.9) covers ALL IP
   peers; reinforce_delivery Direct(0.95); the only sub-0.9 seed is BLE scan-only discovery (Direct(0.6)/Mobile — deliberate,
