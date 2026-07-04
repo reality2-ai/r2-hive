@@ -118,8 +118,10 @@
   parseAck'd → routetest frames 0→14 in 13s → (i) VDIST BITES: D1→D2 conf 0.568→0.506 under VDIST-far, then clean UPWARD JUMP to
   0.600 on VCLR (the up-step = proof; decay only falls); (ii) rt.path LIT 0→D1:4/D2:2 toward origin (conf 0.79) = the narrowing
   scene. ONE SOURCE, TWO SCENES, CONFIRMED ON METAL. Console-truth dest worked first try; confirm-by-ack live for all verbs;
-  boards left demo-ready (SENDTO NVS-persisted). ONLY ROY'S VISUAL ACCEPTANCE REMAINS.** (MASK d2a7a6a awaits composer's next
-  redeploy — not needed for the current scenes.)
+  boards left demo-ready (SENDTO NVS-persisted). ONLY ROY'S VISUAL ACCEPTANCE REMAINS.** (MASK d2a7a6a: composer DELIBERATELY
+  DEFERS the re-scp — not on the acceptance path, no board restarts before Roy's visual; deploys as a pure bridge swap
+  (four-fix target sha e7fd1e6a) when composer builds its ISLAND-SPLIT/HEAL scene — drag apart → MASK cuts can_hear → islands;
+  drag back → heal. Composer's adapter half pre-landed (25cc889/13de423). NB "task #14" there = COMPOSER'S tracker, not mine.)
   **+ MASK forwarding (d2a7a6a, sha e7fd1e6a…):** the fork-specified SENDTO+MASK pair complete — MASK <mac>… (≤8, routetest
   can_hear topology shaping, NVS-persisted, main.rs:4337) same guard; MASK-SET + NVS-restore acks forward (match-tested, no
   VMASK collision). ONE re-scp = four fixes (DTR + ack + SENDTO + MASK). Composer redeploys at Roy's acceptance window.
