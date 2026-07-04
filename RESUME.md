@@ -1,5 +1,12 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ RAK RADIO PLAN CLOSED (core aff9928): spike calls as923_nz() DIRECTLY (byte-identical exports, cannot drift); 42.5 KiB / 8.9%, verdict unchanged
+- TCXO + pinout CORE-VERIFY markers remain for bring-up. Two engine gates recorded on task #44 for the falsifier's
+  path-table assertions (re-verified green against aff9928: 37/37 + 15/15): reply legs MUST be MsgType::Reply frames
+  (is_reply gate), and egress-masked transit lays NO trail evidence (carried gate reads FINAL relay truth) — so masked
+  directions legitimately have NO path entries; arm-3's through-RAK attribution is cleaner for it, but don't assert
+  entries on masked paths.
+
 ## 🔒 is_reply TYPE GATE ABSORBED (2026-07-05, third+final trail step, core 3d43838 codex-HIGH; mine = 4a51717 pushed)
 - Reply-ness now rides the frame TYPE field: on_received gained in-signature `is_reply` (no call site can omit it) — kills
   the trail-poisoning lever where an authenticated Event with a marker-shaped payload spoofed a retraced reply,
