@@ -82,6 +82,11 @@
   rt.snap would reach the adapter → prime suspect = the adapter's stream handler throwing/wedging on the first rt.* line.
   ISOLATION TEST SENT (bridge standalone → file, 30s, count rt.snap): file fills → adapter's bug; empty → mine, fix-within-hour.
   Composer's option-b bare-read reassembler = fine theatre-today fallback (its lane). Stale open_safe docstring fixed.
+  **✅ RESOLVED — BRIDGE EXONERATED (composer): the "stall" was its own off-by-default R2_BENCH_RT_FORWARD opt-in (adapter was
+  draining-then-DROPPING rt.* — pipe never filled, consistent with my flush analysis). Env set → mesh.tn FLOWING with real data
+  (D1 0x8900955E nbrs=4, conf decaying per beat); rolling to D2. Full pipeline live: adapter + my DTR=1 bridge + RT_FORWARD env.
+  THE BENCH VIEW IS LIT with the boards' true route-engine tables = bench-mirrors-reality on screen. No bridge fix needed
+  (bonus: my bridge correctly REJECTED the pass-through --rt-forward unknown arg — validation worked).**
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
