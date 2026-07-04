@@ -56,6 +56,13 @@
   diag round-trips lay WEAK trails only today; STRONG needs trail.rs header-level reply detection (is_reply_id_ext + in-flight
   match — cleaner than the ASCII-marker-prepend routetest convention); proposed to specs, core's crate. Composer's write-side drag
   question ANSWERED: no over-mesh verb needed — the one steady-DTR=1 attached fd carries BOTH rt.* read AND --control writes.**
+- **✅✅ rt.* CLOSED — COMPOSER CLEAN-ATTACH CONFIRMED (best case): steady DTR=1/RTS=0 on D1 → r2-dfr1195: stream + rt.snap/rt.nbr
+  within seconds, NO reset (beats 474→479 continuous), live decay dynamics visible.** Bridge SOURCE fixed (5466092): DTR=1 steady,
+  guard inverted (FATAL if DTR=1/RTS=0 can't hold), close leaves DTR asserted; sha 8bbe3090…; running instances redeploy at a
+  scene-safe moment (≤1 benign reboot each on first re-attach). **★ ID FINDING: rt.* prints u32 ids DECIMAL; D1 console-truth
+  self-id = 0x8900955E ≠ FR-era 480e900e → the FR-era MAC→persona/hive map is STALE (boards re-provisioned; hive_id=FNV(master_
+  secret,tg_id) changes on re-provision). Composer's neighbours decode exactly to known ids (495b1b62/655a9e5f/09a07e47/b14b07d8).
+  DO-NOT-ASSUME any FR-era id table; console/§6-reply = truth.** rt.path=0 pending directed traffic (expected pre-narrowing).
 - **📐 v0.5 REFINEMENT (specs 8dcc598, Roy): DEV/PROD = WHICH CODE WAS FLASHED → TWO composed images (no dormant dev code in any
   prod build). BEACON DEV-DECLARE CALL (mine, sent): do NOT repurpose §7.2 bit 4 mcu_mode** — audit: zero production emit/read
   (r2-discovery codec+tests only; fw never touches it) BUT it's PRE-ALLOCATED for the custom-sensor MCU-sleeps-SBC signal (flagship
