@@ -1,5 +1,39 @@
 # RESUME — r2-hive (hive-worker)
 
+## ⚡ TURN CONSOLIDATION (2026-07-05 late): v0.64 break absorbed; #49 STALE-ARTIFACT correction sent; 4/4 PROVISION verify armed; RAK4630 task opened
+- **core v0.64 trail break absorbed SAME-HOUR (fc08e7a pushed):** core landed 1cc8cd1 on the shared checkout (the instant-bite
+  path-dep coupling, as normed — heads-up honored). Fixes: `on_received` gained `my_hive` (§4.6.1 retrace — heads-up said
+  signature-unchanged, landed reality differs, compiler caught it); Directed arm notes `hop.neighbour` as recorded successor;
+  Flood arm restructured to **one note_forwarded PER FORWARDED COPY** (v0.64 fan-out rule); wasm originate sites →
+  `trail::NO_SUCCESSOR`. 37/37 r2-hive-core tests green (my three §4.3.4 invariant tests HOLD under v0.64), workspace green,
+  wasm crate tested separately + wasm32 clean. **wasm rebuilt 0.6.0** (pkg sha256 starts 3c08e9b7, 144 877 B) — carries v0.64
+  trails + `RxDisposition.authenticated` (core 0e59a7a) for the 700 dedup/refutation arm; composer pulls the fresh pkg.
+- **🚨 #49 STALE-ARTIFACT CORRECTION (urgent, sent to supervisor pair):** the message-batch cutover step-1 pointed Roy at
+  `~/r2-dfr1195-weave-fixed.elf` (ab1f1cb6, Jul 3 17:51) — **two generations stale**: predates defer-OtaUpdater (7a40bed 19:12),
+  half-open guard (69a2d90), coex mute (3aae196), AND Roy's fix-first §5.1 brick-safety (472e1d4+0225ceb Jul 4). The CORRECT
+  staged artifact = `~/r2-dfr1195-weave-coex.elf` **29e250cf** (1 362 756 B, Jul 4 12:37 = one minute after the brick-safety
+  commit), sha-verified INTACT on BOTH tuxedo and alfred this turn, and it is the same image already healthy on D1+D2.
+  Board-side #49 work is COMMITTED + INSIDE the staged image — nothing left to stage; do not let anyone re-point Roy at
+  ab1f1cb6. Composer host levers (scanner-stop 61ad26d, debugfs supervision_timeout) are image-independent and compose.
+  Sha-archaeology lesson: the 0f4e367/9240217 shas in the ACK trail exist in NO checkout (superseded identities); trust the
+  tree + dated commits, not message shas.
+- **4/4 PROVISION (Roy ruled option B): VERIFY DUTY ARMED.** Composer executes the d57df16 recipe on D2/ACM5 (b14b07d8) +
+  D4/ACM4 (495b1b62): `PROVISION <wire> 79452135 <weave_hk_64hex>`, steady DTR=1/RTS=0. My falsifier chain on its report:
+  PROVISION-APPLIED acks → `PROVISION installed live` (no reboot) → HEALTH tg 04bc57e7 → nbrs flap stops → **dlv increments on
+  the next signed inject (decisive)**. Then ping supervisor with evidence. Honest debt recorded: option B leaves the @0x14000
+  override ACTIVE (shadows persona on future hk rotations) — #43 DEPROVISION verb = the eventual cleanup, HELD spec-first.
+  (Note: an earlier batch said D4 was already erased-to-weave and 4/5 accepted with b14b held apiary; Roy's 4/4 ruling
+  supersedes. PROVISION on an already-weave D4 is idempotent-harmless.)
+- **RAK4630 TN-repeater = task #44 (Roy GO):** gated on core's thumbv7em flash-fit spike; acceptance falsifier DESIGNED NOW
+  (4-arm relay-necessity: baseline-off fails / live-on delivers / attribution-through-RAK / negative-control reversibility;
+  isolation via existing MASK + VDIST-on-LoRa-ordinal verbs); bench prereq = loraroute DFR rebuild for A/B peers (29e250cf is
+  ESP-NOW-only); frequency plan read from lora.rs, band choice flagged to Roy, never chosen silently.
+- **Absorbed FYIs:** §8.4b per-origin quota closed both ends (specs v0.30 canon, core bc158ab, TV5/TV6; TN-L1-IT-BL-506
+  aggregate residual open by design). Naming: R2-Mesh = the id-5 WiFi-band bearer ONLY; L1 umbrella = "connectionless-mesh
+  bearer role"; L3 = R2 Logical Mesh / Transient Network — fw/log/UI labels must follow (audit at #32's re-vendor). #31 canon:
+  radio-restriction = BUILD-TIME transport composition (R2-TRANSPORT v0.29 §2.2B, 0193398); runtime transport_allow_mask only
+  masks within compiled-in bearers; NO runtime radio-disable hook, bench-only silencing banned from field builds.
+
 ## 🔨 TASK #34: increments 1–3 of 4 LANDED (fw ea3d2f0 → f05e0d3 → a239123, all pushed + xtensa-verified)
 - **inc2 (f05e0d3) — bus plumbing:** `radiofrontend` feature (implies ble + r2-hw). The §4.2 binary decoder rides uart_rx_task's
   byte stream ALONGSIDE the console line parser (coexistence: provisioning verbs stay alive; frame bytes land in the line buffer
