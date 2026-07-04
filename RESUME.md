@@ -114,6 +114,12 @@
   Demo recipe to composer: D1 SENDTO b14b07d8 → requests D1→D2 → replies lay strong trails → rt.path lights + VDIST gradients
   get traffic (ONE source, TWO scenes; console-truth ids only). Roy's bench demo now plumbing-complete my side: rt.* read +
   proven drag write + traffic source + id truth-table + ack loop. One bridge redeploy carries DTR+ack+SENDTO (scene-safe).
+  **✅✅✅ BENCH LOOP PROVEN ON METAL (composer, 2026-07-05): deployed 790deb2d (3-fix bridge), SENDTO b14b07d8 on D1 → ACK'd +
+  parseAck'd → routetest frames 0→14 in 13s → (i) VDIST BITES: D1→D2 conf 0.568→0.506 under VDIST-far, then clean UPWARD JUMP to
+  0.600 on VCLR (the up-step = proof; decay only falls); (ii) rt.path LIT 0→D1:4/D2:2 toward origin (conf 0.79) = the narrowing
+  scene. ONE SOURCE, TWO SCENES, CONFIRMED ON METAL. Console-truth dest worked first try; confirm-by-ack live for all verbs;
+  boards left demo-ready (SENDTO NVS-persisted). ONLY ROY'S VISUAL ACCEPTANCE REMAINS.** (MASK d2a7a6a awaits composer's next
+  redeploy — not needed for the current scenes.)
   **+ MASK forwarding (d2a7a6a, sha e7fd1e6a…):** the fork-specified SENDTO+MASK pair complete — MASK <mac>… (≤8, routetest
   can_hear topology shaping, NVS-persisted, main.rs:4337) same guard; MASK-SET + NVS-restore acks forward (match-tested, no
   VMASK collision). ONE re-scp = four fixes (DTR + ack + SENDTO + MASK). Composer redeploys at Roy's acceptance window.
