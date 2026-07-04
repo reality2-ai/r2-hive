@@ -1,5 +1,27 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔨 TASK #34 UNDERWAY — increment 1 LANDED (fw ea3d2f0): r2-hw §4.2 bus codec crate, all 4 vectors byte-exact green
+- **What landed:** `crates/r2-hw` on the dfr1195-fw branch — no_std zero-dep codec for the R2-HW §4.2 MCU-SBC bus:
+  CRC-16/CCITT-FALSE (0x1021/0xFFFF/no-reflect, check 0x29B1 asserted), `encode_frame`, streaming resync `Decoder`
+  (tolerates interleaved ASCII console noise — tested), full §5.4 command table (legacy + cohort 0x90–0x9A + BEACON_AD 0xC0),
+  pinned CONFIG ids + `ConfigError::UnknownId` (the HW4 MUST-ACK-reject case), WAKE_REASON_EXT 0x07–0x0B, peer/status/ack
+  payload builders. **15/15 tests green incl. HW1–HW4 byte-exact from r2-hw-vectors.json; `--no-default-features` clean.**
+  ACK status bytes: only 0x00-vs-nonzero is interop-bearing (spec leaves values unpinned; local taxonomy documented) —
+  candidate spec question for specs when convenient, NOT blocking.
+- **Increment plan (seam map, verified against main.rs):** the mode = `radiofrontend` feature (implies ble).
+  (2) bus plumbing: keep `usb_tx` (main.rs:505 currently drops it; esp-println owns TX FIFO via raw regs — binary frame
+  writes interleave-race with log prints, mitigation = front-end goes console-quiet after boot, CRC resync covers residue);
+  new bus_tx_task (static channel → frame writer); uart_rx_task feeds every RX byte to the r2-hw Decoder alongside line
+  accumulation; dispatch: TRANSMIT→verbatim ESP-NOW broadcast (carrier INJECT machinery), CONFIG→parse+apply/ACK-reject-
+  unknown (HW4), BEACON_AD→length-check + current/next slot store + BLE adv update (reject ⇒ ACK ERR_INVALID + keep airing
+  last-known-good, never-zero-beacons), SLEEP/SET_TIMER/READ_LOG→ACK ERR_UNSUPPORTED (honest stand-in), boot PEER announce
+  (component_index 0, "SENTINEL"), STATUS 30s with real radio counters.
+  (3) radio RX→PACKET forward with §8.4-lite pipeline (structural decode + counters + token bucket), NO GroupHmac.
+  (4) the §4.1 hard part: io_task spawn (main.rs:494) gated OFF in this mode (no mesh participation, no hk install =
+  zero-key-material by construction), ble_task (:523) swapped for a verbatim-AD advertiser (cold boot = NOT advertising
+  until first BEACON_AD — the front-end MUST NOT originate any payload bit), espnow_task (:539) RX side → bus forward.
+  Each increment xtensa-build-verified before the next. **STAGE for Roy — no flash.**
+
 ## ✅ CATCH-UP CONSOLIDATION (2026-07-05, supervisor-codex batch; every claim below re-verified locally before recording)
 - **DARK-BOARD ARC CLOSED ON METAL (task #42 → completed):** @0x14000 override mechanism PROVEN. Roy's clean `erase_region` +
   weave-persona flash flipped D4 (495b1b62) onto the weave TG; the interim "still ea6c5a9d after erase" observation traced to Roy's
