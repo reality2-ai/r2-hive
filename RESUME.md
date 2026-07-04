@@ -267,6 +267,27 @@
   the noted-forwards ring (forward via one path can't strong-trail a reply via the other). ASKED composer which API its probe/theatre
   drives; preferred resolution = converge wasm routing flows on handleRx (one pipeline, one state). #40 wiring holds on composer's
   answer; core's DataPlane side proceeds regardless.**
+- **★★ SEAM FINAL (core split-ack, 2026-07-04; supersedes the by-construction detour — crossed messages): sync-side glue = MINE (i)-(v);
+  core's DataPlane-internal reinforcer = QUEUED core hardening for the fused/metal path (disjoint entries, no double-fire).** Sealed by
+  ground truth: composer drives route_frame at 14 sites (its answer) → route_inbound_sync; AND handleRx cannot host the routing sim
+  anyway (r2-dataplane ingress = 2-bit PhyMask FLRC|LORA only, NOT the 7-transport space; handle_rx_frame HARDCODES dice_roll=0.5:657 →
+  no probabilistic k-flood). Composer STOOD DOWN from converging; route_frame stays its sim API; handleRx stays the 5 delivery/OTA arms.
+- **★ CORE'S 3 RULINGS (all adopted):** (1) trail.rs → u32 END-TO-END, additive (compact-tier u16 helpers stay; REPLY_ID_BIT_EXT=
+  0x8000_0000 mirror rule; core caught its own String<24>→<32> capacity bug in review; core's harness had the same latent `as u16`
+  truncation — fixing same pass). SPECS INDEPENDENTLY CONFIRMED (6588224): marker format NOT pinned in canon, core free to widen;
+  R2-ROUTE v0.60 landed: extended-format dedup caches MUST key full 32-bit msg_id (verified my tiers already comply: hive-bin F3 u32,
+  sync u32, fw fingerprint u32, wasm fused u32). (2) CAP: TrailReinforcer<256>, set_effective_cap NEVER in production (ring bounds
+  IN-FLIGHT messages not destinations; 256 = validated envelope, 2KB). (3) FOUR INVARIANTS my wiring must hold: (a) reinforce ONLY
+  post-dedup-accept — my draft placement (pre-plan_forward) was WRONG (dupes re-reinforce forever with authenticated=false);
+  **MECHANISM CHOSEN + SENT: sync tier flips authenticated=true (sim/local-origin trust, core's preferred A1 resolution → dedup
+  RECORDS, copies drop) + on_received AFTER plan_forward gated non-duplicate**; (b) note_forwarded at ORIGINATE too (wasm build/send
+  chokepoint notes (self_hive,msg_id)) else origin never strong-reinforces toward replier; (c) overhear N/A on sync tier; (d) hooks-only
+  glue, no policy re-implementation. authenticated flag RULED IN-pass; arrival_transport/§2.3B = SEPARATE (scope tight).
+  **BEHAVIOUR CHANGE flagged to composer: with authenticated=true, duplicate copies dedup-DROP per §8.2 (correct canon — makes
+  copy_count-0 measurable = the acceptance); its flood counters must count drops not re-processing.** Calibration handed through:
+  c'=c+0.05(1-c) per accepted forward; 1-0.95^N over N distinct-msg_id sends; entries visible immediately; nothing toward D until replies.
+  **SEQUENCING: core lands trail.rs u32 (heads-up BEFORE push per the shared-checkout discipline) → I wire (i)-(v) → wasm bump →
+  composer renders. WAITING on core's push heads-up.**
 - **★ URGENT SUPERVISOR Q ANSWERED (2026-07-04): does STAGED 29e250cf lay trails? PRECISE: YES-but-scene-gated.** routetest is in the
   ELF set and the reinforcer compiles in, BUT both rx-side hooks are gated `h.event_hash == ROUTETEST_HASH` (on_received 1704-1718;
   relay-side note_forwarded 1859-1864 inside do_relay; code comment: "routetest only; live demo untouched"). ⇒ Roy-facing truth:
