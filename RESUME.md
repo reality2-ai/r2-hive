@@ -1,5 +1,35 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ CATCH-UP CONSOLIDATION (2026-07-05, supervisor-codex batch; every claim below re-verified locally before recording)
+- **DARK-BOARD ARC CLOSED ON METAL (task #42 → completed):** @0x14000 override mechanism PROVEN. Roy's clean `erase_region` +
+  weave-persona flash flipped D4 (495b1b62) onto the weave TG; the interim "still ea6c5a9d after erase" observation traced to Roy's
+  FIRST (malformed) erase, not to any rewrite. **REFUTED en route (recorded honestly): the "host connect-time PROVISION rewrites it
+  after reset" hypothesis — disproven by composer code ground truth + the clean-erase result.** FINAL BENCH: **4/5 boards on weave
+  04bc57e7; b14b07d8 (D2) INTENTIONALLY HELD on apiary TG ea6c5a9d** (deliberate, not dark). Composer's on-air native target_group
+  decode was the confirming instrument. Task #43 (DEPROVISION verb) stays HELD.
+- **#49/OTA ACCEPTED STATE (task #35 updated):** receiver CODE-COMPLETE on ELF cb87c8aa (otal2cap/PSM 0x00D3, verify_header +
+  PayloadVerifier + inactive-slot write + anti-rollback + coex-mute 3aae196 + half-open guard 69a2d90) — but **real-HW push NOT
+  proven e2e**; slot-switch metal proof + verify-before-write wasm proof are separate pieces only; NO fleet-scale OTA/USB-replacement
+  recommendation until the one-board metal e2e passes (signed image → verify → inactive-slot write → COMMIT/activate → reboot →
+  new-boot + floor bump). **Authorized REMOTE on a MESH board** (not carrier/live bridge; receiver fail-safe, USB-JTAG = human
+  recovery). **Artifacts sha-VERIFIED on disk:** ~/r2-dfr1195-weave.elf (sha256 = cb87c8aa337b…), ~/cb87c8aa-app.bin 863 440 B
+  (sha256 1b8092d508a9…) — extracted by SUPERVISOR under explicit offline-only authorization (espflash stays harness-gated for
+  agents; command: save-image --chip esp32s3, Merge=false, no device/port/keys). **Key custody: composer signs the UpdateHeader
+  with weave TG_SK (persona-minter/signed-ota-deploy); hive NEVER holds TG_SK.** Header pinned seq=1 / target_class=0 /
+  authority_epoch=0 (board floor verified 0). Gate = composer pusher readiness + signed image. 200 B MTU fine for staging.
+- **TASK #34 UNBLOCKED — BUILD TARGET PINNED (→ in_progress):** the resident-gateway product spec **v0.4** (Publish:Private tree;
+  its product/spec name MUST NOT appear here — narrow hygiene guard e5bc905 verified live at HEAD) pins the brain→radio-front-end
+  **BEACON_AD wire as CMD 0xC0** with payload layout = the AUTHORITATIVE USB contract (cross-repo interop, supersedes the ad-hoc
+  proposal round). **Beacon model:** Linux brain encodes the COMPLETE AD/RBID with its keys; the MCU front-end airs it VERBATIM;
+  **zero key material on the MCU**. Also build to specs e0f926d (verified present in the local specs HEAD, unpushed to origin):
+  COMPLEX_HIVE_PEER = 1 B component_index + 8 B NUL-padded ASCII role_tag; R2-CAP v0.4 power-state keys 0x04–0x08 (battery reuses
+  0x02); R2-COMPLEX-HIVE v0.8 WAKE_REASON_EXT 0x07–0x0B; R2-HW v0.9 CONFIG ids 0x01 TX_POWER_DBM + 0x02 WAKE_INTERVAL_MS,
+  CRC-16/CCITT poly 0x1021 init 0xFFFF no-reflect, unknown config_id MUST reject-via-ACK; r2-hw-vectors.json = 4 byte-exact frames;
+  R2-USB v0.7 error payload implementation-defined BY DESIGN. Plus the §4.1 Sentinel bar. Target = B6:0A:A0. **STAGE, do not flash.**
+- **Hygiene state:** specs fixed + deployed the public dashboard labels; remaining exposure was structural path text in the generated
+  dashboard blob (narrow suppression approved on specs' side). My side: ONLY the narrow gateway-naming guard (e5bc905); broad
+  scrubs/guards + historical-ID cleanup + the README marketplace-branding question are ALL HELD as Roy-level policy — do not "fix".
+
 ## 🎯 DARK-BOARD MECHANISM CONVERGED (2026-07-05): stale NVS @0x14000 TG-override, NOT personas — I own the fix procedure (task #42) + DEPROVISION proposal (task #43, HELD)
 - **Ground truth (supervisor-codex recorded, refutation accepted):** personas @0x12000 are ALL weave-correct; my earlier key-epoch-on-persona
   framing was wrong at the *storage layer* — the wrong-epoch key lives in the **runtime-PROVISION record @0x14000** (magic R2TG,
