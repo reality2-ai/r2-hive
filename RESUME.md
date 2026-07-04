@@ -29,6 +29,9 @@
   first light. Recommendation sent (core + Roy via supervisor): RAK Phase-2 adopts as923_nz verbatim (match the proven side;
   SF12 ToA fine for the event-counting falsifier); SF7 bench plan only on Roy's explicit preference (touches proven DFR
   config too). Task #44 updated with all Phase-1 facts; my Phase-2 shape = event-driven continuous-RX io_task.
+  **DECIDED (supervisor endorsed as default, relayed to Roy):** as923_nz verbatim; core told to swap the spike literals
+  (better: call as923_nz() directly so it cannot drift). Radio-plan half of CORE-VERIFY = resolved-by-decision;
+  TCXO voltage + pinout markers remain for bring-up.
 - **best_transport/RSSI tiebreaker: hive-bin seeding CONFORMS (no fix).** Core proved selection is quality-driven (rssi
   recorded, unused; falsifier 33780e0). My audit of all 3 hive-bin ingest sites: inbound-frame Direct(0.9) covers ALL IP
   peers; reinforce_delivery Direct(0.95); the only sub-0.9 seed is BLE scan-only discovery (Direct(0.6)/Mobile — deliberate,
