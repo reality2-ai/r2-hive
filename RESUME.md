@@ -143,6 +143,13 @@
 - **🎯 #41 conformance target (R2-BEACON v0.23, specs ae6dda2, conformance-only):** TV4 in r2-beacon-vectors extended_beacons =
   byte-exact check for the dev-image build_class emitter (TV3-identical AD + trailing 02 @ offset 25+N, AD Length 0x20→0x21,
   build_class=2); TV3 = the prod/absence control. Check the emitted AD against TV4 bytes directly when #41 builds.
+- **🧹 fw pilot-site naming scrub DONE (dfr1195-fw eb9fd42 + xbuild.sh committed 832fa21, both pushed):** core's FYI named 2
+  vendored files (already clean here) but the whole-worktree sweep found the pre-scrub site term in TWELVE files — incl 7
+  BRANCH-OWNED ones a re-vendor would never heal + the generated firstlight.patch (which also carried the uncommitted #49-era
+  regeneration, folded in). Vendored files synced to core's EXACT canonical lines (pre-heals re-vendor, zero drift); PILOT-N
+  finding-ID convention adopted; verified zero live code identifiers/strings pre-edit → compile-neutral. The
+  re-vendor-before-public-artifact constraint is MOOT (branch clean as of this push). Ledger note to core: scrub sweeps must
+  grep the WHOLE branch worktree, all file types, not just vendored crate paths.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
