@@ -22,6 +22,12 @@
   **task #45** (replyMarkerWithStack in wasm; non-blocking — stackless markers lay weak evidence, nothing breaks).
 - **Inbox hygiene note:** `fleet inbox` retains months of processed history (the consolidation/relay-v0.2 era) — read the TAIL
   for new items; do not re-action old arcs (relay v0.2 handshake work etc. was a PRIOR era, largely superseded).
+- **Multi-TG relay key-awareness: CLOSED from hive's side (no Roy fork).** Specs answered an off-thread fork's question: canon
+  says relay stays TG-agnostic/keyless (R2-RUNTIME §13.2 L4/L5 isolation), one hive = one TG. My in-thread authoritative
+  position (sent, supersedes the fork): NO concrete scenario needs relay-layer keys — two-TG bench transit is metal-proven;
+  cross-TG delivery = L5 classify + peering_hmacs (#38, delivery-layer, don't conflate); multi-TG membership = the ratified
+  multi-process pattern (Pillar-2 ran it). Only adjacent seam = §8.4b quota keying on unverified route_stack[0] at keyless
+  relays = exactly TN-L1-IT-BL-506 (catalogued, open-by-design, instrumentation-direction not key-awareness).
 
 ## ⚡ TURN CONSOLIDATION (2026-07-05 late): v0.64 break absorbed; #49 STALE-ARTIFACT correction sent; 4/4 PROVISION verify armed; RAK4630 task opened
 - **core v0.64 trail break absorbed SAME-HOUR (fc08e7a pushed):** core landed 1cc8cd1 on the shared checkout (the instant-bite
