@@ -34,6 +34,10 @@
   healthy-boot verdict likely came from ON-AIR observation (carrier radio), not board serial.** DISCRIMINATING TEST sent: any raw
   r2-dfr1195: lines on :21062/:21064? NO → host-side ingest gap (boards fine — their beacons are heard on air, loops running,
   rt.* printing into an unread console); YES-but-no-rt.* → board-state, I dig the fire-tail gating with 30s of raw lines.
+  **★ NESTING DEFINITIVE (part 2): the emit sits INSIDE the oscillator fire gate `if phase >= 1.0` (main.rs:1096 → 1302), the SAME
+  branch that pulses the LED each ~2s beat → LED = the instant physical discriminator (sent to Roy via supervisor): LEDs pulsing =
+  fw emitting, gap is composer's host ingest; LEDs dark = io_task stuck pre-fire = my dig (init-await hang map). Also flagged: D1
+  (50:26:98) absent from the carrier-heard a200-space while D2 present — second look once serial truth flows. Not flash-blocking.**
 - **✅ COMPOSER ALL-CLEAR (lsof/fuser verified):** ACM2/ACM5/ACM3 all FREE — its only serial procs sit on the CARRIER (by-id
   B6:0A:A0, hive a1f5ed00), not the flash targets → no port-busy risk. RELAY CHAIN SET: flash-done signal → I ping composer →
   composer attaches carrier-r2-adapters (by-id, sanctioned) to D1+D2 → watches healthy-boot sequence (persona→radios→TN READY→rt.*)
