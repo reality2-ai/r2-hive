@@ -85,19 +85,28 @@ def open_safe(port, baud=115200):
     s.port = port
     s.baudrate = baud
     s.timeout = 1
-    # CRITICAL: set the initial control-line state to LOW *before* open() so the
-    # open does not pulse them (pyserial applies these during open on POSIX).
-    s.dtr = False
+    # LINE DISCIPLINE (corrected 2026-07-04, solved the zero-bytes mystery): the
+    # ESP32-S3 USB-Serial-JTAG console gates its TX on TERMINAL-READY — an open
+    # holding DTR=0 reads ZERO console bytes (the firmware sees no host and
+    # suppresses println output). The SAFE + WORKING pattern is a STEADY
+    # DTR=1 / RTS=0 set *before* open() and never toggled after: the reset/ROM-
+    # download hazard is the DTR/RTS TOGGLE DANCE (esptool-style reset
+    # sequences), NOT a steady terminal-ready attach. Worst case on first attach
+    # is one benign app reboot; attach-once-stay-attached (+ stty -hupcl on the
+    # port) prevents any further resets. Field-proven: FR-4 / TN-L2-XT-BL-001
+    # raw-serial captures ran this way mid-run on these exact boards.
+    s.dtr = True
     s.rts = False
     s.open()
-    # Belt-and-braces: hold them low after open, and verify the requested state.
-    s.dtr = False
+    # Belt-and-braces: hold the state steady after open and verify — RTS must
+    # stay LOW (RTS toggling is half of the reset dance).
+    s.dtr = True
     s.rts = False
-    if s.dtr or s.rts:
+    if not s.dtr or s.rts:
         s.close()
-        sys.exit("FATAL: could not de-assert DTR/RTS — aborting to avoid a "
-                 "download-mode reset on an unreachable board.")
-    log(f"# opened {port} @ {baud} (DTR=0 RTS=0, no reset)")
+        sys.exit("FATAL: could not hold DTR=1/RTS=0 — aborting rather than "
+                 "risk a toggle sequence on an unreachable board.")
+    log(f"# opened {port} @ {baud} (DTR=1 RTS=0 steady, terminal-ready, no reset dance)")
     return s
 
 
@@ -260,8 +269,9 @@ def run_live(args):
     except KeyboardInterrupt:
         log("\n# stopped (board left running).")
     finally:
-        ser.dtr = False
-        ser.rts = False
+        # Leave DTR asserted through close — dropping it here would be a
+        # toggle (the exact hazard class); with -hupcl set on the port the
+        # close does not pulse the lines and the board keeps running.
         ser.close()
         if router:
             router.terminate()
