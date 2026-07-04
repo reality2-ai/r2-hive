@@ -82,16 +82,23 @@
   narrow residual (verified image + crash-on-boot + sub-ms two-write window; bootloader-dependent, uncovered if inherits Valid)
   — documented honestly, NOT claimed closed by 2b. **#49 BENCH: ELF 29e250cf (fix-1 §5.1) is SUFFICIENT** (the OTA'd image is
   the SAME known-good firmware → boots healthy → the 2a residual doesn't trigger); the app-level engage + 2b are PRODUCTION
-  hardening, not bench blockers. **AWAITING to close: (i) core + hive-codex RE-REFUTE the fixed path clean, (ii) Roy benches
-  29e250cf. NEXT firmware pass = the app-level running-partition health-gate engage.**
+  hardening, not bench blockers. **CLOSE STATUS: (i) re-refute = DONE (core clean; hive-codex lane broken → supervisor accepted
+  core's single thorough re-refute, honest caveat below), (ii) AWAITING Roy benches 29e250cf. NEXT firmware pass = the app-level
+  running-partition health-gate engage.**
   **★ CORE RE-REFUTE = CLEAN (2026-07-04, read origin/dfr1195-fw directly):** (1) reorder APPLIED CORRECTLY at all 3 sites
   (FlashSink 4813-4816 + OCM-A 5089-5093 + OCM-B 5340-5342); orphan-pending-on-activate-fail SOUND (stale clear handles it,
   no accumulation/mis-commit); NO regression. (2) strictly BETTER (normal OTA commits the floor; the 2a window UNCHANGED not
   worsened — the `_` arm clears pending WITHOUT committing = the same floor-non-advance residual the app-level engage closes).
   (2b) AGREE — esp-bootloader-esp-idf is APP-side (no boot-time rollback), espflash default isn't rollback-built → no flag-flip;
   my app-level gate IS the real software rollback → **#49 brick-safe WITHOUT 2b; ELF 29e250cf GOOD TO GO on core's read.**
-  ⇒ ONE of the two re-refutes CLEAN; awaiting hive-codex. ALSO recommended to supervisor: core add an xtensa
-  firmware CI job to r2-core ci.yml (esp-rs/xtensa-toolchain action) — no-hosted-CI is a regression risk. Then stage for Roy metal.
+  **★ #49-FIX / INCR-2 FlashSink = ACCEPTED-CLOSED (supervisor, 2026-07-04):** hive-codex 2nd re-refute lane could NOT produce a
+  verdict (stuck twice, even post-restart — the finicky codex-refute inbox, track-2). Supervisor accepted core's SINGLE thorough
+  re-refute as SUFFICIENT rather than block a trivial 3-line reorder on a broken lane (rationale: simple + independent flash
+  writes; the ORIGINAL double-refute already scrutinized this path + found the bug). **HONEST CAVEAT (recorded): closure rests
+  on core's re-refute + the original double-refute — NOT a clean second double.** ⇒ #49-fix CLOSED pending Roy's bench flash;
+  **29e250cf is the go.** App-level running-partition health-gate = the endorsed fresh-pass follow-on (unchanged, production-hardening).
+  ALSO recommended to supervisor: core add an xtensa firmware CI job to r2-core ci.yml (esp-rs/xtensa-toolchain action) —
+  no-hosted-CI is a regression risk. Then stage for Roy metal.
 - **★ TRANSPORT-FEED DESIGN + 2 findings (2026-07-04; implementation-as-refutation):** (F1) `SignedOtaApply` MUST be driven in a
   SINGLE-FUNCTION streaming loop — it borrows `&mut sink` and `finish` consumes it (core apply.rs:165-174) → it CANNOT be held
   across discrete bus events / calls. ⇒ the MCU OTA receiver is a STREAMING embassy TASK (start→feed→finish in one fn, like
