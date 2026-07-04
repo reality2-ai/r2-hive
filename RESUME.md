@@ -39,6 +39,17 @@
   no pending record — maybe write_ota_pending must come FIRST; note: this ordering MIRRORS the proven #49 ota_receive_over_coc
   OCM, so any finding applies to BOTH — core adjudicates, do NOT guess-fix). ALSO recommended to supervisor: core add an xtensa
   firmware CI job to r2-core ci.yml (esp-rs/xtensa-toolchain action) — no-hosted-CI is a regression risk. Then stage for Roy metal.
+- **★ TRANSPORT-FEED DESIGN + 2 findings (2026-07-04; implementation-as-refutation):** (F1) `SignedOtaApply` MUST be driven in a
+  SINGLE-FUNCTION streaming loop — it borrows `&mut sink` and `finish` consumes it (core apply.rs:165-174) → it CANNOT be held
+  across discrete bus events / calls. ⇒ the MCU OTA receiver is a STREAMING embassy TASK (start→feed→finish in one fn, like
+  ota_receive_over_coc), NOT a per-event bus sentant. So "EventBus registration" for MCU OTA = EMIT progress events
+  (r2.update.progress → LCD/composer viz), NOT receive-OTA-control-via-bus — UNLIKE wasm's OtaSentant, which CAN be a bus
+  sentant BECAUSE it RAM-buffers then applies on the commit event. (F2) the transport-feed receiver is ~90% DUPLICATION of
+  ota_receive_over_coc's CoC accept + length-prefixed [len][msg] framing (only the crypto core differs: SignedOtaApply<FlashSink>
+  vs inline verify_header/pv). ⇒ SEQUENCING CALL surfaced to supervisor: (b, recommended) do the transport-feed as the POST-#49
+  UNIFICATION — refactor ota_receive_over_coc to drive SignedOtaApply<FlashSink> once #49 metal-validates it (one receiver, no
+  throwaway, no #49-risk); vs (a) write a duplicated interim plugin receiver NOW behind all(otaengine,otal2cap). Awaiting the
+  supervisor's sequencing call + BOTH refuters (core + hive-codex) before proceeding. FlashSink itself unaffected by either.
 - **Supervisor GO** (TN design ratified, impl greenlit, order core→hive→composer). Doctrine (re-stated): integrate core's
   no_std crates (r2-engine + r2-update — do NOT reimplement); core platforms/esp32 + workshop firmware = PATTERNS only;
   **implementation-as-refutation** (if no_std/hw refutes a spec claim, surface it → spec re-eval, don't silently work around);
