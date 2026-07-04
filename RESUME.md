@@ -267,6 +267,16 @@
   the noted-forwards ring (forward via one path can't strong-trail a reply via the other). ASKED composer which API its probe/theatre
   drives; preferred resolution = converge wasm routing flows on handleRx (one pipeline, one state). #40 wiring holds on composer's
   answer; core's DataPlane side proceeds regardless.**
+- **★ URGENT SUPERVISOR Q ANSWERED (2026-07-04): does STAGED 29e250cf lay trails? PRECISE: YES-but-scene-gated.** routetest is in the
+  ELF set and the reinforcer compiles in, BUT both rx-side hooks are gated `h.event_hash == ROUTETEST_HASH` (on_received 1704-1718;
+  relay-side note_forwarded 1859-1864 inside do_relay; code comment: "routetest only; live demo untouched"). ⇒ Roy-facing truth:
+  (a) REAL bench narrowing available on 29e250cf AS STAGED, no extra flash — IF the scene drives the routetest request/reply flow
+  (BL-200 pattern: rt requests → replies lay strong trails → paths() narrows → viz rt.path RENDERS it); (b) narrowing does NOT lay
+  from ambient live traffic (HB/app/OTA) until core's DataPlane internalization + fw re-vendor (#32) = one more flash cycle LATER.
+  One flash of 29e250cf lights BOTH scenes (drag via benchdist + narrowing via routetest protocol). Double-fire refined for core:
+  only ROUTETEST_HASH frames, only under routetest — removal folded in #32; core lands independently. **Design flag sent core: its
+  by-construction origin must come from route_stack[0] (§6.2.1), NOT the routetest payload[0..4] convention.** hive-bin scope CLOSED
+  (queued migration, no interim glue — supervisor accepted).
 
 ## 📋 2026-07-04 — QUEUED FOLLOW-ONS (behind #49 first-responder > INCR-2 OTA plugin; do NOT context-switch)
 - **PRIORITY ORDER (supervisor): #49 first-responder > INCR-2 OTA plugin > these follow-ons.**
