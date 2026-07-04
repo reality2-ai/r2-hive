@@ -251,6 +251,22 @@
   arrival_transport/§2.3B, :216 authenticated/A1) into this pass. **HOLDING code until core's split-ack + msg_id ruling.**
 - **ACCEPTANCE:** TN-L1-IT-BL-100 flood-then-converge IN WASM (reply:true → later directed sends; copy_count 0 at off-path node) + weak
   toward-origin trails one-way; then wasm bump for composer. Spec-first if any canon reading needed (e.g. if the u16 marker is ratified).
+- **★ SEAM REVISED (core counter-proposal, 2026-07-04, ACKED-GO): CORE-SIDE BY-CONSTRUCTION** — TrailReinforcer becomes a DataPlane
+  FIELD, fired inside handle_rx_frame (on_received every non-dup rx; note_forwarded when the pipeline relays) → wasm handleRx conforms
+  on a plain core bump, ZERO glue. Rationale accepted: caller-duty failed in BOTH my binaries (this gap) — by-construction is the
+  proven fix class (cf. bundled classify gate). My original sync_host wiring plan (i)-(iii) SUPERSEDED for the fused path.
+  **Q1 ANSWERED (fw double-fire): YES fw glue calls trail:: today behind `routetest` (IN the #49 ELF): main.rs:937 (::<256>), :1343
+  (note_forwarded), :1701-11 (on_received/parse_reply_marker) — but fw does NOT call handle_rx_frame today (drives engine direct), so
+  plain re-vendor = CLEAN; glue removal folds into task #32 (io_task→r2_dataplane), NOT the generic re-vendor gate. fw also bakes u16
+  (rt_seq :939) → if core bumps trail.rs to u32 (my still-open blocking Q, now core-internal), fw width-change goes on the re-vendor
+  grep-map.** **Q2 ANSWERED (hive-bin dispatch): QUEUE full migration onto handle_rx_frame (8.5 conformance + trails by-construction);
+  NO interim glue-wire — (a) host trails not in #40 scope/not demo-critical, (b) migration churns the freshly-refuted B2b deny path →
+  wants its own re-refute cycle, glue-now+migrate-later = 2 churns of one path, (c) interim glue repeats the caller-duty class being
+  retired. Host tier honestly dark on trails until that refactor.** **★ WRINKLE (my catch, gates my #40 half): wasm has TWO rx entries —
+  handleRx→handle_rx_frame (covered by core's fix) AND routeFrame→route_inbound_sync (NOT covered); dual reinforcer states would split
+  the noted-forwards ring (forward via one path can't strong-trail a reply via the other). ASKED composer which API its probe/theatre
+  drives; preferred resolution = converge wasm routing flows on handleRx (one pipeline, one state). #40 wiring holds on composer's
+  answer; core's DataPlane side proceeds regardless.**
 
 ## 📋 2026-07-04 — QUEUED FOLLOW-ONS (behind #49 first-responder > INCR-2 OTA plugin; do NOT context-switch)
 - **PRIORITY ORDER (supervisor): #49 first-responder > INCR-2 OTA plugin > these follow-ons.**
