@@ -56,6 +56,13 @@
   diag round-trips lay WEAK trails only today; STRONG needs trail.rs header-level reply detection (is_reply_id_ext + in-flight
   match — cleaner than the ASCII-marker-prepend routetest convention); proposed to specs, core's crate. Composer's write-side drag
   question ANSWERED: no over-mesh verb needed — the one steady-DTR=1 attached fd carries BOTH rt.* read AND --control writes.**
+- **📐 v0.5 REFINEMENT (specs 8dcc598, Roy): DEV/PROD = WHICH CODE WAS FLASHED → TWO composed images (no dormant dev code in any
+  prod build). BEACON DEV-DECLARE CALL (mine, sent): do NOT repurpose §7.2 bit 4 mcu_mode** — audit: zero production emit/read
+  (r2-discovery codec+tests only; fw never touches it) BUT it's PRE-ALLOCATED for the custom-sensor MCU-sleeps-SBC signal (flagship
+  HW target) → not dead, reserved. **Pick = Extended-profile field build_class (u8: 0 prod-field / 1 prod-bench / 2 dev), with
+  ABSENCE-IS-PROD (dev builds MUST emit, prod MUST NOT → prod beacons carry structurally zero dev bytes = v0.5 philosophy at the
+  AD level); same enum = reply key 5 (the §6.3 build-class MUST) → no drift.** FW-realist note: current fw beacon AD emits no §7.2
+  flags byte at all, so either candidate costs one fw addition — the field ships only in dev images. Task #41 updated.
 - **✅ COMPOSER ALL-CLEAR (lsof/fuser verified):** ACM2/ACM5/ACM3 all FREE — its only serial procs sit on the CARRIER (by-id
   B6:0A:A0, hive a1f5ed00), not the flash targets → no port-busy risk. RELAY CHAIN SET: flash-done signal → I ping composer →
   composer attaches carrier-r2-adapters (by-id, sanctioned) to D1+D2 → watches healthy-boot sequence (persona→radios→TN READY→rt.*)
