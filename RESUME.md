@@ -133,6 +133,13 @@
   VERIFY PROTOCOL (standing offer to Roy): I re-run the same 15s read on his word — success = fresh boot banner + beats≈0 +
   persona still 09a07e47.** My safe-read tooling: vendored pyserial at crates/r2-hive-wasm/carrier-bridge (PYTHONPATH=that dir,
   `import serial`), stty -hupcl first, dtr=True/rts=False before open.
+- **📡 2026-07-05 lull work:** ACM3 re-read (beats=53843, still OLD image — Roy hasn't flashed yet); hosted CI green on all recent
+  pushes. **USB-CONTRACT DEBT CLOSED (task #34 radiofrontend, target B6:0A:A0):** answered composer's 3 opens — (a) framing =
+  existing line-protocol family (R2RX/INJECT verbs for raw relay — no second framing; new records = t-discriminated JSON lines);
+  (b) health = NEW r2.bridge.health line (NOT rt.* — different domain/semantics), ~2s beat-aligned + immediate on-change;
+  (c) beacon handoff = PUSH-on-rotate CURRENT+NEXT, MCU never polls, **+ MY ADDITION: NEXT-expiry with no push → MCU goes SILENT
+  (fail-silent beats fail-stale — stale rotating id re-aired past epoch = the §7.4.0 linkability leak). Spec-relevant: contract
+  routes through specs (R2-COMPLEX-HIVE) before the #34 firmware build; composer's proposal + my reply = the input doc.**
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
