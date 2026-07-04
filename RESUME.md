@@ -22,6 +22,12 @@
   **task #45** (replyMarkerWithStack in wasm; non-blocking — stackless markers lay weak evidence, nothing breaks).
 - **Inbox hygiene note:** `fleet inbox` retains months of processed history (the consolidation/relay-v0.2 era) — read the TAIL
   for new items; do not re-action old arcs (relay v0.2 handshake work etc. was a PRIOR era, largely superseded).
+- **best_transport/RSSI tiebreaker: hive-bin seeding CONFORMS (no fix).** Core proved selection is quality-driven (rssi
+  recorded, unused; falsifier 33780e0). My audit of all 3 hive-bin ingest sites: inbound-frame Direct(0.9) covers ALL IP
+  peers; reinforce_delivery Direct(0.95); the only sub-0.9 seed is BLE scan-only discovery (Direct(0.6)/Mobile — deliberate,
+  above viability floor, floods regardless, upgrades on first real traffic). Allow-mask defaults ALL; §2.3B arrival=None skip.
+  **Pattern across all three tiebreakers (D-exclusion, bridge, C-vs-E): no off-thread scenario reproduced against ground
+  truth in core OR hive — the sim/harness wiring + dlv-reading remain the only unaudited layer (composer's).**
 - **Unicast flood fan-out audit: hive CONFORMS everywhere (A/B/C answered: NONE — no Roy escalation).** Specs landed the
   per-neighbour fan-out canon (ff5555c); audit of all four egress layers: hive-bin router.rs Flood arm sends per
   DirectedHop.neighbour (send_to_hive_via, per-hop logging); hive-bin flood_tg_peers_not_in EXCEEDS the contract (per-peer WS
