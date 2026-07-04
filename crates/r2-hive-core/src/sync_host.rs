@@ -22,7 +22,9 @@ use alloc::vec::Vec;
 
 use r2_route::engine::{ForwardAction, ForwardRequest, RouteEngine, Target};
 use r2_route::neighbour::{MobilityClass, Observation};
+use r2_route::trail::TrailReinforcer;
 use r2_route::transport::{QualitySample, Transport as TransportKind};
+use r2_route::DropReason;
 use r2_wire::extended::{decode_extended, prepare_relay_extended};
 
 /// Transport-layer peer address, driver-stamped on inbound frames (the host, not
@@ -146,6 +148,7 @@ pub fn route_inbound_sync(
     frame: &[u8],
     now: u32,
     dice_roll: f32,
+    reinforcer: &mut TrailReinforcer<256>,
 ) -> SyncRouteOutcome {
     // Parse R2-WIRE extended (frame may carry a trailing 32-byte HMAC tag).
     let trimmed = if decode_extended(frame).is_ok() {
@@ -209,11 +212,12 @@ pub fn route_inbound_sync(
         // multi-hop dedup works across paths (unlike the MCU firmware's route:None=0 placeholder).
         origin: originator,
         source_hop: immediate_source, // the IMMEDIATE sender, to exclude the inbound peer (F2)
-        // A1 (verify-then-record): FLAG FOR CORE — route_inbound_sync has NO group keys (it omits the
-        // deliver-gate/classify), so it CANNOT derive `authenticated`. Defaulted to the fail-safe `false`
-        // (engine.rs:458) = sync-tier never RECORDS dedup. OPEN: does the sync MCU-hive verify upstream
-        // (caller passes the flag), take keys + classify, or use a content loop-bound? core's A1 call.
-        authenticated: false,
+        // A1 RULED (core, §4.3.4 trail pass): the sync tier's frames are sim/local-origin — legitimately
+        // trusted on this tier (no radio attacker inside the harness) — so `authenticated: true`: the
+        // engine RECORDS dedup and a replayed (origin,msg_id) copy returns Drop(Duplicate). LOAD-BEARING
+        // for the trail invariant (a) below: reinforcement fires at most once per copy-set per dedup
+        // window (a replayed copy re-reinforcing forever is a black-hole-builder primitive).
+        authenticated: true,
         ttl: header.ttl,
         k: header.k,
         destination,
@@ -227,6 +231,19 @@ pub fn route_inbound_sync(
         dice_roll,
     });
 
+    // §4.3.4 trail reinforcement — POST-dedup-accept ONLY (core invariant (a),
+    // security-load-bearing: a replayed copy must never re-reinforce, else an
+    // attacker/chatty bridge pumps (origin,via) confidence unboundedly = a
+    // black-hole-builder primitive). With `authenticated: true` above the engine
+    // RECORDS dedup, so a duplicate copy comes back Drop(Duplicate) — skip it;
+    // every other outcome is the accepted first copy. The hook does weak
+    // (forward ⇒ record_indirect toward origin) / strong (reply-marker for a msg
+    // we forwarded ⇒ record_delivery toward the replier) internally — no trail
+    // policy lives in this glue (core invariant (d)).
+    if !matches!(advice.action, ForwardAction::Drop(DropReason::Duplicate)) {
+        reinforcer.on_received(engine, originator, msg.payload, immediate_source, now);
+    }
+
     // Relay frames mutate the header per R2-WIRE §8.3/§8.4/§9.2 (TTL--, K split,
     // route-stack append) via r2-wire's prepare_relay_extended.
     let relay = || prepare_relay_extended(trimmed, self_hive_id, source_hive);
@@ -235,9 +252,16 @@ pub fn route_inbound_sync(
         ForwardAction::Drop(_) => SyncRouteOutcome::Dropped,
         ForwardAction::DeliverOnly => SyncRouteOutcome::DeliverOnly,
         ForwardAction::Directed(hop) => match relay() {
-            Ok(bytes) => SyncRouteOutcome::Directed {
-                sent: send_via_kind(transports, hop.transport, hop.neighbour, &bytes),
-            },
+            Ok(bytes) => {
+                let sent = send_via_kind(transports, hop.transport, hop.neighbour, &bytes);
+                if sent {
+                    // §4.3.4: relaying puts us on this msg's forward path — note
+                    // (origin, msg_id) so the returning reply strong-reinforces
+                    // the trail through us (used-path-wins).
+                    reinforcer.note_forwarded(originator, header.msg_id);
+                }
+                SyncRouteOutcome::Directed { sent }
+            }
             Err(_) => SyncRouteOutcome::Dropped,
         },
         ForwardAction::Flood(hops) => match relay() {
@@ -249,6 +273,10 @@ pub fn route_inbound_sync(
                     {
                         sent += 1;
                     }
+                }
+                if sent > 0 {
+                    // As above: a flood-relay is also on the forward path.
+                    reinforcer.note_forwarded(originator, header.msg_id);
                 }
                 SyncRouteOutcome::Flooded { sent }
             }
@@ -374,8 +402,9 @@ mod tests {
     fn route_garbage_is_not_r2wire() {
         let mut engine = RouteEngine::<64, 64, 64>::new();
         let stub = StubTransport::new(TransportKind::Wifi, vec![]);
+        let mut r = TrailReinforcer::<256>::new();
         let out = route_inbound_sync(
-            &mut engine, 0xCAFE, &[&stub], 0xBEEF, TransportKind::Wifi, b"nope", 1, 0.0,
+            &mut engine, 0xCAFE, &[&stub], 0xBEEF, TransportKind::Wifi, b"nope", 1, 0.0, &mut r,
         );
         assert_eq!(out, SyncRouteOutcome::NotR2Wire);
     }
@@ -397,8 +426,10 @@ mod tests {
         let stub = StubTransport::new(TransportKind::Wifi, vec![]);
         let source = 0x0000_00BB;
         let frame = ext_frame(source, target, 5, 3, 0x1234);
+        let mut r = TrailReinforcer::<256>::new();
         let out = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&stub], source, TransportKind::Wifi, &frame, 200, 0.5,
+            &mut r,
         );
         // The engine reached a relay decision and the frame went to `target` over
         // the matching sync transport (the whole point of the host-loop wiring).
@@ -441,8 +472,10 @@ mod tests {
         let lora = StubTransport::new(TransportKind::Lora, vec![]);
         let source = 0x0000_00BB;
         let frame = ext_frame(source, target, 5, 3, 0x1235);
+        let mut r = TrailReinforcer::<256>::new();
         let out = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&wifi, &lora], source, TransportKind::Wifi, &frame, 200, 0.5,
+            &mut r,
         );
 
         assert!(
@@ -481,12 +514,179 @@ mod tests {
         let lora = StubTransport::new(TransportKind::Lora, vec![]);
         let source = 0x0000_00BB;
         let frame = ext_frame(source, target, 5, 3, 0x1236);
+        let mut r = TrailReinforcer::<256>::new();
         let out = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&wifi, &lora], source, TransportKind::Wifi, &frame, 200, 0.5,
+            &mut r,
         );
 
         assert_eq!(out, SyncRouteOutcome::Dropped);
         assert!(wifi.sent.borrow().is_empty());
         assert!(lora.sent.borrow().is_empty());
+    }
+
+    /// §4.3.4 invariant (a) — POST-dedup-accept only: the first copy of an
+    /// (origin,msg_id) lays exactly one weak trail; a replayed duplicate copy
+    /// must NOT reinforce again (replay-pumped confidence = a black-hole-builder
+    /// primitive). With `authenticated: true` the engine records dedup, so the
+    /// duplicate comes back Drop(Duplicate) and the hook is skipped.
+    #[test]
+    fn duplicate_copy_reinforces_at_most_once() {
+        let mut engine = RouteEngine::<64, 64, 64>::new();
+        let stub = StubTransport::new(TransportKind::Wifi, vec![]);
+        let mut r = TrailReinforcer::<256>::new();
+        let origin = 0x0000_00AA;
+        let sender = 0x0000_00BB;
+        // A second known neighbour so the broadcast has a viable flood hop (the
+        // sender itself is excluded as the inbound peer).
+        engine.ingest_observation(Observation {
+            hive_id: 0x0000_00CC,
+            transport: TransportKind::Wifi,
+            timestamp: 90,
+            quality: QualitySample::Direct(0.9),
+            rssi: None,
+            mcu_origin: false,
+            mobility: MobilityClass::Infrastructure,
+        });
+        // Broadcast (target 0) so the frame floods/deliver-onlys rather than needing a route.
+        let frame = ext_frame(origin, 0, 5, 3, 0x0000_7001);
+
+        let out1 = route_inbound_sync(
+            &mut engine, 0x0000_00FF, &[&stub], sender, TransportKind::Wifi, &frame, 100, 0.5,
+            &mut r,
+        );
+        assert_ne!(out1, SyncRouteOutcome::Dropped, "first copy must be accepted");
+        let c1 = engine
+            .paths()
+            .best_for(origin)
+            .map(|p| p.confidence)
+            .expect("weak trail toward origin after the first accepted copy");
+
+        // Same (origin,msg_id) again — the replayed copy must dedup-drop and NOT re-reinforce.
+        let out2 = route_inbound_sync(
+            &mut engine, 0x0000_00FF, &[&stub], sender, TransportKind::Wifi, &frame, 101, 0.5,
+            &mut r,
+        );
+        assert_eq!(out2, SyncRouteOutcome::Dropped, "duplicate must dedup-drop");
+        let c2 = engine
+            .paths()
+            .best_for(origin)
+            .map(|p| p.confidence)
+            .expect("trail entry persists");
+        assert_eq!(c1, c2, "a replayed copy must not move confidence");
+    }
+
+    /// §4.3.4 strong trail: a node that RELAYED (origin,msg_id) — noted via the
+    /// forward arms — receiving the retracing reply marker strong-reinforces
+    /// toward the replier via the immediate sender (used-path-wins).
+    #[test]
+    fn reply_marker_strong_reinforces_through_forwarder() {
+        let mut engine = RouteEngine::<64, 64, 64>::new();
+        let stub = StubTransport::new(TransportKind::Wifi, vec![]);
+        let mut r = TrailReinforcer::<256>::new();
+        let origin = 0x0000_00AA; // request originator
+        let replier = 0x0000_00DD; // destination that replies
+        let upstream = 0x0000_00BB; // neighbour the request arrived from
+        let downstream = 0x0000_00CC; // neighbour the reply arrives from
+        let req_id = 0x0000_7002u32;
+
+        // Request (origin → broadcast) arrives via upstream and floods on: the
+        // Flood arm notes (origin, req_id) in the reinforcer.
+        engine.ingest_observation(Observation {
+            hive_id: downstream,
+            transport: TransportKind::Wifi,
+            timestamp: 90,
+            quality: QualitySample::Direct(0.9),
+            rssi: None,
+            mcu_origin: false,
+            mobility: MobilityClass::Infrastructure,
+        });
+        let req = ext_frame(origin, 0, 5, 3, req_id);
+        let out = route_inbound_sync(
+            &mut engine, 0x0000_00FF, &[&stub], upstream, TransportKind::Wifi, &req, 100, 0.5,
+            &mut r,
+        );
+        assert!(
+            matches!(out, SyncRouteOutcome::Flooded { sent } if sent > 0),
+            "request must flood on (we are a forwarder), got {out:?}"
+        );
+
+        // Reply frame: originated by the replier, payload = the §4.3.4 marker for
+        // the noted (origin, req_id), arriving from `downstream`. Same construction
+        // idiom as ext_frame (has_route + with_origin — a route-less frame would
+        // ROUTE-ORIGIN-1 early-drop before the gate).
+        let marker = r2_route::trail::reply_marker(origin, req_id);
+        let reply = {
+            use r2_wire::{
+                encode_extended, ExtendedHeader, ExtendedMessage, ExtendedRouteStack, Flags,
+                MsgType,
+            };
+            let msg = ExtendedMessage {
+                header: ExtendedHeader {
+                    version: 0,
+                    msg_type: MsgType::Event,
+                    flags: Flags {
+                        has_route: true,
+                        ..Flags::default()
+                    },
+                    ttl: 5,
+                    k: 3,
+                    msg_id: r2_route::trail::reply_msg_id_ext(req_id),
+                    event_hash: 0x5EED_0001,
+                    payload_len: marker.as_bytes().len() as u32,
+                    target_group: 0,
+                    target_hive: origin,
+                },
+                route: Some(ExtendedRouteStack::with_origin(replier)),
+                payload: marker.as_bytes(),
+                hmac_tag: None,
+            };
+            let mut buf = vec![0u8; 128];
+            let n = encode_extended(&msg, &mut buf).expect("encode reply");
+            buf.truncate(n);
+            buf
+        };
+        let buf = reply;
+
+        let _ = route_inbound_sync(
+            &mut engine, 0x0000_00FF, &[&stub], downstream, TransportKind::Wifi, &buf, 110, 0.5,
+            &mut r,
+        );
+
+        // Strong trail: best path toward the REPLIER goes via the reply's sender.
+        let p = engine
+            .paths()
+            .best_for(replier)
+            .expect("strong trail toward the replier after the retracing reply");
+        assert_eq!(p.next_hop, downstream, "reply retrace reinforces via its sender");
+    }
+
+    /// §4.3.4 weak trail is ONE-WAY: an accepted forward lays weak evidence
+    /// toward its ORIGIN via the sender — and nothing toward the frame's dest
+    /// (the black-hole guard lives inside trail.rs; this pins it end-to-end).
+    #[test]
+    fn weak_trail_is_toward_origin_only() {
+        let mut engine = RouteEngine::<64, 64, 64>::new();
+        let stub = StubTransport::new(TransportKind::Wifi, vec![]);
+        let mut r = TrailReinforcer::<256>::new();
+        let origin = 0x0000_00AA;
+        let dest = 0x0000_00EE;
+        let sender = 0x0000_00BB;
+        let frame = ext_frame(origin, dest, 5, 3, 0x0000_7003);
+
+        let _ = route_inbound_sync(
+            &mut engine, 0x0000_00FF, &[&stub], sender, TransportKind::Wifi, &frame, 100, 0.5,
+            &mut r,
+        );
+
+        let toward_origin = engine.paths().best_for(origin);
+        assert!(
+            toward_origin.is_some_and(|p| p.next_hop == sender),
+            "weak trail toward origin via the sender must exist"
+        );
+        assert!(
+            engine.paths().best_for(dest).is_none(),
+            "no strong-reinforce toward the frame's dest on a forward (black-hole guard)"
+        );
     }
 }

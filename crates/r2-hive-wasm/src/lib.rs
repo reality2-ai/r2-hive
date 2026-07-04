@@ -44,7 +44,7 @@ fn kind_from_u8(k: u8) -> TransportKind {
         2 => TransportKind::Lora,
         3 => TransportKind::Internet,
         4 => TransportKind::Usb,
-        5 => TransportKind::Mesh, // R2-TRANSPORT v0.18: EspNow → Mesh (r2-core 78a31a8)
+        5 => TransportKind::WifiMesh, // R2-TRANSPORT v0.37 §2.2A: Mesh → WifiMesh (r2-core 1673691)
         _ => TransportKind::Udp,
     }
 }
@@ -220,6 +220,15 @@ pub struct WasmHive {
     /// SAME code the firmware runs (the 700 forged-attribution instrument). `None` for hives that only
     /// use the app/route layers (`deliver_event`/`route_frame`) — it costs nothing until called.
     data_plane: Option<r2_dataplane::DataPlane>,
+    /// §4.3.4 trail reinforcement state for the sync route path (`route_frame` →
+    /// `route_inbound_sync`): the CAP=256 in-flight (origin,msg_id) ring awaiting
+    /// replies (core ruling: 256 = the validated convergence envelope;
+    /// `set_effective_cap` is never called in production). `build_*` notes
+    /// originated frames here; the sync relay arms note forwarded ones; a
+    /// retracing reply then strong-reinforces (used-path-wins). The fused
+    /// `handleRx` path keeps its own by-construction state inside `DataPlane`
+    /// (disjoint entry points — a scene drives one path or the other).
+    reinforcer: r2_route::trail::TrailReinforcer<256>,
 }
 
 #[wasm_bindgen]
@@ -239,6 +248,7 @@ impl WasmHive {
             tg_hash: 0,
             unkeyed_open: false, // §7.5.4 fail-closed default; setUnkeyedOpen(true) for the pure-routing sim
             data_plane: None,    // lazily built on first handleRx (from the hive's id + group key)
+            reinforcer: r2_route::trail::TrailReinforcer::new(),
         }
     }
 
@@ -329,6 +339,7 @@ impl WasmHive {
             tg_hash: 0,
             unkeyed_open: false, // §7.5.4 fail-closed default; setUnkeyedOpen(true) for the pure-routing sim
             data_plane: None,    // lazily built on first handleRx (from the hive's id + group key)
+            reinforcer: r2_route::trail::TrailReinforcer::new(),
         }
     }
 
@@ -377,6 +388,7 @@ impl WasmHive {
             frame,
             now,
             dice,
+            &mut self.reinforcer,
         );
 
         let (tag, sent) = outcome_tag(&outcome);
@@ -525,7 +537,11 @@ impl WasmHive {
     /// critical broadcast set k EXPLICITLY via `build_critical_frame` — R2-ROUTE §8.4
     /// K is by-CRITICALITY, never derived from target.
     #[wasm_bindgen]
-    pub fn build_frame(&self, target_hive: u32, event_hash: u32, payload: &[u8], seq: u32) -> Vec<u8> {
+    pub fn build_frame(&mut self, target_hive: u32, event_hash: u32, payload: &[u8], seq: u32) -> Vec<u8> {
+        // §4.3.4 invariant (b): the ORIGINATOR notes its own (origin, msg_id) too —
+        // else the reply arriving back at the origin fails the in-flight check and
+        // the origin never strong-reinforces toward the replier (used-path-wins).
+        self.reinforcer.note_forwarded(self.self_hive_id, seq);
         encode_frame(
             self.self_hive_id,
             target_hive,
@@ -550,7 +566,9 @@ impl WasmHive {
     /// It exercises the deliver-gate under full-mesh reach: a wrong-key neighbour then
     /// RECEIVES the frame (vs k=3 under-reach) and its r2_trust gate rejects it locally.
     #[wasm_bindgen]
-    pub fn build_critical_frame(&self, target_hive: u32, event_hash: u32, payload: &[u8], seq: u32) -> Vec<u8> {
+    pub fn build_critical_frame(&mut self, target_hive: u32, event_hash: u32, payload: &[u8], seq: u32) -> Vec<u8> {
+        // §4.3.4 invariant (b): originator notes its own (origin, msg_id) — see build_frame.
+        self.reinforcer.note_forwarded(self.self_hive_id, seq);
         encode_frame(
             self.self_hive_id,
             target_hive,
@@ -563,6 +581,26 @@ impl WasmHive {
             seq,
             self.group_hmac.as_ref(),
         )
+    }
+
+    /// Build the §4.3.4 reply-marker PAYLOAD for a received request: the replier
+    /// sends a frame whose payload is this marker (`"reply:0x<origin>:<msg_id>"`)
+    /// back toward `origin`. Every node that FORWARDED the request (noted
+    /// in-flight) then strong-reinforces its trail toward the replier — the
+    /// used-path-wins convergence (flood → replies → directed). Use the frame's
+    /// route_stack[0] as `origin` and its header msg_id as `msg_id`.
+    #[wasm_bindgen(js_name = replyMarker)]
+    pub fn reply_marker_js(&self, origin: u32, msg_id: u32) -> String {
+        r2_route::trail::reply_marker(origin, msg_id).as_str().into()
+    }
+
+    /// The EXTENDED-tier reply msg_id for a request id (bit-31 reply space,
+    /// R2-ROUTE §4.3.4 / trail.rs `reply_msg_id_ext`): requests occupy
+    /// `[0, 0x7FFF_FFFF]`, replies set the top bit — pass the REQUEST's msg_id and
+    /// use the result as the REPLY frame's `seq` so ids never collide.
+    #[wasm_bindgen(js_name = replyMsgIdExt)]
+    pub fn reply_msg_id_ext_js(&self, req_msg_id: u32) -> u32 {
+        r2_route::trail::reply_msg_id_ext(req_msg_id)
     }
 
     /// Run the EventBus one full cycle and return the frames the node's sentants want
@@ -889,7 +927,7 @@ mod tests {
 
     #[test]
     fn frame_origin_reads_route_stack0_and_0_on_garbage() {
-        let h = WasmHive::new(0x0000_00aa);
+        let mut h = WasmHive::new(0x0000_00aa);
         let f = h.build_frame(0x0000_00bb, 0x1234, &[1, 2, 3], 7);
         assert_eq!(frame_origin(&f), 0x0000_00aa); // originator = route_stack[0] = self
         assert_eq!(frame_origin(b"not-a-frame"), 0); // undecodable → 0
@@ -899,7 +937,7 @@ mod tests {
     #[test]
     fn route_hops_reads_full_trail_and_grows_by_a_hop_per_relay() {
         // A freshly-originated frame's trail is just [origin] and hops[0] == frame_origin.
-        let a = WasmHive::new(0x0000_00aa);
+        let mut a = WasmHive::new(0x0000_00aa);
         let f = a.build_frame(0x0000_00cc, 0x1234, &[9], 3);
         assert_eq!(route_hops(&f), vec![0x0000_00aa], "origin-only trail");
         assert_eq!(route_hops(&f).first().copied(), Some(frame_origin(&f)), "hops[0] == origin");
@@ -978,8 +1016,8 @@ mod tests {
         let hash = 0x608f_02f8u32; // r2.tn.routetest — a non-HB Event hash
 
         let mut node = WasmHive::with_group_hmac(node_id, &hk, tg); // receiver (holds the real key)
-        let legit = WasmHive::with_group_hmac(victim, &hk, tg); // the real victim: same key
-        let forger = WasmHive::with_group_hmac(victim, &wrong, tg); // attacker: victim's id, WRONG key
+        let mut legit = WasmHive::with_group_hmac(victim, &hk, tg); // the real victim: same key
+        let mut forger = WasmHive::with_group_hmac(victim, &wrong, tg); // attacker: victim's id, WRONG key
 
         // Both frames: origin=victim, addressed to node, SAME msg_id; they differ only by signing key.
         let legit_f = legit.build_frame(node_id, hash, b"real", msg_id);
@@ -1028,21 +1066,21 @@ mod tests {
         let _ = node.handle_rx(&hb, -55, 2, now);
 
         let hash = 0x608f_02f8u32;
-        let mut relays = |node: &mut WasmHive, origin: &WasmHive, msg_id: u32| -> bool {
+        let mut relays = |node: &mut WasmHive, origin: &mut WasmHive, msg_id: u32| -> bool {
             let f = origin.build_frame(0 /* broadcast (target_hive=0) */, hash, b"x", msg_id);
             !node.handle_rx(&f, -55, 2, now).contains("\"relay_on\":0,")
         };
-        let o1 = WasmHive::with_group_hmac(0x3000_0003, &hk, tg);
-        let o2 = WasmHive::with_group_hmac(0x4000_0004, &hk, tg);
+        let mut o1 = WasmHive::with_group_hmac(0x3000_0003, &hk, tg);
+        let mut o2 = WasmHive::with_group_hmac(0x4000_0004, &hk, tg);
 
         // Origin o1: the 5 broadcasts within the burst allowance all relay…
         for i in 0..5u32 {
-            assert!(relays(&mut node, &o1, 0x1_0000 + i), "o1 broadcast {i} should relay (within §8.4b quota)");
+            assert!(relays(&mut node, &mut o1, 0x1_0000 + i), "o1 broadcast {i} should relay (within §8.4b quota)");
         }
         // …the 6th exhausts o1's per-origin bucket → OriginQuotaExceeded → relay suppressed.
-        assert!(!relays(&mut node, &o1, 0x1_00FF), "o1 6th broadcast must be §8.4b quota-dropped (relay_on 0)");
+        assert!(!relays(&mut node, &mut o1, 0x1_00FF), "o1 6th broadcast must be §8.4b quota-dropped (relay_on 0)");
         // Per-origin ISOLATION: a fresh origin o2 still relays from its own full bucket.
-        assert!(relays(&mut node, &o2, 0x2_0000), "o2 (fresh origin) still relays — quota is per-origin");
+        assert!(relays(&mut node, &mut o2, 0x2_0000), "o2 (fresh origin) still relays — quota is per-origin");
     }
 
     // Real R2-WIRE extended frame builder (mirrors r2-hive-core's sync_host test).
@@ -1083,7 +1121,7 @@ mod tests {
         // tg_hash but a DIFFERENT hk — the live carrier's exact symptom.
         let hk = [0x42u8; 32];
         let tg = 0xABCD_1234u32;
-        let a = WasmHive::with_group_hmac(0x0000_00A1, &hk, tg);
+        let mut a = WasmHive::with_group_hmac(0x0000_00A1, &hk, tg);
         let b = WasmHive::with_group_hmac(0x0000_00B2, &hk, tg);
         let frame = a.build_frame(0, 0x1111_2222, b"in-TG", 7);
         assert!(!frame.is_empty(), "signed frame encoded");
@@ -1132,7 +1170,7 @@ mod tests {
 
     #[test]
     fn encode_helpers_roundtrip() {
-        let a = WasmHive::new(0x0000_00AA);
+        let mut a = WasmHive::new(0x0000_00AA);
         let hb = a.build_heartbeat(0x10);
         assert!(!hb.is_empty(), "heartbeat encoded");
         // A different node routes A's HB — must parse as R2-WIRE (not NotR2Wire).
