@@ -288,6 +288,17 @@
   c'=c+0.05(1-c) per accepted forward; 1-0.95^N over N distinct-msg_id sends; entries visible immediately; nothing toward D until replies.
   **SEQUENCING: core lands trail.rs u32 (heads-up BEFORE push per the shared-checkout discipline) → I wire (i)-(v) → wasm bump →
   composer renders. WAITING on core's push heads-up.**
+- **✅ #40 WIRED (d24721d, 2026-07-04; core's trail.rs u32 = 572650e landed with pre-push heads-up — the discipline working):**
+  route_inbound_sync takes &mut TrailReinforcer<256>; authenticated=true (A1 ruled — sync tier records dedup, dupes Drop(Duplicate));
+  on_received POST-dedup-accept only (invariant a); note_forwarded at Directed/Flood arms when sent + at build_frame/
+  build_critical_frame originate (invariant b); wasm exports replyMarker + replyMsgIdExt (bit-31); WasmHive.reinforcer field
+  (fused handleRx DataPlane state disjoint); r2-hive-wasm 0.4.12→**0.5.0**. 3 invariant tests: duplicate-at-most-once /
+  reply-strong-reinforce-through-forwarder / weak-toward-origin-only (black-hole guard pinned e2e). **CAUGHT: a 6th WifiMesh alias
+  (kind_from_u8 TransportKind::Mesh, lib.rs:47) — the wasm crate is OUTSIDE the workspace so the rename pass never compiled it;
+  lesson: 'workspace green' does NOT cover r2-hive-wasm, always cargo-test it separately.** VERIFIED local: workspace green (37
+  r2-hive-core incl 3 new; 107 hive-bin) + wasm crate 15 host tests + wasm32-unknown-unknown check green; hosted CI = on the push.
+  **REMAINING for #40-done: composer re-runs its bidirectional probe on 0.5.0 (paths() should now be NON-empty + narrowing =
+  the TN-L1-IT-BL-100 shape) — its render is the live acceptance. Also flagged: composer counters must expect dup-drops (§8.2).**
 - **★ URGENT SUPERVISOR Q ANSWERED (2026-07-04): does STAGED 29e250cf lay trails? PRECISE: YES-but-scene-gated.** routetest is in the
   ELF set and the reinforcer compiles in, BUT both rx-side hooks are gated `h.event_hash == ROUTETEST_HASH` (on_received 1704-1718;
   relay-side note_forwarded 1859-1864 inside do_relay; code comment: "routetest only; live demo untouched"). ⇒ Roy-facing truth:
