@@ -9,6 +9,12 @@
   TN READY → rt.snap/rt.nbr flowing; hive_id MISMATCH = persona clobber → composer prov2 re-provision (NOT a reflash); stale
   OTA_PENDING self-clears on boot (by design); boot-loop/panic → capture lines → I map to source. 2a-window residual does NOT apply
   to USB flashes (otadata untouched). **PARAMOUNT trigger when ACM3 runs: serial line `OTA(L2CAP) start seq=` → drop everything.**
+- **✅ COMPOSER ALL-CLEAR (lsof/fuser verified):** ACM2/ACM5/ACM3 all FREE — its only serial procs sit on the CARRIER (by-id
+  B6:0A:A0, hive a1f5ed00), not the flash targets → no port-busy risk. RELAY CHAIN SET: flash-done signal → I ping composer →
+  composer attaches carrier-r2-adapters (by-id, sanctioned) to D1+D2 → watches healthy-boot sequence (persona→radios→TN READY→rt.*)
+  → INSTANT relay on espflash error / boot loop / persona-fallback / ROM-download drop; on ACM3 it watches for OTA(L2CAP) start seq=.
+  (NB composer names B6:0A:A0 "the carrier, hive a1f5ed00" — FR-era logs had it as D3 f91c8911; board roles have shifted since FR-2,
+  do-not-assume the old mapping for that board.)
 
 ## 🛰️ 2026-07-04 — PILLAR 2: REAL LINUX HIVES MOVING REAL DATA (supervisor heads-up; AWAIT composer coordination — do NOT start solo)
 - **Roy's steer:** refutation theatre = his CONFIDENCE surface. He wants REAL r2-hive instances sending REAL data through the REAL
