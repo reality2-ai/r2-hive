@@ -114,6 +114,9 @@
   Demo recipe to composer: D1 SENDTO b14b07d8 → requests D1→D2 → replies lay strong trails → rt.path lights + VDIST gradients
   get traffic (ONE source, TWO scenes; console-truth ids only). Roy's bench demo now plumbing-complete my side: rt.* read +
   proven drag write + traffic source + id truth-table + ack loop. One bridge redeploy carries DTR+ack+SENDTO (scene-safe).
+  **+ MASK forwarding (d2a7a6a, sha e7fd1e6a…):** the fork-specified SENDTO+MASK pair complete — MASK <mac>… (≤8, routetest
+  can_hear topology shaping, NVS-persisted, main.rs:4337) same guard; MASK-SET + NVS-restore acks forward (match-tested, no
+  VMASK collision). ONE re-scp = four fixes (DTR + ack + SENDTO + MASK). Composer redeploys at Roy's acceptance window.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
