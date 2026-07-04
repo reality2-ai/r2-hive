@@ -78,8 +78,10 @@
     build_delivery_frame (hive.rs:936, R2-HOST-API §3.2 keys 0-7); new state.deny_inbound; router.rs reject-branch call sites. **BUILD only
     AFTER specs ratifies the contract; then re-verify the emit against specs' committed R2-HOST-API.md before B2b=done.** GREEN routing demo
     lands FIRST (config-only, composer building now); B2b RED is the completing half, NOT a blocker (supervisor + composer: no rush).
-  - **★ SPECS RULING RECEIVED (2026-07-04, via inbox; specs is TOOLING-BLOCKED — Bash-writes + fleet-send + Read need approval that isn't
-    coming, so specs gave the full ruling in TEXT and will land it into R2-HOST-API.md + broadcast when write access returns):**
+  - **★ SPECS RULING RECEIVED (2026-07-04, via inbox; specs WAS tooling-blocked — Bash-writes + fleet-send + Read stuck on approvals — gave
+    the full ruling in TEXT. ★ SUPERVISOR RESTARTED specs (back live, context resumed) + re-tasked it to verify write access, land the
+    delivery.denied ruling into R2-HOST-API.md, and assign the CBOR key numbers I need. If specs comes back STILL blocked → flag supervisor →
+    escalate to Roy. B2b build correctly HELD on those key numbers.):**
     (1) class name r2.api.event.delivery.denied + separate-class + 3-field payload = **RATIFIED as proposed** (matches r2.mgmt.event.error
     dotted-subclass precedent). (2) reason encoding = **RATIFIED as a TEXT STRING, not int-enum** (grounded in event.error's text error-code).
     (3) not-emitted-on-relay/transit = **confirmed**. (4) TWO OPEN Qs specs needs FROM ME before it finalizes → **I ANSWERED both from ground
