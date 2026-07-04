@@ -63,6 +63,17 @@
   self-id = 0x8900955E ≠ FR-era 480e900e → the FR-era MAC→persona/hive map is STALE (boards re-provisioned; hive_id=FNV(master_
   secret,tg_id) changes on re-provision). Composer's neighbours decode exactly to known ids (495b1b62/655a9e5f/09a07e47/b14b07d8).
   DO-NOT-ASSUME any FR-era id table; console/§6-reply = truth.** rt.path=0 pending directed traffic (expected pre-narrowing).
+- **✅ D2 ALSO CLEAN-ATTACH (beats=510 continuous): BOTH boards stream live rt.* now. D2 console self-id 2974484440 = 0xB14B07D8 —
+  the id the earlier heard-list labeled "apiary TG #46" IS D2 (stale-map DOUBLE-confirmed; 480e900e/2cab5f69 = dead FR-era ids).
+  rt.* internally consistent: D1 lists D2's true id as a neighbour.** Composer's crossed asks all answered (bridge=done 5466092;
+  id space decoded; drag rides the same DTR=1 fd).
+- **✅✅ §6 PROTOCOL RATIFIED — R2-DIAGNOSTICS v0.7 (specs c059c5f); task #41 BUILD UNBLOCKED, sequenced post-flash-round.**
+  Registered as-proposed (classes/keys/CBOR entries — my bearer math REFUTED specs' JSON-on-wire pin, recorded as such; chunk≤8 +
+  snapshot MUST; bucket 1/2s burst 3; all 3 LED patterns incl reject double-blink = LED twin of delivery.denied). FOUR CORRECTIONS
+  adopted: (1) responder gates on classify == SameGroup SPECIFICALLY (CrossGroup entangled passes the deliver-gate but must NOT
+  read tables — real leak caught); (2) reply key 5 build_class (v0.7: 1=dev; ★ ENUM-ALIGNMENT pending — my beacon proposal used
+  0/1/2 with dev=2; asked specs to pin ONE table for both surfaces); (3) CBOR ratified; (4) reply msg_id = reply_msg_id_ext(query)
+  MANDATORY (R2-WIRE §4.2.2 partition — even before core's trail.rs header-recognition lands; weak-only-trails seam in canon).
 - **📐 v0.5 REFINEMENT (specs 8dcc598, Roy): DEV/PROD = WHICH CODE WAS FLASHED → TWO composed images (no dormant dev code in any
   prod build). BEACON DEV-DECLARE CALL (mine, sent): do NOT repurpose §7.2 bit 4 mcu_mode** — audit: zero production emit/read
   (r2-discovery codec+tests only; fw never touches it) BUT it's PRE-ALLOCATED for the custom-sensor MCU-sleeps-SBC signal (flagship
