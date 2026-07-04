@@ -140,6 +140,9 @@
   (c) beacon handoff = PUSH-on-rotate CURRENT+NEXT, MCU never polls, **+ MY ADDITION: NEXT-expiry with no push → MCU goes SILENT
   (fail-silent beats fail-stale — stale rotating id re-aired past epoch = the §7.4.0 linkability leak). Spec-relevant: contract
   routes through specs (R2-COMPLEX-HIVE) before the #34 firmware build; composer's proposal + my reply = the input doc.**
+- **🎯 #41 conformance target (R2-BEACON v0.23, specs ae6dda2, conformance-only):** TV4 in r2-beacon-vectors extended_beacons =
+  byte-exact check for the dev-image build_class emitter (TV3-identical AD + trailing 02 @ offset 25+N, AD Length 0x20→0x21,
+  build_class=2); TV3 = the prod/absence control. Check the emitted AD against TV4 bytes directly when #41 builds.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
