@@ -22,12 +22,22 @@
     v0.1 API — UdpBeacon advertiser-only, no add_peer, rbid→hive_id needs a PeerRegistry). beacon EMIT is a scaffold returning Unsupported.
     ⇒ WS<->TCP bridge is the real path (matches supervisor framing). A `--peer hive_id@ip:port` static-registration flag would make UDP a
     real 2nd path (small hive-bin add I own) — but not needed if the bridge is WS.
-  - **★ B2 (REAL GAP — most likely to need a small hive-bin build; needs composer design call):** hive-bin has NO first-class form/join
-    throwaway-TG flow (hive.rs:58 "v0.1: populated by future TG creation/join flows"; hive.rs:159 None = detached/no-TG). TG membership
-    today is populated REACTIVELY from a connecting peer's authenticated handshake tg_hash (register_tg_peer). For a clean N-hive real-data
-    bench with the deliver-gate ACTUALLY holding, all hives + the bridge need to share ONE throwaway TG + its GroupHmac HK. Linux analog of
-    task #27 (one throwaway TG). Options to design WITH composer: (a) `--tg <hex>` / `--join <code>` seed flag on hive-bin; (b) composer drives
-    TG formation over the mgmt API/socket; (c) bridge-as-TG-member relays for all. AWAIT composer before building.
+  - **★ B2 (SUBSTANTIALLY DE-RISKED — deliver-gate seed ALREADY EXISTS; core demo = CONFIG not build):** the §7.5.4 deliver-gate keys
+    are ALREADY seedable via the existing bench seam: env `R2_GROUP_KEYS_BENCH` → path to composer's json `{ "keys": { "<tg_u32>":
+    "<64-hex HK>" } }` → parsed into `state.group_hmacs: HashMap<u32, GroupHmac>` at HiveState::new (hive.rs:241/855/880). The router
+    deliver-gate does `state.group_hmacs.get(&header.target_group)` (router.rs:211) → verified-deliver / forged-reject. EMPTY map =
+    FAIL-CLOSED (router.rs:222, default-open FORBIDDEN unless R2_DELIVER_UNKEYED_OPEN opt-in). ⇒ **all N hives + the bridge exporting the
+    SAME R2_GROUP_KEYS_BENCH file = the deliver-gate HOLDS with NO code change; the RED refutation (forge wrong target_group/HK → REJECT
+    live) works TODAY on config alone.** TRUST MODEL confirmed: the WS handshake is DEVICE self-auth (Ed25519 over
+    `<tg>:<device_id>:<ts>`, v0.1 inline-sig OR v0.2 nonce-challenge) — it does NOT require the hive to pre-know the TG pubkey, so the
+    bridge connects with any valid identity + asserts the throwaway TG; the REAL trust boundary is the GroupHmac deliver-gate, not the
+    handshake. **CONTRACT for composer (3 derived values from the ONE throwaway TG): (i) 8-byte tg_hash for the handshake/membership
+    (register_tg_peer → broadcast_to_tg flood-set); (ii) u32 wire target_group for frame headers (deliver-gate map key); (iii) 32-byte HK
+    for GroupHmac. Injected CRITICAL frame: header.target_group = (ii), HMAC-tagged with (iii) → DELIVER; wrong (ii)/(iii) → REJECT.**
+    hive.rs:58 "future TG creation/join flows" + hive.rs:159 detached are about a first-class INTERACTIVE form/join UX — NOT needed for
+    the demo. OPTIONAL small builds (composer's call, only if wanted): (a) a helper/flag to DERIVE the canonical (tg_hash,target_group)
+    from a TG pubkey so injected frames match a real TG id (vs composer just PICKING a throwaway u32+HK consistently — demo-sufficient);
+    (b) `--tg`/`--join` ergonomic seed flag as an alias for the env file. AWAIT composer's design call before building either.
   - **B3 (optional):** if composer wants hives to SELF-mesh without a central bridge, add a `--uplink ws://peer/r2` WS-client to hive-bin
     (clean, small). Depends on composer's bridge design — do not pre-build.
   - **bench-mirrors-reality:** LIVE surface must mirror real hive state; sim must NEVER leak into live. (composer's invariant; I keep the
