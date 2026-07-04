@@ -157,7 +157,7 @@ def render_rx(line):
             log(f"RT {line.strip()}")
     elif any(
         line.startswith("r2-dfr1195: " + v)
-        for v in ("VMASK", "VRSSI", "VDIST", "VCLR", "VBLK", "SENDTO")
+        for v in ("VMASK", "VRSSI", "VDIST", "VCLR", "VBLK", "SENDTO", "MASK")
     ):
         # Bench-control ACK echo — the board confirms each applied control
         # (e.g. "r2-dfr1195: VMASK tx_allow=0xdf", "r2-dfr1195: SENDTO-SET
@@ -236,12 +236,14 @@ def control_reader(router, ser, participate):
                 log(f"CTRL TX> {hexstr[:24]}… (verbatim -> mesh)")
             else:
                 log(f"CTRL TX  {hexstr[:24]}… (read-only; --participate to send)")
-        elif verb in ("VMASK", "VRSSI", "VDIST", "VCLR", "VBLK", "SENDTO"):
+        elif verb in ("VMASK", "VRSSI", "VDIST", "VCLR", "VBLK", "SENDTO", "MASK"):
             # Board BENCH CONTROL verbs, forwarded VERBATIM to the serial — the board's uart_rx_task parses
             # them. benchdist five: §2.3A egress mask (VMASK <hex>) + §2.3C/§2.3B virtual-distance overrides
-            # (VRSSI/VDIST/VCLR/VBLK) = the drag levers. SENDTO <dest_hex> (routetest): makes THIS board the
-            # BL-200 origin emitting directed requests to <dest> every ~6s (SENDTO 0 clears; NVS-persisted) —
-            # the one traffic source that lights BOTH the VDIST gradient and rt.path narrowing on metal.
+            # (VRSSI/VDIST/VCLR/VBLK) = the drag levers. routetest pair: SENDTO <dest_hex> makes THIS board
+            # the BL-200 origin emitting directed requests to <dest> every ~6s (SENDTO 0 clears;
+            # NVS-persisted) — the one traffic source that lights BOTH the VDIST gradient and rt.path
+            # narrowing on metal; MASK <mac> [<mac>…] (≤8) = the allowed-neighbour can_hear topology
+            # shaping (self-applied per tty, NVS-persisted).
             sent = bool(participate and ser)
             if sent:
                 ser.write((line + "\n").encode())
@@ -252,7 +254,7 @@ def control_reader(router, ser, participate):
             else:
                 log(f"CTRL {verb}  {line} (read-only; --participate to send)")
         elif not JSON_MODE:
-            log(f"# control: unknown verb {verb!r} (use 'RX <hex>' | 'TX <hex>' | VMASK/VRSSI/VDIST/VCLR/VBLK/SENDTO)")
+            log(f"# control: unknown verb {verb!r} (use 'RX <hex>' | 'TX <hex>' | VMASK/VRSSI/VDIST/VCLR/VBLK/SENDTO/MASK)")
 
 
 def run_live(args):
