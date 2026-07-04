@@ -153,6 +153,11 @@
   finding-ID convention adopted; verified zero live code identifiers/strings pre-edit → compile-neutral. The
   re-vendor-before-public-artifact constraint is MOOT (branch clean as of this push). Ledger note to core: scrub sweeps must
   grep the WHOLE branch worktree, all file types, not just vendored crate paths.
+- **⚖️ ROUTE-STACK APPEND LABEL = CONTESTED (supervisor-codex, 2026-07-05; recorded WITHOUT a conformance verdict per its
+  directive):** whether the fw relay path's non-appending re-encode conforms to §8.5 is DISPUTED — specs asked to reconcile in
+  one view (resolving the §8.5 inconsistency if they choose SHOULD/ratify-reality). NON-BLOCKING: no immediate reflash; the fix
+  stays as already scoped in task #32 (adopt prepare_relay_extended — TTL--, K-split, route-stack append — next firmware cycle).
+  Do NOT reclassify firmware conformance in durable docs until specs rules.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
