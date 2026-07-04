@@ -143,6 +143,9 @@
 - **🎯 #41 conformance target (R2-BEACON v0.23, specs ae6dda2, conformance-only):** TV4 in r2-beacon-vectors extended_beacons =
   byte-exact check for the dev-image build_class emitter (TV3-identical AD + trailing 02 @ offset 25+N, AD Length 0x20→0x21,
   build_class=2); TV3 = the prod/absence control. Check the emitted AD against TV4 bytes directly when #41 builds.
+  **+ CORE CODEC IMPLEMENTED (9fc56aa, CI-green):** the v0.22 field was previously unimplemented in core's beacon codec — now
+  in, TV4-conformant, emit-only-when-2 semantics. #41 build note: prefer core's codec over hand-rolled AD bytes (arrives via
+  the next fw re-vendor; until then the vector is the target either way).
 - **🧹 fw pilot-site naming scrub DONE (dfr1195-fw eb9fd42 + xbuild.sh committed 832fa21, both pushed):** core's FYI named 2
   vendored files (already clean here) but the whole-worktree sweep found the pre-scrub site term in TWELVE files — incl 7
   BRANCH-OWNED ones a re-vendor would never heal + the generated firstlight.patch (which also carried the uncommitted #49-era
