@@ -135,6 +135,16 @@
   - **bench-mirrors-reality:** LIVE surface must mirror real hive state; sim must NEVER leak into live. (composer's invariant; I keep the
     hive data path real end-to-end.)
 
+## 🎚️ 2026-07-04 — PRIORITY RISE: bench-side virtual-distance lever = DEMO-CRITICAL (Roy: theatre spans BOTH tiers, wasm + bench boards)
+- Supervisor FYI: Roy confirmed theatre acceptance covers wasm AND bench boards; the bench radio-profile lever (supervisor said "#36
+  silence-radio virtual-distance" — in MY tracker that maps to **task #31's runtime-virtual-distance half**, NOT my local #36 which is the
+  completed wasm forged-attribution item; mapping flagged back) is now demo-critical, same lever as composer's wasm toggles.
+- **★ GROUND-TRUTHED — the lever is ALREADY IN the staged ELF (no new firmware work):** 29e250cf was built with `benchdist` in its feature
+  CSV; benchdist = §2.3A **VMASK node-wide radio-off** (main.rs:4371, the "silence-radio") + **§2.3C per-(peer,carrier) virtual-distance
+  quality-override** (main.rs:4385) + §2.3A egress gate (a VMASK-cleared carrier genuinely stops TX, main.rs:3480), all driven via
+  --control commands (composer holds the bench ttys → composer's dashboard drives the lever). ⇒ bench tier lights when Roy flashes
+  29e250cf, zero further firmware build. No new work queued (supervisor: none beyond what's queued).
+
 ## 📋 2026-07-04 — QUEUED FOLLOW-ONS (behind #49 first-responder > INCR-2 OTA plugin; do NOT context-switch)
 - **PRIORITY ORDER (supervisor): #49 first-responder > INCR-2 OTA plugin > these follow-ons.**
 - **deliver→effect ASSEMBLY (hive half; core landed the MECHANISM fbee20d, CI-green):** core added `RxDisposition.deliver_group`
