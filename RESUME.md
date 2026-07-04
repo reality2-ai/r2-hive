@@ -171,6 +171,15 @@
   mesh fine → consistent with key-mismatch on the old-persona board. Caveat recorded: blk-counter semantics UNVERIFIED (don't
   over-read blk=0). OFFERED: same safe read on ACM4/D4 on their word. FRAMING left to Roy/composer: zero-delivery on old-persona
   boards = provisioning gap (if all 4 were meant in-TG → prov2) vs isolation-holding (if not) — intent call, not mine.
+- **🔬 DARK-BOARD DIAGNOSIS REFINED (my ACM4 read PARTIALLY REFUTED composer's wrong-tg hypothesis):** dark origins = 495b1b62 +
+  b14b07d8 (NOT 09a07e47 — my earlier old-persona hypothesis was WRONG for ACM3: it DELIVERS; the demo TG *is* its old TG
+  04bc57e7, and D1's re-provision kept that TG). **ACM4 ground truth: D4(52:99:28) = 0x495b1b62 CONFIRMED (id table complete:
+  8900955e=D1, b14b07d8=D2, 09a07e47=#49, 495b1b62=D4) + its HEALTH claims tg_hash 0x04bc57e7 — the SAME TG as the delivering
+  pair → the mismatch is at the KEY level, not the TG level: same tg uuid, DIFFERENT HK epoch (nbrs flaps 0↔1 = HMAC HB-verify
+  almost never passes; dlv=0 blk=0 @ beats=19138). Fail-closed correct; fix-if-wanted = prov2 re-provision with the CURRENT hk
+  (persona-only, no reflash).** HEALTH decode recipe (validated on 2 boards): hex after 'HEALTH' matches af001a<hive8>011a<tg8>.
+  D2's verify = composer greps its own :21064 stream (no tty contention). Delivering-pair arithmetic closes: each shows nbrs=1
+  stable = verifying exactly the other in-TG board.
 - **✅✅✅ DEV/PROD CANON FULLY SETTLED (specs cfcb6e3: R2-BEACON v0.22 + R2-DIAGNOSTICS v0.8) — #41's contract is FINAL:**
   bit 4 PRESERVED (my pre-allocated custom-sensor rationale recorded verbatim); build_class at Extended offset (25+N) where the
   pre-existing reserved-tail MUST-be-0x00 makes ABSENCE-IS-PROD true BY CONSTRUCTION on every deployed beacon (enum 0 prod-field =
