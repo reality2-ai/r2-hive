@@ -153,6 +153,12 @@
     r2-wire types.rs:84-86: has_hmac IS 0x02, has_route 0x04 (composer's byte0=0x6 = route|hmac, correct); decode gates tag-read on the
     flag (extended.rs:117) → strip+clear-0x02 decodes clean-untagged; corrupt-with-flag-set → Some(garbage) → forgery. No trap #4.**
     Composer rebuilds its release binary from 62e155d and locks the deny renderer.
+  - **✅✅ B2b = FULLY DONE (supervisor, 2026-07-04): composer's live-RED e2e PROVEN on 3 real Linux procs** — corrupt-HMAC frame → real
+    r2.api.event.delivery.denied reason=forgery observed via the mgmt UDS (byte-verified technique worked exactly; NOTHING inferred).
+    All four legs: BUILT (d1afb97) + SPEC-RATIFIED (R2-HOST-API v0.4→v0.5) + CORE-REFUTED (GO) + E2E-PROVEN. Roy's real-code-only RED
+    bar is met by real code end-to-end. **MY Pillar-2 hive-side deliverables COMPLETE** (config contract + deny event + verifications);
+    remaining Pillar-2 surface work = composer's lane; follow-ons tracked: task #38 (peering coupling guard), task #39 (event.send
+    origination conformance, post-demo spec-first).
   - **★ CORE CANON PRECISION (2026-07-04) — event.send finding RECLASSIFIED: EXISTING NON-CONFORMANCE (MUST-violation TODAY), not
     future-capability work.** R2-WIRE §6.2.1: the originator MUST stamp route_stack[0] (§5 + §9.5 repeat it); ROUTE-ORIGIN-1 has two
     halves — relays MUST drop route-less (I implement, router.rs:146-149) AND originators MUST stamp (handle_event_send VIOLATES this
