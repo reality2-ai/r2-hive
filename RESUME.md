@@ -1,5 +1,18 @@
 # RESUME — r2-hive (hive-worker)
 
+## ⚖️ JOINT VERDICT IN FLIGHT (supervisor requires hive+composer co-signature before Roy hears anything)
+- Contradiction to resolve: my no-defect verdict vs composer's runtime-issue-persists. Supervisor proposed an rx-side
+  nbrs-stability crux test — but I hold the CONTROL DATUM that voids it: **ACM3 (crypto-proven L5 member) shows
+  `synced=false nbrs=0` IDENTICAL to D4 in today's captures.** Source ground truth: `nbrs` is formation-DECOUPLED
+  (counts unverified peers, task #28 by design); the real rx key gate is HB-COUPLING verify; bench HBs are sparse
+  (~1/20-25 s per board) so the WHOLE bench sits unsynced. A test where control == suspect carries no information.
+- Draft joint verdict sent to composer (its half = D1-vs-D2 status samples from its own streams; prediction: identical
+  patterns; if D2 materially differs from the D1 control we REOPEN honestly): no demonstrated runtime defect; GO stands
+  on the dual-codec crypto proof; reimages = scheduled HYGIENE not fixes; **erase permanently OFF the table** (persona
+  AND override both hold weave-hk byte-identical — composer's own datum); honest residual = a D2/D4-specific rx defect
+  is not fully excludable until real-tagged ADDRESSED traffic exists (#39 or post-reimage), zero positive evidence for one.
+- Awaiting composer's co-signature/amendment; the co-authored statement then goes to supervisor.
+
 ## 🔄 TOTAL FLIP — ALL KEYS WERE ALWAYS CORRECT; the whole red saga was task #39's zero-tag artifact (task #46 CLOSED)
 - **Supervisor's file-epoch discriminator run live and it flipped everything:** captured on-air frames from two board
   mirrors, verified OFFLINE against composer's weave-hk.bin with the REAL r2-wire/r2-trust code. **Every board's HB
