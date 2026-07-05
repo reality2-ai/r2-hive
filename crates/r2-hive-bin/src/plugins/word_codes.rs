@@ -34,12 +34,19 @@ pub struct WordCodeStore {
 }
 
 impl WordCodeStore {
+    /// Empty store.
+    ///
+    /// **Used-by:** `HiveState::new` (one store per daemon).
     pub fn new() -> Self {
         WordCodeStore {
             codes: Mutex::new(HashMap::new()),
         }
     }
 
+    /// Register {words → tg_hash + join_code} with the 5-minute TTL.
+    ///
+    /// **Used-by:** the POST route below (key-holder's browser) and
+    /// `main.rs`'s UDP `WC:` sideband (LAN-proximity propagation).
     pub async fn register(&self, words: String, tg_hash: String, join_code: String) {
         let mut codes = self.codes.lock().await;
         let now = Instant::now();
@@ -47,6 +54,10 @@ impl WordCodeStore {
         codes.insert(words, WordCodeEntry { tg_hash, join_code, created_at: now });
     }
 
+    /// Single-use lookup: returns and CONSUMES the mapping (a second
+    /// lookup misses), honouring the TTL.
+    ///
+    /// **Used-by:** the GET route below (joiner's browser).
     pub async fn lookup(&self, words: &str) -> Option<(String, String)> {
         let mut codes = self.codes.lock().await;
         let now = Instant::now();

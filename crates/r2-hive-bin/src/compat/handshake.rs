@@ -8,6 +8,17 @@
 //!
 //! In future phases, step 3 will be replaced by route-engine-driven
 //! forwarding. The handshake and signaling stay.
+//!
+//! ## Interlinks + canon
+//!
+//! Entered from `main.rs`'s `/r2` route (`ws_handler` upgrade). Uses the
+//! TG-compat surface on `HiveState` (register/broadcast/buffer/catchup —
+//! see the banner in `hive.rs`) and hands binary frames to
+//! `router::route_frame`, consuming the outcome (`NotR2Wire` → legacy
+//! broadcast; `Flooded` → `flood_tg_peers_not_in` enrichment). Canon:
+//! R2-TRANSPORT-RELAY §3.2 (v0.2 challenge handshake; vectors in
+//! `r2-specifications/testing/test-vectors/`) —
+//! `r2-specifications/specs/r2-core/R2-TRANSPORT-RELAY.md`.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};

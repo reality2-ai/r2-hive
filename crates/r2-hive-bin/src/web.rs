@@ -15,6 +15,17 @@
 //! TODO) once auth is in place. For now `mount()` records channel
 //! metadata so a later wiring step can pick it up without a registry
 //! migration.
+//!
+//! ## Interlinks + canon
+//!
+//! Routes mounted in `main.rs` (`/ensemble/{*rest}`, `/plugin/{*rest}`,
+//! `/r2/web/provision`); the registry object lives on
+//! `HiveState.web_plugins` and is mounted/unmounted by
+//! `mgmt/ensemble.rs` on ensemble load/stop (§13.4 atomicity). Every
+//! asset response is gated by `web_auth.rs` cookies unless
+//! `HiveState::web_dev_mode` is explicitly on (fail-closed default).
+//! Canon: R2-PLUGIN §13/§13.4/§13.5 —
+//! `r2-specifications/specs/r2-core/R2-PLUGIN.md`.
 
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};

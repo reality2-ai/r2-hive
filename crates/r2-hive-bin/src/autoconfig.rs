@@ -27,6 +27,14 @@
 //! Probes that fail are recorded as `present: false`; nothing in this
 //! module panics, and no probe holds a kernel resource for longer than
 //! its enumeration call. Total runtime on a Linux host is sub-50 ms.
+//!
+//! ## Interlinks + canon
+//!
+//! Called once from `main.rs` (always probed for the log; folded into
+//! transport flags only under `--auto`, explicit flags win). Probes are
+//! daemon-local heuristics (hci0 presence, arduino-router socket,
+//! interface list) — no canon governs detection itself; the transports
+//! it enables are governed by their own specs (R2-TRANSPORT §2.2).
 
 use std::path::{Path, PathBuf};
 

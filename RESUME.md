@@ -40,8 +40,15 @@
   handlers -> HiveState). Occam: FileStore::path() CUT (zero callers anywhere); FileStore::exists() -> cfg(test)
   (test-only lifecycle probe). Inconsistency fixed: framing.rs cited "R2-HIVE spec §5.2" (missed by the tranche-2b
   grep — different phrasing) -> re-anchored to R2-HOST-API §2.2 len_be32.
-- **Next tranches:** web.rs/web_auth.rs + core's ensemble/ota/identity + config/autoconfig/compat/plugins/systemd ->
-  r2hive-cli + r2-hive-core lib.rs + carrier-bridge py + ws-mesh -> fw branch files (dfr1195 main.rs own tranche). (usb/usb_hotplug/usb_serial/usb_pair) →
+- **Tranche 6 (this commit):** bin-crate TAIL — web/web_auth/autoconfig/config/compat(handshake+protocol+buffer)/
+  plugins/platform/systemd/lib. 11 doc-less fns documented (systemd stubs, catchup ring, word-codes TTL store);
+  interlink+canon heads on the five substantive files. **BIN CRATE NOW 100% at the standard.**
+- **SCOPE CHANGE (Roy GO via supervisor):** r2-hive-core EXCLUDED from sweep — crate migrates INTO r2-core (core =
+  receiving owner; sync_host travels pre-documented). NEW task #49 = rev-pin core deps + bump script (deliberate
+  uptake, Roy ratified; mechanics asked of core — 11 path-dep'd crates today). Sequencing: pin lands BEFORE core's
+  migration churn.
+- **Next tranches:** r2hive-cli -> carrier-bridge py + ws-mesh -> fw branch files (dfr1195 main.rs own tranche;
+  rak4630 delta). (usb/usb_hotplug/usb_serial/usb_pair) →
   web/web_auth/ensemble/ota/identity/config/autoconfig/systemd → r2-hive-core lib.rs + carrier-bridge py + ws-mesh →
   fw files on branch (dfr1195 main.rs = own tranche; rak4630 delta). Vendored crates EXCLUDED (canon docs = core's).
   One hygiene-gated commit + supervisor note per tranche. ALL new code ships to the standard.

@@ -10,6 +10,13 @@
 //! defaults when their config is wrong.
 //!
 //! See `packaging/defaults/hive.toml` for a fully-commented example.
+//!
+//! ## Interlinks + canon
+//!
+//! Loaded by `main.rs::apply_config_layer` (file under CLI, OR-semantics
+//! for booleans); every field mirrors a CLI flag documented in `main.rs`.
+//! The file format is daemon-local (no canon spec governs the TOML);
+//! paths follow the XDG convention.
 
 use std::path::{Path, PathBuf};
 

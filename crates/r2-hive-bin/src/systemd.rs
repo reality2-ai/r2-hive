@@ -14,6 +14,9 @@
 //! this module is a no-op.
 
 #[cfg(feature = "systemd")]
+/// Tell systemd the daemon is up (sd_notify READY=1). No-op off-systemd.
+///
+/// **Used-by:** `main.rs` once, after the HTTP listener binds.
 pub fn notify_ready() {
     if let Err(e) = sd_notify::notify(false, &[sd_notify::NotifyState::Ready]) {
         log::debug!("sd_notify(READY=1) failed: {e} (not a systemd-activated process?)");
@@ -23,6 +26,9 @@ pub fn notify_ready() {
 }
 
 #[cfg(not(feature = "systemd"))]
+/// Stub for builds without the `systemd` feature.
+///
+/// **Used-by:** `main.rs` (same call site as the real one).
 pub fn notify_ready() {}
 
 /// Spawn the watchdog ping loop. Reads `WATCHDOG_USEC` from systemd
@@ -55,6 +61,9 @@ pub fn spawn_watchdog() {
 }
 
 #[cfg(not(feature = "systemd"))]
+/// Stub for builds without the `systemd` feature (real variant above).
+///
+/// **Used-by:** `main.rs` (same call site as the real one).
 pub fn spawn_watchdog() {}
 
 #[cfg(test)]

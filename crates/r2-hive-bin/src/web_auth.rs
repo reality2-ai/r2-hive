@@ -20,6 +20,15 @@
 //! Provision word codes (one-time, 1-hour TTL by default) live in a
 //! ledger separate from the TG-join ledger so a TG-join code can't be
 //! replayed as a browser-provision code and vice versa.
+//!
+//! ## Interlinks + canon
+//!
+//! Keyed from the master secret: `main.rs` installs it via
+//! `DaemonState::derive_web_auth_key` → `HiveState::set_web_auth`.
+//! Consumed by `web.rs` (asset gate + provisioning endpoints),
+//! `mgmt/ws.rs::authorize_upgrade` (mgmt WebSocket + /stats + /routes),
+//! and `mgmt/api.rs` (provision handler). Canon: R2-PLUGIN §13.5 —
+//! `r2-specifications/specs/r2-core/R2-PLUGIN.md`.
 
 use std::collections::HashMap;
 use std::sync::RwLock;
