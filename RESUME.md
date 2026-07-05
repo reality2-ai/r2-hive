@@ -1,5 +1,16 @@
 # RESUME — r2-hive (hive-worker)
 
+## ✅ CARPARK BINDING SHIPPED (task #47 CLOSED — 5fe9f69, wasm 0.6.4, pkg cf06c2d0…; composer endorsed pre-build)
+- Congestion: tick() drives the core sensor INTERNALLY from real bus depth/capacity (core's same-hour queue_depth/
+  queue_capacity getters — landed with honest-theatre docs citing this binding); route_inbound_sync grew `congested`
+  (hardcoded-false retired; 37/37 core green); congested() + relayBackoffMs getters; **deliverEventQueued** = the honest
+  burst surface (found mid-build: deliver_event drains per call so backlog could never form — enqueue-only between-tick
+  arrivals model what a real io_task sees). Falsifier: latch trips ≥25/32, hysteresis-clears on drain.
+- Airtime: real bucket (starts FULL 3600 ms), refill per tick from real peer count, LoRa sends pay real SF12 ToA in
+  route_frame, refused sends GATED OUT + counted (+ per-call airtime_refused JSON). Falsifier: budget dies <6 floods.
+- GM pays airtime like everyone (composer AGREED: regulatory ≠ §3A never-damped; its F3 rhyme rescoped to the congestion
+  axis). Capacity=32 answer delivered (latch at 25+, clear at <15). 19/19 wasm; composer builds scene+selftests next.
+
 ## 🅿️ CARPARK THEATRE BINDING = task #47 (designed + grounded, objections window open; build next block)
 - Composer's §3A congestion + R2-LORA §4 airtime scene ask, core-blessed seam. Shape sent (one step MORE honest than
   asked): tick() drives the DataPlane sensor INTERNALLY from real bus depth (zero JS-supplied numbers — needs core's
