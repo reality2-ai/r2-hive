@@ -35,10 +35,12 @@
 //!   `send_to_hive_via` (multi-transport egress with fallback), and the
 //!   ensemble `DispatchTarget` for DeliverOnly frames.
 //!
-//! **Sync twin:** `r2-hive-core/src/sync_host.rs::route_inbound_sync` is the
-//! no_std expression of this same decision logic (wasm + MCU tiers run it).
-//! The two implement the same canon and MUST NOT drift — change one, check
-//! the other.
+//! **Sync twin:** `r2-core/crates/r2-hive-core/src/sync_host.rs`'s
+//! `route_inbound_sync` is the no_std expression of this same decision
+//! logic (wasm + MCU tiers run it; the crate lives in r2-core since the
+//! 2026-07-06 fold — core is its owner, consumed here via the rev pin).
+//! The two implement the same canon and MUST NOT drift — change one,
+//! check the other (cross-repo now: coordinate through core).
 //!
 //! ## Canon (r2-specifications)
 //! - `specs/r2-core/R2-WIRE.md` — frame format + §8.2 (msg_id,origin) dedup,

@@ -16,7 +16,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # Platform-agnostic hive core (no_std + alloc) — the shared one-codebase logic.
-r2-hive-core = { path = "../r2-hive-core" }
+r2-hive-core = { workspace = true }
 r2-wire = { workspace = true, features = ["alloc"] }
 r2-cbor = { workspace = true }
 r2-fnv  = { workspace = true }

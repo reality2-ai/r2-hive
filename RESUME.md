@@ -1,5 +1,14 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🧬 FOLD CUTOVER DONE (r2-hive-core now lives in r2-core; my re-point+delete landed)
+- Core landed the crate at my freeze d9d4429 into r2-core crates/r2-hive-core; I bumped BOTH manifests to
+  9943448 (their CI-green sha — NOT bbd7771, which had silently dropped no_std; core caught it on bare-metal and
+  added hive-core to their CI no-std cross-build), repointed r2-hive-bin (workspace dep) + wasm (git dep),
+  retargeted router.rs's sync-twin pointer cross-repo, DELETED crates/r2-hive-core. Suite 16 green (hive-core's
+  2 suites now run in core's tree), wasm 19/19 + wasm32 + fresh pkg (sha 5e8b04c6, 151449 B) for composer.
+- The sync-twin pair is now CROSS-REPO (router.rs in r2-hive <-> sync_host.rs in r2-core): drift-guard =
+  coordinate through core; both heads state it.
+
 ## 📌 CORE REV-PIN LANDED (task #49 DONE — deliberate uptake, Roy ratified)
 - r2-hive now consumes r2-core as GIT DEPS pinned to ONE CI-green rev (785b3c4, core's r2-core-consolidation HEAD)
   in root [workspace.dependencies]; all 3 member crates inherit (13 dep declarations, feature shapes preserved:
