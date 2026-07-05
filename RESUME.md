@@ -1,5 +1,24 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔬 D4/D2 DISCRIMINATION ROUND 2 (2026-07-05; task #46 updated; supervisor's three questions answered live)
+- **REBOOT verb fired on ACM4 by me: NO-OP** (beats never reset, no ack) — D4's old image predates BOTH the verb and the
+  live-install path (landed ~06-26 ebfa5c8 era). **So no verb bug exists in current firmware**: persist-without-live-install
+  is the old image's designed behaviour; 29e250cf HAS the live swap. Agent-side paths for D4 = exhausted (toggle-reset
+  forbidden; flash tool human-only).
+- **⚠ OPTION-A ERASE IS NOW WRONG FOR D4** — composer's PROVISION WROTE the correct key to @0x14000 (byte-identical,
+  read-back-confirmed); only LOADING it is missing. Erase would delete the right key and regress to the stale persona.
+  Correct human action = Roy's ALREADY-PENDING D4 reimage (29e250cf, app-only): its reboot loads the key; zero new work.
+  Sent to supervisor in the gate's escalation format (artifact/target/authority/reason).
+- **D2 tightened toward wrong-key too:** retargeted ACM3's member-signed reqs at D2 (`SENDTO b14b07d8`, acked) — 50 s,
+  ZERO acks, ACM3 dlv flat. Coherent story: D2's app-only reimage PRESERVED its stale @0x14000 override (NVS by design) →
+  new image booted back into the old key; "held apiary" framing likely rationalized this. **D2 fix = composer console
+  re-key on ACM5, installs LIVE on the new image (no reboot, no Roy). My ACM3→D2 stream LEFT ARMED as its self-verifier.**
+- **Fleet-gate note:** my first status message tripped the firmware/key lexical gate on CONTENT (it mentions flashing/keys
+  while requesting no agent operation) — resent in the gate's own escalation format. Not a policy violation; a lexical
+  false-positive worth remembering when reporting flash-adjacent findings.
+- Sequencing recorded: D2 greens on composer's action now; D4 greens at Roy's flash (I retarget the stream to 495b1b62
+  just before his window); `SENDTO 0` restore after both proofs.
+
 ## 🔴 D4 RE-KEY REFUTED ON LIVE METAL (2026-07-05; task #46; BLOCKS Roy's 4-board GO)
 - Supervisor asked for the deliver-gate proof status; I ran it live. ACM4 was free: baseline read showed identity right
   (495b1b62 / tg 04bc57e7), beats alive, dlv=0 — but VACUOUS (census: the only on-air traffic is D2→D1 directed reqs;
