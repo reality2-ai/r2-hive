@@ -20,7 +20,11 @@
 set -euo pipefail
 
 REPO="reality2-ai/r2-core"
-MANIFEST="$(cd "$(dirname "$0")/.." && pwd)/Cargo.toml"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+MANIFEST="$ROOT/Cargo.toml"
+# The wasm crate is workspace-EXCLUDED but pins the SAME rev (its manifest
+# carries its own git-dep lines, incl. r2-dataplane which only wasm uses).
+WASM_MANIFEST="$ROOT/crates/r2-hive-wasm/Cargo.toml"
 SHA_IN="${1:?usage: bump-core.sh <core-sha> [--force-ci]}"
 FORCE_CI="${2:-}"
 
@@ -48,21 +52,24 @@ fi
 
 OLD=$(grep -oE 'rev = "[0-9a-f]{40}"' "$MANIFEST" | head -1 | grep -oE '[0-9a-f]{40}')
 [ -n "$OLD" ] || { echo "ERROR: no rev pin found in $MANIFEST"; exit 1; }
-N_OLD=$(grep -c "rev = \"$OLD\"" "$MANIFEST")
-echo "moving pin: $OLD -> $FULL ($N_OLD lines)"
-sed -i "s/rev = \"$OLD\"/rev = \"$FULL\"/g" "$MANIFEST"
+for M in "$MANIFEST" "$WASM_MANIFEST"; do
+  N_OLD=$(grep -c "rev = \"$OLD\"" "$M" || true)
+  echo "moving pin in $M: $OLD -> $FULL ($N_OLD lines)"
+  sed -i "s/rev = \"$OLD\"/rev = \"$FULL\"/g" "$M"
+  # Consistency guard: every rev line must now carry the new sha.
+  STRAGGLERS=$(grep -cE 'rev = "[0-9a-f]{40}"' "$M")
+  MOVED=$(grep -c "rev = \"$FULL\"" "$M")
+  [ "$STRAGGLERS" = "$MOVED" ] || { echo "ERROR: mixed revs in $M after sed — aborting"; git -C "$ROOT" checkout -- Cargo.toml crates/r2-hive-wasm/Cargo.toml; exit 1; }
+done
 
-# Consistency guard: every rev line must now carry the new sha.
-STRAGGLERS=$(grep -cE 'rev = "[0-9a-f]{40}"' "$MANIFEST")
-MOVED=$(grep -c "rev = \"$FULL\"" "$MANIFEST")
-[ "$STRAGGLERS" = "$MOVED" ] || { echo "ERROR: mixed revs after sed — aborting"; git checkout -- "$MANIFEST"; exit 1; }
-
-cd "$(dirname "$MANIFEST")"
-echo "building + testing against the new pin..."
+cd "$ROOT"
+echo "building + testing against the new pin (host workspace)..."
 cargo test --workspace 2>&1 | tail -3
+echo "building + testing the wasm crate (excluded from --workspace; the WifiMesh-rename lesson)..."
+( cd crates/r2-hive-wasm && cargo test 2>&1 | tail -2 && cargo check --target wasm32-unknown-unknown 2>&1 | tail -1 )
 ./ci/public-hygiene.sh
 
-git add Cargo.toml Cargo.lock 2>/dev/null || git add Cargo.toml
+git add Cargo.toml Cargo.lock crates/r2-hive-wasm/Cargo.toml 2>/dev/null || git add Cargo.toml crates/r2-hive-wasm/Cargo.toml
 git commit -m "chore: bump r2-core pin ${OLD:0:7} -> ${FULL:0:7}
 
 Deliberate uptake via scripts/bump-core.sh (CI-green gated$( [ "$FORCE_CI" = "--force-ci" ] && echo ' — FORCED, see local verification note' )).

@@ -9,9 +9,13 @@
   the only sanctioned pin move (refuses un-pushed/CI-red revs, atomic multi-line sed + consistency guard, commits
   only on full-suite+hygiene green; --force-ci escape documented for no-hosted-run cases); commented [patch] block
   in Cargo.toml = local-loop escape hatch for the fold migration (never commit uncommented).
-- KNOWN INTERIM: r2-hive-wasm (excluded workspace) still path-deps ../r2-core + ../r2-hive-core — it release-builds
-  deliberately and the fold rewires it anyway; convert post-fold. Do not assume wasm and host build the same core rev.
-- 18 suites green + hygiene on first pinned build. Uptake protocol: core heads-ups name a sha -> bump-core.sh <sha>.
+- WASM PINNED TOO (same cycle): first wasm build against the host pin FAILED with dual-crate type mismatches
+  (r2-hive-core resolved core via the git pin while wasm's own deps were still live-path = two r2_engines) —
+  exactly the skew the interim note predicted, surfaced in minutes not weeks. Fixed by pinning wasm's manifest to
+  the SAME rev (incl. r2-dataplane, wasm-only dep); bump-core.sh now moves BOTH manifests atomically + runs the
+  wasm build in its gate (the WifiMesh-rename lesson codified). r2-hive-core dep stays path (in-repo until fold).
+- 18 host suites + wasm 19/19 + wasm32 check green on the pin. Uptake protocol: core names a sha -> bump-core.sh <sha>.
+  NO live coupling remains anywhere in r2-hive (fw branches were always vendored).
 
 ## 🔌 SOCKET FILENAME NORMATIVE (specs ruling fa94443 — fix_impl EXECUTED)
 - Specs ruled my tranche-2b divergence flag: the mgmt-socket FILENAME is part of the R2-TG-TOOL §5.1 contract
