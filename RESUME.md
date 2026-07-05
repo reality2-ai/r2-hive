@@ -20,7 +20,15 @@
   exists in r2-specifications** (specs/r2-core/README.md says so explicitly — implementation repo name, not canon).
   Heads now mark those as daemon-local design lineage; spec-gap question owed to specs.
 - Remaining warning EXT_AUTH_MAX (never used) is in r2-wire = CORE's crate — flag to core, not mine to cut.
-- **Next tranches (centrality order):** sync_host.rs + wasm lib.rs → USB family (usb/usb_hotplug/usb_serial/usb_pair) →
+- **Tranche 3 (this commit):** sync_host.rs + wasm lib.rs + router↔sync cross-refs. sync_host head now names its
+  wasm production caller + the task-#32 pending MCU consumer (poll_inbound documented as designed-surface-no-caller,
+  same ruling as set_active_tg); router.rs and sync_host.rs heads now cross-reference each other as async/sync twins
+  (MUST-NOT-drift pair). **Inconsistency FIXED in wasm lib.rs:** deliver_event's doc block + a stray duplicate
+  #[wasm_bindgen] attribute were stranded on deliverEventQueued (task-#47 insertion artifact) — docs re-seated on
+  their own fns, redundant attribute removed (binding surface byte-identical: 19/19 + wasm32 release green).
+  handle_rx documented (was the only other doc-less pub fn). Wasm head upgraded to full standard (refutation-not-demo
+  rationale + composer-consumer map + canon block).
+- **Next tranches (centrality order):** USB family (usb/usb_hotplug/usb_serial/usb_pair) →
   web/web_auth/ensemble/ota/identity/config/autoconfig/systemd → r2-hive-core lib.rs + carrier-bridge py + ws-mesh →
   fw files on branch (dfr1195 main.rs = own tranche; rak4630 delta). Vendored crates EXCLUDED (canon docs = core's).
   One hygiene-gated commit + supervisor note per tranche. ALL new code ships to the standard.

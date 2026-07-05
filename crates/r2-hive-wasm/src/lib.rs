@@ -1,23 +1,54 @@
-//! # r2-hive-wasm — the wasm platform layer of the one-codebase hive.
+//! # r2-hive-wasm — the browser platform layer of the one-codebase hive
 //!
-//! R2-HIVE north-star: ONE hive codebase everywhere = the no_std `r2-hive-core`
-//! crates + a thin per-platform host. This crate is that host for the **browser**:
-//! it wraps [`r2_hive_core::sync_host::route_inbound_sync`] — the SAME current-TN
-//! routing core the Linux host and the ESP32-S3 firmware run — and exposes it to
-//! JavaScript via `wasm-bindgen`, so a browser bench/sim drives REAL current-TN
-//! routing (not a re-implementation).
+//! ## Why this crate exists
 //!
-//! It is deliberately tiny: a [`WasmHive`] owns a `RouteEngine` + self-id; JS feeds
-//! it inbound R2-WIRE frames (`route_frame`) and reads back the forwarding decision
-//! plus every frame the engine would relay (captured per-medium). No tokio/sockets:
-//! the sim IS the network — it moves the captured outbound frames between hive
-//! instances itself.
+//! R2-HIVE north-star: ONE hive codebase everywhere = the no_std
+//! `r2-hive-core` crates + a thin per-platform host. This crate is that host
+//! for the **browser**. Its reason for being is refutation, not demo-ware: a
+//! browser bench that drives the REAL routing core, the REAL trust gate, the
+//! REAL data-plane and the REAL ensemble runtime can falsify protocol claims
+//! at zero bench-hardware cost — and its verdicts transfer to metal because
+//! the code IS the metal code, not a re-implementation. (This is the
+//! canonical `/proof` refutation hive; composer's scenes ride it.)
 //!
-//! This crate is EXCLUDED from the r2-hive workspace (it is wasm/std + wasm-bindgen)
-//! so it never touches host CI. Build with:
-//!   cargo build -p r2-hive-wasm --target wasm32-unknown-unknown --release
-//!   wasm-bindgen target/wasm32-unknown-unknown/release/r2_hive_wasm.wasm \
-//!     --out-dir pkg --target web
+//! A [`WasmHive`] owns a `RouteEngine` + EventBus + optional TG key; JS feeds
+//! it inbound R2-WIRE frames and reads back real decisions plus every frame
+//! the engine would relay (captured per-medium). No tokio/sockets: the sim IS
+//! the network — JS moves captured outbound frames between hive instances.
+//!
+//! ## How it interlinks (grep-verified)
+//!
+//! - **Wraps, never forks:** `route_frame` →
+//!   [`r2_hive_core::sync_host::route_inbound_sync`] (the sync routing core;
+//!   its async twin is `r2-hive-bin/src/router.rs::route_frame`); `handleRx`
+//!   → core's `r2_dataplane::handle_rx_frame` (the fused firmware RX
+//!   pipeline); `tick`/`deliver_event` → the `r2_engine` EventBus + the
+//!   `r2-hive-core::ensemble` sentants (the SAME basic ensemble the DFR1195
+//!   firmware runs); trust via `r2_trust::GroupHmac`; airtime/congestion via
+//!   `r2_transport::lora_airtime` + `r2_dataplane` (§3A sensor).
+//! - **Consumed by** composer's webapp (`wasmhive` pkg): the theatre scenes,
+//!   the carpark §3A/airtime scene, the C2b reply-retrace sim, and the
+//!   falsifier selftests. JS method names are API — renaming breaks
+//!   composer; every release notes surface changes to it.
+//! - **Workspace-EXCLUDED** (wasm/std + wasm-bindgen) so it never touches
+//!   host CI. Build:
+//!   `cargo build -p r2-hive-wasm --target wasm32-unknown-unknown --release`
+//!   then `wasm-bindgen … --out-dir pkg --target web`.
+//!
+//! ## Canon (r2-specifications)
+//!
+//! - R2-ROUTE §3/§3A/§4.3.4 (forwarding, congestion, trails) —
+//!   `r2-specifications/specs/r2-core/R2-ROUTE.md`.
+//! - R2-WIRE §8/§9 (dedup, TTL, route stacks, replies) —
+//!   `r2-specifications/specs/r2-core/R2-WIRE.md`.
+//! - R2-TRUST §7.5.4 (deliver-gate; fail-closed unkeyed posture) —
+//!   `r2-specifications/specs/r2-core/R2-TRUST.md`.
+//! - R2-TRANSPORT §2.2/§2.5/§2.7 (medium ids, rssi→quality, path-loss
+//!   physics) + R2-LORA §4 (airtime duty limits) —
+//!   `r2-specifications/specs/r2-core/R2-TRANSPORT.md`,
+//!   `r2-specifications/specs/r2-core/R2-LORA.md`.
+//! - R2-UPDATE (OTA package + OST/ODT/OCM sequence) —
+//!   `r2-specifications/specs/r2-core/R2-UPDATE.md`.
 
 use std::cell::RefCell;
 
@@ -527,6 +558,20 @@ impl WasmHive {
         self.airtime_refusals
     }
 
+    /// Run one inbound frame through the REAL fused RX data-plane — core's
+    /// `r2_dataplane::handle_rx_frame`, the same decode → dedup → deliver-gate →
+    /// relay-prepare pipeline the firmware io_task runs (the 700
+    /// forged-attribution instrument). Returns JSON with the authenticated /
+    /// deliver / relay_on verdicts plus the prepared relay and delivery frames
+    /// as hex (empty when the pipeline produced none).
+    ///
+    /// **Dependencies:** lazily builds the `DataPlane` from this hive's
+    /// identity + group key on first call (`ensure_data_plane`); disjoint
+    /// state from the `route_frame` path — a scene drives one or the other.
+    ///
+    /// **Used-by:** JS as `handleRx` — composer's deliver-gate/forged-frame
+    /// scenes; the dual-codec confound-kill re-run used it as the vendored
+    /// oracle.
     #[wasm_bindgen(js_name = handleRx)]
     pub fn handle_rx(&mut self, frame: &[u8], rssi_dbm: i32, ingress_phy: u8, now_ms: f64) -> String {
         use r2_dataplane::{handle_rx_frame, Frame, FrameInfo};
@@ -885,18 +930,16 @@ impl WasmHive {
         self.run_bus_cycle()
     }
 
-    /// Deliver an inbound R2-WIRE frame to this node's ENSEMBLE (decode → bus event)
-    /// so its sentants observe peers' heartbeats and (if OTA-capable) verify an
-    /// incoming OST/ODT/OCM step. This is the application layer; `route_frame` is the
-    /// relay/transport layer. Returns JSON `{"frames":[…]}` = any frames this node
-    /// then broadcasts (notably the OTA `r2.update.progress` events the bench renders).
-    #[wasm_bindgen]
     /// Enqueue an inbound app event WITHOUT draining — models arrivals BETWEEN
     /// ticks, which is what a real io_task sees (deliver_event's drain-per-call is
     /// the sim artifact, not the honest part). This is the carpark scene's burst
     /// surface: queue real arrivals, then `tick()` observes the REAL backlog and
     /// the §3A latch trips (or not) through core's hysteresis alone — no setter
     /// exists. Returns the queue depth after the enqueue (true backlog telemetry).
+    ///
+    /// (Doc-placement fix: `deliver_event`'s doc block and a stray duplicate
+    /// `#[wasm_bindgen]` attribute were stranded here when this method was
+    /// inserted between them — docs now sit on their own functions.)
     #[wasm_bindgen(js_name = deliverEventQueued)]
     pub fn deliver_event_queued(&mut self, frame: &[u8]) -> u32 {
         if let Ok(m) = r2_wire::extended::decode_extended(frame) {
@@ -911,6 +954,18 @@ impl WasmHive {
         self.bus.queue_depth() as u32
     }
 
+    /// Deliver an inbound R2-WIRE frame to this node's ENSEMBLE (decode → bus
+    /// event) and run one bus cycle immediately, so its sentants observe peers'
+    /// heartbeats and (if OTA-capable) verify an incoming OST/ODT/OCM step. This
+    /// is the application layer; `route_frame` is the relay/transport layer.
+    /// Returns JSON `{"frames":[…]}` = any frames this node then broadcasts
+    /// (notably the OTA `r2.update.progress` events the bench renders). For
+    /// between-tick arrivals that must form a real backlog, use
+    /// `deliverEventQueued` instead (this method drains per call).
+    ///
+    /// **Used-by:** JS (exposed under its Rust name `deliver_event`) — the
+    /// browser bench/OTA scenes; every wasm release since 0.3.x, so the JS
+    /// name must not change.
     pub fn deliver_event(&mut self, frame: &[u8]) -> String {
         if let Ok(m) = r2_wire::extended::decode_extended(frame) {
             self.bus.enqueue(QueuedEvent::new(

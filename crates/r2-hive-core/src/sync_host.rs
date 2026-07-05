@@ -1,21 +1,55 @@
-//! Sync transport seam — the no_std/MCU host-loop side of the transport contract.
+//! # sync_host — the platform-portable routing host-loop (sync tier)
 //!
-//! **TRANSITIONAL local mirror** of the R2-TRANSPORT sync seam core+hive agreed
-//! for the DFR1195 firmware (R2-DISCOVERY §5: no_std uses the sync interface, not
-//! async r2-discovery §4). core will EXTEND r2-transport's `Transport` trait with
-//! `poll_recv` (default `None`) plus `TransportAddr`/`InboundFrame`; when that
-//! lands, delete this mirror and import `r2_transport::{…}`. Kept here meanwhile
-//! (per the supervisor's "use your sync-stub") so the host-loop logic is built and
-//! Linux-verified now.
+//! ## Why this file exists
 //!
-//! Host loop (each tick): for every sync driver, [`SyncTransport::poll_recv`] →
-//! resolve `source_addr` → hive_id → feed `RouteEngine` → forwarding decision →
-//! [`SyncTransport::send`]. The driver owns its RX buffer (filled by the embassy
-//! RX task/IRQ); the host stays non-blocking. The routing core is
-//! [`route_inbound_sync`].
+//! The R2-HIVE north-star is ONE hive codebase everywhere: the same routing
+//! behaviour on a Linux daemon, a browser wasm hive, and a 256 KiB
+//! microcontroller. Async runtimes don't exist on the MCU tier, so the mesh
+//! needs a **sync** expression of the inbound pipeline — poll a driver,
+//! resolve the sender, drive the RouteEngine, execute the forwarding
+//! decision — with zero platform dependencies. This file is that expression:
+//! [`route_inbound_sync`] is the routing core, [`SyncTransport`] is the
+//! driver contract it runs against, and everything here is `no_std` + alloc
+//! so the identical code is Linux-testable and MCU-deployable. If wasm and
+//! firmware ever route differently, the mesh partitions on behavioural
+//! mismatch — this file existing once is the guard against that.
 //!
-//! `no_std` + `alloc` (this is the `r2-hive-core` crate) — proves the routing
-//! host-loop is genuinely platform-portable (MCU → cloud).
+//! **TRANSITIONAL local mirror note:** the seam types (`SyncTransport`,
+//! `TransportAddr`, `InboundFrame`) mirror the R2-TRANSPORT sync extension
+//! core+hive agreed (R2-DISCOVERY §5: no_std uses the sync interface, not
+//! async r2-discovery §4). When core lands `poll_recv` on r2-transport's
+//! `Transport` trait, delete the mirror and import `r2_transport::{…}`.
+//!
+//! ## How it interlinks (grep-verified)
+//!
+//! - **`r2-hive-wasm`** is the production caller: its `route_frame` wraps
+//!   [`route_inbound_sync`] verbatim (same engine, same trail hooks), which
+//!   is what makes the browser /proof hive a real refutation instrument
+//!   rather than a simulation of one.
+//! - **MCU firmware** (dfr1195/rak4630 branches) is the intended second
+//!   caller once the io_task → dataplane wiring lands (hive ledger task
+//!   #32); [`poll_inbound`] is the host-loop entry built for that wiring —
+//!   no production caller yet, exercised by unit tests here.
+//! - **Depends on** r2-route (`RouteEngine`, `TrailReinforcer`), r2-wire
+//!   (`decode_extended`, `prepare_relay_extended`), r2-fnv (provisional
+//!   ids). Holds NO keys and does NO crypto — §7.5.4 verification happens a
+//!   layer up; the outcome arrives as the `congested`/`authenticated`
+//!   inputs documented at their parameters.
+//! - The Linux daemon does NOT use this path — its async twin lives in
+//!   `r2-hive-bin/src/router.rs` (route_frame); the two implement the same
+//!   canon and must not drift (each file head cross-references the other).
+//!
+//! ## Canon (r2-specifications)
+//!
+//! - R2-ROUTE §3 (forwarding), §3A (congestion), §4.3.4/§4.6.1 (trails +
+//!   retrace) — `r2-specifications/specs/r2-core/R2-ROUTE.md`.
+//! - R2-WIRE §8.2/§8.3 (dedup keying, TTL), §8.4/§8.4a (amplification
+//!   caps), §9.2/§9.5/§9.6 (relay append, route-origin rules) —
+//!   `r2-specifications/specs/r2-core/R2-WIRE.md`.
+//! - R2-DISCOVERY §3.3 (provisional ids), §5 (sync tier) —
+//!   `r2-specifications/specs/r2-core/R2-DISCOVERY.md`.
+//! - R2-TRANSPORT §2.1.3 (canonical address form) —
+//!   `r2-specifications/specs/r2-core/R2-TRANSPORT.md`.
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -29,6 +63,9 @@ use r2_wire::extended::{decode_extended, prepare_relay_extended};
 
 /// Transport-layer peer address, driver-stamped on inbound frames (the host, not
 /// the dumb driver, resolves this to a canonical hive_id — see R2-DISCOVERY §3).
+///
+/// **Used-by:** [`InboundFrame`] (every inbound frame carries one),
+/// [`provisional_hive_id`], and `r2-hive-wasm` (MAC-derived peer ids).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum TransportAddr {
     /// BLE MAC.
@@ -70,6 +107,9 @@ pub struct InboundFrame {
 /// Provisional hive_id for an unknown advertiser — FNV-1a of the canonical
 /// transport address (R2-WIRE §8.2 / R2-TRANSPORT §2.1.3), used until the trust
 /// layer resolves the canonical id (R2-DISCOVERY §3.3).
+///
+/// **Used-by:** [`poll_inbound`] (tags each drained frame) and
+/// `r2-hive-wasm::peer_id_from_mac` (JS-visible peer identity).
 pub fn provisional_hive_id(addr: &TransportAddr) -> u32 {
     r2_fnv::fnv1a_32(addr.canonical().as_bytes())
 }
@@ -77,6 +117,11 @@ pub fn provisional_hive_id(addr: &TransportAddr) -> u32 {
 /// The no_std radio-driver contract the MCU host loop polls each tick. One impl
 /// per medium (WiFi-UDP / BLE5 / SX1262-LoRa); the host loop is driver-agnostic.
 /// (Maps onto core's R2-TRANSPORT `Transport` + the agreed `poll_recv` extension.)
+///
+/// **Used-by:** [`route_inbound_sync`] / [`poll_inbound`] as `&dyn` sets;
+/// implemented by `r2-hive-wasm`'s CaptureTransport (virtual mesh) and the
+/// stub driver in this file's tests; MCU driver impls arrive with the
+/// firmware io_task wiring (hive ledger task #32).
 pub trait SyncTransport {
     /// Which transport this is.
     fn kind(&self) -> TransportKind;
@@ -88,9 +133,14 @@ pub trait SyncTransport {
 }
 
 /// Drain all pending inbound frames across a set of sync drivers, resolving each
-/// to a (provisional) source hive_id. The MCU host loop calls this each tick and
-/// feeds the result to the `RouteEngine` (wiring is the next increment). Address-
-/// map / trust resolution replaces the provisional id once that lands.
+/// to a (provisional) source hive_id. Address-map / trust resolution replaces
+/// the provisional id once that lands.
+///
+/// **Used-by:** no production caller yet — this is the MCU host-loop entry
+/// built for the firmware io_task wiring (hive ledger task #32); wasm drives
+/// [`route_inbound_sync`] directly instead (its virtual mesh delivers frames
+/// by call, not by poll). Exercised by the unit tests below; kept because it
+/// is the designed tick entry for the pending consumer, not dead code.
 pub fn poll_inbound(transports: &[&dyn SyncTransport]) -> Vec<(u32, InboundFrame)> {
     let mut out = Vec::new();
     for t in transports {
@@ -103,6 +153,10 @@ pub fn poll_inbound(transports: &[&dyn SyncTransport]) -> Vec<(u32, InboundFrame
 }
 
 /// Outcome of routing one inbound frame through the engine on the sync host loop.
+///
+/// **Used-by:** returned by [`route_inbound_sync`]; `r2-hive-wasm` maps each
+/// variant into its JSON telemetry (`outcome_tag`) so JS scenes render the
+/// real engine decision, and this file's tests assert on it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SyncRouteOutcome {
     /// Frame did not parse as R2-WIRE extended.
@@ -117,7 +171,11 @@ pub enum SyncRouteOutcome {
     Flooded { sent: usize },
 }
 
-/// Send `frame` to `target` over the sync transport whose `kind()` matches.
+/// Send `frame` to `target` over the sync transport whose `kind()` matches
+/// (first match wins; a missing driver for the engine's chosen kind means
+/// the send silently fails and the outcome reports `sent: false`).
+///
+/// **Used-by:** [`route_inbound_sync`] Directed/Flood arms only.
 fn send_via_kind(
     transports: &[&dyn SyncTransport],
     kind: TransportKind,
@@ -139,6 +197,15 @@ fn send_via_kind(
 /// subscribers, ensemble dispatch, trust-group broadcast, WS compat) that a
 /// routing+transport MCU hive does not run. `now` (monotonic seconds) and
 /// `dice_roll` (spray draw) are caller-provided (from the Platform).
+///
+/// **Dependencies:** the engine's `plan_forward` (all R2-ROUTE §3 policy
+/// lives THERE, none here), r2-wire decode + `prepare_relay_extended`
+/// (header mutation per §8.3/§8.4/§9.2), the reinforcer's `on_received` /
+/// `note_forwarded` hooks (§4.3.4 — no trail policy in this glue either).
+///
+/// **Used-by:** `r2-hive-wasm::route_frame` (the browser /proof hive — its
+/// only routing path), and this file's invariant tests; the MCU firmware
+/// adopts it with the task #32 io_task wiring.
 pub fn route_inbound_sync(
     engine: &mut RouteEngine<64, 64, 64>,
     self_hive_id: u32,
