@@ -14,7 +14,10 @@
 - **Joint verdict: CO-SIGNED + DELIVERED to supervisor** (composer did it before my nudge — stale-view on my side).
   Its data half: **D1 4/4, D2 2/2 viable nbrs, both stable 60 s, D1↔D2 MUTUAL** — control and subject consistent on the
   rx side (richer than my counters-don't-discriminate prediction: on the engine viable-nbr table both look HEALTHY).
-  Dark-board saga fully closed pending supervisor/Roy ack. Composer adopts the 0.6.2 stack-markers in its C2b
+  Dark-board saga fully closed pending supervisor/Roy ack.
+- **Blockers reduced (supervisor):** specs' write access RESTORED (R2-WIRE v0.39 TV5/TV6 stamped 23:22) → open gates =
+  Roy's bench items + core's seam ruling (nudged). Checked: the resident-gateway **v0.5 edit has NOT flushed yet** (spec
+  still v0.4) — non-blocking (#34 inc4 ships on the blessed v0.4 semantics); watch for the promote_after_ms landing. Composer adopts the 0.6.2 stack-markers in its C2b
   reply-trail sim at its next #21 touch (held behind its corpus re-audit; not urgent).
 
 ## ⚖️ JOINT VERDICT IN FLIGHT (supervisor requires hive+composer co-signature before Roy hears anything)
