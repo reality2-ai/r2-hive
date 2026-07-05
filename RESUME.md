@@ -11,8 +11,11 @@
   fp_seed, provisioning hooks. **Ownership seam ASKED of core** (rak4630-fw branch à la dfr1195-fw = my favoured, vs
   migrate-to-hive) — integration code HELD until core rules. **Falsifier peer prereq BUILD-PROVEN:** DFR
   `loraroute,multitg,viz,benchdist` compiles green (ELF sha 07b558d9…, stage-only).
-- Joint verdict: composer independently CONFIRMED the HB-oracle + retracted its runtime-defect claim (consult title);
-  awaiting its formal D1-vs-D2 samples + co-signature; nudged alongside the 0.6.2 note.
+- **Joint verdict: CO-SIGNED + DELIVERED to supervisor** (composer did it before my nudge — stale-view on my side).
+  Its data half: **D1 4/4, D2 2/2 viable nbrs, both stable 60 s, D1↔D2 MUTUAL** — control and subject consistent on the
+  rx side (richer than my counters-don't-discriminate prediction: on the engine viable-nbr table both look HEALTHY).
+  Dark-board saga fully closed pending supervisor/Roy ack. Composer adopts the 0.6.2 stack-markers in its C2b
+  reply-trail sim at its next #21 touch (held behind its corpus re-audit; not urgent).
 
 ## ⚖️ JOINT VERDICT IN FLIGHT (supervisor requires hive+composer co-signature before Roy hears anything)
 - Contradiction to resolve: my no-defect verdict vs composer's runtime-issue-persists. Supervisor proposed an rx-side
