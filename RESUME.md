@@ -1,5 +1,19 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔁 ROLES RESUMED + RAK #51 UNPAUSED + #45 SHIPPED (2026-07-05 late-night block)
+- **First-responder returned to me** (quota recovered; composer covered and keeps its ready recipes — ACM3 flash-verify,
+  cb87c8aa OTA push on green pre-flight, D4 board-info→csv — COORDINATE, don't duplicate). Roy's three bench gates
+  unchanged: ACM3 flash done-signal, optional D4 4/8MB word, theatre acceptance.
+- **Task #45 SHIPPED (3ac81b6, wasm 0.6.2, pkg sha f5d9d37a…):** replyMarkerWithStack + replyMarkerAuto (bearer-budget,
+  never-truncate) + routeStackOf exports; roundtrip+budget tests 16/16; composer notified with adoption notes.
+- **RAK #51 (= local #44) UNPAUSED — Phase-2 delta mapped from the spike source** (it's already a working keyless repeater
+  in POLLING form): my delta = DIO1-async continuous-RX, trouble-host+nrf-sdc advertise, health+OTA ensemble, hwrng
+  fp_seed, provisioning hooks. **Ownership seam ASKED of core** (rak4630-fw branch à la dfr1195-fw = my favoured, vs
+  migrate-to-hive) — integration code HELD until core rules. **Falsifier peer prereq BUILD-PROVEN:** DFR
+  `loraroute,multitg,viz,benchdist` compiles green (ELF sha 07b558d9…, stage-only).
+- Joint verdict: composer independently CONFIRMED the HB-oracle + retracted its runtime-defect claim (consult title);
+  awaiting its formal D1-vs-D2 samples + co-signature; nudged alongside the 0.6.2 note.
+
 ## ⚖️ JOINT VERDICT IN FLIGHT (supervisor requires hive+composer co-signature before Roy hears anything)
 - Contradiction to resolve: my no-defect verdict vs composer's runtime-issue-persists. Supervisor proposed an rx-side
   nbrs-stability crux test — but I hold the CONTROL DATUM that voids it: **ACM3 (crypto-proven L5 member) shows
