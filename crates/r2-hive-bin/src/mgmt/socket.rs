@@ -10,7 +10,7 @@
 //! ## Interlinks + canon
 //!
 //! Spawned from `main.rs` mgmt bring-up (socket path resolved there;
-//! discipline per R2-TG-TOOL §5: per-user dir, 0600, same-UID). Each
+//! contract per R2-TG-TOOL §5.1: per-user dir, 0600, same-UID, and the normative r2tgd.sock filename). Each
 //! connection: `framing.rs` decode → `api.rs::dispatch` → framed response;
 //! subscriber registration via `HiveState::register_subscriber` (torn down
 //! on close). Canon: R2-HOST-API §2.2 (UDS binding), §4/§8 (connection

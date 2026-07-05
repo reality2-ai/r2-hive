@@ -1,5 +1,14 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔌 SOCKET FILENAME NORMATIVE (specs ruling fa94443 — fix_impl EXECUTED)
+- Specs ruled my tranche-2b divergence flag: the mgmt-socket FILENAME is part of the R2-TG-TOOL §5.1 contract
+  (well-known address = zero-config UI discoverability; path+0600+same-UID+filename = ONE contract, not layers).
+- RENAMED r2-hive.sock -> r2tgd.sock everywhere (default_socket_path is the single behaviour site — daemon bind +
+  r2hive-cli connect share it, cannot disagree; /tmp fallback co-renamed r2tgd-<uid>.sock; tests/docs/packaging swept).
+  Doc claims of "filename is daemon-local" corrected in main.rs/mgmt/mod.rs/socket.rs heads with the canon cite.
+- MIGRATION NOTE: any out-of-repo client hardcoding the old r2-hive.sock path breaks on next daemon restart — in-repo
+  CLI moves in lockstep; composer uses /r2/mgmt WS (unaffected); carrier-bridge doesn't touch the UDS.
+
 ## 📖 DOCUMENTATION CAMPAIGN ACTIVE (task #48 — Roy's standing directive, 2026-07-06)
 - **The standard (banked in memory roy-commenting-standard.md, OVERRIDES match-density):** file heads = why the file
   exists + grep-verified interlink map + canon refs (full r2-specifications paths); every fn = purpose + dependencies +

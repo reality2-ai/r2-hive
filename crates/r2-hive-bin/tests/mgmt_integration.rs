@@ -10,7 +10,7 @@ use r2_hive::mgmt::{socket, state::DaemonState};
 #[tokio::test]
 async fn daemon_status_round_trip() {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
 
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone())
@@ -57,7 +57,7 @@ async fn identity_persists_across_daemon_restart() {
     use r2_hive::mgmt::identity::FileStore;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let store_path = tmp.path().join("master.key");
     let store = FileStore::new(store_path.clone());
 
@@ -151,7 +151,7 @@ async fn peer_list_no_hive_state() {
     use r2_hive::mgmt::primitive::parse_peer_list_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone())
         .await
@@ -192,7 +192,7 @@ async fn peer_list_with_hive_state_includes_self() {
     use r2_hive::mgmt::primitive::parse_peer_list_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     // Attach a HiveState with a known self_hive_id.
     let self_id: u32 = 0xCAFEBEEF;
@@ -231,7 +231,7 @@ async fn peer_query_self_returns_status_self() {
     use r2_hive::mgmt::primitive::parse_peer_query_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let self_id: u32 = 0xCAFEBEEF;
     state.attach_hive_state(Arc::new(HiveState::new(self_id, 1024, 64)));
@@ -265,7 +265,7 @@ async fn peer_query_unknown_returns_status_unknown() {
     use r2_hive::mgmt::primitive::parse_peer_query_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     state.attach_hive_state(Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64)));
 
@@ -301,7 +301,7 @@ async fn peer_query_neighbour_returns_status_and_transports() {
     use r2_route::transport::{QualitySample, Transport};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let self_id: u32 = 0xCAFEBEEF;
     let hive = Arc::new(HiveState::new(self_id, 1024, 64));
@@ -365,7 +365,7 @@ async fn peer_query_missing_hive_id_returns_bad_payload() {
     use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -411,7 +411,7 @@ async fn event_send_no_hive_state_returns_unsupported() {
     use r2_hive::mgmt::api::build_event_send_request;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new(); // no hive_state
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -440,7 +440,7 @@ async fn event_send_broadcast_returns_msg_id() {
     use r2_hive::mgmt::primitive::parse_event_send_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     state.attach_hive_state(Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64)));
 
@@ -476,7 +476,7 @@ async fn transport_allow_mask_mgmt_state_set_clear_roundtrip() {
     use r2_route::transport::{Transport, TransportSet};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let hive = Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64));
     state.attach_hive_state(hive.clone());
@@ -563,7 +563,7 @@ async fn transport_allow_mask_mgmt_without_hive_state_is_unsupported() {
     use r2_hive::mgmt::transport_policy::build_state_request;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
 
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
@@ -592,7 +592,7 @@ async fn event_send_targeted_unknown_peer_returns_peer_not_found() {
     use r2_hive::mgmt::api::build_event_send_request;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     state.attach_hive_state(Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64)));
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
@@ -621,7 +621,7 @@ async fn tg_current_no_attachment_returns_only_cid() {
     use r2_hive::mgmt::primitive::parse_tg_current_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -648,7 +648,7 @@ async fn tg_current_with_attached_tg_returns_full_payload() {
     use r2_hive::mgmt::primitive::parse_tg_current_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let self_id: u32 = 0xCAFEBEEF;
     let hive = Arc::new(HiveState::new(self_id, 1024, 64));
@@ -691,7 +691,7 @@ async fn cap_query_returns_empty_in_v0_1() {
     use r2_hive::mgmt::primitive::parse_cap_query_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -722,7 +722,7 @@ async fn event_subscribe_unsubscribe_roundtrip() {
     };
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new(); // no HiveState — local registry path
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -786,7 +786,7 @@ async fn delivery_fires_for_matching_subscription() {
     use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let hive = Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64));
     state.attach_hive_state(hive.clone());
@@ -885,7 +885,7 @@ async fn delivery_does_not_fire_for_non_matching_subscription() {
     use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let hive = Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64));
     state.attach_hive_state(hive.clone());
@@ -957,7 +957,7 @@ async fn daemon_rejects_unknown_event() {
     use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone())
         .await

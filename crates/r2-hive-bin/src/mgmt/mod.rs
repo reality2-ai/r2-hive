@@ -26,19 +26,30 @@ pub use state::DaemonState;
 
 /// Management-socket path on the current platform/user.
 ///
-/// Linux: `${XDG_RUNTIME_DIR}/r2-hive.sock`.
-/// macOS: `${TMPDIR}/r2-hive.sock`.
+/// Linux: `${XDG_RUNTIME_DIR}/r2tgd.sock`.
+/// macOS: `${TMPDIR}/r2tgd.sock`.
 ///
-/// Falls back to `/tmp/r2-hive-<uid>.sock` if neither env var is set.
+/// The FILENAME is normative, not just the directory discipline:
+/// R2-TG-TOOL §5.1 (v0.3, specs fa94443) pins `r2tgd.sock` as the
+/// well-known address so any spec-built UI reaches the daemon with zero
+/// configuration — path + 0600 + same-UID + filename are one contract.
+/// (Renamed from the daemon-local `r2-hive.sock`; specs fix_impl ruling.)
+///
+/// Falls back to `/tmp/r2tgd-<uid>.sock` if neither env var is set
+/// (no-env fallback is outside the §5.1 table; name kept consistent).
+///
+/// **Used-by:** `main.rs` (daemon bind default) and `r2hive-cli`
+/// (client connect default) — one function, both sides, so they cannot
+/// disagree.
 pub fn default_socket_path() -> std::path::PathBuf {
     if let Ok(dir) = std::env::var("XDG_RUNTIME_DIR") {
-        return std::path::PathBuf::from(dir).join("r2-hive.sock");
+        return std::path::PathBuf::from(dir).join("r2tgd.sock");
     }
     if let Ok(dir) = std::env::var("TMPDIR") {
-        return std::path::PathBuf::from(dir).join("r2-hive.sock");
+        return std::path::PathBuf::from(dir).join("r2tgd.sock");
     }
     let uid = unsafe { libc_uid() };
-    std::path::PathBuf::from(format!("/tmp/r2-hive-{uid}.sock"))
+    std::path::PathBuf::from(format!("/tmp/r2tgd-{uid}.sock"))
 }
 
 #[cfg(unix)]

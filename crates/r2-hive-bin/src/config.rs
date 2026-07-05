@@ -121,8 +121,8 @@ pub struct ManagementConfig {
     /// equivalent to `--no-mgmt`.
     pub enabled: bool,
     /// Override the management socket path. `None` resolves at
-    /// runtime to `${XDG_RUNTIME_DIR}/r2-hive.sock` (Linux) or
-    /// `${TMPDIR}/r2-hive.sock` (macOS).
+    /// runtime to `${XDG_RUNTIME_DIR}/r2tgd.sock` (Linux) or
+    /// `${TMPDIR}/r2tgd.sock` (macOS).
     pub socket: Option<PathBuf>,
 }
 

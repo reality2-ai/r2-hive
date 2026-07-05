@@ -55,10 +55,10 @@
 //!
 //! **Citation note (specs-ruled):** no R2-HIVE spec exists (implementation
 //! repo name). Former "R2-HIVE §…" cites here are re-anchored to the real
-//! canon — socket discipline R2-TG-TOOL §5, identity custody R2-TG-TOOL §3 +
+//! canon — socket contract R2-TG-TOOL §5.1 (incl. the normative
+//! `r2tgd.sock` filename, specs fa94443), identity custody R2-TG-TOOL §3 +
 //! R2-WIRE §6.2.1, single-active-TG R2-TRUST §13.2 — with genuinely
-//! daemon-local choices (socket filename, store path, backend selection)
-//! marked as such.
+//! daemon-local choices (store path, backend selection) marked as such.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -125,10 +125,11 @@ struct Args {
     #[arg(long, default_value = "r2-hive")]
     name: String,
 
-    /// Override the local management-socket path. Socket discipline per
-    /// R2-TG-TOOL §5 (per-user path, mode 0600, same-UID only); the
-    /// `r2-hive.sock` filename itself is daemon-local.
-    /// Default: ${XDG_RUNTIME_DIR}/r2-hive.sock on Linux, ${TMPDIR}/r2-hive.sock on macOS.
+    /// Override the local management-socket path. Socket contract per
+    /// R2-TG-TOOL §5.1 (v0.3): per-user path, mode 0600, same-UID, AND the
+    /// `r2tgd.sock` filename — the well-known name is normative (specs
+    /// ruling fa94443; renamed from r2-hive.sock).
+    /// Default: ${XDG_RUNTIME_DIR}/r2tgd.sock on Linux, ${TMPDIR}/r2tgd.sock on macOS.
     #[arg(long)]
     mgmt_socket: Option<PathBuf>,
 

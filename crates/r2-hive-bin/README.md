@@ -42,7 +42,7 @@ cargo build -p r2-hive --release
 The daemon prints its `self_hive_id` on startup, opens
 - `/r2/wire` — peer-to-peer R2-WIRE WebSocket
 - `/r2/mgmt` — management WebSocket (R2-HOST-API)
-- `${XDG_RUNTIME_DIR}/r2-hive.sock` — Unix-domain management socket
+- `${XDG_RUNTIME_DIR}/r2tgd.sock` — Unix-domain management socket
 
 ### Talk to it with `r2hive`
 

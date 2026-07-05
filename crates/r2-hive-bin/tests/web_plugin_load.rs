@@ -76,7 +76,7 @@ async fn ensemble_load_path_mounts_web_plugin_and_stop_unmounts() {
     hive.ensembles
         .register_factory(Arc::new(NoopFactory(Arc::new(AtomicU32::new(0)))));
 
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let daemon = DaemonState::new();
     daemon.attach_hive_state(hive.clone());
     let _handle = socket::spawn(socket_path.clone(), daemon)

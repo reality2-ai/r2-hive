@@ -89,7 +89,7 @@ struct Setup {
 
 async fn setup() -> Setup {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     // Leak the tempdir so the socket path survives the test (the
     // tokio::spawn'd listener owns it).
     std::mem::forget(tmp);
