@@ -1,5 +1,20 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🌿 RAK BRANCH ESTABLISHED (core ruled: BRANCH MODEL — dfr1195-fw precedent; I am sole writer of rak4630-fw)
+- **rak4630-fw branched @ 5100933** (core's pinout-VERIFIED commit, tip of its r2-core-consolidation line) + PUSHED;
+  worktree `/home/roycdavies/Development/R2/rak4630-fw-wt`. **Baseline build GREEN in my worktree** (43.6 KiB flash
+  sections, matches core's number) — the build loop is proven before any integration code.
+- **First-light killer banked from 5100933:** P1.05 = the RF-switch POWER rail — HIGH for the node's whole life (RX AND
+  TX; direction is chip-managed DIO2). The spike now drives it; event-driven RX would have heard nothing otherwise.
+  Remaining bench unknown: DIO3 TCXO voltage (3.3 chosen / 3.0 alt; wrong pick = BusyTimeout, not damage).
+- **Division ratified:** main's platforms/rak4630 stays core's decision instrument (memory.x slot gate + thumbv7em CI,
+  run INSIDE the platform dir); my branch owns the integration delta; core's pre-push heads-up discipline now covers
+  this platform's API surface. **BLE budget measurement is MINE**: send core `size -A` deltas when trouble+nrf-sdc first
+  links — it folds the MEASURED figure into main's README ledger (replacing the ~150 KiB allowance). DIO1 async-Input
+  endorsed; r2-sx1262 driver changes route through core (same-hour service).
+- Next increment (my Phase-2 inc-1): DIO1 (P1.15) embassy async-Input event-driven RX replacing the 5 ms poll + the
+  hwrng fp_seed TODO — small, build-verified, then push.
+
 ## 🔁 ROLES RESUMED + RAK #51 UNPAUSED + #45 SHIPPED (2026-07-05 late-night block)
 - **First-responder returned to me** (quota recovered; composer covered and keeps its ready recipes — ACM3 flash-verify,
   cb87c8aa OTA push on green pre-flight, D4 board-info→csv — COORDINATE, don't duplicate). Roy's three bench gates
