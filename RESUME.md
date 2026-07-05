@@ -1,5 +1,18 @@
 # RESUME — r2-hive (hive-worker)
 
+## 📌 CORE REV-PIN LANDED (task #49 DONE — deliberate uptake, Roy ratified)
+- r2-hive now consumes r2-core as GIT DEPS pinned to ONE CI-green rev (785b3c4, core's r2-core-consolidation HEAD)
+  in root [workspace.dependencies]; all 3 member crates inherit (13 dep declarations, feature shapes preserved:
+  wire/engine default-features=false base, members re-enable). Live path-deps RETIRED — core's pushes no longer bite.
+- Mechanics = core's recommended shape verbatim: git-dep(rev) > worktree (pin is repo-committed + can only target
+  PUSHED revs); .cargo/config.toml git-fetch-with-cli (reuses gh creds, no deploy key); scripts/bump-core.sh =
+  the only sanctioned pin move (refuses un-pushed/CI-red revs, atomic multi-line sed + consistency guard, commits
+  only on full-suite+hygiene green; --force-ci escape documented for no-hosted-run cases); commented [patch] block
+  in Cargo.toml = local-loop escape hatch for the fold migration (never commit uncommented).
+- KNOWN INTERIM: r2-hive-wasm (excluded workspace) still path-deps ../r2-core + ../r2-hive-core — it release-builds
+  deliberately and the fold rewires it anyway; convert post-fold. Do not assume wasm and host build the same core rev.
+- 18 suites green + hygiene on first pinned build. Uptake protocol: core heads-ups name a sha -> bump-core.sh <sha>.
+
 ## 🔌 SOCKET FILENAME NORMATIVE (specs ruling fa94443 — fix_impl EXECUTED)
 - Specs ruled my tranche-2b divergence flag: the mgmt-socket FILENAME is part of the R2-TG-TOOL §5.1 contract
   (well-known address = zero-config UI discoverability; path+0600+same-UID+filename = ONE contract, not layers).

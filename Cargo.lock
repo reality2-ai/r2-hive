@@ -1495,10 +1495,12 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 [[package]]
 name = "r2-cbor"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 
 [[package]]
 name = "r2-def"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 dependencies = [
  "serde",
  "serde_json",
@@ -1510,6 +1512,7 @@ dependencies = [
 [[package]]
 name = "r2-discovery"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 dependencies = [
  "async-trait",
  "hkdf",
@@ -1522,6 +1525,7 @@ dependencies = [
 [[package]]
 name = "r2-dispatch"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 dependencies = [
  "async-trait",
  "log",
@@ -1530,6 +1534,7 @@ dependencies = [
 [[package]]
 name = "r2-engine"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 dependencies = [
  "r2-cbor",
  "r2-fnv",
@@ -1539,6 +1544,7 @@ dependencies = [
 [[package]]
 name = "r2-ensemble"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 dependencies = [
  "async-trait",
  "log",
@@ -1554,6 +1560,7 @@ dependencies = [
 [[package]]
 name = "r2-fnv"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 
 [[package]]
 name = "r2-hive"
@@ -1617,6 +1624,7 @@ dependencies = [
 [[package]]
 name = "r2-route"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 dependencies = [
  "heapless",
  "libm",
@@ -1627,6 +1635,7 @@ dependencies = [
 [[package]]
 name = "r2-transport"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 dependencies = [
  "libm",
  "r2-wire",
@@ -1635,6 +1644,7 @@ dependencies = [
 [[package]]
 name = "r2-trust"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 dependencies = [
  "chacha20poly1305",
  "curve25519-dalek",
@@ -1655,6 +1665,7 @@ dependencies = [
 [[package]]
 name = "r2-update"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 dependencies = [
  "ed25519-dalek",
  "sha2",
@@ -1663,6 +1674,7 @@ dependencies = [
 [[package]]
 name = "r2-wire"
 version = "0.1.0"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=785b3c4ded446ce64370f3d0e24e3e84a9179474#785b3c4ded446ce64370f3d0e24e3e84a9179474"
 dependencies = [
  "r2-cbor",
  "r2-fnv",

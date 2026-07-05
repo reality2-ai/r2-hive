@@ -18,9 +18,50 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/reality2-ai/r2-hive"
 
-# r2-hive depends on the protocol crates that live in the sibling
-# `r2-core` repository. During development those are referenced via
-# path; releases pin to published crates.io versions instead.
+# ── Deliberate-uptake pin on r2-core (Roy ratified, 2026-07-06) ──────────
 #
-# When migrating to a published-version workflow, replace the path
-# entries below with `version = "x.y"` lines and drop the path key.
+# r2-hive consumes the r2-core protocol crates as GIT DEPENDENCIES pinned
+# to a single CI-green rev, NOT as live path-deps on the sibling checkout.
+# Why: a live path-dep means core's every push bites this repo instantly;
+# the pin makes absorption a deliberate, gated event on hive's clock, and
+# structurally guarantees we only ever build against a rev core has PUSHED
+# (never un-pushed WIP). Bump with ./scripts/bump-core.sh <sha> — it
+# gates on core's CI being green at <sha>, moves every rev line below
+# atomically, and commits only if hive's full suite passes.
+#
+# All member crates inherit these via `{ workspace = true, ... }` so the
+# rev lives in exactly one file. Entries are default-features = false
+# wherever any member needs the no_std subset; members that want defaults
+# re-enable them (allowed direction of cargo's inheritance rules).
+[workspace.dependencies]
+r2-wire = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474", default-features = false }
+r2-cbor = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474" }
+r2-fnv = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474" }
+r2-route = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474" }
+r2-trust = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474" }
+r2-transport = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474" }
+r2-discovery = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474" }
+r2-engine = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474", default-features = false }
+r2-def = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474" }
+r2-ensemble = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474" }
+r2-dispatch = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474" }
+r2-update = { git = "https://github.com/reality2-ai/r2-core.git", rev = "785b3c4ded446ce64370f3d0e24e3e84a9179474" }
+
+# ── Escape hatch (fold-migration local loop) ─────────────────────────────
+# Uncomment to redirect the git-deps to the live sibling checkout when you
+# genuinely need to iterate against core's un-pushed changes (e.g. during
+# the r2-hive-core -> r2-core fold). Uncomment LOCALLY ONLY — never commit
+# it uncommented; the steady state is the pin above.
+# [patch."https://github.com/reality2-ai/r2-core.git"]
+# r2-wire = { path = "../r2-core/crates/r2-wire" }
+# r2-cbor = { path = "../r2-core/crates/r2-cbor" }
+# r2-fnv = { path = "../r2-core/crates/r2-fnv" }
+# r2-route = { path = "../r2-core/crates/r2-route" }
+# r2-trust = { path = "../r2-core/crates/r2-trust" }
+# r2-transport = { path = "../r2-core/crates/r2-transport" }
+# r2-discovery = { path = "../r2-core/crates/r2-discovery" }
+# r2-engine = { path = "../r2-core/crates/r2-engine" }
+# r2-def = { path = "../r2-core/crates/r2-def" }
+# r2-ensemble = { path = "../r2-core/crates/r2-ensemble" }
+# r2-dispatch = { path = "../r2-core/crates/r2-dispatch" }
+# r2-update = { path = "../r2-core/crates/r2-update" }

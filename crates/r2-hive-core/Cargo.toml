@@ -12,16 +12,16 @@ path = "src/lib.rs"
 
 [dependencies]
 # r2-core no_std/alloc protocol crates (path during dev; see workspace note).
-r2-wire = { path = "../../../r2-core/crates/r2-wire", default-features = false, features = ["alloc"] }
-r2-fnv = { path = "../../../r2-core/crates/r2-fnv" }
-r2-route = { path = "../../../r2-core/crates/r2-route" }
+r2-wire = { workspace = true, features = ["alloc"] }
+r2-fnv = { workspace = true }
+r2-route = { workspace = true }
 # Sentant/plugin runtime (EventBus) — the basic ensemble the hive runs on EVERY
 # platform (wasm/Linux/ESP32). no_std + alloc, so it stays in the shared core.
-r2-engine = { path = "../../../r2-core/crates/r2-engine", default-features = false, features = ["alloc"] }
+r2-engine = { workspace = true, features = ["alloc"] }
 # R2-UPDATE OTA verify (verify_header/PayloadVerifier/Ed25519, 4-gate/anti-rollback)
 # — the OTA plugin reuses these VERBATIM so the OTA flow is the real flow on every
 # platform; bearer (CoC / virtual-mesh / UDP) is the only thing that varies.
-r2-update = { path = "../../../r2-core/crates/r2-update" }
+r2-update = { workspace = true }
 # Boxes async-trait futures for the transport seam (no_std-compatible).
 async-trait = "0.1"
 # Identity crypto (no_std): HKDF-SHA256 derivation + Ed25519 keypair, secret
