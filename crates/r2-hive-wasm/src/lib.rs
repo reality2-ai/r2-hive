@@ -607,6 +607,55 @@ impl WasmHive {
         r2_route::trail::reply_marker(origin, msg_id).as_str().into()
     }
 
+    /// v0.65 STACK-CARRYING reply marker (`reply:0xORIGIN:msgid:0xHOP1,0xHOP2,…`):
+    /// pass the delivered REQUEST's route stack (see [`route_stack_of_js`]) and the
+    /// reply then earns STRONG retrace credit at every recorded forwarder; a bare
+    /// [`reply_marker_js`] marker stays legal but lays weak carried evidence only.
+    /// Empty/oversize (>8) stacks degrade to the bare marker (never partial).
+    #[wasm_bindgen(js_name = replyMarkerWithStack)]
+    pub fn reply_marker_with_stack_js(&self, origin: u32, msg_id: u32, stack: &[u32]) -> String {
+        r2_route::trail::reply_marker_with_stack(origin, msg_id, stack).as_str().into()
+    }
+
+    /// v0.67 bearer-budget marker: the full stack-carrying marker if it fits in
+    /// `bearer_budget` bytes, else the bare marker — NEVER truncated (a partial
+    /// stack must not feed position lookup). SF10/BW125 LoRa = 51 B is the case
+    /// that bites; wasm sims modelling bearer MTUs should use this.
+    #[wasm_bindgen(js_name = replyMarkerAuto)]
+    pub fn reply_marker_auto_js(
+        &self,
+        origin: u32,
+        msg_id: u32,
+        stack: &[u32],
+        bearer_budget: usize,
+    ) -> String {
+        r2_route::trail::reply_marker_auto(origin, msg_id, stack, bearer_budget).as_str().into()
+    }
+
+    /// The route stack of a received frame as a JS `Uint32Array` (origin first,
+    /// relays appended) — the input `replyMarkerWithStack` needs: capture it from
+    /// the DELIVERED request frame, hand it back when building the reply. Empty
+    /// array when the frame doesn't decode or carries no route.
+    #[wasm_bindgen(js_name = routeStackOf)]
+    pub fn route_stack_of_js(&self, frame: &[u8]) -> Vec<u32> {
+        let trimmed_ok = r2_wire::decode_extended(frame).ok();
+        let m = match trimmed_ok {
+            Some(m) => m,
+            None => match frame
+                .len()
+                .checked_sub(32)
+                .and_then(|n| r2_wire::decode_extended(&frame[..n]).ok())
+            {
+                Some(m) => m,
+                None => return Vec::new(),
+            },
+        };
+        match m.route {
+            Some(r) => r.entries[..r.len as usize].to_vec(),
+            None => Vec::new(),
+        }
+    }
+
     /// The EXTENDED-tier reply msg_id for a request id (bit-31 reply space,
     /// R2-ROUTE §4.3.4 / trail.rs `reply_msg_id_ext`): requests occupy
     /// `[0, 0x7FFF_FFFF]`, replies set the top bit — pass the REQUEST's msg_id and
@@ -1410,5 +1459,30 @@ mod tests {
             after == "[]" || after.contains("\"viable\":false"),
             "peer must fade below the floor (evicted or non-viable), got {after}"
         );
+    }
+
+    /// v0.65 emit-side roundtrip: the delivered request's stack extracted via
+    /// routeStackOf feeds replyMarkerWithStack; the auto variant falls back to
+    /// the bare marker under a tight bearer budget — never a partial stack.
+    #[test]
+    fn stack_marker_roundtrip_and_budget_fallback() {
+        let origin = 0x0000_00AA;
+        let mut originator = WasmHive::new(origin);
+        let frame = originator.build_frame(0, 0x5EED_0001, b"q", 0x2000);
+        let receiver = WasmHive::new(0x0000_00FF);
+
+        let stack = receiver.route_stack_of_js(&frame);
+        assert_eq!(stack, vec![origin], "origin-only stack from a fresh originate");
+
+        let full = receiver.reply_marker_with_stack_js(origin, 0x2000, &stack);
+        assert_eq!(full, format!("reply:{:#010X}:{}:{:#010X}", origin, 0x2000, origin));
+
+        let auto_tight = receiver.reply_marker_auto_js(origin, 0x2000, &stack, 30);
+        assert_eq!(
+            auto_tight,
+            receiver.reply_marker_js(origin, 0x2000),
+            "under-budget must degrade to the BARE marker, never truncate"
+        );
+        assert_eq!(receiver.route_stack_of_js(b"not a frame"), Vec::<u32>::new());
     }
 }
