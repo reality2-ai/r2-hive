@@ -12,8 +12,11 @@
   this platform's API surface. **BLE budget measurement is MINE**: send core `size -A` deltas when trouble+nrf-sdc first
   links — it folds the MEASURED figure into main's README ledger (replacing the ~150 KiB allowance). DIO1 async-Input
   endorsed; r2-sx1262 driver changes route through core (same-hour service).
-- Next increment (my Phase-2 inc-1): DIO1 (P1.15) embassy async-Input event-driven RX replacing the 5 ms poll + the
-  hwrng fp_seed TODO — small, build-verified, then push.
+- **inc-1 LANDED (rak4630-fw 4d69f5a, pushed):** event-driven RX — select3(DIO1 wait_for_high / outbound recv /
+  100 ms housekeeping deadline) replaces the 5 ms poll; DIO1 level-high-until-cleared makes the wait race-free; drain
+  loop empties all pending events before re-sleep; TxDone re-arms listen(). HWRNG fp_seed (16 B, bias-corrected) —
+  all-zero const gone. **45,316 B = 9.2% of slot (+1.7 KiB vs baseline); thumbv7em green in-platform-dir.** Zero driver
+  changes needed. Next: delta (b) trouble-host+nrf-sdc BLE advertise (the measured-budget piece), then (c) ensemble.
 
 ## 🔁 ROLES RESUMED + RAK #51 UNPAUSED + #45 SHIPPED (2026-07-05 late-night block)
 - **First-responder returned to me** (quota recovered; composer covered and keeps its ready recipes — ACM3 flash-verify,
