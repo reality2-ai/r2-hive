@@ -19,6 +19,20 @@
 //! Internet/BLE transports without USB-attached peripherals; if/when
 //! USB-attached peripherals on macOS/Windows become a goal, this
 //! module gets per-platform `#[cfg]` blocks.
+//!
+//! ## How it interlinks (grep-verified)
+//!
+//! - `usb_hotplug.rs` spawns [`run_session`] per attached device and owns
+//!   its lifecycle (EOF on unplug ends the task).
+//! - Protocol logic lives entirely in `usb.rs::UsbSession` — this module
+//!   moves bytes and events, nothing else; `SessionControl` (confirm /
+//!   abort) arrives from `main.rs` (dev auto-confirm) and `mgmt/api.rs`
+//!   (operator verbs) via the control channel.
+//!
+//! ## Canon (r2-specifications)
+//!
+//! - R2-USB §3.5 (the byte stream this carries verbatim) —
+//!   `r2-specifications/specs/r2-core/R2-USB.md`.
 
 #![cfg(target_os = "linux")]
 

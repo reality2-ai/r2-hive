@@ -28,7 +28,13 @@
   their own fns, redundant attribute removed (binding surface byte-identical: 19/19 + wasm32 release green).
   handle_rx documented (was the only other doc-less pub fn). Wasm head upgraded to full standard (refutation-not-demo
   rationale + composer-consumer map + canon block).
-- **Next tranches (centrality order):** USB family (usb/usb_hotplug/usb_serial/usb_pair) →
+- **Tranche 4 (this commit):** USB family (usb.rs 1810 / usb_hotplug 1110 / usb_serial 537 / usb_pair 421) — heads
+  gained grep-verified interlink maps + canon blocks (these files were already inline-rich; only ONE doc-less pub fn
+  existed across all four). Occam: encode_length_prefixed narrowed pub→pub(crate) (zero external users);
+  build_sync_frame narrowed further to #[cfg(test)] — the narrowing EXPOSED a stale doc claiming production use via
+  send_sync (send_sync frames its own SYNC; doc corrected). usb_pair's ellipsis canon path fixed to the real
+  R2-PROVISION.md path.
+- **Next tranches (centrality order):** mgmt family (primitive 965 / api 722 / ensemble 514 / identity 434 + small) (usb/usb_hotplug/usb_serial/usb_pair) →
   web/web_auth/ensemble/ota/identity/config/autoconfig/systemd → r2-hive-core lib.rs + carrier-bridge py + ws-mesh →
   fw files on branch (dfr1195 main.rs = own tranche; rak4630 delta). Vendored crates EXCLUDED (canon docs = core's).
   One hygiene-gated commit + supervisor note per tranche. ALL new code ships to the standard.

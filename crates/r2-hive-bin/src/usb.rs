@@ -47,6 +47,32 @@
 //! transports are registered with the host. The full R2-PROVISION §5.3.4 challenge-
 //! response (commit/reveal SAS, link-key derivation, reconnect HMAC)
 //! lands in Phase USB-2.
+//!
+//! ## How it interlinks (grep-verified)
+//!
+//! - **`usb_serial.rs`** owns the wire I/O: `run_session` feeds device bytes
+//!   into [`UsbSession::ingest_bytes`] and flushes [`UsbSession::take_outbound`]
+//!   back out, surfacing [`UsbEvent`]s on a channel.
+//! - **`usb_hotplug.rs`** spawns one such session per attached device and
+//!   re-exposes session control (confirm/abort/unpair) via its handle.
+//! - **`main.rs`** consumes the events (`handle_session_event`: logging,
+//!   auto-confirm, WireFrame → `router::route_frame`); **`mgmt/usb.rs`**
+//!   drives the `r2.mgmt.usb.*` verbs; **`hive.rs`** maps route-engine
+//!   transports to [`TransportKind`] for dongle egress
+//!   (`transport_to_caps_kind` — keep in sync with `main.rs`'s inverse
+//!   `kind_for_local_id_via_handle`).
+//! - **`usb_pair.rs`** supplies the §5.3.4 pairing crypto this session's
+//!   state machine drives (messages 4–11).
+//!
+//! ## Canon (r2-specifications)
+//!
+//! - R2-USB §3.3 (SYNC), §3.5 (type-byte demux), §3.6 (CAPS), §3.7
+//!   (control), Appendix A (transport kinds) —
+//!   `r2-specifications/specs/r2-core/R2-USB.md`.
+//! - R2-PROVISION §5.3.4 (SAS pairing) —
+//!   `r2-specifications/specs/r2-core/R2-PROVISION.md`.
+//! - R2-HW §4 (the SEPARATE Tier-2 MCU-SBC bus — see scope note above) —
+//!   `r2-specifications/specs/r2-core/R2-HW.md`.
 
 use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
@@ -294,6 +320,10 @@ pub struct InMemoryLinkKeyStore {
 }
 
 impl InMemoryLinkKeyStore {
+    /// Fresh empty store (same as `default()`).
+    ///
+    /// **Used-by:** `usb_hotplug.rs` (watcher construction when no
+    /// persistent store is configured) and session tests.
     pub fn new() -> Self {
         Self::default()
     }
@@ -1024,16 +1054,21 @@ fn decode_sync_payload(payload: &[u8]) -> Result<(u8, u8), &'static str> {
 }
 
 /// Wrap a payload with a 2-byte LE length prefix per R2-USB §3.2.
-pub fn encode_length_prefixed(payload: &[u8]) -> Vec<u8> {
+pub(crate) fn encode_length_prefixed(payload: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(payload.len() + 2);
     out.extend_from_slice(&(payload.len() as u16).to_le_bytes());
     out.extend_from_slice(payload);
     out
 }
 
-/// Build a complete v2 SYNC frame (length prefix + payload). Used by
-/// tests and by the production session via [`UsbSession::send_sync`].
-pub fn build_sync_frame(version: u8, flags: u8) -> Vec<u8> {
+/// Build a complete v2 SYNC frame (length prefix + payload). TEST-ONLY:
+/// the production session frames its own SYNC inside
+/// [`UsbSession::send_sync`] (the old doc here claimed production use —
+/// stale; caught when the task-#48 visibility narrowing exposed it).
+///
+/// **Used-by:** the peripheral-side simulation in this file's tests.
+#[cfg(test)]
+fn build_sync_frame(version: u8, flags: u8) -> Vec<u8> {
     encode_length_prefixed(&encode_sync_payload(version, flags))
 }
 

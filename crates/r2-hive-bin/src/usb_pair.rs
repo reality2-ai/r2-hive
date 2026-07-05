@@ -1,7 +1,7 @@
 //! R2-PROVISION §5.3.4 USB pairing — pure cryptographic helpers (Phase USB-2).
 //!
 //! These functions implement the byte-pinned crypto contract from
-//! `r2-specifications/specs/.../R2-PROVISION.md` §5.3.4 ("USB Pairing (Wired,
+//! `r2-specifications/specs/r2-core/R2-PROVISION.md` §5.3.4 ("USB Pairing (Wired,
 //! MITM-Protected)", v0.6, the ratified canonical home — formerly R2-HIVE §6.4)
 //! and the test vectors at `r2-usb-pair-vectors.json` (UP1–UP12, conformance-
 //! bound). They are deterministic (no CSPRNG), allocation-free aside from
