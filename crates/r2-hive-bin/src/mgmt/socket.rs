@@ -44,11 +44,37 @@ pub struct ServerHandle {
 
 /// Spawn the listener on `socket_path`, returning a handle.
 ///
-/// If the path already exists, it is removed first (standard Unix socket
-/// hygiene). Caller is responsible for any staler conflicts from a concurrent
-/// daemon — v0.1 expects at most one daemon per user session.
+/// If the path already exists and is OURS, it is removed first (standard
+/// stale-socket hygiene; v0.1 expects at most one daemon per user session).
+/// If it exists and is owned by a FOREIGN UID, spawning fails loudly — see
+/// the squat guard below (R2-TG-TOOL §5.1 v0.4 MUST (b)).
 pub async fn spawn(socket_path: PathBuf, state: DaemonState) -> std::io::Result<ServerHandle> {
     if socket_path.exists() {
+        // R2-TG-TOOL §5.1 v0.4 MUST (b): if the well-known name is held by a
+        // FOREIGN-UID file (a /tmp squat trying to impersonate the daemon),
+        // fail LOUDLY — never silently pick another name (a silent rename
+        // would defeat the normative-filename ruling: clients would keep
+        // connecting to the impostor at the well-known address). Same-UID
+        // leftovers (stale socket from a previous run) are removed as before.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            let owner = fs::metadata(&socket_path)?.uid();
+            let me = unsafe { super::libc_uid() };
+            if owner != me {
+                log::error!(
+                    "SECURITY: mgmt socket path {} exists and is owned by uid {owner} (we are {me}) — \
+                     a foreign process holds the well-known name (possible impersonation squat). \
+                     REFUSING to bind or rename (R2-TG-TOOL §5.1 v0.4). \
+                     Remove the file as its owner/root, or investigate the squatter.",
+                    socket_path.display()
+                );
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "mgmt socket name held by foreign uid — refusing (squat guard)",
+                ));
+            }
+        }
         fs::remove_file(&socket_path)?;
     }
     if let Some(parent) = socket_path.parent() {

@@ -39,4 +39,4 @@ pub mod usb_serial;
 pub mod web;
 pub mod web_auth;
 
-pub use mgmt::default_socket_path;
+pub use mgmt::{default_socket_path, is_tmp_fallback_socket};

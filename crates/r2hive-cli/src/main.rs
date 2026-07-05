@@ -1088,13 +1088,45 @@ fn parse_list_response(payload: &[u8]) -> Vec<(String, u64, u64)> {
 
 // ───────────── Helpers ─────────────
 
+/// Connect to the daemon socket, applying the R2-TG-TOOL §5.1 v0.4
+/// MUST (a) client-side guard: when the path is the WORLD-WRITABLE /tmp
+/// fallback (no XDG_RUNTIME_DIR/TMPDIR), verify via SO_PEERCRED that the
+/// LISTENING process is our own UID before trusting it as the daemon — a
+/// foreign-UID squatter can pre-bind the well-known name in /tmp and the
+/// daemon-side same-UID accept check cannot protect the client. The
+/// per-user XDG/TMPDIR paths need no check (directory ownership already
+/// guarantees it).
+///
+/// **Used-by:** every command handler in this binary.
 async fn connect(socket_path: &PathBuf) -> Result<UnixStream, String> {
-    UnixStream::connect(socket_path).await.map_err(|e| {
+    let stream = UnixStream::connect(socket_path).await.map_err(|e| {
         format!(
             "cannot connect to daemon socket at {}: {e}",
             socket_path.display()
         )
-    })
+    })?;
+    if r2_hive::is_tmp_fallback_socket(socket_path) {
+        let cred = stream
+            .peer_cred()
+            .map_err(|e| format!("cannot read peer credentials on {}: {e}", socket_path.display()))?;
+        let me = unsafe { geteuid() };
+        if cred.uid() != me {
+            return Err(format!(
+                "SECURITY: {} is served by uid {} (we are {me}) — the world-writable /tmp                  fallback name is held by a foreign process (possible daemon impersonation).                  Refusing to talk to it (R2-TG-TOOL §5.1 v0.4).",
+                socket_path.display(),
+                cred.uid()
+            ));
+        }
+    }
+    Ok(stream)
+}
+
+/// Effective UID for the §5.1 v0.4 peer-credential compare in [`connect`].
+unsafe fn geteuid() -> u32 {
+    extern "C" {
+        fn geteuid() -> u32;
+    }
+    geteuid()
 }
 
 fn parse_hive_id(s: &str) -> Result<u64, String> {

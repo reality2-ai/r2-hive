@@ -17,6 +17,17 @@
 - 18 host suites + wasm 19/19 + wasm32 check green on the pin. Uptake protocol: core names a sha -> bump-core.sh <sha>.
   NO live coupling remains anywhere in r2-hive (fw branches were always vendored).
 
+## 🛡️ /tmp FALLBACK GUARDS (R2-TG-TOOL §5.1 v0.4, specs 8ea8e22 — both MUSTs shipped)
+- Specs REGISTERED my no-env fallback as canon (resolution order = default_socket_path verbatim, source-verified),
+  then added two MUSTs the world-writable /tmp path introduces (foreign-UID pre-bind squat = daemon impersonation
+  toward CLIENTS; the daemon-side same-UID accept check cannot protect the connecting side):
+  (a) CLIENT peer-verify: r2hive-cli connect() now SO_PEERCRED-checks the listener's uid == ours whenever the path
+  is the /tmp fallback (is_tmp_fallback_socket, shape-pinned by unit test; XDG/TMPDIR per-user paths exempt per canon).
+  (b) DAEMON loud-fail: mgmt/socket.rs spawn() refuses to bind (PermissionDenied + SECURITY log) when the existing
+  socket file is foreign-owned — never silently renames (silent rename would defeat the normative-filename ruling).
+- 18 suites green. Squat-refusal is agent-untestable without a second uid — the guard is code-reviewed logic;
+  the detector predicate IS test-pinned (do not assume the refusal arm has runtime test coverage).
+
 ## 🔌 SOCKET FILENAME NORMATIVE (specs ruling fa94443 — fix_impl EXECUTED)
 - Specs ruled my tranche-2b divergence flag: the mgmt-socket FILENAME is part of the R2-TG-TOOL §5.1 contract
   (well-known address = zero-config UI discoverability; path+0600+same-UID+filename = ONE contract, not layers).
