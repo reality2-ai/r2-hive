@@ -1,5 +1,20 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔴 D4 RE-KEY REFUTED ON LIVE METAL (2026-07-05; task #46; BLOCKS Roy's 4-board GO)
+- Supervisor asked for the deliver-gate proof status; I ran it live. ACM4 was free: baseline read showed identity right
+  (495b1b62 / tg 04bc57e7), beats alive, dlv=0 — but VACUOUS (census: the only on-air traffic is D2→D1 directed reqs;
+  nothing addressed to D4; D4 RELAYS them fine — relay is keyless, proves nothing). **Falsifier armed: ACM3 (09a07e47,
+  L5-verified member = known-good signer) given `SENDTO 495b1b62` (acked) → addressed member-signed reqs every ~6 s.**
+- **RESULT: D4 emits `DELIVER-BLOCKED msg_id=N tg_ok=true hmac_ok=false (relay unaffected)` on EVERY req** (msg_id 6,7,8…),
+  dlv flat 0, no acks originate. **D4 still holds a WRONG KEY.** The interim "clean erase → 495b weave" acceptance was an
+  on-air target_group observation, never a key proof. The gate itself = perfect (fail-closed, structured first-class red,
+  zero log-scrape — the real-red rule vindicated end-to-end).
+- **Fix path unchanged = Roy's ruled option-B PROVISION on ACM4 (composer executes my recipe). The armed stream is the
+  self-verifier: dlv climbs within ~6 s of key install.** D2's proof = one datum from composer's stream (two D1 dlv samples
+  30 s apart; its adapter holds ACM2/ACM5). **RESTORE DUTY (mine, after proofs): `SENDTO 0` on ACM3** (NVS-persisted;
+  ACM3 = #49 target; app-only flash preserves it; coex mute covers OTA overlap — no conflict, but return bench to
+  found-shape). Supervisor told: no 4-board GO until both boxes green; both minutes-scale once composer acts.
+
 ## ✅ RAK RADIO PLAN CLOSED (core aff9928): spike calls as923_nz() DIRECTLY (byte-identical exports, cannot drift); 42.5 KiB / 8.9%, verdict unchanged
 - TCXO + pinout CORE-VERIFY markers remain for bring-up. Two engine gates recorded on task #44 for the falsifier's
   path-table assertions (re-verified green against aff9928: 37/37 + 15/15): reply legs MUST be MsgType::Reply frames
