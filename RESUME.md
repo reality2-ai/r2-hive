@@ -1,5 +1,21 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔄 TOTAL FLIP — ALL KEYS WERE ALWAYS CORRECT; the whole red saga was task #39's zero-tag artifact (task #46 CLOSED)
+- **Supervisor's file-epoch discriminator run live and it flipped everything:** captured on-air frames from two board
+  mirrors, verified OFFLINE against composer's weave-hk.bin with the REAL r2-wire/r2-trust code. **Every board's HB
+  signature verifies: D1 3/3, D2 3/3, D4 2/2, carrier 4/4** (HBs signed by the same GroupHmac the deliver-gate uses =
+  the deliver-key proof, cryptographic + per-board). File-epoch hypothesis REFUTED; **my D4-wrong-key verdict RETRACTED**.
+- **The real defect: all 71 captured req Events = origin 00000000 + ALL-ZERO 32 B tag** — task #39's known origination
+  non-conformance (pre-ROUTE-ORIGIN-1 path; sign_extended's route-less zero-tag fallback) shipping in the flashed images.
+  `hmac_ok=false` is THREE-WAY ambiguous (absent / zero / wrong-key tag) — every key signal in the saga (composer's
+  post-PROVISION check, my DELIVER-BLOCKED reads, flat dlv) was reading the artifact. **The gates behaved perfectly
+  throughout.** dlv-climb = the WRONG go criterion until #39 lands; the key box is GREEN by crypto proof.
+- Bench restored: ACM3 `SENDTO 0` acked (note: ack still prints 'BL-200 origin' — verify reqs actually stopped at next
+  read); throwaway probe deleted (never committed). D4 reimage stays worthwhile (live-swap + REBOOT verb) but NOT
+  key-blocking. **#39 elevated with metal evidence** (top conformance item alongside #32).
+- **LESSON (banked): on any hmac_ok=false, inspect the TAG BYTES first** — capture-mirror + offline-crate-verify is the
+  standing instrument (method: R2RX hex → decode_extended/compact → verify against key-file bytes).
+
 ## 🔬 D4/D2 DISCRIMINATION ROUND 2 (2026-07-05; task #46 updated; supervisor's three questions answered live)
 - **REBOOT verb fired on ACM4 by me: NO-OP** (beats never reset, no ack) — D4's old image predates BOTH the verb and the
   live-install path (landed ~06-26 ebfa5c8 era). **So no verb bug exists in current firmware**: persist-without-live-install
