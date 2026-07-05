@@ -25,8 +25,11 @@
   is the /tmp fallback (is_tmp_fallback_socket, shape-pinned by unit test; XDG/TMPDIR per-user paths exempt per canon).
   (b) DAEMON loud-fail: mgmt/socket.rs spawn() refuses to bind (PermissionDenied + SECURITY log) when the existing
   socket file is foreign-owned — never silently renames (silent rename would defeat the normative-filename ruling).
-- 18 suites green. Squat-refusal is agent-untestable without a second uid — the guard is code-reviewed logic;
-  the detector predicate IS test-pinned (do not assume the refusal arm has runtime test coverage).
+- REFUSAL ARM NOW RUNTIME-TESTED (coverage caveat RETIRED): specs suggested unshare --map-root-user; empirically
+  REFUTED (own files map together with own uid — both read 0 inside the ns; mismatch never occurs). Simpler no-root
+  construction found: the guard path is exists->stat->foreign-uid->refuse and file-type-agnostic, so spawn() against
+  root-owned /proc/version fires it naturally — integration test squat_guard_refuses_foreign_owned_socket_path
+  (root-skip guarded). No Roy recipe needed.
 
 ## 🔌 SOCKET FILENAME NORMATIVE (specs ruling fa94443 — fix_impl EXECUTED)
 - Specs ruled my tranche-2b divergence flag: the mgmt-socket FILENAME is part of the R2-TG-TOOL §5.1 contract

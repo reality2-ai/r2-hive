@@ -1013,3 +1013,37 @@ async fn daemon_rejects_unknown_event() {
     let _ = handle.shutdown.send(());
     let _ = handle.join.await;
 }
+
+/// R2-TG-TOOL §5.1 v0.4 MUST (b) — the squat-guard REFUSAL arm, runtime-
+/// tested WITHOUT root or a user namespace. The guard's path is
+/// exists → stat → foreign-uid → refuse, and it is file-type-agnostic, so
+/// any pre-existing ROOT-owned path exercises it (/proc/version is root-
+/// owned on every Linux). Note for future readers: the
+/// `unshare --map-root-user` route does NOT work here — your own files map
+/// TOGETHER WITH your uid (both read 0 inside the ns), so the mismatch
+/// never occurs; verified empirically before choosing this construction.
+#[tokio::test]
+async fn squat_guard_refuses_foreign_owned_socket_path() {
+    // As root every file is ours and the arm cannot fire — skip honestly.
+    fn uid() -> u32 {
+        extern "C" {
+            fn getuid() -> u32;
+        }
+        unsafe { getuid() }
+    }
+    if uid() == 0 {
+        eprintln!("skipped: running as root — foreign-uid mismatch unobtainable");
+        return;
+    }
+    let state = DaemonState::new();
+    let err = match socket::spawn(std::path::PathBuf::from("/proc/version"), state).await {
+        Err(e) => e,
+        Ok(_) => panic!("foreign-owned path at the socket name MUST refuse to bind"),
+    };
+    assert_eq!(
+        err.kind(),
+        std::io::ErrorKind::PermissionDenied,
+        "squat guard must refuse with PermissionDenied, got: {err}"
+    );
+}
+
