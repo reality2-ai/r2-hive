@@ -93,11 +93,13 @@ export class HiveWs {
   close() { if (this.ws) this.ws.close(); }
 }
 
+// Normalise a WS message (Blob/ArrayBuffer/typed) to Uint8Array.
 function bytesOf(data) {
   if (data instanceof ArrayBuffer) return new Uint8Array(data);
   if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   return new TextEncoder().encode(String(data)); // string fallback
 }
+// hex string -> Uint8Array.
 function hexToBytes(h) {
   const out = new Uint8Array(h.length >> 1);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(h.substr(i * 2, 2), 16);

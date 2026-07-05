@@ -35,6 +35,7 @@ const P_BR = 21180, P_C = 21181, P_D = 21182, P_X = 21183;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Test body - see the file head for the scenario + pass/fail criteria.
 async function main() {
   let cRecv = 0, cDeliver = 0, dRecv = 0, dDeliver = 0;
   const floodTargets = []; // bridge's kind-6 sends[] during the async k=15 relay

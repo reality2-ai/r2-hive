@@ -93,6 +93,7 @@ class HiveWs {
   close() { if (this.ws) this.ws.close(); }
 }
 
+// Normalise a WS message (Buffer/ArrayBuffer/typed) to Uint8Array.
 function bytesOf(data) {
   if (data instanceof ArrayBuffer) return new Uint8Array(data);
   if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);

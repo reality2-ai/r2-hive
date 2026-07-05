@@ -57,18 +57,23 @@ JSON_MODE = False
 _PEER_RE = re.compile(r"hive=([0-9a-fA-F]+).*mac=([0-9a-fA-F:]+)")
 
 
+# Timestamped human log line to stderr (stdout is reserved for --json mode).
 def log(msg):
     # In JSON mode keep stdout PURE JSON: human diagnostics go to stderr.
     stream = sys.stderr if JSON_MODE else sys.stdout
     print(f"{time.strftime('%H:%M:%S')} {msg}", file=stream, flush=True)
 
 
+# One JSON-lines record to stdout (composer dashboard ingest, task #24 mode).
 def jline(**fields):
     """Emit one machine-readable JSON line (stdout). t = epoch seconds."""
     fields.setdefault("t", round(time.time(), 3))
     print(json.dumps(fields, separators=(",", ":")), flush=True)
 
 
+# THE safety-critical open: set DTR=1/RTS=0 BEFORE opening so the USB-serial
+# control lines never glitch through the ROM-download reset dance (the
+# remote-bench brick hazard the banner documents). Never toggled after.
 def open_safe(port, baud=115200):
     """Open the port with steady DTR=1/RTS=0 set BEFORE open and never toggled.
 
@@ -112,6 +117,8 @@ def open_safe(port, baud=115200):
     return s
 
 
+# Spawn the node router.js child (the wasm-hive routing brain). The child has
+# NO serial access by construction - only this parent touches the port.
 def start_router(hive_hex, pkg_dir):
     """Spawn the node wasm-hive router. It has NO serial access (can't brick)."""
     args = ["node", os.path.join(HERE, "router.js"), hive_hex]
@@ -124,11 +131,14 @@ def start_router(hive_hex, pkg_dir):
     return p
 
 
+# Mirror the router child's stderr into our log (thread; diagnostics only).
 def _pump_stderr(p):
     for line in p.stderr:
         log(f"[router] {line.rstrip()}")
 
 
+# Parse one carrier console line (R2RX mirror / peer MAPPED / status) into a
+# (kind, fields) tuple for the log and --json streams.
 def render_rx(line):
     """Surface the carrier's telemetry — heartbeat-VISIBILITY + raw frames."""
     if "peer MAPPED" in line:
@@ -172,6 +182,8 @@ def render_rx(line):
         log(line)
 
 
+# Thread: drain router stdout; each relay decision line becomes an
+# INJECT <hex> write to the carrier when --participate (else log-only).
 def router_reader(router, ser, participate):
     """Read the router's INJECT decisions; write them to serial (if participating)."""
     for line in router.stdout:
@@ -201,6 +213,8 @@ def router_reader(router, ser, participate):
             log(f"[router] {line}")
 
 
+# Thread: drain the carrier serial; R2RX frames go to the router stdin,
+# everything else renders to the log/json streams.
 def control_reader(router, ser, participate):
     """Host control channel (this bridge's STDIN) — inject frames LIVE.
 
@@ -257,6 +271,8 @@ def control_reader(router, ser, participate):
             log(f"# control: unknown verb {verb!r} (use 'RX <hex>' | 'TX <hex>' | VMASK/VRSSI/VDIST/VCLR/VBLK/SENDTO/MASK)")
 
 
+# Live mode: open the port safely, spawn the router, run both pump threads
+# until interrupt. This is what alfred:~/carrier-bridge runs in production.
 def run_live(args):
     ser = open_safe(args.port, args.baud)
     router = None
@@ -295,6 +311,8 @@ def run_live(args):
             router.terminate()
 
 
+# No-hardware self-test: feed canned R2RX lines through the real router
+# child and assert the relay decisions parse (CI-able smoke of the plumbing).
 def run_selftest(args):
     """No serial: feed canned frames through the router to prove the wiring."""
     log("# SELFTEST: routing wiring only (no serial port touched)")
@@ -312,6 +330,7 @@ def run_selftest(args):
     log("# selftest done (no INJECT expected for garbage frames).")
 
 
+# CLI entry: parse args, dispatch live vs selftest.
 def main():
     ap = argparse.ArgumentParser(description="DFR1195 carrier <-> wasm-hive bridge")
     ap.add_argument("--port", help="serial device (by-id path preferred)")

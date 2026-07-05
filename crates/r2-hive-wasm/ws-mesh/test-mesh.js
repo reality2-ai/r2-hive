@@ -21,6 +21,7 @@ const HK2 = Array(32).fill(0x22);              // C's WRONG key (same TG id)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function die(m) { console.error(`FAIL: ${m}`); process.exitCode = 1; }
 
+// Test body - see the file head for the scenario + pass/fail criteria.
 async function main() {
   const gw = spawn('node', [path.join(__dirname, 'gateway.js'), String(PORT)], { stdio: ['ignore', 'inherit', 'pipe'] });
   await new Promise((resolve, reject) => {

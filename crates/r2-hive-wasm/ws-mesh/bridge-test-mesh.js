@@ -43,12 +43,14 @@ const WS_PORT = 21150;
 const P_BR = 21151, P_C = 21152, P_D = 21153; // UDP ports
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// hex string -> Uint8Array (frame decode helper).
 function hexToBytes(h) {
   const out = new Uint8Array(h.length >> 1);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(h.substr(i * 2, 2), 16);
   return out;
 }
 
+// Spawn gateway.js as a child for the duration of the test.
 function startGateway() {
   return new Promise((resolve, reject) => {
     const gw = spawn('node', [path.join(__dirname, 'gateway.js'), String(WS_PORT)],
@@ -59,6 +61,7 @@ function startGateway() {
   });
 }
 
+// Test body - see the file head for the scenario + pass/fail criteria.
 async function main() {
   let cDelivers = 0, dDelivers = 0, aDelivers = 0, brRelayUdp = 0, brRelayWs = 0;
 

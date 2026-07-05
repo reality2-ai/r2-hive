@@ -25,6 +25,8 @@ const HOST = process.env.WS_MESH_HOST || '127.0.0.1';
 
 const clients = new Set(); // net.Socket, one per connected hive
 
+// RFC 6455 accept-key derivation (SHA-1 of key + the fixed GUID) - the one
+// piece of WS handshake crypto; everything else in the upgrade is plain HTTP.
 function accept(key) {
   return crypto.createHash('sha1').update(key + WS_GUID).digest('base64');
 }

@@ -129,6 +129,7 @@ class HiveUdp {
   close() { if (this.sock) { try { this.sock.close(); } catch (_) {} this.sock = null; } }
 }
 
+// hex string -> Uint8Array.
 function hexToBytes(h) {
   const out = new Uint8Array(h.length >> 1);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(h.substr(i * 2, 2), 16);

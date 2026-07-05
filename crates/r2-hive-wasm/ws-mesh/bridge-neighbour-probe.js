@@ -17,6 +17,7 @@ const BR = 0x000000b0, C = 0x000000c3, D = 0x000000d4;
 const P_BR = 21161, P_C = 21162, P_D = 21163;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Test body - see the file head for the scenario + pass/fail criteria.
 async function main() {
   const bridge = new HiveBridge(BR, { hk: HK, tgHash: TG });
   bridge.addBearer(new UdpBearer({ peers: { [C]: `127.0.0.1:${P_C}`, [D]: `127.0.0.1:${P_D}` }, bindPort: P_BR }, 6));

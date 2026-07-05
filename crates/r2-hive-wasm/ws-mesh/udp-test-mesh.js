@@ -18,6 +18,7 @@ let bDelivers = 0, cDelivers = 0;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Test body - see the file head for the scenario + pass/fail criteria.
 async function main() {
   const a = new HiveUdp(A, { peers, hk: HK, tgHash: TG, bindPort: PA });
   const b = new HiveUdp(B, { peers, hk: HK, tgHash: TG, bindPort: PB, onDeliver: () => bDelivers++ });

@@ -181,6 +181,7 @@ function bytesOf(data) {
   if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   return Uint8Array.from(Buffer.from(data)); // string fallback
 }
+// hex string -> Uint8Array.
 function hexToBytes(h) {
   const out = new Uint8Array(h.length >> 1);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(h.substr(i * 2, 2), 16);
