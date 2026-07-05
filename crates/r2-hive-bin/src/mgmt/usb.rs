@@ -44,6 +44,16 @@
 //!  10?: <product : text>
 //! }
 //! ```
+//!
+//! ## Interlinks + canon
+//!
+//! Dispatched from `api.rs`; every handler reaches the watcher through
+//! `HiveState::usb_handle()` (installed by `main.rs`; absent →
+//! `usb_disabled`). The confirm/abort verbs are the operator half of the
+//! SAS flow whose crypto lives in `usb_pair.rs` and whose state machine is
+//! `usb.rs::UsbSession` (crate root). Canon: R2-HOST-API §4 vocabulary —
+//! `r2-specifications/specs/r2-core/R2-HOST-API.md`; R2-PROVISION §5.3.4
+//! (SAS) — `r2-specifications/specs/r2-core/R2-PROVISION.md`.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -94,6 +104,10 @@ fn session_state_code(s: SessionState) -> u64 {
     }
 }
 
+/// `r2.mgmt.usb.list` — snapshot every watched device (state, CAPS,
+/// pairing status). `usb_disabled` when no watcher handle is installed.
+///
+/// **Used-by:** the `api.rs` dispatcher.
 pub async fn handle_list(cid: u64, hive: &Arc<HiveState>) -> Vec<u8> {
     let handle = match hive.usb_handle() {
         Some(h) => h,
@@ -173,6 +187,11 @@ fn encode_device(enc: &mut Encoder<'_>, d: &DeviceStatus) {
     }
 }
 
+/// `r2.mgmt.usb.prepare` — add a device path to the watcher's explicit
+/// allowlist (the operator's "yes, talk to this one" ahead of a VID:PID
+/// entry).
+///
+/// **Used-by:** the `api.rs` dispatcher.
 pub async fn handle_prepare(cid: u64, payload: &[u8], hive: &Arc<HiveState>) -> Vec<u8> {
     let handle = match hive.usb_handle() {
         Some(h) => h,
@@ -186,6 +205,10 @@ pub async fn handle_prepare(cid: u64, payload: &[u8], hive: &Arc<HiveState>) -> 
     build_path_ack_response(EV_USB_PREPARE, cid, &path)
 }
 
+/// `r2.mgmt.usb.confirm` — operator confirms the pending SAS prompt for
+/// `path` (the human half of R2-PROVISION §5.3.4).
+///
+/// **Used-by:** the `api.rs` dispatcher.
 pub async fn handle_confirm(cid: u64, payload: &[u8], hive: &Arc<HiveState>) -> Vec<u8> {
     let handle = match hive.usb_handle() {
         Some(h) => h,
@@ -199,6 +222,10 @@ pub async fn handle_confirm(cid: u64, payload: &[u8], hive: &Arc<HiveState>) -> 
     build_bool_ack_response(EV_USB_CONFIRM, cid, accepted)
 }
 
+/// `r2.mgmt.usb.abort` — operator rejects the pending SAS prompt (codes
+/// didn't match).
+///
+/// **Used-by:** the `api.rs` dispatcher.
 pub async fn handle_abort(cid: u64, payload: &[u8], hive: &Arc<HiveState>) -> Vec<u8> {
     let handle = match hive.usb_handle() {
         Some(h) => h,
@@ -212,6 +239,10 @@ pub async fn handle_abort(cid: u64, payload: &[u8], hive: &Arc<HiveState>) -> Ve
     build_bool_ack_response(EV_USB_ABORT, cid, accepted)
 }
 
+/// `r2.mgmt.usb.unpair` — forget a stored link key by peer hive-id bytes;
+/// the device re-pairs from scratch on next attach.
+///
+/// **Used-by:** the `api.rs` dispatcher.
 pub async fn handle_unpair(cid: u64, payload: &[u8], hive: &Arc<HiveState>) -> Vec<u8> {
     let handle = match hive.usb_handle() {
         Some(h) => h,
@@ -306,22 +337,37 @@ fn extract_bstr16_field(payload: &[u8], target: u64) -> Option<[u8; 16]> {
 // Outbound request builders — used by the CLI and by mgmt-test code.
 // ─────────────────────────────────────────────────────────────────────
 
+/// Client-side encoder for `r2.mgmt.usb.list`.
+///
+/// **Used-by:** `r2hive-cli` (`usb list`) and `tests/usb_mgmt_integration.rs`.
 pub fn build_list_request(cid: u64) -> Vec<u8> {
     build_empty_request(EV_USB_LIST, cid)
 }
 
+/// Client-side encoder for `r2.mgmt.usb.prepare`.
+///
+/// **Used-by:** `r2hive-cli` (`usb prepare`) and the usb mgmt tests.
 pub fn build_prepare_request(cid: u64, path: &str) -> Vec<u8> {
     build_path_ack_response(EV_USB_PREPARE, cid, path)
 }
 
+/// Client-side encoder for `r2.mgmt.usb.confirm`.
+///
+/// **Used-by:** `r2hive-cli` (`usb confirm`) and the usb mgmt tests.
 pub fn build_confirm_request(cid: u64, path: &str) -> Vec<u8> {
     build_path_ack_response(EV_USB_CONFIRM, cid, path)
 }
 
+/// Client-side encoder for `r2.mgmt.usb.abort`.
+///
+/// **Used-by:** `r2hive-cli` (`usb abort`) and the usb mgmt tests.
 pub fn build_abort_request(cid: u64, path: &str) -> Vec<u8> {
     build_path_ack_response(EV_USB_ABORT, cid, path)
 }
 
+/// Client-side encoder for `r2.mgmt.usb.unpair` (16-byte peer id).
+///
+/// **Used-by:** `r2hive-cli` (`usb unpair`) and the usb mgmt tests.
 pub fn build_unpair_request(cid: u64, hive_id_bytes: &[u8; 16]) -> Vec<u8> {
     let mut buf = [0u8; 64];
     let used = {

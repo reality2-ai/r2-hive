@@ -34,7 +34,14 @@
   build_sync_frame narrowed further to #[cfg(test)] — the narrowing EXPOSED a stale doc claiming production use via
   send_sync (send_sync frames its own SYNC; doc corrected). usb_pair's ellipsis canon path fixed to the real
   R2-PROVISION.md path.
-- **Next tranches (centrality order):** mgmt family (primitive 965 / api 722 / ensemble 514 / identity 434 + small) (usb/usb_hotplug/usb_serial/usb_pair) →
+- **Tranche 5 (this commit):** mgmt family — all 12 files (~4.2k lines). 28 doc-less pub fns documented (handlers +
+  client builders, each with grep-verified used-by: api.rs dispatcher / r2hive-cli / integration tests); interlink+canon
+  sections appended to all ten substantive heads (dispatcher topology now legible: socket+ws -> api -> namespace
+  handlers -> HiveState). Occam: FileStore::path() CUT (zero callers anywhere); FileStore::exists() -> cfg(test)
+  (test-only lifecycle probe). Inconsistency fixed: framing.rs cited "R2-HIVE spec §5.2" (missed by the tranche-2b
+  grep — different phrasing) -> re-anchored to R2-HOST-API §2.2 len_be32.
+- **Next tranches:** web.rs/web_auth.rs + core's ensemble/ota/identity + config/autoconfig/compat/plugins/systemd ->
+  r2hive-cli + r2-hive-core lib.rs + carrier-bridge py + ws-mesh -> fw branch files (dfr1195 main.rs own tranche). (usb/usb_hotplug/usb_serial/usb_pair) →
   web/web_auth/ensemble/ota/identity/config/autoconfig/systemd → r2-hive-core lib.rs + carrier-bridge py + ws-mesh →
   fw files on branch (dfr1195 main.rs = own tranche; rak4630 delta). Vendored crates EXCLUDED (canon docs = core's).
   One hygiene-gated commit + supervisor note per tranche. ALL new code ships to the standard.

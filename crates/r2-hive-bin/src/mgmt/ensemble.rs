@@ -13,6 +13,18 @@
 //! source, plus a tag indicating which dialect. v0.1 only supports
 //! YAML-on-the-wire; JSON/TOML can be loaded out-of-band via score
 //! files in the startup folder.
+//!
+//! ## Interlinks + canon
+//!
+//! Handlers dispatched from `api.rs`; they drive the shared
+//! `EnsembleRegistry` on `HiveState` (load/list/info/stop/reset) and mount/
+//! unmount web-plugin bundles via `web.rs` (§13.4 atomicity). The
+//! [`HiveOutboundSink`] half is wired in `main.rs` at boot: sentant
+//! `Action::Send` output leaves through `HiveState::{send_to_hive,
+//! broadcast_to_tg}` or loops back locally via `deliver_inbound`. Client
+//! builders at the bottom serve `r2hive-cli` + integration tests. Canon:
+//! R2-ENSEMBLE (scores/lifecycle), R2-HOST-API §4, R2-PLUGIN §13 —
+//! `r2-specifications/specs/r2-core/{R2-ENSEMBLE,R2-HOST-API,R2-PLUGIN}.md`.
 
 use std::sync::Arc;
 
@@ -384,6 +396,10 @@ pub fn build_load_request_from_path(cid: u64, dialect: &str, path: &str) -> Vec<
     build_response_frame_with_event(EV_ENSEMBLE_LOAD, &buf[..used])
 }
 
+/// Client-side encoder for an `r2.mgmt.ensemble.list` request.
+///
+/// **Used-by:** `r2hive-cli` (`ensemble list`) and the ensemble/usb/web
+/// integration tests — the same bytes `handle_list` decodes.
 pub fn build_list_request(cid: u64) -> Vec<u8> {
     let mut buf = [0u8; 32];
     let used = {
@@ -407,12 +423,22 @@ fn build_id_request(event: &str, cid: u64, id: &str) -> Vec<u8> {
     build_response_frame_with_event(event, &buf[..used])
 }
 
+/// Client-side encoder for `r2.mgmt.ensemble.info` (id-keyed request).
+///
+/// **Used-by:** `r2hive-cli` (`ensemble info`) and ensemble integration tests.
 pub fn build_info_request(cid: u64, id: &str) -> Vec<u8> {
     build_id_request(EV_ENSEMBLE_INFO, cid, id)
 }
+/// Client-side encoder for `r2.mgmt.ensemble.stop`.
+///
+/// **Used-by:** `r2hive-cli` (`ensemble stop`), ensemble + web-plugin
+/// integration tests (stop unmounts the web plugin, §13.4).
 pub fn build_stop_request(cid: u64, id: &str) -> Vec<u8> {
     build_id_request(EV_ENSEMBLE_STOP, cid, id)
 }
+/// Client-side encoder for `r2.mgmt.ensemble.reset`.
+///
+/// **Used-by:** `r2hive-cli` (`ensemble reset`).
 pub fn build_reset_request(cid: u64, id: &str) -> Vec<u8> {
     build_id_request(EV_ENSEMBLE_RESET, cid, id)
 }

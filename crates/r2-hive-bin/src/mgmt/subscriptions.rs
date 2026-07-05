@@ -14,6 +14,16 @@
 //! Phase 1 ships the registry skeleton with the data model and ID allocator;
 //! the actual delivery wiring lands when Phase 1 hooks into HiveState's
 //! inbound frame paths.
+//!
+//! ## Interlinks + canon
+//!
+//! One registry per mgmt connection, created in
+//! `HiveState::register_subscriber` (called by `socket.rs` and `ws.rs`);
+//! mutated by the subscribe/unsubscribe handlers in `primitive.rs`; read by
+//! `HiveState::{deliver_inbound, deny_inbound}` when fanning notifications
+//! out. Canon: R2-HOST-API §4 (subscription mechanics), §3.2/§3.2.1
+//! (delivery + denied), §5.2 (high-bit synthetic ids) —
+//! `r2-specifications/specs/r2-core/R2-HOST-API.md`.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -72,6 +82,10 @@ pub struct SubscriptionRegistry {
 }
 
 impl SubscriptionRegistry {
+    /// Empty per-connection registry.
+    ///
+    /// **Used-by:** `HiveState::register_subscriber` (one per mgmt
+    /// connection, UDS and WS alike).
     pub fn new() -> Self {
         Self {
             // start at 1 so we can reserve high-bit IDs for synthetic

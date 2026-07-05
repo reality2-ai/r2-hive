@@ -6,6 +6,16 @@
 //! requests and pushes responses to the channel; a writer task drains the
 //! channel and writes to the socket. `HiveState::deliver_inbound` pushes
 //! unsolicited `r2.api.event.delivery` notifications onto the same channel.
+//!
+//! ## Interlinks + canon
+//!
+//! Spawned from `main.rs` mgmt bring-up (socket path resolved there;
+//! discipline per R2-TG-TOOL §5: per-user dir, 0600, same-UID). Each
+//! connection: `framing.rs` decode → `api.rs::dispatch` → framed response;
+//! subscriber registration via `HiveState::register_subscriber` (torn down
+//! on close). Canon: R2-HOST-API §2.2 (UDS binding), §4/§8 (connection
+//! model) — `r2-specifications/specs/r2-core/R2-HOST-API.md`;
+//! R2-TG-TOOL §5 — `r2-specifications/specs/r2-core/R2-TG-TOOL.md`.
 
 use std::fs;
 use std::path::{Path, PathBuf};

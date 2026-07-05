@@ -10,6 +10,18 @@
 //!
 //! Request/response pairs carry a `correlation_id` per R2-HOST-API §4. In the
 //! CBOR payload map the correlation id is encoded under integer key `0`.
+//!
+//! ## Interlinks + canon
+//!
+//! The single dispatcher both mgmt transports share: `socket.rs` (UDS,
+//! len_be32 framing) and `ws.rs` (loopback WebSocket, WS framing) each
+//! decode a frame and call [`dispatch`] here; responses flow back up the
+//! same connection. Handlers fan out by namespace: `r2.mgmt.ensemble.*` →
+//! `ensemble.rs`, `r2.mgmt.usb.*` → `usb.rs`, transport policy →
+//! `transport_policy.rs`, `r2.api.*` → `primitive.rs`; identity/status
+//! answered here from `state.rs`. Canon: R2-HOST-API §3 (`r2.api.*`), §4
+//! (`r2.mgmt.*` + correlation ids), §6.2 (error frames) —
+//! `r2-specifications/specs/r2-core/R2-HOST-API.md`.
 
 use r2_cbor::{Decoder, Encoder, Item, Value};
 use r2_fnv::r2_hash;

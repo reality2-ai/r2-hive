@@ -3,6 +3,15 @@
 //! This is intentionally local management API only. It delegates the effective
 //! policy to `r2-route::RouteEngine::transport_allow_mask` and does not install
 //! any mesh-received control frame semantics.
+//!
+//! ## Interlinks + canon
+//!
+//! Dispatched from `api.rs`; lease state lives on `HiveState`
+//! (`transport_policy_snapshot` / `set_transport_policy_lease` /
+//! `clear_transport_policy`), while the mask itself stays single-sourced in
+//! core's `RouteEngine`. Canon: R2-TRANSPORT §2.3A (transport allow-masks)
+//! — `r2-specifications/specs/r2-core/R2-TRANSPORT.md`; vocabulary
+//! R2-HOST-API §4 — `r2-specifications/specs/r2-core/R2-HOST-API.md`.
 
 use std::sync::Arc;
 
@@ -25,11 +34,20 @@ const KEY_LEASE_ID: u64 = 5;
 const KEY_SOURCE: u64 = 6;
 const KEY_ACTIVE_LEASE: u64 = 7;
 
+/// `r2.mgmt.transport.allow_mask.state` — snapshot the effective egress
+/// mask + active lease.
+///
+/// **Used-by:** the `api.rs` dispatcher.
 pub async fn handle_state(correlation_id: u64, hive: &Arc<HiveState>) -> Vec<u8> {
     let snapshot = hive.transport_policy_snapshot().await;
     build_snapshot_response(EV_TRANSPORT_ALLOW_MASK_STATE, correlation_id, &snapshot)
 }
 
+/// `r2.mgmt.transport.allow_mask.set` — install/refresh the single local
+/// lease; refuses with `lease_conflict` if a DIFFERENT lease is active
+/// (last-writer-wins only within one lease id).
+///
+/// **Used-by:** the `api.rs` dispatcher.
 pub async fn handle_set(correlation_id: u64, payload: &[u8], hive: &Arc<HiveState>) -> Vec<u8> {
     let req = match parse_set_request(payload) {
         Ok(req) => req,
@@ -49,6 +67,10 @@ pub async fn handle_set(correlation_id: u64, payload: &[u8], hive: &Arc<HiveStat
     build_ack_response(EV_TRANSPORT_ALLOW_MASK_SET, correlation_id, &ack)
 }
 
+/// `r2.mgmt.transport.allow_mask.clear` — drop the lease and restore the
+/// all-on default (same lease-conflict guard as set).
+///
+/// **Used-by:** the `api.rs` dispatcher.
 pub async fn handle_clear(correlation_id: u64, payload: &[u8], hive: &Arc<HiveState>) -> Vec<u8> {
     let lease_id = match parse_clear_request(payload) {
         Ok(id) => id,
@@ -199,10 +221,18 @@ fn build_snapshot_response(
     build_response_frame_with_event(event_class, &payload[..used])
 }
 
+/// Client-side encoder for the state query.
+///
+/// **Used-by:** `tests/mgmt_integration.rs` today; the `r2hive-cli`
+/// transport verbs adopt these builders when that surface lands.
 pub fn build_state_request(correlation_id: u64) -> Vec<u8> {
     build_empty_request(EV_TRANSPORT_ALLOW_MASK_STATE, correlation_id)
 }
 
+/// Client-side encoder for the set request (mask + lease + source).
+///
+/// **Used-by:** `tests/mgmt_integration.rs` (same pending-CLI note as
+/// `build_state_request`).
 pub fn build_set_request(
     correlation_id: u64,
     requested_mask: u8,
@@ -223,6 +253,9 @@ pub fn build_set_request(
     build_response_frame_with_event(EV_TRANSPORT_ALLOW_MASK_SET, &payload[..used])
 }
 
+/// Client-side encoder for the clear request.
+///
+/// **Used-by:** `tests/mgmt_integration.rs` (same pending-CLI note).
 pub fn build_clear_request(correlation_id: u64, lease_id: Option<u64>) -> Vec<u8> {
     let mut payload = [0u8; 32];
     let used = {
@@ -261,6 +294,9 @@ pub struct TransportPolicyResponse {
     pub active_lease: bool,
 }
 
+/// Client-side decoder for any of the three responses (snapshot/ack/error).
+///
+/// **Used-by:** `tests/mgmt_integration.rs` round-trip assertions.
 pub fn parse_response(payload: &[u8]) -> Result<TransportPolicyResponse, String> {
     let mut dec = Decoder::new(payload);
     let entries = match dec.next().map_err(|e| format!("cbor: {e:?}"))? {

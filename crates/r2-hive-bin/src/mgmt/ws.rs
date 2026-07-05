@@ -18,6 +18,18 @@
 //! Access control: the route is mounted only on loopback listeners and
 //! every upgrade must carry a valid active R2 web-auth session cookie.
 //! Browser-originated upgrades are additionally same-origin checked.
+//!
+//! ## Interlinks + canon
+//!
+//! Mounted at `/r2/mgmt` by `main.rs` ONLY on loopback listeners; upgrade
+//! gated by [`authorize_upgrade`] (same-origin + web-auth cookie,
+//! fail-closed) — which `main.rs` also reuses to gate `/stats` and
+//! `/routes`. Same dispatcher (`api.rs`) and subscriber model
+//! (`HiveState::register_subscriber`) as the UDS path. Canon: R2-HOST-API
+//! §2.4 (the ratified `/r2/mgmt` WebSocket bridge — one extended frame per
+//! binary WS message, no length prefix) —
+//! `r2-specifications/specs/r2-core/R2-HOST-API.md`; cookie scheme
+//! R2-PLUGIN §13.5 — `r2-specifications/specs/r2-core/R2-PLUGIN.md`.
 
 use std::sync::Arc;
 

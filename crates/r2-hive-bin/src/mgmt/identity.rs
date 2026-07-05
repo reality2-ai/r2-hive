@@ -19,6 +19,16 @@
 //! Master-secret generation uses the OS CSPRNG (`getrandom`) here, since the
 //! store is itself the platform layer; the core only ever takes the resulting
 //! bytes via [`MasterSecret::from_bytes`].
+//!
+//! ## Interlinks + canon
+//!
+//! `main.rs` resolves the operator's `--identity-backend` into one of these
+//! stores and hands it to `state.rs::DaemonState::with_identity_store`;
+//! `auto_store` implements the keyring-then-file fallback. Custody boundary
+//! canon: R2-TG-TOOL §3 + R2-WIRE §6.2.1 (device master secret); storage
+//! layout mirrors R2-TG-TOOL §9 (informative) —
+//! `r2-specifications/specs/r2-core/{R2-TG-TOOL,R2-WIRE}.md`. The concrete
+//! paths and the keyring service names are daemon-local.
 
 use std::fs;
 use std::io;
@@ -69,14 +79,20 @@ impl FileStore {
         ))
     }
 
+    /// File-backed store rooted at `path` (nothing is touched until
+    /// `load`/`save`).
+    ///
+    /// **Used-by:** `main.rs` (explicit `file` backend), [`auto_store`]
+    /// (keyring-unavailable fallback), and the store tests.
+    /// (An unused `path()` accessor was removed here — Occam, zero callers.)
     pub fn new(path: PathBuf) -> Self {
         Self { path }
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
+    /// Whether the backing file currently exists. TEST-ONLY lifecycle probe
+    /// (production reads truth from `load()`'s Option / the daemon's
+    /// `identity_created_this_start`).
+    #[cfg(test)]
     pub fn exists(&self) -> bool {
         self.path.exists()
     }

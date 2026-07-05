@@ -1,8 +1,10 @@
 //! Local-socket framing for the management API.
 //!
-//! The R2-HIVE spec §5.2 says the socket speaks R2-WIRE. SOCK_STREAM has no
-//! message boundaries, so frames are length-prefixed: 4 bytes big-endian length,
-//! followed by that many bytes of R2-WIRE extended-format frame.
+//! Per R2-HOST-API §2.2 (the UDS binding) the socket speaks R2-WIRE.
+//! SOCK_STREAM has no message boundaries, so frames are length-prefixed:
+//! 4 bytes big-endian length (`len_be32`), then that many bytes of R2-WIRE
+//! extended-format frame. (Re-anchored from a former "R2-HIVE §5.2" cite —
+//! no such spec exists; `r2-specifications/specs/r2-core/R2-HOST-API.md`.)
 //!
 //! This is a local transport detail — the R2-WIRE payload inside is the same
 //! format any mesh peer would see.
