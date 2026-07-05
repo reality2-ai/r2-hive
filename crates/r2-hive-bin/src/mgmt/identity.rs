@@ -13,7 +13,7 @@
 //!
 //! Stores here:
 //! - [`FileStore`] — per-user file at mode 0600 (always available).
-//! - [`KeyringStore`] — platform keyring, behind the `keyring` cargo feature
+//! - `KeyringStore` (behind the `keyring` feature) — platform keyring, behind the `keyring` cargo feature
 //!   (Linux Secret Service / macOS Keychain / Windows Credential Manager).
 //!
 //! Master-secret generation uses the OS CSPRNG (`getrandom`) here, since the
@@ -277,7 +277,7 @@ impl IdentityStore for KeyringStore {
 // ───────────────────────── Auto-precedence ─────────────────────────
 
 /// Pick the best-available store at runtime. With the `keyring` feature
-/// on, prefer [`KeyringStore`] (probed by attempting to construct a
+/// on, prefer `KeyringStore` (behind the `keyring` feature) (probed by attempting to construct a
 /// keyring entry); on failure, log and fall back to [`FileStore`] at
 /// the given path.
 ///

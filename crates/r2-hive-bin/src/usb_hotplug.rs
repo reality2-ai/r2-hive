@@ -717,7 +717,7 @@ pub fn watcher_with_default_store(
 }
 
 /// Enumerate CDC-ACM devices in `dir`. Returns sorted absolute paths
-/// for entries whose file name starts with one of [`ACM_PREFIXES`].
+/// for entries whose file name starts with one of the `ACM_PREFIXES` entries.
 /// Non-existent or non-readable directories yield an empty list — the
 /// watcher logs nothing in that case (a bare-metal rig may not have
 /// `/dev` in the expected place).

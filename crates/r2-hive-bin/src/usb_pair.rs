@@ -6,7 +6,7 @@
 //! and the test vectors at `r2-usb-pair-vectors.json` (UP1–UP12, conformance-
 //! bound). They are deterministic (no CSPRNG), allocation-free aside from
 //! heap-clearable scratch buffers, and depend only on `x25519-dalek`, `sha2`,
-//! `hkdf`, and `hmac`. The pairing state machine in [`crate::usb::session`]
+//! `hkdf`, and `hmac`. The pairing state machine in [`crate::usb::UsbSession`]
 //! glues these helpers to the wire I/O.
 //!
 //! Algorithm pin per §5.3.4 ("Key agreement and commitment" step 1 +

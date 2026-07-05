@@ -325,7 +325,7 @@ impl HiveState {
     /// (bench env var only; empty otherwise), fail-closed unkeyed posture
     /// unless `R2_DELIVER_UNKEYED_OPEN` explicitly opts out.
     ///
-    /// **Dependencies:** [`load_bench_group_hmacs`] (env-gated key load),
+    /// **Dependencies:** `load_bench_group_hmacs` (env-gated key load),
     /// `crate::platform::linux()` (default Platform impl), the
     /// `R2_DELIVER_UNKEYED_OPEN` env var (R2-TRUST §7.5.4 posture).
     ///
@@ -415,7 +415,7 @@ impl HiveState {
     /// Cheap clone of the USB handle, if installed.
     ///
     /// **Used-by:** `mgmt/usb.rs` (every `r2.mgmt.usb.*` handler) and
-    /// [`Self::try_send_via_dongle`] (egress via a paired dongle).
+    /// `try_send_via_dongle` (egress via a paired dongle).
     #[cfg(target_os = "linux")]
     pub fn usb_handle(&self) -> Option<crate::usb_hotplug::UsbBringupHandle> {
         self.usb_handle.read().expect("usb_handle lock").clone()
@@ -770,7 +770,7 @@ impl HiveState {
     /// Every attempt is filtered through the node-wide egress allow mask
     /// (single-sourced in `route_engine.transport_allow_mask()`).
     ///
-    /// **Dependencies:** [`Self::try_send_on`] per transport; the route
+    /// **Dependencies:** `try_send_on` per transport; the route
     /// engine lock (mask read only — do not call while holding it).
     ///
     /// **Used-by:** `router.rs` relay arms (Directed/Flood hops, with the
@@ -1101,7 +1101,7 @@ impl HiveState {
     /// Accepts exact 16-char hex or a 2–6 char prefix (matched against the
     /// currently-registered groups — the word-code join flow sends prefixes).
     ///
-    /// **Dependencies:** [`hex_decode`] / [`hex_encode`]; the `tg_map` read lock.
+    /// **Dependencies:** `hex_decode` / `hex_encode`; the `tg_map` read lock.
     ///
     /// **Used-by:** `compat/handshake.rs` when a legacy client names a TG.
     pub async fn resolve_tg_hash(&self, hex: &str) -> Result<TrustGroupHash, &'static str> {

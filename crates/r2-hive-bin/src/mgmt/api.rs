@@ -15,7 +15,7 @@
 //!
 //! The single dispatcher both mgmt transports share: `socket.rs` (UDS,
 //! len_be32 framing) and `ws.rs` (loopback WebSocket, WS framing) each
-//! decode a frame and call [`dispatch`] here; responses flow back up the
+//! decode a frame and call [`handle_frame_with_subs`] here; responses flow back up the
 //! same connection. Handlers fan out by namespace: `r2.mgmt.ensemble.*` →
 //! `ensemble.rs`, `r2.mgmt.usb.*` → `usb.rs`, transport policy →
 //! `transport_policy.rs`, `r2.api.*` → `primitive.rs`; identity/status

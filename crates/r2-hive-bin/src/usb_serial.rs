@@ -4,7 +4,7 @@
 //! in raw, non-blocking mode and presents an `AsyncRead + AsyncWrite`
 //! handle that integrates with `tokio`. The protocol layer in
 //! [`crate::usb::UsbSession`] consumes the bytes and produces
-//! [`UsbEvent`](crate::usb::UsbEvent)s; this module owns the wire I/O
+//! [`crate::usb::UsbEvent`]s; this module owns the wire I/O
 //! and nothing else.
 //!
 //! [`run_session`] is the canonical loop: feeds inbound bytes into
