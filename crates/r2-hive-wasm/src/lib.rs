@@ -229,6 +229,16 @@ pub struct WasmHive {
     /// `handleRx` path keeps its own by-construction state inside `DataPlane`
     /// (disjoint entry points — a scene drives one path or the other).
     reinforcer: r2_route::trail::TrailReinforcer<256>,
+    /// R2-LORA §4 airtime bucket (carpark scene, task #47): meters every LoRa-kind
+    /// send in `route_frame` with REAL time-on-air at the as923_nz canon params;
+    /// a refused send is GATED OUT of the outputs (the duty limit really bites).
+    airtime: r2_transport::lora_airtime::AirtimeBucket,
+    /// The refill rate (ms airtime per second) the wasm last computed+set from the
+    /// REAL neighbour count — reported by `airtimeRefillMsPerS` (no core getter
+    /// needed: we report the value we set).
+    airtime_refill_ms_per_s: u32,
+    /// Count of LoRa sends refused by the bucket ("taking turns" observable).
+    airtime_refusals: u32,
 }
 
 #[wasm_bindgen]
@@ -249,6 +259,9 @@ impl WasmHive {
             unkeyed_open: false, // §7.5.4 fail-closed default; setUnkeyedOpen(true) for the pure-routing sim
             data_plane: None,    // lazily built on first handleRx (from the hive's id + group key)
             reinforcer: r2_route::trail::TrailReinforcer::new(),
+            airtime: r2_transport::lora_airtime::AirtimeBucket::from_neighbours(0),
+            airtime_refill_ms_per_s: r2_transport::lora_airtime::duty_cycle_refill(0),
+            airtime_refusals: 0,
         }
     }
 
@@ -340,6 +353,9 @@ impl WasmHive {
             unkeyed_open: false, // §7.5.4 fail-closed default; setUnkeyedOpen(true) for the pure-routing sim
             data_plane: None,    // lazily built on first handleRx (from the hive's id + group key)
             reinforcer: r2_route::trail::TrailReinforcer::new(),
+            airtime: r2_transport::lora_airtime::AirtimeBucket::from_neighbours(0),
+            airtime_refill_ms_per_s: r2_transport::lora_airtime::duty_cycle_refill(0),
+            airtime_refusals: 0,
         }
     }
 
@@ -379,6 +395,10 @@ impl WasmHive {
         let refs: Vec<&dyn SyncTransport> =
             transports.iter().map(|t| t as &dyn SyncTransport).collect();
 
+        // §3A: thread the REAL congestion latch (driven only by tick's sensor feed;
+        // a never-ticked hive is honestly uncongested) so K-halving/bounded-spray
+        // actually fires in the engine when the queue is genuinely backed up.
+        let congested = self.data_plane.as_ref().map(|d| d.is_congested()).unwrap_or(false);
         let outcome = route_inbound_sync(
             &mut self.engine,
             self.self_hive_id,
@@ -388,6 +408,7 @@ impl WasmHive {
             frame,
             now,
             dice,
+            congested,
             &mut self.reinforcer,
         );
 
@@ -395,9 +416,29 @@ impl WasmHive {
 
         let mut sends = String::new();
         let mut first = true;
+        let mut refused_now = 0u32;
         for t in &transports {
             let kind_code = t.kind() as u8;
             for (target, bytes) in t.sent.borrow().iter() {
+                // R2-LORA §4 (task #47): every LoRa-kind send pays REAL time-on-air
+                // at the as923_nz canon params (SF12/BW125/Cr45 — worst-case ToA,
+                // bench-coherent) through the bucket. A refusal GATES the send out
+                // of the outputs — the duty limit bites for real, exactly like a
+                // radio's §4.3.1 DEFER at the PHY seam (post-engine, like firmware).
+                if t.kind() == TransportKind::Lora {
+                    let toa = r2_transport::lora_airtime::time_on_air_ms(
+                        12,
+                        125_000,
+                        r2_transport::CodingRate::Cr45,
+                        bytes.len(),
+                    );
+                    // Sim clock: `now` is route-seconds — the bucket wants ms.
+                    if self.airtime.try_transmit(toa, now.wrapping_mul(1000)).is_err() {
+                        self.airtime_refusals += 1;
+                        refused_now += 1;
+                        continue;
+                    }
+                }
                 if !first {
                     sends.push(',');
                 }
@@ -409,7 +450,9 @@ impl WasmHive {
             }
         }
 
-        format!("{{\"outcome\":\"{tag}\",\"sent\":{sent},\"sends\":[{sends}]}}")
+        format!(
+            "{{\"outcome\":\"{tag}\",\"sent\":{sent},\"sends\":[{sends}],\"airtime_refused\":{refused_now}}}"
+        )
     }
 
     /// Faithful FUSED RX pipeline: run core's REAL [`r2_dataplane::handle_rx_frame`] — the same
@@ -426,12 +469,12 @@ impl WasmHive {
     /// `{"authenticated":bool,"deliver":bool,"relay_on":N,"relay":"<hex>","delivered":"<hex>"}` —
     /// `relay`/`delivered` are the frames the pipeline would forward / hand to the local consumer
     /// (`delivered` is the plaintext payload iff `deliver`).
-    #[wasm_bindgen(js_name = handleRx)]
-    pub fn handle_rx(&mut self, frame: &[u8], rssi_dbm: i32, ingress_phy: u8, now_ms: f64) -> String {
-        use r2_dataplane::{handle_rx_frame, DataPlane, Frame, FrameInfo};
+    /// Build the fused data-plane if absent (keyless is VALID — `group=None` ⇒
+    /// §7.5.4 fail-closed, the RAK-spike repeater posture). Shared by `handleRx`
+    /// and the §3A congestion drive in `tick`.
+    fn ensure_data_plane(&mut self) {
         if self.data_plane.is_none() {
-            // Build from this hive's identity + group key. `group=None` ⇒ §7.5.4 fail-closed (deliver=false).
-            self.data_plane = Some(DataPlane::new(
+            self.data_plane = Some(r2_dataplane::DataPlane::new(
                 self.self_hive_id,
                 self.tg_hash,
                 0, // boot_epoch: session-constant in the sim (H9 keepalive freshness only)
@@ -441,6 +484,53 @@ impl WasmHive {
                 [0u8; 16], // fp_seed: unkeyed-but-sound relay fingerprint (sim; no HWRNG)
             ));
         }
+    }
+
+    /// §3A congestion latch (read-only). Drive it ONLY by ticking: `tick()` feeds
+    /// the core sensor from the bus's REAL queue depth — there is deliberately NO
+    /// setter (hysteresis bypass = outcome-faking; core MUST, task #47).
+    #[wasm_bindgen(js_name = congested)]
+    pub fn congested(&self) -> bool {
+        self.data_plane.as_ref().map(|d| d.is_congested()).unwrap_or(false)
+    }
+
+    /// §3A.2 relay back-off jitter (ms) for a relay egress on `transport` (ord per
+    /// TransportKind) with the CURRENT congestion state applied internally — the
+    /// damper that actually bites on broadcast media (core refute findings 1+2):
+    /// when congested the doubled range is drawn (e.g. LoRa 200–1000 ms).
+    #[wasm_bindgen(js_name = relayBackoffMs)]
+    pub fn relay_backoff_ms(&mut self, transport: u8) -> u32 {
+        self.ensure_data_plane();
+        self.data_plane
+            .as_mut()
+            .unwrap()
+            .relay_backoff_ms(kind_from_u8(transport))
+    }
+
+    /// R2-LORA §4: current airtime balance (ms).
+    #[wasm_bindgen(js_name = airtimeTokensMs)]
+    pub fn airtime_tokens_ms(&self) -> u32 {
+        self.airtime.tokens_ms()
+    }
+
+    /// R2-LORA §4.2: the duty-cycle refill (ms airtime per second) currently in
+    /// force — recomputed each `tick` from the REAL neighbour count (dense ≥5 ⇒ 1%).
+    #[wasm_bindgen(js_name = airtimeRefillMsPerS)]
+    pub fn airtime_refill_ms_per_s(&self) -> u32 {
+        self.airtime_refill_ms_per_s
+    }
+
+    /// Count of LoRa-kind sends the airtime bucket REFUSED (gated out of
+    /// `route_frame` outputs) — the "taking turns" observable.
+    #[wasm_bindgen(js_name = airtimeRefusals)]
+    pub fn airtime_refusals(&self) -> u32 {
+        self.airtime_refusals
+    }
+
+    #[wasm_bindgen(js_name = handleRx)]
+    pub fn handle_rx(&mut self, frame: &[u8], rssi_dbm: i32, ingress_phy: u8, now_ms: f64) -> String {
+        use r2_dataplane::{handle_rx_frame, Frame, FrameInfo};
+        self.ensure_data_plane();
         let dp = self.data_plane.as_mut().unwrap();
         let info = FrameInfo {
             rssi_dbm: rssi_dbm as i16,
@@ -771,6 +861,27 @@ impl WasmHive {
     pub fn tick(&mut self, seq: u32) -> String {
         self.bus
             .enqueue(QueuedEvent::new(TICK_HASH, 0xFF, false, seq as u16, &[]));
+        // §3A honest-theatre drive (task #47): feed the core congestion sensor the
+        // bus's REAL entry backlog vs its REAL capacity — measured HERE, never
+        // JS-supplied, so the input itself cannot be outcome-faked (the sensor's
+        // local-authority-only rule taken literally). Entry backlog = what arrived
+        // since the last tick and is still waiting — the honest pressure signal.
+        self.ensure_data_plane();
+        let depth = self.bus.queue_depth() as u32;
+        let cap = self.bus.queue_capacity() as u32;
+        let _ = self
+            .data_plane
+            .as_mut()
+            .unwrap()
+            .observe_queue_occupancy(depth, cap);
+        // R2-LORA §4.2: recompute the duty refill from the REAL neighbour count
+        // (density changes the legal budget; dense ≥5 ⇒ 1%).
+        let refill =
+            r2_transport::lora_airtime::duty_cycle_refill(self.engine.neighbours().len());
+        if refill != self.airtime_refill_ms_per_s {
+            self.airtime.set_refill_rate(refill);
+            self.airtime_refill_ms_per_s = refill;
+        }
         self.run_bus_cycle()
     }
 
@@ -780,6 +891,26 @@ impl WasmHive {
     /// relay/transport layer. Returns JSON `{"frames":[…]}` = any frames this node
     /// then broadcasts (notably the OTA `r2.update.progress` events the bench renders).
     #[wasm_bindgen]
+    /// Enqueue an inbound app event WITHOUT draining — models arrivals BETWEEN
+    /// ticks, which is what a real io_task sees (deliver_event's drain-per-call is
+    /// the sim artifact, not the honest part). This is the carpark scene's burst
+    /// surface: queue real arrivals, then `tick()` observes the REAL backlog and
+    /// the §3A latch trips (or not) through core's hysteresis alone — no setter
+    /// exists. Returns the queue depth after the enqueue (true backlog telemetry).
+    #[wasm_bindgen(js_name = deliverEventQueued)]
+    pub fn deliver_event_queued(&mut self, frame: &[u8]) -> u32 {
+        if let Ok(m) = r2_wire::extended::decode_extended(frame) {
+            self.bus.enqueue(QueuedEvent::new(
+                m.header.event_hash,
+                0xFF,
+                true,
+                m.header.msg_id as u16,
+                m.payload,
+            ));
+        }
+        self.bus.queue_depth() as u32
+    }
+
     pub fn deliver_event(&mut self, frame: &[u8]) -> String {
         if let Ok(m) = r2_wire::extended::decode_extended(frame) {
             self.bus.enqueue(QueuedEvent::new(
@@ -1491,6 +1622,60 @@ mod tests {
         assert!(
             after == "[]" || after.contains("\"viable\":false"),
             "peer must fade below the floor (evicted or non-viable), got {after}"
+        );
+    }
+
+    /// §3A carpark falsifiers (task #47): the latch trips only on a REAL bus
+    /// backlog crossing 75% of the REAL capacity (32 ⇒ ≥25 events), and clears
+    /// only when a tick observes the drained queue below 50% — core's hysteresis,
+    /// driven internally, with no JS setter to fake either edge.
+    #[test]
+    fn congestion_latch_trips_on_real_backlog_and_clears_on_drain() {
+        let mut hive = WasmHive::new(0x0000_0C0C);
+        assert!(!hive.congested(), "fresh hive uncongested");
+        // Burst 26 real events into the bus (queued arrivals BETWEEN ticks — the
+        // honest between-cycle pressure; deliver_event would drain per call).
+        let mut depth = 0;
+        for i in 0..26u32 {
+            let f = ext_frame(0x0000_0EEE, 0x0000_0C0C, 5, 3, 0x4000 + i);
+            depth = hive.deliver_event_queued(&f);
+        }
+        assert!(depth >= 25, "burst must genuinely fill the queue, got {depth}");
+        let _ = hive.tick(1); // entry backlog ≥25/32 > 75% ⇒ latch trips, then drains
+        assert!(hive.congested(), "latch must trip on the real >75% backlog");
+        let _ = hive.tick(2); // entry backlog ≈1/32 < 50% ⇒ hysteresis clears
+        assert!(!hive.congested(), "latch must clear once the queue drains below 50%");
+    }
+
+    /// R2-LORA §4 carpark falsifier (task #47): LoRa sends pay REAL SF12 time-on-air
+    /// from the FULL 3.6 s burst budget; once spent (no refill at a frozen clock),
+    /// further sends are REFUSED — gated out of sends[] and counted. The delivery
+    /// ratio under airtime pressure is real, not annotated.
+    #[test]
+    fn airtime_bucket_gates_lora_sends_after_burst_budget() {
+        let mut hive = WasmHive::new(0x0000_0A11);
+        // Seed a LoRa neighbour (arrival kind 2 = Transport::Lora) so floods egress on LoRa.
+        let seed = ext_frame(0x0000_0BBB, 0, 5, 3, 0x5000);
+        let _ = hive.route_frame(0x0000_0BBB, 2, &seed, 100, 0.5);
+        // Flood frames from a second origin at a FROZEN clock: each LoRa send pays
+        // SF12/BW125 ToA (~1.2–2.5 s) from the 3600 ms burst; the budget dies fast.
+        let mut refused_seen = false;
+        for i in 0..6u32 {
+            let f = ext_frame(0x0000_0DDD, 0, 5, 3, 0x6000 + i);
+            let out = hive.route_frame(0x0000_0EE0 + i, 2, &f, 100, 0.5);
+            if !out.contains("\"airtime_refused\":0") {
+                refused_seen = true;
+                assert!(
+                    out.contains("\"sends\":[]"),
+                    "a refused LoRa send must be GATED OUT of sends, not annotated: {out}"
+                );
+            }
+        }
+        assert!(refused_seen, "the 3.6 s burst budget must exhaust within 6 SF12 floods");
+        assert!(hive.airtime_refusals() > 0, "refusals must be counted");
+        assert!(
+            hive.airtime_tokens_ms() < r2_transport::lora_airtime::AirtimeBucket::MAX_TOKENS_MS,
+            "tokens must have been spent"
         );
     }
 

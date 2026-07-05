@@ -148,6 +148,9 @@ pub fn route_inbound_sync(
     frame: &[u8],
     now: u32,
     dice_roll: f32,
+    // §3A: the caller's REAL congestion latch (drive it only through the core sensor —
+    // DataPlane::observe_queue_occupancy; local authority only, never a wire field).
+    congested: bool,
     reinforcer: &mut TrailReinforcer<256>,
 ) -> SyncRouteOutcome {
     // Parse R2-WIRE extended (frame may carry a trailing 32-byte HMAC tag).
@@ -227,7 +230,7 @@ pub fn route_inbound_sync(
         // which would wrongly OversizeBroadcast-drop a broadcast whose payload is under BROADCAST_PAYLOAD_MAX=512).
         payload_len: msg.payload.len(),
         relay_enabled: true,
-        congested: false,
+        congested,
         dice_roll,
     });
 
@@ -420,7 +423,7 @@ mod tests {
         let stub = StubTransport::new(TransportKind::Wifi, vec![]);
         let mut r = TrailReinforcer::<256>::new();
         let out = route_inbound_sync(
-            &mut engine, 0xCAFE, &[&stub], 0xBEEF, TransportKind::Wifi, b"nope", 1, 0.0, &mut r,
+            &mut engine, 0xCAFE, &[&stub], 0xBEEF, TransportKind::Wifi, b"nope", 1, 0.0, false, &mut r,
         );
         assert_eq!(out, SyncRouteOutcome::NotR2Wire);
     }
@@ -445,7 +448,7 @@ mod tests {
         let mut r = TrailReinforcer::<256>::new();
         let out = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&stub], source, TransportKind::Wifi, &frame, 200, 0.5,
-            &mut r,
+            false, &mut r,
         );
         // The engine reached a relay decision and the frame went to `target` over
         // the matching sync transport (the whole point of the host-loop wiring).
@@ -491,7 +494,7 @@ mod tests {
         let mut r = TrailReinforcer::<256>::new();
         let out = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&wifi, &lora], source, TransportKind::Wifi, &frame, 200, 0.5,
-            &mut r,
+            false, &mut r,
         );
 
         assert!(
@@ -533,7 +536,7 @@ mod tests {
         let mut r = TrailReinforcer::<256>::new();
         let out = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&wifi, &lora], source, TransportKind::Wifi, &frame, 200, 0.5,
-            &mut r,
+            false, &mut r,
         );
 
         assert_eq!(out, SyncRouteOutcome::Dropped);
@@ -569,7 +572,7 @@ mod tests {
 
         let out1 = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&stub], sender, TransportKind::Wifi, &frame, 100, 0.5,
-            &mut r,
+            false, &mut r,
         );
         assert_ne!(out1, SyncRouteOutcome::Dropped, "first copy must be accepted");
         let c1 = engine
@@ -581,7 +584,7 @@ mod tests {
         // Same (origin,msg_id) again — the replayed copy must dedup-drop and NOT re-reinforce.
         let out2 = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&stub], sender, TransportKind::Wifi, &frame, 101, 0.5,
-            &mut r,
+            false, &mut r,
         );
         assert_eq!(out2, SyncRouteOutcome::Dropped, "duplicate must dedup-drop");
         let c2 = engine
@@ -620,7 +623,7 @@ mod tests {
         let req = ext_frame(origin, 0, 5, 3, req_id);
         let out = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&stub], upstream, TransportKind::Wifi, &req, 100, 0.5,
-            &mut r,
+            false, &mut r,
         );
         assert!(
             matches!(out, SyncRouteOutcome::Flooded { sent } if sent > 0),
@@ -668,7 +671,7 @@ mod tests {
 
         let _ = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&stub], downstream, TransportKind::Wifi, &buf, 110, 0.5,
-            &mut r,
+            false, &mut r,
         );
 
         // Strong trail: best path toward the REPLIER goes via the reply's sender.
@@ -694,7 +697,7 @@ mod tests {
 
         let _ = route_inbound_sync(
             &mut engine, 0x0000_00FF, &[&stub], sender, TransportKind::Wifi, &frame, 100, 0.5,
-            &mut r,
+            false, &mut r,
         );
 
         let toward_origin = engine.paths().best_for(origin);
