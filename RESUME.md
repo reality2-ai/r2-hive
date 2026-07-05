@@ -1,5 +1,14 @@
 # RESUME — r2-hive (hive-worker)
 
+## 📜 GATEWAY SPEC v0.5 LANDED (specs 375f0d0 — the promote_after_ms pin) + CODEC ADOPTED SAME-DAY (fw c0bd522)
+- The §5.1.1 promotion trigger my #34 build question surfaced is canon: slot-0x01 layout = `[slot][promote_after_ms
+  u32 LE — NEXT only][ad_bytes]`; relative countdown on local monotonic clock; expiry promotes atomically (zero boundary
+  bridge traffic); 0 = stage-only; slot-0 overrides anytime; promotion consumes the slot; never-zero-beacons throughout.
+  **My inc4 interim (current-slot + stage-only 0x01) is blessed CONFORMANT-DEGRADED in the spec text itself.**
+- **r2-hw codec adopted the layout same-day** (c0bd522, pushed): typed `BeaconAd::Current / ::Next{promote_after_ms, ad}`;
+  NEXT without the full 4-byte countdown = Malformed (never partial). Wire-safe break — no shipped emitter existed, and
+  the fw dispatch ACKs BEACON_AD unparsed until inc4. 15/15 + no_std + radiofrontend xtensa green.
+
 ## 🌿 RAK BRANCH ESTABLISHED (core ruled: BRANCH MODEL — dfr1195-fw precedent; I am sole writer of rak4630-fw)
 - **rak4630-fw branched @ 5100933** (core's pinout-VERIFIED commit, tip of its r2-core-consolidation line) + PUSHED;
   worktree `/home/roycdavies/Development/R2/rak4630-fw-wt`. **Baseline build GREEN in my worktree** (43.6 KiB flash
