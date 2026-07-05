@@ -1,5 +1,14 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🅿️ CARPARK THEATRE BINDING = task #47 (designed + grounded, objections window open; build next block)
+- Composer's §3A congestion + R2-LORA §4 airtime scene ask, core-blessed seam. Shape sent (one step MORE honest than
+  asked): tick() drives the DataPlane sensor INTERNALLY from real bus depth (zero JS-supplied numbers — needs core's
+  EventBus depth getter, asked, same-hour offer); congested() getter; route_inbound_sync grows `congested: bool`
+  (replacing the hardcoded false); relayBackoffMs exposed (core's refute: THE bite on broadcast media). Airtime:
+  real bucket from real neighbour count, LoRa sends pay real ToA (as923_nz params) inside route_frame, refused sends
+  GATED OUT of sends[] + counted. NO setCongested. **Semantics flag raised: GROUP_MGMT does NOT bypass airtime
+  (regulatory) unlike the §3A damper (F3 never-damped) — spec question if contested.** Full ground truth in task #47.
+
 ## 🧩 buildReplyFrame SHIPPED (wasm 0.6.3, 29c6013 — composer's C2b ask, same-hour)
 - Composer found the real gap in my 0.6.2 emit set: no wasm method emitted a **Reply-TYPE** frame, and the is_reply
   anti-spoof gate (by design) grants only weak evidence to marker-in-Event — its 0.265→0.302 weak bump was the designed
