@@ -1,8 +1,52 @@
-//! Router — R2-WIRE header parsing and route-engine-driven forwarding.
+//! # Router — the Linux daemon's single inbound-frame decision point
 //!
-//! Parses incoming R2-WIRE extended frames (header only, not payload),
-//! feeds observations into the RouteEngine, and executes forwarding
-//! decisions via the transport's PeerMap.
+//! ## Why this file exists
+//! Every R2-WIRE frame that reaches this hive — over UDP/Internet, BLE, LoRa
+//! (after transcode), an injected USB-serial frame, or the WebSocket compat
+//! path — must answer the same three questions, in the same order, exactly
+//! once: (1) is it well-formed and who originated it? (2) may it be DELIVERED
+//! locally (the trust gate)? (3) should it be RELAYED onward, and to whom (the
+//! routing decision)? This file is that single choke point. It exists so the
+//! five transport ingest paths cannot drift apart on security or routing
+//! behaviour — they all funnel into [`route_frame`], and everything
+//! transport- or trust-group-specific stays OUTSIDE, layered by the caller on
+//! the returned [`RouteOutcome`].
+//!
+//! ## How it interlinks with the rest of the code
+//! **Called by** (grep-verified):
+//! - `main.rs` UDP inbound (~:637, `Transport::Internet`), BLE inbound
+//!   (~:724, `Transport::Ble`), LoRa inbound (~:852, after compact→extended
+//!   transcode), and the USB-serial inject path (~:1162) — all discard the
+//!   outcome (no enrichment context on those tiers).
+//! - `compat/handshake.rs` (~:94) — the WebSocket path, which DOES consume
+//!   the outcome: `NotR2Wire` → legacy 0xFF join broadcast fallback;
+//!   `Flooded(hops)` → `HiveState::flood_tg_peers_not_in` intra-TG enrichment.
+//! - `main.rs` (~:394) spawns [`maintenance_loop`] once at startup.
+//!
+//! **Calls into**:
+//! - `r2_route::engine::RouteEngine` (via `HiveState.route_engine`) —
+//!   observation ingest, `plan_forward`, decay (the L3 brain; canon:
+//!   R2-ROUTE).
+//! - `r2_wire` — `decode_extended` (parse), `prepare_relay_extended` (the
+//!   §8.3/§8.4/§9.2 relay mutation: TTL−1, K split, route-stack append),
+//!   `classify_extended_full` (the §7.5.4 trust classify).
+//! - `crate::hive::HiveState` — `deliver_inbound` (local dispatch + mgmt-API
+//!   fan-out), `deny_inbound` (the §3.2.1 structured deny event),
+//!   `send_to_hive_via` (multi-transport egress with fallback), and the
+//!   ensemble `DispatchTarget` for DeliverOnly frames.
+//!
+//! ## Canon (r2-specifications)
+//! - `specs/r2-core/R2-WIRE.md` — frame format + §8.2 (msg_id,origin) dedup,
+//!   §8.3/§8.4 relay mutation, §9.2 route-stack append (a MUST), §9.5/§9.6
+//!   ROUTE-ORIGIN-1 (route-less frames are dropped, origins are never
+//!   synthesised).
+//! - `specs/r2-core/R2-ROUTE.md` — the forwarding model this file executes:
+//!   observation → confidence → Directed/Flood/DeliverOnly/Drop (§3/§4), and
+//!   §3A congestion (see the `congested` note in [`route_frame`]).
+//! - `specs/r2-core/R2-TRUST.md` §7.5.4 — the deliver gate: verified-only
+//!   local delivery, fail-closed keyless posture, trust-agnostic relay.
+//! - `specs/r2-core/R2-HOST-API.md` §3.2.1 — `r2.api.event.delivery.denied`,
+//!   the real observable red this file emits on every local reject.
 //!
 //! **Layering (R2-INTRO trust boundary, R2-ROUTE §1.1):** routing operates at
 //! L3, below the trust boundary. There are two distinct cases:
@@ -81,6 +125,10 @@ use crate::hive::HiveState;
 
 /// What the router did with a frame, returned so callers can add their own
 /// transport-specific or trust-group-specific behaviour on top.
+///
+/// **Used by:** `compat/handshake.rs` (the only consumer that branches on it:
+/// `NotR2Wire` → legacy join broadcast, `Flooded` → intra-TG flood
+/// enrichment); the UDP/BLE/LoRa/USB callers in `main.rs` discard it.
 pub enum RouteOutcome {
     /// Frame did not parse as R2-WIRE. The caller decides what to do
     /// (e.g. WS handshake handler falls back to legacy broadcast for 0xFF
@@ -98,14 +146,23 @@ pub enum RouteOutcome {
     Flooded(Vec<DirectedHop>),
 }
 
-/// Route an inbound frame: parse R2-WIRE header, feed the route engine,
-/// execute the forwarding decision via `state.send_to_hive` (which uses the
-/// multi-transport fallback chain).
+/// **Purpose:** the one inbound pipeline every received frame runs, exactly
+/// once, regardless of arrival transport: parse + ROUTE-ORIGIN-1 origin check
+/// → neighbour observation ingest → §7.5.4 deliver gate (verified local
+/// delivery or a structured deny) → engine `plan_forward` → execute the
+/// decision (deliver to ensembles / directed relay / flood / drop) with the
+/// §8.3 relay mutation applied per copy.
 ///
-/// This function is **trust-agnostic** — it does not consult or require any
-/// trust group context. Callers that have trust group context (e.g. the
-/// WebSocket handshake handler) may use the returned `RouteOutcome` to add
-/// trust-group-specific fallbacks.
+/// **Dependencies:** `HiveState` (route engine lock, group keys, deliver/deny
+/// fan-out, multi-transport egress), `r2_wire` codec + classify, and the
+/// caller-supplied `source_hive` (0 = unknown; falls back to the route
+/// stack's last entry per R2-WIRE §8.3) and arrival `transport` (feeds the
+/// observation, so the engine learns which medium heard this peer).
+///
+/// **Used by:** all five ingest paths — UDP, BLE, LoRa, USB-serial inject
+/// (`main.rs`), and the WS compat handshake — see the module head for the
+/// exact sites. Trust-agnostic BY CONTRACT: callers holding TG context layer
+/// enrichment on the returned [`RouteOutcome`]; this function never asks.
 pub async fn route_frame(
     state: &Arc<HiveState>,
     source_hive: u32,
@@ -162,7 +219,7 @@ pub async fn route_frame(
         }
     };
 
-    let now_secs = now_monotonic();
+    let now_secs = now_unix_secs();
 
     // Feed observation to route engine — based on the IMMEDIATE source (the
     // peer we just heard from), not the originator. The engine learns about
@@ -311,6 +368,13 @@ pub async fn route_frame(
         msg_type: header.msg_type,
         payload_len: frame.len(),
         relay_enabled: true,
+        // §3A SEAM (known inconsistency, tracked in the hive ledger): this tier has no
+        // congestion sensor wired yet, so the latch is constantly false and the §3A.2
+        // response (K-halving + doubled relay jitter) can never fire on the Linux
+        // daemon. The wasm hive (WasmHive::tick → DataPlane::observe_queue_occupancy)
+        // and the MCU firmware are the reference implementations; wiring the daemon
+        // needs a REAL local queue-depth signal (never a wire-carried value — the
+        // sensor is local-authority-only, R2-ROUTE §3A.1).
         congested: false,
         dice_roll: pseudo_random(),
     };
@@ -430,9 +494,17 @@ pub async fn route_frame(
     }
 }
 
-/// Reinforce the route engine after a successful outbound delivery: update the
-/// neighbour table for the transport that worked (feeds the EWMA used by
-/// `best_transport()`), and mark the path to that neighbour as positive.
+/// **Purpose:** close the routing feedback loop after a send is ACCEPTED by a
+/// transport: a fresh high-quality observation for the neighbour on the
+/// transport that actually worked (feeds the EWMA behind `best_transport()`)
+/// plus `record_delivery_success` (canon: R2-ROUTE §4 — used-path-wins).
+///
+/// **Dependencies:** the engine lock; call ONLY after `send_to_hive_via`
+/// returns `Some` (an accepted send — acceptance is not end-to-end delivery,
+/// which is the strongest signal this tier has without acks).
+///
+/// **Used by:** the `Directed` and `Flood` arms of [`route_frame`] — nowhere
+/// else; outbound paths that bypass the router do not reinforce.
 async fn reinforce_delivery(
     state: &Arc<HiveState>,
     neighbour: u32,
@@ -452,7 +524,14 @@ async fn reinforce_delivery(
     engine.record_delivery_success(neighbour, neighbour, now_secs);
 }
 
-/// Log route engine neighbour table state.
+/// **Purpose:** dump the live neighbour table (id, confidence, transports,
+/// staleness, sample count) to the log — the operator's view of what the
+/// engine has learned; the daemon-side sibling of the firmware's `rt.nbr`
+/// telemetry (R2-DIAGNOSTICS shapes them for dashboards; this is log-only).
+///
+/// **Dependencies:** read-lock on the engine. **Used by:**
+/// [`maintenance_loop`] every 30 s; `pub` so an operator surface could call
+/// it on demand (none does today — grep-verified).
 pub async fn log_neighbours(state: &Arc<HiveState>) {
     let engine = state.route_engine.lock().await;
     let table = engine.neighbours();
@@ -463,19 +542,26 @@ pub async fn log_neighbours(state: &Arc<HiveState>) {
             log::info!(
                 "  hive=0x{:08X} conf={:.3} transports={:?} last_seen={}s ago samples={}",
                 entry.hive_id, entry.confidence,
-                entry.transports, now_monotonic().saturating_sub(entry.last_seen),
+                entry.transports, now_unix_secs().saturating_sub(entry.last_seen),
                 entry.sample_count
             );
         }
     }
 }
 
-/// Periodic route engine maintenance (decay + logging).
+/// **Purpose:** the engine's heartbeat-independent housekeeping: every 30 s
+/// decay neighbour confidence and path entries (canon: R2-ROUTE §4 fade —
+/// silence must cost confidence or dead peers route forever) and log the
+/// table. Without this loop the engine only updates on traffic, so an idle
+/// mesh would never forget anything.
+///
+/// **Dependencies:** engine lock (briefly, inside the tick). **Used by:**
+/// spawned once as a detached tokio task in `main.rs` (~:394); never returns.
 pub async fn maintenance_loop(state: Arc<HiveState>) {
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
     loop {
         interval.tick().await;
-        let now = now_monotonic();
+        let now = now_unix_secs();
         {
             let mut engine = state.route_engine.lock().await;
             engine.decay_neighbours(now);
@@ -485,13 +571,35 @@ pub async fn maintenance_loop(state: Arc<HiveState>) {
     }
 }
 
-fn now_monotonic() -> u32 {
+/// **Purpose:** the router's time base — whole seconds for engine timestamps
+/// (observations, decay, `last_seen` ages).
+///
+/// FIX (2026-07-06 doc audit): renamed from `now_monotonic` — a MISNOMER: this
+/// is UNIX WALL-CLOCK time, which can step (NTP), not a monotonic clock. The
+/// engine's decay math tolerates forward jumps (entries age faster once) and
+/// clamps backward ones via saturating subtraction, but callers must not
+/// assume monotonicity. A true-monotonic base (Instant anchored at startup)
+/// is the right future fix if step-sensitivity ever bites.
+///
+/// **Dependencies:** system clock. **Used by:** [`route_frame`] (observation +
+/// request timestamps), [`reinforce_delivery`], [`log_neighbours`] (age
+/// display), [`maintenance_loop`] (decay clock) — this file only.
+fn now_unix_secs() -> u32 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs() as u32
 }
 
+/// **Purpose:** the spray dice roll for `ForwardRequest.dice_roll` — the
+/// engine compares it against per-hop forwarding probability (R2-ROUTE §3
+/// spray-and-wait). Sub-second nanos give a cheap uniform-ish [0,1) draw.
+///
+/// DELIBERATELY weak entropy: this dice gates only relay fan-out economics,
+/// never security (the deliver gate is cryptographic; dedup is
+/// origin-bound). Do not reuse it for anything security-relevant.
+///
+/// **Dependencies:** system clock. **Used by:** [`route_frame`] only.
 fn pseudo_random() -> f32 {
     let t = SystemTime::now()
         .duration_since(UNIX_EPOCH)
