@@ -1,4 +1,66 @@
-//! Hive state — the core state object owning transports and routing.
+//! # HiveState — the Linux daemon's shared state hub
+//!
+//! ## Why this file exists
+//!
+//! Every long-lived subsystem of the daemon — the inbound frame router, the
+//! legacy browser-WebSocket compat layer, the management API, the web-plugin
+//! surface, the USB peripheral watcher — needs the same set of shared
+//! objects: the transports, the route engine, the trust-group keys, the
+//! mgmt-API subscriber list. This file defines [`HiveState`], the single
+//! `Arc`-shared object that owns all of them. The rule it enforces: state
+//! visible to more than one task lives HERE, under one locking discipline;
+//! state private to one subsystem stays in that subsystem. Without this hub,
+//! each transport task would need bespoke plumbing to every consumer and the
+//! locking would drift per-path.
+//!
+//! ## How it interlinks (grep-verified)
+//!
+//! - Constructed once in `main.rs` (`HiveState::new`) and cloned as
+//!   `Arc<HiveState>` into every spawned task and axum route.
+//! - `router.rs` — the daemon's single inbound decision point — consumes
+//!   [`HiveState::deliver_inbound`] (local dispatch fan-out),
+//!   [`HiveState::deny_inbound`] (the structured §3.2.1 deny event),
+//!   [`HiveState::send_to_hive_via`] (multi-transport egress with fallback),
+//!   the `group_hmacs` / `deliver_unkeyed_open` deliver-gate inputs, and the
+//!   `route_engine` lock.
+//! - `compat/handshake.rs` (legacy browser protocol) uses the TG-compat
+//!   surface: `register_tg_peer` / `unregister_tg_peer` / `broadcast_to_tg` /
+//!   `buffer_frame` / `catchup_frames` / `tg_peer_count` / `buffer_oldest` /
+//!   `resolve_tg_hash` / `flood_tg_peers_not_in`, plus the shared
+//!   `hex_encode` / `hex_decode` helpers.
+//! - `mgmt/socket.rs` + `mgmt/ws.rs` register/unregister mgmt subscribers;
+//!   `mgmt/primitive.rs` reads `active_tg` and sends via `send_to_hive_via` /
+//!   `broadcast_to_tg`; `mgmt/transport_policy.rs` drives the egress-mask
+//!   lease; `mgmt/usb.rs` drives `usb_handle`; `mgmt/ensemble.rs` emits
+//!   sentant output through `deliver_inbound` / `send_to_hive` /
+//!   `broadcast_to_tg`.
+//! - `web.rs`, `mgmt/ws.rs` and `mgmt/api.rs` gate browser-facing surfaces
+//!   on [`HiveState::web_auth`] / [`HiveState::web_dev_mode`].
+//! - `HiveState` implements [`crate::transport_seam::HiveTransports`]
+//!   (trait defined in `r2-hive-core`) — the seam that lets the
+//!   platform-independent forwarding core run unchanged on Linux, MCU and
+//!   wasm hosts.
+//!
+//! ## Canon (r2-specifications)
+//!
+//! - R2-TRUST §2.2–2.3 (TG identity/roles), §7.5.4 (inbound deliver-gate),
+//!   §13.2 (single active hive) — `r2-specifications/specs/r2-core/R2-TRUST.md`.
+//! - R2-HOST-API §3.2 (`event.delivery`), §3.2.1 (`event.delivery.denied`),
+//!   §6.2 (mgmt error frames) — `r2-specifications/specs/r2-core/R2-HOST-API.md`.
+//! - R2-WIRE §4.3.5 (extended↔compact transcoding at transport boundaries),
+//!   §6.2.1 (per-TG hive identifiers) — `r2-specifications/specs/r2-core/R2-WIRE.md`.
+//! - R2-USB §3.5 (dongle byte stream), Appendix A (transport-kind
+//!   enumeration) — `r2-specifications/specs/r2-core/R2-USB.md`.
+//! - R2-KEYSTORE §4 (sealed key custody — the production posture for
+//!   `group_hmacs`) — `r2-specifications/specs/r2-core/R2-KEYSTORE.md`.
+//! - R2-TRANSPORT §2.2 (the 7-transport canon) —
+//!   `r2-specifications/specs/r2-core/R2-TRANSPORT.md`.
+//!
+//! **Known inconsistency (tracked):** comments in this crate also cite
+//! "R2-HIVE §…". No R2-HIVE spec exists in r2-specifications (its
+//! `r2-specifications/specs/r2-core/README.md` states this explicitly) — those citations are
+//! daemon-local design lineage, not canon. They are kept for traceability
+//! until a host-daemon spec is ratified; do not treat them as normative.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -27,16 +89,26 @@ use r2_ensemble::EnsembleRegistry;
 /// state and the channel used to push unsolicited notifications
 /// (`r2.api.event.delivery`, `r2.mgmt.event.error` for backpressure) back
 /// to the connection's writer task.
+///
+/// **Used-by:** created in [`HiveState::register_subscriber`] (called from
+/// `mgmt/socket.rs` for UDS connections and `mgmt/ws.rs` for the loopback
+/// mgmt WebSocket); consumed by [`HiveState::deliver_inbound`] and
+/// [`HiveState::deny_inbound`] when fanning notifications out.
 pub struct Subscriber {
     pub id: u64,
     pub subs: Arc<tokio::sync::Mutex<SubscriptionRegistry>>,
     pub tx: mpsc::Sender<Vec<u8>>,
 }
 
-/// Trust group hash: first 8 bytes of SHA-256(TG_PK).
+/// Trust group hash: first 8 bytes of SHA-256(TG_PK) — the on-wire scoping
+/// identifier used by the legacy compat layer (`compat/handshake.rs`) and
+/// the `tg_map` machinery below. Distinct from the u32 WIRE `target_group`
+/// that keys `group_hmacs`.
 pub type TrustGroupHash = [u8; 8];
 
-/// Per-trust-group state for legacy compat routing.
+/// Per-trust-group state for legacy compat routing: which hive_ids are
+/// members (for broadcast fan-out) plus the frame catchup ring buffer.
+/// Only ever touched through the `tg_map` methods on [`HiveState`].
 struct TrustGroupCompat {
     /// Hive IDs of peers in this trust group.
     peers: HashSet<u32>,
@@ -78,6 +150,9 @@ pub enum TgMemberRole {
 
 impl TgMemberRole {
     /// Wire-format value per R2-HOST-API §3.2 (key 2 of `tg.current` response).
+    ///
+    /// **Used-by:** `mgmt/primitive.rs` when encoding the `r2.api.tg.current`
+    /// response payload.
     pub fn wire_value(self) -> u8 {
         match self {
             TgMemberRole::Member => 1,
@@ -88,8 +163,13 @@ impl TgMemberRole {
 
 /// Local management lease for the node-wide transport egress allow mask.
 ///
-/// The routing semantics live in `r2-route::RouteEngine`; this is only local
-/// ACK/state metadata for the management surface.
+/// The routing semantics live in `r2-route::RouteEngine` (the mask itself is
+/// stored there, single-sourced); this is only local ACK/state metadata for
+/// the management surface — who last set the mask, and what core accepted.
+///
+/// **Used-by:** `mgmt/transport_policy.rs` (the `r2.mgmt.transport.*`
+/// handlers) via [`HiveState::set_transport_policy_lease`] /
+/// [`HiveState::transport_policy_snapshot`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransportPolicyLease {
     pub lease_id: u64,
@@ -98,6 +178,10 @@ pub struct TransportPolicyLease {
     pub accepted_mask: u8,
 }
 
+/// Read-only view of the current egress policy, returned by
+/// [`HiveState::transport_policy_snapshot`] and
+/// [`HiveState::clear_transport_policy`] for the mgmt query/clear handlers
+/// in `mgmt/transport_policy.rs`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransportPolicySnapshot {
     pub effective_mask: u8,
@@ -105,6 +189,10 @@ pub struct TransportPolicySnapshot {
     pub active_lease: Option<TransportPolicyLease>,
 }
 
+/// Acknowledgement returned by [`HiveState::set_transport_policy_lease`]:
+/// echoes what was requested and reports the mask core actually accepted
+/// (core may trim bits it cannot honour). Consumed by
+/// `mgmt/transport_policy.rs` when encoding the set-response.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransportPolicyAck {
     pub requested_mask: u8,
@@ -226,6 +314,19 @@ impl crate::transport_seam::HiveTransports for HiveState {
 }
 
 impl HiveState {
+    /// Construct the daemon's single shared state object.
+    ///
+    /// **Purpose:** initialise every field to its boot posture — no optional
+    /// transports attached, detached from any TG, deliver-gate keys loaded
+    /// (bench env var only; empty otherwise), fail-closed unkeyed posture
+    /// unless `R2_DELIVER_UNKEYED_OPEN` explicitly opts out.
+    ///
+    /// **Dependencies:** [`load_bench_group_hmacs`] (env-gated key load),
+    /// `crate::platform::linux()` (default Platform impl), the
+    /// `R2_DELIVER_UNKEYED_OPEN` env var (R2-TRUST §7.5.4 posture).
+    ///
+    /// **Used-by:** `main.rs` once at startup; unit/integration tests
+    /// construct throwaway instances directly.
     pub fn new(self_hive_id: u32, buffer_size: usize, max_connections: usize) -> Self {
         HiveState {
             self_hive_id,
@@ -263,55 +364,78 @@ impl HiveState {
         }
     }
 
-    /// Install the web-plugin browser-auth registry. Called from main
-    /// after the master secret is loaded.
+    /// Install the web-plugin browser-auth registry (R2-PLUGIN §13.5).
+    ///
+    /// **Used-by:** `main.rs` after the master secret is loaded (auth key is
+    /// derived from it); `mgmt/ws.rs` tests install throwaway keys.
     pub fn set_web_auth(&self, auth: Arc<crate::web_auth::WebAuth>) {
         *self.web_auth.write().expect("web_auth lock") = Some(auth);
     }
 
-    /// Borrow the auth registry, if installed.
+    /// Borrow the auth registry, if installed. `None` means browser-facing
+    /// surfaces must fail closed (unless [`Self::web_dev_mode`] is on).
+    ///
+    /// **Used-by:** `web.rs` (asset + provisioning gates), `mgmt/api.rs`
+    /// (provision handler), `mgmt/ws.rs` (`authorize_upgrade`).
     pub fn web_auth(&self) -> Option<Arc<crate::web_auth::WebAuth>> {
         self.web_auth.read().expect("web_auth lock").clone()
     }
 
-    /// Enable or disable the explicit web development bypass.
+    /// Enable or disable the explicit web development bypass (DEV ONLY —
+    /// production installs [`Self::set_web_auth`] instead).
+    ///
+    /// **Used-by:** `main.rs` when `--web-dev-mode` is passed.
     pub fn set_web_dev_mode(&self, enabled: bool) {
         self.web_dev_mode.store(enabled, Ordering::Relaxed);
     }
 
     /// Returns true only when the operator explicitly enabled the web
     /// development bypass.
+    ///
+    /// **Used-by:** `web.rs` when deciding whether an unauthenticated asset
+    /// request may still be served.
     pub fn web_dev_mode(&self) -> bool {
         self.web_dev_mode.load(Ordering::Relaxed)
     }
 
-    /// Install the USB peripheral bring-up handle. Called from main
-    /// after [`spawn_usb_watcher`] returns. Until set, the
+    /// Install the USB peripheral bring-up handle. Until set, the
     /// `r2.mgmt.usb.*` event surface returns `usb_disabled`.
+    ///
+    /// **Used-by:** `main.rs` after `spawn_usb_watcher` returns (unless
+    /// `--no-usb`).
     #[cfg(target_os = "linux")]
     pub fn set_usb_handle(&self, h: crate::usb_hotplug::UsbBringupHandle) {
         *self.usb_handle.write().expect("usb_handle lock") = Some(h);
     }
 
     /// Cheap clone of the USB handle, if installed.
+    ///
+    /// **Used-by:** `mgmt/usb.rs` (every `r2.mgmt.usb.*` handler) and
+    /// [`Self::try_send_via_dongle`] (egress via a paired dongle).
     #[cfg(target_os = "linux")]
     pub fn usb_handle(&self) -> Option<crate::usb_hotplug::UsbBringupHandle> {
         self.usb_handle.read().expect("usb_handle lock").clone()
     }
 
-    /// Set the UDP transport (called when --lan is enabled).
+    /// Set the UDP transport.
+    ///
+    /// **Used-by:** `main.rs::start_lan_discovery` when `--lan` is enabled.
     #[cfg(feature = "transport-udp")]
     pub async fn set_udp_transport(&self, udp: Arc<UdpLanTransport>) {
         *self.udp_transport.write().await = Some(udp);
     }
 
-    /// Set the BLE transport (called when --ble is enabled).
+    /// Set the BLE transport.
+    ///
+    /// **Used-by:** `main.rs::start_ble` when `--ble` is enabled.
     #[cfg(feature = "transport-ble")]
     pub async fn set_ble_transport(&self, ble: Arc<BleTransport>) {
         *self.ble_transport.write().await = Some(ble);
     }
 
-    /// Set the LoRa transport (called when --lora is enabled).
+    /// Set the LoRa transport.
+    ///
+    /// **Used-by:** `main.rs::start_lora` when `--lora` is enabled.
     #[cfg(feature = "transport-lora")]
     pub async fn set_lora_transport(&self, lora: Arc<LoraTransport>) {
         *self.lora_transport.write().await = Some(lora);
@@ -319,6 +443,9 @@ impl HiveState {
 
     /// Snapshot of the currently-attached trust group, if any.
     /// Returns a clone so callers don't hold a read lock across awaits.
+    ///
+    /// **Used-by:** `mgmt/primitive.rs` (`r2.api.tg.current` and the
+    /// TG-scoped `event.send` broadcast path).
     pub async fn active_tg(&self) -> Option<ActiveTg> {
         self.active_tg.read().await.clone()
     }
@@ -327,16 +454,19 @@ impl HiveState {
     /// v0.1: there is no enforcement of R2-TRUST §13.2 single-active-hive
     /// at this method; the caller is expected to stop the previous
     /// attachment before swapping. Phase 2 supervisor will gate this.
+    ///
+    /// **Used-by:** no production caller yet — the TG create/join flow that
+    /// writes this is future work; `tests/mgmt_integration.rs` uses it to
+    /// stage an attached-TG scenario. (Its former `clear_active_tg`
+    /// counterpart had zero callers and was removed; detach lands with the
+    /// TG lifecycle flow.)
     pub async fn set_active_tg(&self, tg: ActiveTg) {
         *self.active_tg.write().await = Some(tg);
     }
 
-    /// Detach from the current trust group, if any.
-    pub async fn clear_active_tg(&self) {
-        *self.active_tg.write().await = None;
-    }
-
     /// Snapshot the local transport egress allow policy.
+    ///
+    /// **Used-by:** `mgmt/transport_policy.rs` (query handler + tests).
     pub async fn transport_policy_snapshot(&self) -> TransportPolicySnapshot {
         let effective_mask = self.route_engine.lock().await.transport_allow_mask().bits();
         let active_lease = self.transport_policy_lease.read().await.clone();
@@ -348,7 +478,10 @@ impl HiveState {
     }
 
     /// Install/refresh the single local transport-policy lease and ACK the
-    /// canonical mask that core accepted.
+    /// canonical mask that core accepted (core stays the single source of
+    /// truth for the mask itself; this only records lease metadata).
+    ///
+    /// **Used-by:** `mgmt/transport_policy.rs` set handler.
     pub async fn set_transport_policy_lease(
         &self,
         lease_id: u64,
@@ -380,6 +513,8 @@ impl HiveState {
 
     /// Clear the current local transport-policy lease and restore the canonical
     /// default all-on mask.
+    ///
+    /// **Used-by:** `mgmt/transport_policy.rs` clear handler.
     pub async fn clear_transport_policy(&self) -> TransportPolicySnapshot {
         let effective_mask = self
             .route_engine
@@ -401,6 +536,9 @@ impl HiveState {
     /// one carried in the registered Subscriber, so the connection handler
     /// can mutate the registry (subscribe/unsubscribe handlers do this)
     /// without going back through HiveState.
+    ///
+    /// **Used-by:** `mgmt/socket.rs` (UDS connection open) and `mgmt/ws.rs`
+    /// (loopback mgmt-WebSocket connection open).
     pub async fn register_subscriber(
         &self,
         tx: mpsc::Sender<Vec<u8>>,
@@ -419,13 +557,18 @@ impl HiveState {
     /// silently ignored (the connection handler may call this during
     /// teardown after the registry has already been pruned by
     /// `clear_dead_subscribers`).
+    ///
+    /// **Used-by:** `mgmt/socket.rs` and `mgmt/ws.rs` on connection close.
     pub async fn unregister_subscriber(&self, id: u64) {
         self.subscribers.lock().await.retain(|s| s.id != id);
     }
 
-    /// Deliver an inbound frame to any subscribers whose filter matches.
-    /// Called by the inbound frame paths (UDP/BLE/LoRa receive loops, and
-    /// the route engine's local-delivery decision).
+    /// Deliver an inbound frame to any subscribers whose filter matches —
+    /// the daemon's "local dispatch" endpoint (R2-HOST-API §3.2).
+    ///
+    /// **Used-by:** `router.rs::route_frame` after the §7.5.4 deliver-gate
+    /// passes, and `mgmt/ensemble.rs` when sentant output targets this hive
+    /// locally (no wire emission).
     ///
     /// This decodes the frame minimally — just enough to extract event
     /// hash, event class (if known), and source — then calls each
@@ -528,6 +671,9 @@ impl HiveState {
     /// (not a local reject) or for a frame that was actually delivered (the
     /// keyless operator-opt-in path delivers, so it must not deny).
     ///
+    /// **Used-by:** `router.rs::route_frame` only — the three deliver-gate
+    /// reject arms (bad tag, missing tag, unkeyed fail-closed).
+    ///
     /// Subscription hygiene (channel isolation): an UNFILTERED subscription
     /// shares its bounded channel between denies and legit deliveries, so a
     /// forged-frame flood can crowd deliveries out via try_send-Full.
@@ -601,9 +747,14 @@ impl HiveState {
         }
     }
 
-    /// Send a frame to a hive via any transport that can reach it.
-    /// Tries WebSocket first, then UDP, then BLE. Used when the caller has
-    /// no route-engine hint (broadcasts, legacy paths).
+    /// Send a frame to a hive via any transport that can reach it —
+    /// convenience wrapper over [`Self::send_to_hive_via`] with no hint.
+    /// Used when the caller has no route-engine recommendation (broadcasts,
+    /// legacy paths).
+    ///
+    /// **Used-by:** [`Self::broadcast_to_tg`] fan-out, `mgmt/ensemble.rs`
+    /// directed sentant output, and hive-core code via the
+    /// `HiveTransports` seam.
     pub async fn send_to_hive(&self, hive_id: u32, frame: &[u8]) -> bool {
         self.send_to_hive_via(hive_id, None, frame).await.is_some()
     }
@@ -612,6 +763,16 @@ impl HiveState {
     /// transport. Returns `Some(transport_used)` on success, `None` if every
     /// transport failed. When `hint` is provided, that transport is tried
     /// first; remaining transports are tried in priority order as fallback.
+    /// Every attempt is filtered through the node-wide egress allow mask
+    /// (single-sourced in `route_engine.transport_allow_mask()`).
+    ///
+    /// **Dependencies:** [`Self::try_send_on`] per transport; the route
+    /// engine lock (mask read only — do not call while holding it).
+    ///
+    /// **Used-by:** `router.rs` relay arms (Directed/Flood hops, with the
+    /// engine's per-hop transport as `hint`), `mgmt/primitive.rs`
+    /// (`event.send` directed + TG-peer fan-out), [`Self::send_to_hive`],
+    /// and hive-core via the `HiveTransports` seam.
     pub async fn send_to_hive_via(
         &self,
         hive_id: u32,
@@ -655,6 +816,16 @@ impl HiveState {
         None
     }
 
+    /// Attempt one send on one concrete transport, applying the per-medium
+    /// wire format (extended verbatim for Internet/WiFi; extended→compact
+    /// transcode per R2-WIRE §4.3.5 for BLE/LoRa) and falling back to a
+    /// paired USB dongle advertising that transport kind.
+    ///
+    /// **Dependencies:** the optional transport slots on `self`, the
+    /// r2-wire transcoder, [`Self::try_send_via_dongle`].
+    ///
+    /// **Used-by:** [`Self::send_to_hive_via`] only (its per-transport
+    /// attempt loop).
     async fn try_send_on(
         &self,
         transport: r2_route::transport::Transport,
@@ -791,7 +962,17 @@ impl HiveState {
         false
     }
 
-    /// Register a peer in a trust group.
+    // ── Legacy TG-compat surface ────────────────────────────────────────
+    // The methods from here to `resolve_tg_hash` serve the legacy browser
+    // WebSocket protocol in `compat/handshake.rs` (their only production
+    // caller unless noted): membership tracking, TG broadcast fan-out, and
+    // the frame catchup buffer. They predate the route engine and remain
+    // until browser clients migrate to R2-ROUTE proper.
+
+    /// Register a peer as a member of a trust group (creating the group's
+    /// compat entry, including its catchup buffer, on first sight).
+    ///
+    /// **Used-by:** `compat/handshake.rs` on legacy-client join.
     pub async fn register_tg_peer(&self, tg_hash: TrustGroupHash, hive_id: u32) {
         let mut map = self.tg_map.write().await;
         let entry = map.entry(tg_hash).or_insert_with(|| TrustGroupCompat {
@@ -802,7 +983,10 @@ impl HiveState {
         self.connections_total.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Unregister a peer from a trust group.
+    /// Unregister a peer from a trust group (dropping the group's compat
+    /// entry when the last member leaves).
+    ///
+    /// **Used-by:** `compat/handshake.rs` on legacy-client disconnect.
     pub async fn unregister_tg_peer(&self, tg_hash: &TrustGroupHash, hive_id: u32) {
         let mut map = self.tg_map.write().await;
         if let Some(entry) = map.get_mut(tg_hash) {
@@ -813,7 +997,12 @@ impl HiveState {
         }
     }
 
-    /// Broadcast a frame to all peers in a trust group except the sender.
+    /// Broadcast a frame to all peers in a trust group except the sender,
+    /// using the full multi-transport fallback per peer.
+    ///
+    /// **Used-by:** `compat/handshake.rs` (legacy broadcast),
+    /// `mgmt/primitive.rs` (`event.send` with no target hive), and
+    /// `mgmt/ensemble.rs` (sentant `Action::Send` broadcast).
     pub async fn broadcast_to_tg(&self, tg_hash: &TrustGroupHash, sender: u32, frame: &[u8]) {
         let map = self.tg_map.read().await;
         if let Some(entry) = map.get(tg_hash) {
@@ -836,7 +1025,10 @@ impl HiveState {
         }
     }
 
-    /// Buffer a frame for catchup.
+    /// Buffer a frame in the TG's catchup ring so late-joining legacy
+    /// clients can replay what they missed.
+    ///
+    /// **Used-by:** `compat/handshake.rs` alongside each legacy broadcast.
     pub async fn buffer_frame(&self, tg_hash: &TrustGroupHash, data: Vec<u8>) {
         let mut map = self.tg_map.write().await;
         if let Some(entry) = map.get_mut(tg_hash) {
@@ -848,7 +1040,10 @@ impl HiveState {
         }
     }
 
-    /// Get catchup frames since a timestamp.
+    /// Get catchup frames buffered since a UNIX timestamp.
+    ///
+    /// **Used-by:** `compat/handshake.rs` when a legacy client asks to
+    /// catch up after (re)connecting.
     pub async fn catchup_frames(&self, tg_hash: &TrustGroupHash, since: u64) -> Vec<Vec<u8>> {
         let map = self.tg_map.read().await;
         match map.get(tg_hash) {
@@ -857,13 +1052,18 @@ impl HiveState {
         }
     }
 
-    /// Number of peers in a trust group.
+    /// Number of peers currently registered in a trust group.
+    ///
+    /// **Used-by:** `compat/handshake.rs` (join-response stats).
     pub async fn tg_peer_count(&self, tg_hash: &TrustGroupHash) -> usize {
         let map = self.tg_map.read().await;
         map.get(tg_hash).map(|e| e.peers.len()).unwrap_or(0)
     }
 
-    /// Oldest buffered timestamp for a trust group.
+    /// Oldest buffered catchup timestamp for a trust group (0 if none).
+    ///
+    /// **Used-by:** `compat/handshake.rs` (join-response stats, so clients
+    /// know how far back catchup can reach).
     pub async fn buffer_oldest(&self, tg_hash: &TrustGroupHash) -> u64 {
         let map = self.tg_map.read().await;
         map.get(tg_hash).map(|e| e.buffer.oldest_timestamp()).unwrap_or(0)
@@ -872,6 +1072,9 @@ impl HiveState {
     /// Flood to TG peers that the route engine didn't cover.
     /// When the engine says FLOOD to N hops, there may be freshly connected
     /// peers it doesn't know about yet (no observation ingested). Send to those too.
+    ///
+    /// **Used-by:** `compat/handshake.rs` after a `RouteOutcome::Flooded`
+    /// from `router::route_frame` (intra-TG flood enrichment).
     pub async fn flood_tg_peers_not_in(
         &self,
         tg_hash: &TrustGroupHash,
@@ -891,7 +1094,12 @@ impl HiveState {
     }
 
     /// Resolve a trust group hash from a hex string.
-    /// Accepts exact 16-char hex or 2-6 char prefix (for word code join flow).
+    /// Accepts exact 16-char hex or a 2–6 char prefix (matched against the
+    /// currently-registered groups — the word-code join flow sends prefixes).
+    ///
+    /// **Dependencies:** [`hex_decode`] / [`hex_encode`]; the `tg_map` read lock.
+    ///
+    /// **Used-by:** `compat/handshake.rs` when a legacy client names a TG.
     pub async fn resolve_tg_hash(&self, hex: &str) -> Result<TrustGroupHash, &'static str> {
         if hex.len() == 16 {
             // Exact match
@@ -918,7 +1126,13 @@ impl HiveState {
     }
 }
 
-fn hex_decode(s: &str) -> Option<Vec<u8>> {
+/// Decode a hex string into bytes (`None` on odd length or a non-hex
+/// character). The crate's single hex decoder — a byte-identical duplicate
+/// in `compat/handshake.rs` was removed (Occam) in favour of this one.
+///
+/// **Used-by:** [`HiveState::resolve_tg_hash`], [`parse_bench_group_hmacs`],
+/// and `compat/handshake.rs` (nonce/TG/device-id parsing).
+pub(crate) fn hex_decode(s: &str) -> Option<Vec<u8>> {
     if s.len() % 2 != 0 { return None; }
     (0..s.len())
         .step_by(2)
@@ -926,7 +1140,12 @@ fn hex_decode(s: &str) -> Option<Vec<u8>> {
         .collect()
 }
 
-fn hex_encode(bytes: &[u8]) -> String {
+/// Encode bytes as a lowercase hex string. Counterpart of [`hex_decode`],
+/// same single-copy rule.
+///
+/// **Used-by:** the TG log lines in this file and `compat/handshake.rs`
+/// (join responses, word-code flow).
+pub(crate) fn hex_encode(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
@@ -937,6 +1156,8 @@ fn hex_encode(bytes: &[u8]) -> String {
 /// (keyed by the WIRE target_group). This is the C3 at-rest exposure, so it is
 /// gated behind an env var — production NEVER auto-loads plaintext. Unset/empty
 /// => empty map => gate INACTIVE (migration mode: deliver + warn).
+///
+/// **Used-by:** [`HiveState::new`] only (populates `group_hmacs` at boot).
 fn load_bench_group_hmacs() -> HashMap<u32, GroupHmac> {
     let map = HashMap::new();
     let path = match std::env::var("R2_GROUP_KEYS_BENCH") {
@@ -962,6 +1183,8 @@ fn load_bench_group_hmacs() -> HashMap<u32, GroupHmac> {
 /// Parse composer's bench group-keys json `{ "keys": { "<tg_u32>": "<64-hex HK>" } }`
 /// into GroupHmacs keyed by the WIRE target_group (u32). Pure (no env/file) so the
 /// parsing is unit-testable; `load_bench_group_hmacs` handles the env + file read.
+///
+/// **Used-by:** [`load_bench_group_hmacs`] and the `group_key_tests` module.
 fn parse_bench_group_hmacs(data: &str) -> HashMap<u32, GroupHmac> {
     let mut map = HashMap::new();
     let json: serde_json::Value = match serde_json::from_str(data) {

@@ -81,14 +81,6 @@ fn order_parameter(nodes: &[&Node]) -> f32 {
     ((sx / n).powi(2) + (sy / n).powi(2)).sqrt()
 }
 
-fn group_r(nodes: &[Node], group: u8) -> f32 {
-    let g: Vec<&Node> = nodes.iter().filter(|nd| nd.group == group).collect();
-    if g.is_empty() {
-        return 0.0;
-    }
-    order_parameter(&g)
-}
-
 /// Run one scenario. `repartition` may move nodes between groups at given times
 /// (to inject a partition and a later heal).
 fn run(cfg: &Config, seed: u64, repartition: &[(f32, fn(usize) -> u8)]) -> (Stats, Vec<(f32, f32)>) {

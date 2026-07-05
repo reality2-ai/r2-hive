@@ -17,7 +17,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use r2_discovery::{LinkQuality, OutboundRx, PeerMap, RelayConn};
 
 use super::protocol::*;
-use crate::hive::HiveState;
+use crate::hive::{hex_decode, hex_encode, HiveState};
 
 const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(90);
 const TIMESTAMP_WINDOW: u64 = 60;
@@ -396,20 +396,6 @@ async fn close_with(socket: &mut WebSocket, code: u16, reason: &str) {
             reason: reason.into(),
         })))
         .await;
-}
-
-fn hex_decode(s: &str) -> Option<Vec<u8>> {
-    if s.len() % 2 != 0 {
-        return None;
-    }
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok())
-        .collect()
-}
-
-fn hex_encode(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
 #[cfg(test)]

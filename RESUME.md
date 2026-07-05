@@ -1,5 +1,30 @@
 # RESUME — r2-hive (hive-worker)
 
+## 📖 DOCUMENTATION CAMPAIGN ACTIVE (task #48 — Roy's standing directive, 2026-07-06)
+- **The standard (banked in memory roy-commenting-standard.md, OVERRIDES match-density):** file heads = why the file
+  exists + grep-verified interlink map + canon refs (full r2-specifications paths); every fn = purpose + dependencies +
+  used-by (grep-verified, never guessed); audience = first-time reader; inconsistencies fixed en route; **OCCAM
+  (Roy's 4th directive): redundant code REMOVED, on evidence only** (zero callers + tests green; pub API consumed by
+  other crates/wasm/JS counts as a caller). Core runs the same campaign (its batch-1 = 3345028, incl. an Occam cut of
+  the dead route_stack module) — style aligned with core's convention (narrative why, full canon paths).
+- **Tranche 1 (ca56477):** router.rs exemplar. Fixes: now_monotonic→now_unix_secs (wall-clock misnomer, NTP caveat);
+  congested:false documented as the tracked §3A Linux-tier seam.
+- **Tranche 2 (this commit):** hive.rs + main.rs to the standard. **Occam cuts (all evidence-verified):**
+  (1) main.rs fnv1a_addr = byte-identical reimpl of r2_fnv::fnv1a_32 → replaced with the real crate call (same basis/
+  prime/no-canonicalisation; self hive_id derivation UNCHANGED); (2) hex_decode/hex_encode duplicated verbatim in
+  hive.rs + compat/handshake.rs → single pub(crate) copy in hive.rs; (3) clear_active_tg: zero callers incl. tests →
+  removed (set_active_tg KEPT — mgmt_integration.rs:660 uses it; detach lands with the TG lifecycle flow);
+  (4) main.rs dead `existed` computation (value discarded via let _) → removed; (5) unreachable post-loop log line in
+  start_lora → removed; (6) dead group_r fn in examples/heartbeat_sync_sim.rs → removed.
+- **Inconsistency FOUND + flagged in both file heads: "R2-HIVE §x.y" is cited 17× across the crate but NO R2-HIVE spec
+  exists in r2-specifications** (specs/r2-core/README.md says so explicitly — implementation repo name, not canon).
+  Heads now mark those as daemon-local design lineage; spec-gap question owed to specs.
+- Remaining warning EXT_AUTH_MAX (never used) is in r2-wire = CORE's crate — flag to core, not mine to cut.
+- **Next tranches (centrality order):** sync_host.rs + wasm lib.rs → USB family (usb/usb_hotplug/usb_serial/usb_pair) →
+  web/web_auth/ensemble/ota/identity/config/autoconfig/systemd → r2-hive-core lib.rs + carrier-bridge py + ws-mesh →
+  fw files on branch (dfr1195 main.rs = own tranche; rak4630 delta). Vendored crates EXCLUDED (canon docs = core's).
+  One hygiene-gated commit + supervisor note per tranche. ALL new code ships to the standard.
+
 ## ✅ CARPARK BINDING SHIPPED (task #47 CLOSED — 5fe9f69, wasm 0.6.4, pkg cf06c2d0…; composer endorsed pre-build)
 - Congestion: tick() drives the core sensor INTERNALLY from real bus depth/capacity (core's same-hour queue_depth/
   queue_capacity getters — landed with honest-theatre docs citing this binding); route_inbound_sync grew `congested`
