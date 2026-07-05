@@ -596,6 +596,39 @@ impl WasmHive {
         )
     }
 
+    /// Build a **Reply-TYPE** frame carrying a §4.3.4 retrace marker — the emit
+    /// half the `is_reply` anti-spoof gate (core 3d43838) demands: strong retrace
+    /// credit fires ONLY when reply-ness rides the frame TYPE field, so a marker
+    /// inside an ordinary `build_frame` Event lays weak carried evidence at most
+    /// (by design, not by accident). The JS loop: `routeStackOf(deliveredReq)` →
+    /// `replyMarkerWithStack(origin, reqId, stack)` (UTF-8 bytes) → this builder
+    /// with `replySeq = replyMsgIdExt(reqId)` → route/transmit as usual. Replies
+    /// ROUTE ordinarily (the §4.6.1 retrace WIRE routing awaits a byte-level pin);
+    /// the marker is what earns the strong credit at every forwarder whose ring
+    /// recorded the request. No origination note here: reply-to-reply retrace is
+    /// not a thing in this scheme, so the in-flight ring stays request-only.
+    #[wasm_bindgen(js_name = buildReplyFrame)]
+    pub fn build_reply_frame(
+        &mut self,
+        target_hive: u32,
+        event_hash: u32,
+        marker: &[u8],
+        reply_seq: u32,
+    ) -> Vec<u8> {
+        encode_frame(
+            self.self_hive_id,
+            target_hive,
+            self.tg_hash,
+            r2_wire::MsgType::Reply,
+            event_hash,
+            marker,
+            8,
+            3,
+            reply_seq,
+            self.group_hmac.as_ref(),
+        )
+    }
+
     /// Build the §4.3.4 reply-marker PAYLOAD for a received request: the replier
     /// sends a frame whose payload is this marker (`"reply:0x<origin>:<msg_id>"`)
     /// back toward `origin`. Every node that FORWARDED the request (noted
@@ -1458,6 +1491,48 @@ mod tests {
         assert!(
             after == "[]" || after.contains("\"viable\":false"),
             "peer must fade below the floor (evicted or non-viable), got {after}"
+        );
+    }
+
+    /// The full JS strong-retrace loop through the wasm surface (composer's C2b
+    /// shape): a forwarder floods a request (noting it in-flight), then a
+    /// Reply-TYPE frame built via buildReplyFrame — carrying the stack marker —
+    /// strong-reinforces the forwarder's trail toward the replier. The wasm twin
+    /// of core-tier reply_marker_strong_reinforces_through_forwarder, and the
+    /// regression falsifier for "buildReplyFrame must emit MsgType::Reply"
+    /// (an Event-typed emit would leave this converging weak-only, 3d43838).
+    #[test]
+    fn build_reply_frame_strong_reinforces_through_forwarder() {
+        let origin = 0x0000_00AA;
+        let replier = 0x0000_00DD;
+        let upstream = 0x0000_00BB;
+        let downstream = 0x0000_00CC;
+        let req_id = 0x0000_7010u32;
+
+        let mut fwd = WasmHive::new(0x0000_00FF);
+        // Seed a downstream neighbour so the request has a viable flood hop.
+        let seed = ext_frame(downstream, 0, 5, 3, 0x0100);
+        let _ = fwd.route_frame(downstream, 1, &seed, 90, 0.5);
+        // The request (origin → broadcast) arrives via upstream and floods on.
+        let req = ext_frame(origin, 0, 5, 3, req_id);
+        let out = fwd.route_frame(upstream, 1, &req, 100, 0.5);
+        assert!(out.contains("\"outcome\":\"Flooded\""), "request must flood: {out}");
+
+        // Replier builds the Reply-TYPE frame the JS loop would: stack marker
+        // bytes + replyMsgIdExt seq, then it arrives at the forwarder from
+        // downstream (the path the reply retraces).
+        let mut rep = WasmHive::new(replier);
+        let stack = rep.route_stack_of_js(&req);
+        let marker = rep.reply_marker_with_stack_js(origin, req_id, &stack);
+        let reply_seq = rep.reply_msg_id_ext_js(req_id);
+        let reply = rep.build_reply_frame(origin, 0x5EED_0002, marker.as_bytes(), reply_seq);
+        let _ = fwd.route_frame(downstream, 1, &reply, 110, 0.5);
+
+        let paths = fwd.paths();
+        assert!(
+            paths.contains(&format!("\"destination\":{replier}"))
+                && paths.contains(&format!("\"next_hop\":{downstream}")),
+            "strong retrace must lay a path toward the replier via the reply's sender: {paths}"
         );
     }
 
