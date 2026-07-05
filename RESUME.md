@@ -16,7 +16,13 @@
   100 ms housekeeping deadline) replaces the 5 ms poll; DIO1 level-high-until-cleared makes the wait race-free; drain
   loop empties all pending events before re-sleep; TxDone re-arms listen(). HWRNG fp_seed (16 B, bias-corrected) —
   all-zero const gone. **45,316 B = 9.2% of slot (+1.7 KiB vs baseline); thumbv7em green in-platform-dir.** Zero driver
-  changes needed. Next: delta (b) trouble-host+nrf-sdc BLE advertise (the measured-budget piece), then (c) ensemble.
+  changes needed. Core folded inc-1 into main's README ledger (f80da11) + confirmed the DIO1 read matched driver intent.
+- **inc-2 (BLE advertise) SURVEYED + PLANNED (start with fresh context — dependency engineering deserves a clean block):**
+  GREENFIELD (no nrf-sdc/mpsl anywhere; nrf54 never did BLE). Trap pre-identified: nrf-sdc's embassy-nrf dep vs the
+  workspace git pin (0.11.0 #56b52e66) = two-copy version soup → `[patch.crates-io]` in the PLATFORM manifest (own
+  Cargo.lock, outside root workspace). mpsl claims RTC0/TIMER0 — time-driver-rtc1 already avoids the clash. Advertise-
+  ONLY peripheral task via the (unused) _spawner; AD bytes fed from the existing beacon arm via a Watch; size -A deltas
+  → core retires the ~150 KiB allowance. Full plan in task #44 metadata.
 
 ## 🔁 ROLES RESUMED + RAK #51 UNPAUSED + #45 SHIPPED (2026-07-05 late-night block)
 - **First-responder returned to me** (quota recovered; composer covered and keeps its ready recipes — ACM3 flash-verify,
