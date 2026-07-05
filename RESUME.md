@@ -84,8 +84,11 @@
   receiving owner; sync_host travels pre-documented). NEW task #49 = rev-pin core deps + bump script (deliberate
   uptake, Roy ratified; mechanics asked of core — 11 path-dep'd crates today). Sequencing: pin lands BEFORE core's
   migration churn.
-- **Next tranches:** r2hive-cli -> carrier-bridge py + ws-mesh -> fw branch files (dfr1195 main.rs own tranche;
-  rak4630 delta). (usb/usb_hotplug/usb_serial/usb_pair) →
+- **Tranche 7 (this commit):** r2hive-cli (1246 lines) — 34 fns documented (command runners with their verb
+  semantics, CBOR field readers, renderers; role_name + session_state_label flagged as keep-in-sync mirrors of
+  daemon wire values); head gained the pure-client interlink statement (build_* encoders shared with integration
+  tests; §5.1 v0.4 peer-verify guard in connect) + canon block.
+- **Next tranches:** carrier-bridge py + ws-mesh -> fw branch files (dfr1195 main.rs own tranche; rak4630 delta). (usb/usb_hotplug/usb_serial/usb_pair) →
   web/web_auth/ensemble/ota/identity/config/autoconfig/systemd → r2-hive-core lib.rs + carrier-bridge py + ws-mesh →
   fw files on branch (dfr1195 main.rs = own tranche; rak4630 delta). Vendored crates EXCLUDED (canon docs = core's).
   One hygiene-gated commit + supervisor note per tranche. ALL new code ships to the standard.

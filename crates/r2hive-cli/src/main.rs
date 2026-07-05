@@ -5,6 +5,27 @@
 //! `tg current`, `cap query`. The command surface follows the informative
 //! R2-TG-TOOL §10 reference-CLI shape; the verbs are daemon-local UX
 //! (ensemble/sentant/plugin/transport are pending Phase 2+).
+//!
+//! ## How it interlinks (grep-verified)
+//!
+//! Pure CLIENT of the daemon: every verb encodes a request via the
+//! `build_*_request` helpers exported by `r2_hive::mgmt::{api,ensemble,
+//! usb,transport_policy}` (the same encoders the integration tests use),
+//! connects through [`connect`] (which applies the §5.1 v0.4 /tmp-fallback
+//! peer-verify guard), speaks the len_be32 UDS framing, and renders the
+//! CBOR response maps. No mesh logic lives here — if a verb needs new
+//! wire behaviour, it lands in the daemon first and this file only grows
+//! a renderer.
+//!
+//! ## Canon (r2-specifications)
+//!
+//! - R2-TG-TOOL §10 (informative reference-CLI shape), §5.1 (socket
+//!   contract + the v0.4 fallback peer-verify MUST) —
+//!   `r2-specifications/specs/r2-core/R2-TG-TOOL.md`.
+//! - R2-HOST-API §2.2 (UDS binding), §3/§4 (vocabularies this drives) —
+//!   `r2-specifications/specs/r2-core/R2-HOST-API.md`.
+//! - R2-PLUGIN §13.5 (web provision verb) —
+//!   `r2-specifications/specs/r2-core/R2-PLUGIN.md`.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -246,6 +267,10 @@ enum EventOp {
 }
 
 #[tokio::main]
+/// Entry point: parse the clap command tree, resolve the socket path
+/// (explicit `--socket` beats `default_socket_path`), and dispatch to the
+/// matching `run_*` handler. Exit code 1 on any handler error (message on
+/// stderr).
 async fn main() -> ExitCode {
     let cli = Cli::parse();
     let socket_path = cli.socket.unwrap_or_else(default_socket_path);
@@ -320,6 +345,8 @@ async fn run_daemon_status(socket_path: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+/// `identity status` — request + render the daemon's identity fingerprint,
+/// backend, and freshness. **Used-by:** [`main`] dispatch.
 async fn run_identity_status(socket_path: &PathBuf) -> Result<(), String> {
     let mut stream = connect(socket_path).await?;
     let (mut reader, mut writer) = stream.split();
@@ -371,6 +398,7 @@ async fn run_tg_current(socket_path: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+/// `peers list` — R2-HOST-API §3 peer table dump. **Used-by:** [`main`].
 async fn run_peers_list(socket_path: &PathBuf) -> Result<(), String> {
     let mut stream = connect(socket_path).await?;
     let (mut reader, mut writer) = stream.split();
@@ -391,6 +419,8 @@ async fn run_peers_list(socket_path: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+/// `peers query <hive-id>` — single-peer detail (accepts 0x-hex or
+/// decimal via [`parse_hive_id`]). **Used-by:** [`main`].
 async fn run_peers_query(socket_path: &PathBuf, hive_id_str: &str) -> Result<(), String> {
     let hive_id = parse_hive_id(hive_id_str)?;
     let mut stream = connect(socket_path).await?;
@@ -413,6 +443,8 @@ async fn run_peers_query(socket_path: &PathBuf, hive_id_str: &str) -> Result<(),
     Ok(())
 }
 
+/// `cap query [target]` — capability query, self when no target.
+/// **Used-by:** [`main`].
 async fn run_cap_query(socket_path: &PathBuf, target: Option<&str>) -> Result<(), String> {
     let target = match target {
         Some(s) => Some(parse_hive_id(s)?),
@@ -450,6 +482,8 @@ async fn run_cap_query(socket_path: &PathBuf, target: Option<&str>) -> Result<()
     Ok(())
 }
 
+/// `event send` — encode an `r2.api.event.send` with class/payload/target
+/// and render the ack (delivered/queued counts). **Used-by:** [`main`].
 async fn run_event_send(
     socket_path: &PathBuf,
     event_class: &str,
@@ -489,6 +523,10 @@ async fn run_event_send(
     }
 }
 
+/// `event subscribe` — register a filter, then stream
+/// `r2.api.event.delivery` notifications to stdout until interrupted
+/// (the CLI's long-running mode; [`print_delivery`] renders each).
+/// **Used-by:** [`main`].
 async fn run_event_subscribe(
     socket_path: &PathBuf,
     event_class: Option<&str>,
@@ -552,6 +590,8 @@ async fn run_ensemble(socket_path: &PathBuf, op: EnsembleOp) -> Result<(), Strin
     }
 }
 
+/// `ensemble load <score.toml>` — read the score file, ship it in an
+/// `r2.mgmt.ensemble.load`, render the ack/errors. **Used-by:** [`main`].
 async fn run_ensemble_load(
     socket_path: &PathBuf,
     path: &str,
@@ -596,6 +636,8 @@ async fn run_ensemble_load(
     Ok(())
 }
 
+/// `ensemble list` — table of loaded ensembles via
+/// [`parse_list_response`]. **Used-by:** [`main`].
 async fn run_ensemble_list(socket_path: &PathBuf) -> Result<(), String> {
     let mut stream = connect(socket_path).await?;
     let (mut reader, mut writer) = stream.split();
@@ -624,6 +666,8 @@ async fn run_ensemble_list(socket_path: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+/// `ensemble info <id>` — detail for one loaded ensemble.
+/// **Used-by:** [`main`].
 async fn run_ensemble_info(socket_path: &PathBuf, id: &str) -> Result<(), String> {
     let mut stream = connect(socket_path).await?;
     let (mut reader, mut writer) = stream.split();
@@ -652,14 +696,21 @@ async fn run_ensemble_info(socket_path: &PathBuf, id: &str) -> Result<(), String
     Ok(())
 }
 
+/// `ensemble stop <id>` — thin wrapper over [`ensemble_id_op`].
+/// **Used-by:** [`main`].
 async fn run_ensemble_stop(socket_path: &PathBuf, id: &str) -> Result<(), String> {
     ensemble_id_op(socket_path, id, build_stop_request, "stopped").await
 }
 
+/// `ensemble reset <id>` — thin wrapper over [`ensemble_id_op`].
+/// **Used-by:** [`main`].
 async fn run_ensemble_reset(socket_path: &PathBuf, id: &str) -> Result<(), String> {
     ensemble_id_op(socket_path, id, build_reset_request, "reset").await
 }
 
+/// Shared request/response cycle for the id-keyed ensemble verbs
+/// (stop/reset build the same frame shape, differing only in event
+/// class). **Used-by:** [`run_ensemble_stop`], [`run_ensemble_reset`].
 async fn ensemble_id_op(
     socket_path: &PathBuf,
     id: &str,
@@ -686,6 +737,8 @@ async fn ensemble_id_op(
     Ok(())
 }
 
+/// `web provision` — mint a browser device credential (R2-PLUGIN §13.5)
+/// and print the provisioning URL/cookie material. **Used-by:** [`main`].
 async fn run_web_provision(socket_path: &PathBuf) -> Result<(), String> {
     let mut stream = connect(socket_path).await?;
     let (mut reader, mut writer) = stream.split();
@@ -713,6 +766,8 @@ async fn run_web_provision(socket_path: &PathBuf) -> Result<(), String> {
 }
 
 #[cfg(target_os = "linux")]
+/// `usb <op>` — fan out to the specific USB verb handler.
+/// **Used-by:** [`main`].
 async fn run_usb(socket_path: &PathBuf, op: UsbOp) -> Result<(), String> {
     match op {
         UsbOp::List => run_usb_list(socket_path).await,
@@ -730,6 +785,8 @@ async fn run_usb(socket_path: &PathBuf, op: UsbOp) -> Result<(), String> {
 }
 
 #[cfg(target_os = "linux")]
+/// `usb list` — render every watched device via [`print_usb_device`].
+/// **Used-by:** [`run_usb`].
 async fn run_usb_list(socket_path: &PathBuf) -> Result<(), String> {
     use r2_cbor::{Decoder, Item};
     let mut stream = connect(socket_path).await?;
@@ -776,6 +833,9 @@ async fn run_usb_list(socket_path: &PathBuf) -> Result<(), String> {
 }
 
 #[cfg(target_os = "linux")]
+/// Render one device entry from the `r2.mgmt.usb.list` response map
+/// (path, state via [`session_state_label`], CAPS summary, pairing).
+/// **Used-by:** [`run_usb_list`].
 fn print_usb_device(dec: &mut r2_cbor::Decoder<'_>) -> Result<(), String> {
     use r2_cbor::Item;
     let entries = match dec.next().map_err(|_| "device decode".to_string())? {
@@ -845,6 +905,9 @@ fn print_usb_device(dec: &mut r2_cbor::Decoder<'_>) -> Result<(), String> {
 }
 
 #[cfg(target_os = "linux")]
+/// Human label for the wire session-state discriminant (mirrors
+/// `usb.rs::SessionState` numbering — keep in sync). **Used-by:**
+/// [`print_usb_device`].
 fn session_state_label(s: u64) -> &'static str {
     match s {
         0 => "Initial",
@@ -862,6 +925,8 @@ fn session_state_label(s: u64) -> &'static str {
 }
 
 #[cfg(target_os = "linux")]
+/// Shared cycle for the path-keyed USB verbs (prepare/confirm/abort).
+/// **Used-by:** [`run_usb`].
 async fn run_usb_path_op(
     socket_path: &PathBuf,
     path: &str,
@@ -890,6 +955,8 @@ async fn run_usb_path_op(
 }
 
 #[cfg(target_os = "linux")]
+/// Render an accepted/refused boolean ack (confirm/abort responses).
+/// **Used-by:** [`run_usb`].
 async fn run_usb_bool_op(
     socket_path: &PathBuf,
     path: &str,
@@ -925,6 +992,8 @@ async fn run_usb_bool_op(
 }
 
 #[cfg(target_os = "linux")]
+/// `usb unpair <device-id-hex>` — 16-byte peer id via
+/// [`decode_device_id`]. **Used-by:** [`run_usb`].
 async fn run_usb_unpair(socket_path: &PathBuf, device_id_hex: &str) -> Result<(), String> {
     let bytes = decode_device_id(device_id_hex)?;
     let mut stream = connect(socket_path).await?;
@@ -949,6 +1018,8 @@ async fn run_usb_unpair(socket_path: &PathBuf, device_id_hex: &str) -> Result<()
 }
 
 #[cfg(target_os = "linux")]
+/// Parse a 32-hex-char peer device id into its 16 bytes.
+/// **Used-by:** [`run_usb_unpair`].
 fn decode_device_id(s: &str) -> Result<[u8; 16], String> {
     let s = s.trim();
     if s.len() != 32 {
@@ -966,6 +1037,8 @@ fn decode_device_id(s: &str) -> Result<[u8; 16], String> {
 }
 
 #[cfg(target_os = "linux")]
+/// Pull one bool value by integer key from a CBOR response map.
+/// **Used-by:** the USB ack renderers.
 fn read_bool_field(payload: &[u8], target: u64) -> Option<bool> {
     use r2_cbor::{Decoder, Item};
     let mut dec = Decoder::new(payload);
@@ -987,6 +1060,8 @@ fn read_bool_field(payload: &[u8], target: u64) -> Option<bool> {
     None
 }
 
+/// Human label for the generic status discriminant in responses.
+/// **Used-by:** the status renderers.
 fn status_label(s: u64) -> &'static str {
     match s {
         0 => "Healthy",
@@ -996,6 +1071,8 @@ fn status_label(s: u64) -> &'static str {
     }
 }
 
+/// Pull one uint value by integer key from a CBOR response map.
+/// **Used-by:** most response renderers in this file.
 fn read_uint_field(payload: &[u8], target: u64) -> Option<u64> {
     use r2_cbor::{Decoder, Item};
     let mut dec = Decoder::new(payload);
@@ -1017,6 +1094,8 @@ fn read_uint_field(payload: &[u8], target: u64) -> Option<u64> {
     None
 }
 
+/// Pull one text value by integer key from a CBOR response map.
+/// **Used-by:** most response renderers in this file.
 fn read_str_field(payload: &[u8], target: u64) -> Option<String> {
     use r2_cbor::{Decoder, Item};
     let mut dec = Decoder::new(payload);
@@ -1038,6 +1117,8 @@ fn read_str_field(payload: &[u8], target: u64) -> Option<String> {
     None
 }
 
+/// Decode the ensemble-list response array into (id, sentants, uptime)
+/// rows. **Used-by:** [`run_ensemble_list`].
 fn parse_list_response(payload: &[u8]) -> Vec<(String, u64, u64)> {
     use r2_cbor::{Decoder, Item};
     let mut out = Vec::new();
@@ -1129,6 +1210,7 @@ unsafe fn geteuid() -> u32 {
     geteuid()
 }
 
+/// Accept a hive id as 0x-hex or decimal. **Used-by:** peer/event verbs.
 fn parse_hive_id(s: &str) -> Result<u64, String> {
     let s = s.trim();
     if let Some(rest) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
@@ -1138,6 +1220,9 @@ fn parse_hive_id(s: &str) -> Result<u64, String> {
     }
 }
 
+/// Strict hex → bytes (errors, unlike the daemon's Option-returning
+/// sibling in hive.rs — CLI wants messages). **Used-by:** event payloads,
+/// [`decode_device_id`].
 fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
     if s.is_empty() {
         return Ok(Vec::new());
@@ -1150,6 +1235,8 @@ fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
         .collect()
 }
 
+/// First bytes as hex + ellipsis for table rendering.
+/// **Used-by:** peer/usb renderers.
 fn hex_short(b: &[u8]) -> String {
     // First 8 bytes of hex with ellipsis if longer.
     let n = b.len().min(8);
@@ -1163,6 +1250,9 @@ fn hex_short(b: &[u8]) -> String {
     s
 }
 
+/// Human label for the TG member-role wire value (R2-HOST-API §3.2 key 2;
+/// mirrors `hive.rs::TgMemberRole::wire_value` — keep in sync).
+/// **Used-by:** `tg current` rendering.
 fn role_name(role: u8) -> &'static str {
     match role {
         0 => "not a member",
@@ -1172,6 +1262,8 @@ fn role_name(role: u8) -> &'static str {
     }
 }
 
+/// Human label for the peer-status discriminant.
+/// **Used-by:** peer renderers.
 fn peer_status_name(status: u64) -> &'static str {
     match status {
         0 => "unknown",
@@ -1183,6 +1275,9 @@ fn peer_status_name(status: u64) -> &'static str {
     }
 }
 
+/// Render one `r2.api.event.delivery` notification (class, hash, source,
+/// payload hex) in the subscribe stream. **Used-by:**
+/// [`run_event_subscribe`].
 fn print_delivery(payload: &[u8]) {
     use r2_cbor::{Decoder, Item};
     let mut dec = Decoder::new(payload);
@@ -1220,6 +1315,8 @@ fn print_delivery(payload: &[u8]) {
     );
 }
 
+/// Extract the error code/context from an `r2.mgmt.event.error` frame
+/// for the CLI's stderr message. **Used-by:** every response cycle.
 fn decode_error_payload(payload: &[u8]) -> String {
     use r2_cbor::{Decoder, Item};
     let mut dec = Decoder::new(payload);
