@@ -15,6 +15,10 @@
   key-blocking. **#39 elevated with metal evidence** (top conformance item alongside #32).
 - **LESSON (banked): on any hmac_ok=false, inspect the TAG BYTES first** — capture-mirror + offline-crate-verify is the
   standing instrument (method: R2RX hex → decode_extended/compact → verify against key-file bytes).
+- **CONFOUND-KILL (supervisor's codec-version worry): re-ran the same 83 frames through the VENDORED r2-wire (the boards'
+  own compiled codec) — byte-for-byte identical verdicts: 12/12 HBs real-tag verify=TRUE per board, 71/71 reqs
+  origin=0 + zero-tag. Both probes deleted, fw worktree clean. The HB half was confound-proof anyway (a valid HMAC
+  cannot arise from a wrong key/parse); now the req half is too. Flip verdict = double-grounded.**
 
 ## 🔬 D4/D2 DISCRIMINATION ROUND 2 (2026-07-05; task #46 updated; supervisor's three questions answered live)
 - **REBOOT verb fired on ACM4 by me: NO-OP** (beats never reset, no ack) — D4's old image predates BOTH the verb and the
