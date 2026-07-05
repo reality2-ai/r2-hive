@@ -1,14 +1,14 @@
 //! API dispatcher — recognises `r2.mgmt.*` and `r2.api.*` event classes and
 //! produces responses.
 //!
-//! `r2.mgmt.*` is the management vocabulary (R2-HIVE §5.3) used by UIs.
+//! `r2.mgmt.*` is the management vocabulary (R2-HOST-API §4) used by UIs.
 //! `r2.api.*` is the application vocabulary (R2-HOST-API §3) used by R2-guest
 //! apps. Both transit the same socket; this module routes by event hash.
 //!
 //! Unknown event hashes return a `r2.mgmt.event.error` frame with
 //! `code = "unknown_event"`.
 //!
-//! Request/response pairs carry a `correlation_id` per R2-HIVE §5.4. In the
+//! Request/response pairs carry a `correlation_id` per R2-HOST-API §4. In the
 //! CBOR payload map the correlation id is encoded under integer key `0`.
 
 use r2_cbor::{Decoder, Encoder, Item, Value};
@@ -104,7 +104,7 @@ pub async fn handle_frame_with_subs(
     let correlation_id = extract_correlation_id(msg.payload).unwrap_or(0);
     let h = msg.header.event_hash;
 
-    // r2.mgmt.* — management vocabulary (R2-HIVE §5.3).
+    // r2.mgmt.* — management vocabulary (R2-HOST-API §4).
     if h == r2_hash(EV_DAEMON_STATUS).expect("known-good event name") {
         return build_status_response(correlation_id, state);
     }
@@ -182,7 +182,7 @@ pub async fn handle_frame_with_subs(
         }
     }
 
-    // r2.mgmt.ensemble.* — ensemble lifecycle (R2-HIVE §5.3, R2-ENSEMBLE).
+    // r2.mgmt.ensemble.* — ensemble lifecycle (R2-HOST-API §4, R2-ENSEMBLE).
     if let Some(hive) = state.hive_state() {
         let hive = hive.clone();
         if h == r2_hash(ens::EV_ENSEMBLE_LOAD).expect("known-good event name") {

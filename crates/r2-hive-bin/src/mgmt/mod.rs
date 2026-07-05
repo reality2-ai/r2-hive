@@ -1,7 +1,9 @@
 //! Local management surface for r2-hive: device-scoped identity custody and
 //! the `r2.mgmt.*` event vocabulary served over a Unix-domain socket.
 //!
-//! Specified in R2-HIVE §§3 (identity), §5 (local API), §6.3 (pairing gate).
+//! Canon anchors: identity custody R2-TG-TOOL §3 + R2-WIRE §6.2.1;
+//! local-API socket R2-TG-TOOL §5 + R2-HOST-API §2.2/§2.4; pairing gate
+//! R2-PROVISION §5.3.4.
 //! This module is the substrate-layer half of the r2-hive process; it runs
 //! alongside the L1–L4 mesh machinery (route engine, WebSocket transport,
 //! BLE/LoRa bindings) in the sibling modules.

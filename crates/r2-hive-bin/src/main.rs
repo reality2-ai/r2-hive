@@ -53,9 +53,12 @@
 //! - R2-FNV (self hive_id derivation from `--name`) —
 //!   `r2-specifications/specs/r2-core/R2-FNV.md`.
 //!
-//! **Known inconsistency (tracked):** "R2-HIVE §…" citations below are
-//! daemon-local design lineage — no R2-HIVE spec exists in
-//! r2-specifications (its `specs/r2-core/README.md` says so explicitly).
+//! **Citation note (specs-ruled):** no R2-HIVE spec exists (implementation
+//! repo name). Former "R2-HIVE §…" cites here are re-anchored to the real
+//! canon — socket discipline R2-TG-TOOL §5, identity custody R2-TG-TOOL §3 +
+//! R2-WIRE §6.2.1, single-active-TG R2-TRUST §13.2 — with genuinely
+//! daemon-local choices (socket filename, store path, backend selection)
+//! marked as such.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -122,18 +125,23 @@ struct Args {
     #[arg(long, default_value = "r2-hive")]
     name: String,
 
-    /// Override the local management-socket path (R2-HIVE §5.1).
+    /// Override the local management-socket path. Socket discipline per
+    /// R2-TG-TOOL §5 (per-user path, mode 0600, same-UID only); the
+    /// `r2-hive.sock` filename itself is daemon-local.
     /// Default: ${XDG_RUNTIME_DIR}/r2-hive.sock on Linux, ${TMPDIR}/r2-hive.sock on macOS.
     #[arg(long)]
     mgmt_socket: Option<PathBuf>,
 
-    /// Override the master-secret store path (R2-HIVE §3.1).
+    /// Override the master-secret store path. Custody boundary per
+    /// R2-TG-TOOL §3 + R2-WIRE §6.2.1; the concrete path is daemon-local
+    /// (layout mirrors R2-TG-TOOL §9, informative).
     /// Default: $XDG_STATE_HOME/r2/master.key. Only honoured when the
     /// resolved identity backend is `file`.
     #[arg(long)]
     identity_store: Option<PathBuf>,
 
-    /// Identity backend selection (R2-HIVE §3.1, R2-HIVE §3.2).
+    /// Identity backend selection (daemon-local choice; the custody
+    /// boundary it serves is R2-TG-TOOL §3 + R2-WIRE §6.2.1).
     /// `auto` picks the platform keyring when the `keyring` cargo
     /// feature is built in and reachable, falling back to the file
     /// store; `file` forces the file store; `keyring` forces the
@@ -525,7 +533,9 @@ async fn main() {
         }
     }
 
-    // Spawn the local management API (R2-HIVE §§3, 5, 6.3) unless opted out.
+    // Spawn the local management API unless opted out (socket discipline
+    // R2-TG-TOOL §5; UDS binding R2-HOST-API §2.2; identity custody
+    // R2-TG-TOOL §3; SAS pairing gate R2-PROVISION §5.3.4).
     let _mgmt_handle = if args.no_mgmt {
         log::info!("  Management API: disabled (--no-mgmt)");
         None
@@ -533,7 +543,8 @@ async fn main() {
         let mgmt_socket_path = args.mgmt_socket.unwrap_or_else(mgmt::default_socket_path);
         let store_path = args.identity_store.unwrap_or_else(FileStore::default_path);
         // Resolve the identity backend per the operator flag
-        // (R2-HIVE §3.2, Phase 4c).
+        // (daemon-local backend policy, Phase 4c; custody boundary
+        // R2-TG-TOOL §3 + R2-WIRE §6.2.1).
         let store: Box<dyn mgmt::identity::IdentityStore> = match args.identity_backend.as_str() {
             "file" => Box::new(FileStore::new(store_path.clone())),
             "auto" => mgmt::identity::auto_store(store_path.clone()),

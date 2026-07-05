@@ -56,11 +56,13 @@
 //! - R2-TRANSPORT §2.2 (the 7-transport canon) —
 //!   `r2-specifications/specs/r2-core/R2-TRANSPORT.md`.
 //!
-//! **Known inconsistency (tracked):** comments in this crate also cite
-//! "R2-HIVE §…". No R2-HIVE spec exists in r2-specifications (its
-//! `r2-specifications/specs/r2-core/README.md` states this explicitly) — those citations are
-//! daemon-local design lineage, not canon. They are kept for traceability
-//! until a host-daemon spec is ratified; do not treat them as normative.
+//! **Citation note (specs-ruled):** no R2-HIVE spec exists (implementation
+//! repo name — `r2-specifications/specs/r2-core/README.md`). Former
+//! "R2-HIVE §…" cites in this crate are RE-ANCHORED to the real canon:
+//! single-active-TG → R2-TRUST §13.2 + R2-TG-TOOL §7; mgmt socket/API →
+//! R2-TG-TOOL §5 + R2-HOST-API §2.2/§2.4; identity custody → R2-TG-TOOL §3 +
+//! R2-WIRE §6.2.1. Only genuinely daemon-local choices (backend selection,
+//! concrete file paths) remain marked as such.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -118,8 +120,9 @@ struct TrustGroupCompat {
 
 /// Snapshot of the daemon's currently-attached trust group.
 ///
-/// Per R2-HIVE §1.4 the daemon may have at most one TG attachment active
-/// at a time (the substrate enforces R2-TRUST §13.2). When `active_tg` is
+/// Per R2-TRUST §13.2 (Single-Active-Hive Rule) the daemon may have at
+/// most one TG attachment active at a time; R2-TG-TOOL §7 pins the daemon
+/// as that rule's enforcer. When `active_tg` is
 /// `None` the daemon is detached — fresh device, no `r2hive tg create` yet.
 ///
 /// `tg_id` is the 32-byte TG public key (R2-TRUST §2.2). `tg_hash` is the
@@ -243,7 +246,8 @@ pub struct HiveState {
     /// `R2_DELIVER_UNKEYED_OPEN=1` to explicitly opt into the legacy migration behaviour (deliver + loud
     /// warn) for a keyless dev/bring-up daemon; production never sets it.
     pub deliver_unkeyed_open: bool,
-    /// Currently-attached trust group, if any (R2-HIVE §1.4 / §7).
+    /// Currently-attached trust group, if any (R2-TRUST §13.2 single-active
+    /// rule; arbitration per R2-TG-TOOL §7).
     /// `None` means the daemon is detached — fresh device, no TG joined.
     active_tg: RwLock<Option<ActiveTg>>,
     /// Per-connection mgmt-API subscribers (R2-HOST-API §3.2 event.subscribe /

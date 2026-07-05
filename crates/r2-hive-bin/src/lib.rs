@@ -6,7 +6,8 @@
 //! pieces in process.
 //!
 //! Modules:
-//! - `mgmt` — local management API (R2-HIVE §5) and primitive application
+//! - `mgmt` — local management API (socket per R2-TG-TOOL §5, UDS binding
+//!   per R2-HOST-API §2.2) and primitive application
 //!   surface (R2-HOST-API §3). Identity custody, Unix-domain-socket
 //!   listener, request dispatch.
 //! - `hive` — `HiveState` owning transports and routing. Required by `mgmt`

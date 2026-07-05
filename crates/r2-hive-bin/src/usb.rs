@@ -273,8 +273,9 @@ impl Drop for ReconnectFlow {
 }
 
 /// Persistent store of `(hive_id_bytes → link_key)` pairings. Implementations
-/// hold the keys at the host-user-session scope (see R2-HIVE §3 for the
-/// per-user identity model). The session interacts via this trait so
+/// hold the keys at the host-user-session scope (custody boundary per
+/// R2-TG-TOOL §3 + R2-WIRE §6.2.1; the session scope is daemon-local
+/// policy). The session interacts via this trait so
 /// production deployments can swap in a file-backed or keyring-backed
 /// store without changing the protocol code.
 pub trait LinkKeyStore: Send + Sync {

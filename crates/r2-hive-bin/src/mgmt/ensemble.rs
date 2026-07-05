@@ -1,7 +1,7 @@
 //! `r2.mgmt.ensemble.*` handlers and the [`HiveOutboundSink`] that
 //! bridges `r2-ensemble` outbound events to the wire transports.
 //!
-//! Wire vocabulary (R2-HIVE §5.3):
+//! Wire vocabulary (R2-HOST-API §4 `r2.mgmt.*` namespace):
 //!
 //! - `r2.mgmt.ensemble.load`     — load an ensemble score
 //! - `r2.mgmt.ensemble.list`     — list loaded ensembles

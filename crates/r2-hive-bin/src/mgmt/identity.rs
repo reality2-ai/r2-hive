@@ -55,7 +55,8 @@ pub struct FileStore {
 }
 
 impl FileStore {
-    /// Default location per the storage layout in R2-HIVE §9.
+    /// Default location mirroring the R2-TG-TOOL §9 storage layout
+    /// (informative); the exact `r2/master.key` path is daemon-local.
     pub fn default_path() -> PathBuf {
         if let Some(base) = dir_xdg_state_home() {
             return base.join("r2").join("master.key");

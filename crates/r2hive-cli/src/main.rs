@@ -2,7 +2,8 @@
 //!
 //! Phase 0 surface: `daemon status`, `identity status`.
 //! Phase 1 surface (R2-HOST-API §3): `peers list/query`, `event send/subscribe`,
-//! `tg current`, `cap query`. See R2-HIVE §10 for the broader command surface
+//! `tg current`, `cap query`. The command surface follows the informative
+//! R2-TG-TOOL §10 reference-CLI shape; the verbs are daemon-local UX
 //! (ensemble/sentant/plugin/transport are pending Phase 2+).
 
 use std::path::PathBuf;
@@ -77,7 +78,7 @@ enum Commands {
         #[command(subcommand)]
         op: EventOp,
     },
-    /// Ensemble lifecycle (R2-HIVE §5.3 ensemble.*).
+    /// Ensemble lifecycle (R2-HOST-API §4 `r2.mgmt.ensemble.*`).
     Ensemble {
         #[command(subcommand)]
         op: EnsembleOp,
@@ -87,7 +88,7 @@ enum Commands {
         #[command(subcommand)]
         op: WebOp,
     },
-    /// USB peripheral operator commands (R2-USB §3 + R2-HIVE §6.4).
+    /// USB peripheral operator commands (R2-USB §3 + R2-PROVISION §5.3.4).
     /// Linux only.
     Usb {
         #[command(subcommand)]
@@ -118,7 +119,8 @@ enum UsbOp {
         /// Filesystem path to the device, e.g. `/dev/ttyACM0`.
         path: String,
     },
-    /// Confirm a pending SAS code on a paired peripheral (R2-HIVE §6.4.4).
+    /// Confirm a pending SAS code on a paired peripheral (R2-PROVISION
+    /// §5.3.4 SAS verification).
     /// Use after running `r2hive usb list`, comparing the displayed
     /// 6-digit code with what the peripheral renders, and verifying
     /// they match.

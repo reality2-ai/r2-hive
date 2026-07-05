@@ -9,7 +9,7 @@
 //! Linux-only — `r2-hive` on macOS/Windows doesn't run the USB
 //! watcher, so these events return `usb_disabled`.
 //!
-//! Wire vocabulary (R2-HIVE §5.3 extension):
+//! Wire vocabulary (R2-HOST-API §4 `r2.mgmt.*` namespace extension):
 //!
 //! ```text
 //! r2.mgmt.usb.list      — request: {0: cid}
