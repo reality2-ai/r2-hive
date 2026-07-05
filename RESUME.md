@@ -1,5 +1,14 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🧩 buildReplyFrame SHIPPED (wasm 0.6.3, 29c6013 — composer's C2b ask, same-hour)
+- Composer found the real gap in my 0.6.2 emit set: no wasm method emitted a **Reply-TYPE** frame, and the is_reply
+  anti-spoof gate (by design) grants only weak evidence to marker-in-Event — its 0.265→0.302 weak bump was the designed
+  behaviour, empirically confirmed. `buildReplyFrame(target, eventHash, markerBytes, replySeq)` closes the JS loop:
+  routeStackOf → replyMarkerWithStack → buildReplyFrame(replyMsgIdExt) → route_frame → STRONG retrace.
+- End-to-end test through the wasm surface added (twin of the core-tier invariant + regression falsifier for the Reply
+  type). 17/17 green, wasm32 clean, pkg sha 2ac6d98d…. No origination note on replies (in-flight ring stays
+  request-only). Composer notified with the full adoption recipe.
+
 ## 📜 GATEWAY SPEC v0.5 LANDED (specs 375f0d0 — the promote_after_ms pin) + CODEC ADOPTED SAME-DAY (fw c0bd522)
 - The §5.1.1 promotion trigger my #34 build question surfaced is canon: slot-0x01 layout = `[slot][promote_after_ms
   u32 LE — NEXT only][ad_bytes]`; relative countdown on local monotonic clock; expiry promotes atomically (zero boundary
