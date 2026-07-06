@@ -6,8 +6,14 @@
 - NO-PROBE CONFIRMED (supervisor tailnet scan 2026-07-07): host lsusb shows ONLY the board's Adafruit UF2
   bootloader (239a:8029), no debugger/probe-rs/thumbv7em target. => pivot to UF2 (drag-drop through the
   bootloader, which STAYS intact — no clobber risk). Delivered per supervisor directive.
-- COMMIT: rak4630-fw HEAD `ceb5f91` (UF2 build layer on top of d694d1f dev-class). All in
-  platforms/rak4630/ — FIRSTLIGHT.md is the authoritative recipe.
+- COMMIT: rak4630-fw HEAD `0cbe52a` (UF2 build layer + ARCHITECTURE.md + FAILED-line fix, on
+  d694d1f dev-class). All in platforms/rak4630/ — FIRSTLIGHT.md recipe + ARCHITECTURE.md (ratified).
+- EXACT USB-CDC lines composer's ttyACM0 ingest (be65eae) matches (NO 'r2-rak4630:' prefix — that's
+  RTT-only): greeting 'r2-rak4630 USB-CDC first-light' · 'boot build_mode=dev class=2' ·
+  'configure(LoRa) ok' (=WIN) · 'configure(LoRa) FAILED (SPI/DIO2/TCXO wiring)' · 'R2-BEACON advert
+  encoded (N B)'. USB-CDC baud is a don't-care (virtual serial); framing = CRLF ASCII lines. All
+  usb_note lines now fit the 56-byte cap (line() truncates char-wise, never drops — the FAILED line
+  was 66 B and arrived EMPTY before 0cbe52a).
 - DELIVERABLES (gitignored artifacts; regen via cargo + tools/elf2uf2.py):
   - PRIMARY: out/r2-rak4630-usbserial.uf2 (USB-CDC serial + LED floor; `--features usbserial`, ~50 KiB)
   - FALLBACK: out/r2-rak4630-ledfloor.uf2 (LED-only; `--features uf2`, ~39 KiB)
