@@ -1299,6 +1299,65 @@ mod denied_frame_tests {
             assert!(!seen.contains_key(&omitted), "key {omitted} must be omitted");
         }
     }
+
+    /// FLOW proof (the acceptance check this event exists for — composer
+    /// renders forge-reject RED from this notification, Roy's real-red bar):
+    /// a deliver-gate reject actually ARRIVES on a subscriber channel, and
+    /// the §3.2.1 match rules hold — a denied-class-filtered subscription
+    /// receives it, a `from_tg`-filtered subscription NEVER does (the TG
+    /// claim is exactly what's untrusted), and a broadcast subscription
+    /// receives it distinguishably (class hash on the outer wire / key 2).
+    #[tokio::test]
+    async fn deny_inbound_flows_to_subscribers_per_ratified_match_rules() {
+        use crate::mgmt::subscriptions::SubscriptionFilter;
+
+        let state = HiveState::new(0x0000_0001, 64, 16);
+
+        // A: filtered on the denied class — MUST receive.
+        let (tx_a, mut rx_a) = mpsc::channel::<Vec<u8>>(4);
+        let (_id_a, subs_a) = state.register_subscriber(tx_a).await;
+        subs_a.lock().await.add(SubscriptionFilter {
+            event_class: Some("r2.api.event.delivery.denied".to_string()),
+            ..Default::default()
+        });
+
+        // B: from_tg-filtered — MUST NOT receive (§3.2.1 omits key 6; the
+        // frame's TG claim is unverified by definition).
+        let (tx_b, mut rx_b) = mpsc::channel::<Vec<u8>>(4);
+        let (_id_b, subs_b) = state.register_subscriber(tx_b).await;
+        subs_b.lock().await.add(SubscriptionFilter {
+            from_tg: Some([0xAB; 8]),
+            ..Default::default()
+        });
+
+        // C: broadcast (no filter) — receives denies too, distinguishable.
+        let (tx_c, mut rx_c) = mpsc::channel::<Vec<u8>>(4);
+        let (_id_c, subs_c) = state.register_subscriber(tx_c).await;
+        subs_c.lock().await.add(SubscriptionFilter::default());
+
+        state
+            .deny_inbound(7, 0x0402_1CBD, "unauthenticated", 0x00AB_CD12)
+            .await;
+
+        let frame_a = rx_a.try_recv().expect("denied-class subscriber receives");
+        let denied_hash = r2_fnv::r2_hash("r2.api.event.delivery.denied").unwrap();
+        assert_eq!(
+            r2_wire::decode_extended(&frame_a).expect("decodes").header.event_hash,
+            denied_hash
+        );
+
+        assert!(
+            rx_b.try_recv().is_err(),
+            "from_tg-filtered subscription must never match a deny"
+        );
+
+        let frame_c = rx_c.try_recv().expect("broadcast subscriber receives");
+        assert_eq!(
+            r2_wire::decode_extended(&frame_c).unwrap().header.event_hash,
+            denied_hash,
+            "broadcast consumer distinguishes a deny by class hash"
+        );
+    }
 }
 
 #[cfg(test)]
