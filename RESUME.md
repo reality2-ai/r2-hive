@@ -26,10 +26,19 @@
   FAILED / no XoscReady at first light. Also CONFIRMED: every SX1262 pin matches the reference exactly
   (5100933 pinout independently validated). **First-light image is now rak4630-fw HEAD 4901717** (fix +
   FIRSTLIGHT.md refresh) — orchestration points at HEAD, not b099c65.
-- NEXT: await Roy's flash + RTT result (first-responder); then inc-2 BLE (nrf-sdc + trouble-host) for
-  OTA-over-L2CAP-CoC + battery duty-cycle/HB-wake — gated on the vendored-crate-set move to core 41adbd1
-  (same coherent move the dfr1195 tree took). Reference's bootloader/DFU + BLE-host + duty-cycle patterns
-  are inc-2 mining material (net-new, GPL facts-only).
+- 🔴 ROY SAID GO — first-light IN PROGRESS (2026-07-06). URGENT crossing sent: supervisor's GO predated my
+  TCXO fix, so I flagged Roy MUST flash HEAD **4901717** (TCXO V1_8), NOT b099c65 (TCXO V3_3 bug). Standing
+  by to READ the RTT.
+- **INTERPRETATION RULE (apply when the RTT log comes back — do NOT skip):** condition on WHICH commit was
+  flashed. (1) "configure(LoRa) ok" on ANY commit = first-light SUCCESS, call it, mark #44/#51 first-light
+  done. (2) "configure(LoRa) FAILED" on **b099c65** = the KNOWN + FIXED TCXO 3.3V bug → re-flash 4901717,
+  NOT a real wiring issue. (3) "configure(LoRa) FAILED" on **4901717** = a REAL wiring issue → I + core
+  diagnose SPI/DIO2-antenna-switch/BUSY/reset timing (Meshtastic RAK4631 board-def cross-check ready; core
+  owns r2-sx1262 driver-level wrinkles). Non-damaging either way. FIRST QUESTION on any FAILED: which sha?
+- NEXT after first-light: inc-2 BLE (nrf-sdc + trouble-host) for OTA-over-L2CAP-CoC + battery
+  duty-cycle/HB-wake — gated on the vendored-crate-set move to core 41adbd1. Reference's bootloader/DFU +
+  BLE-host + duty-cycle patterns = inc-2 mining material (net-new, GPL facts-only, loop core on driver
+  wrinkles).
 
 ## ✅ REAL HOSTED CI GREEN (task #55 DONE): r2-hive compiles + tests on runners for the FIRST time
 - ci.yml modernized (1138eb3) + vector vendoring (b5cbba2): all 5 jobs GREEN (run 28778737556) — test
