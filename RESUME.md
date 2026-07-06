@@ -3,8 +3,10 @@
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
 ## 📚 RUSTDOC SITE ✅ LIVE: **reality2.ai/r2-hive/** (task #51 CLOSED; Roy's rustdocs ask delivered)
-- Run 28769099459 both jobs green; site 200; hygiene spot-check clean. Specs announced for the
-  /programmers/ slot flip. Root causes closed: Roy's R2_CORE_READ_TOKEN (the structural finding is FIXED —
+- Run 28769099459 both jobs green; site 200; hygiene spot-check clean. /programmers/ SLOT FLIPPED +
+  deployed + live-page-probed by specs (crossed with my announce — supervisor's GO beat it); two of Roy's
+  three rustdoc slots delivered, composer remains. Template gotchas + wasm-surface inclusion banked on
+  specs' record. Root causes closed: Roy's R2_CORE_READ_TOKEN (the structural finding is FIXED —
   this workspace now compiles on hosted runners) + the github-pages ENVIRONMENT branch policy needed
   platform-trait explicitly allowed (template gotcha — bit core too; on the record for composer's
   replication). FOLLOW-ON OPENED (task #55, not Roy-gated): a real build/test ci.yml is now possible —
