@@ -117,10 +117,18 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   ESCALATED (specs adversarial check + carriage angle): code-pinned answers delivered — main.rs:3370
   (serve_coc labels CTRL_IN with the CALLER-supplied peer = pinned-bench constant → identity FABRICATED for
   anonymous centrals), :3981 (poll_control drains verbatim), :3217 (accept unconditional). LAYERED FIX:
-  L1 core WifiOffer guard + L2 engine WifiReq roster gate + **L3 MINE (shape with specs for blessing):
-  CTRL_IN identity bound by scan-resolution only (the MODE_DECL attribution-safe path), pinned-bench
-  labeling cfg'd dev-only. Honest residual: session-binding vs BLE address opacity = R2-PROVISION lineage,
-  the same seam as the first-attributability rule.** Build L3 on blessing; re-verify on core's L1+L2 sha.
+  L1 core WifiOffer guard + L2 engine WifiReq roster gate + L3 mine.
+  ✅ L3 BLESSED (v0.10, specs d4fd6f7 — my three-layer shape = the REQUIRED REALIZATION; v0.9's refuted
+  transitive sentence REWRITTEN in canon with my file:line pins) and BUILT same-cycle (fw 884f424):
+  CTRL_IN identity attaches ONLY via scan-resolution (boot-scoped SCAN_RESOLVED set = resolve_rbid_windowed
+  successes, the v0.8 bar); identity-less control frames DROP ENTIRELY (disposition stated as ruled) with a
+  NEG-CTRL-DROP observable line; the pinned-bench label is RULED §5.1-class and cfg'd dev-only — a PROD
+  image drops ALL inbound control on this path fail-closed until the R2-PROVISION in-session identity
+  exchange lands (canon now records that mechanism as BOTH the session-binding fix AND the v0.9
+  first-attributability event — one mechanism, both jobs; carry the dual framing into the PROVISION
+  proposal). PROD-ble arm (blemesh alone) verified specifically to exercise the None fail-closed path.
+  MY side of the caveat CLOSED. Remaining for specs to unqualify: core's L1+L2 sha → uptake → re-verify
+  all three layers together → report shas.
 - (superseded by the blessing above) §3A REMAINING PLACEMENTS CLOSED BY ANALYSIS (with specs for blessing):
   CoC-connect = transitively covered in the negotiated flow (only rostered peers reach CoC) + structurally
   IMPOSSIBLE for anonymous inbound accepts (BLE address opacity → no peer identity at connect; anonymous
