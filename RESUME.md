@@ -2,7 +2,19 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
-## 🛰️ RAK4630 FIRST-LIGHT — ROOT CAUSE FOUND (APPROTECT reset loop) + FIX pushed, awaiting Roy's confirm (task #44)
+## 🛰️ RAK4630 FIRST-LIGHT — ✅ APPROTECT FIX WORKED (init passed!); 2nd panic at configure-or-after, stage 7/8 diag out (task #44)
+- ✅✅ APPROTECT fix (Debug::NotConfigured, f698d6e) CONFIRMED ON METAL: clean-flushed flash took (drive
+  vanished, app ran, off-USB, STABLE = reset loop GONE). Init passes. That's the big unblock.
+- 🔴 SECOND panic: diag latch-replayed stage 6 on f698d6e (stages 1-6). Decode: 6 = LAST latch = panic
+  ANYWHERE from configure onward. NOT a wiring/TCXO failure (driver propagates BUSY/SPI errors with ? →
+  configure Err → my 1Hz branch, not a panic). So configure likely returned Ok (SPI writes succeed w/o a
+  radio; BUSY read low → radio at least partly alive) and the panic is JUST AFTER. Prime suspect = the FIRST
+  .await = Timer::after(1s).await (embassy-time/executor queue). NOT the SX1262 driver (clean), NOT SPIM
+  flash-buffer (FORCE_COPY_BUFFER=512), NOT gpiote (init auto-binds it).
+- DISAMBIGUATOR OUT (46937fe, diag rebuilt): added stage(7)=configure returned Ok, stage(8)=past listen.
+  New diag reads: 6=panic INSIDE configure (loop core); 7=configure Ok + panic at Timer(1s) await (my bet);
+  8=panic in service loop. Roy reflashes → count pins the region → I dig there / loop core. AWAITING.
+- (prior arc header for reference:)
 - ✅ ROOT CAUSE (2026-07-07, by inspection): the "fast strobe" was a RESET LOOP, NOT a panic. embassy-nrf
   default Debug::Allowed writes UICR.APPROTECT to disable it; behind the Adafruit bootloader + resident
   S140 6.1.1 (INFO_UF2.TXT confirmed) the bootloader OWNS UICR.APPROTECT, so the write never persists →
