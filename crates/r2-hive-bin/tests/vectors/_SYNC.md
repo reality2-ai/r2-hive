@@ -40,4 +40,27 @@ specs OWNS these vectors. When specs changes a vector file:
    `min_upstream` floors guard against an accidental shrink at vendor time.
 
 The fleet norm is a heads-up from specs to hive when a consumed vector
-moves (the same cross-repo sync courtesy as the vendored core crates).
+moves (the same cross-repo sync courtesy as the vendored core crates —
+specs has RECORDED this consumer-notify obligation, 2026-07-06).
+
+## Drift alert (specs-blessed backup to the heads-up)
+
+`ci/check-vendored-vectors.sh` compares these copies against the canonical
+sibling and ALERTS on divergence (it never auto-syncs — the pin is
+deliberate; reproducible CI must not follow canon HEAD). It is
+hermetic-safe: where the r2-specifications sibling is absent (CI, a clean
+clone) it exits 0 with a note. Run it where canon is on disk:
+
+```
+./ci/check-vendored-vectors.sh            # alert-only
+./ci/check-vendored-vectors.sh --strict   # exit 1 on drift
+```
+
+## Secret-scanner note
+
+`r2-usb-pair-vectors.json` contains synthetic `secret`/`shared_secret`
+fields (deterministic TEST-ONLY constants + their crypto outputs — see the
+file's own `description`). `.gitleaks.toml` allowlists this path (specs'
+ratified fleet pattern). The fleet's LOCAL pre-push bash hook is a separate
+failsafe that does NOT read that allowlist, so a re-vendor push needs
+`FLEET_SKIP_SECRET_SCAN=1 git push` until the shared hook learns allowlists.
