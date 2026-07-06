@@ -898,10 +898,16 @@ async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Re
                 rssi: None,
                 mcu_origin: false,
                 mobility: MobilityClass::Mobile,
-                // v0.7: this IS a scanning surface, but BeaconObservation does
-                // not yet surface build_class — None until core adds the byte
-                // (flagged; then: Some(BuildMode::from_wire(obs.build_class))).
-                build_mode: None,
+                // R2-BUILDMODE §4.4 declaration feed, HOST instance (core 3a835a5
+                // added BeaconObservation.build_class). PRICING (stated per my
+                // v0.8 commitment to specs): this is the WEAKER-attribution
+                // instance — the hive_id here is the §3.3 PROVISIONAL fallback
+                // (transport-address-derived), NOT registry-scoped rbid
+                // resolution, so it rides under the v0.5 honest-limits pricing
+                // and does NOT inherit the fw feed's §3A.2 closed-case status.
+                // Upgrades to the v0.8 bar when host-side PeerRegistry/
+                // session-key resolution lands.
+                build_mode: Some(r2_route::neighbour::BuildMode::from_wire(obs.build_class)),
             };
             state2.route_engine.lock().await.ingest_observation(route_obs);
         }
