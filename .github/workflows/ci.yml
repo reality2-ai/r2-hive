@@ -1,102 +1,142 @@
+# CI — hosted build + test for r2-hive.
+#
+# WHY THIS SHAPE (2026-07-06 modernization): the prior ci.yml was triple-stale —
+# it triggered on `main` only (all work lives on platform-trait), used the
+# pre-fold SIBLING-CHECKOUT model (dead since the rev-pin: the workspace resolves
+# r2-core via git-pinned deps, so a sibling r2-core checkout is ignored), and
+# had no auth for the now-PRIVATE r2-core git dep. Net effect: this repo's hosted
+# CI was hygiene-scan-ONLY and every "suites green" claim was LOCAL-only. Roy's
+# R2_CORE_READ_TOKEN (minted for the rustdoc site) unblocked hosted compilation;
+# this workflow is the first to actually run the suites on a runner.
+#
+# THE R2-BUILDMODE VERIFICATION GATE (the load-bearing addition): the suite runs
+# in BOTH build modes — prod (default) AND `--features dev` — because dev/prod is
+# a compile-time split (R2-BUILDMODE §5.1) and a green prod suite does not prove
+# the dev surfaces compile or vice-versa. This is the hosted twin of the local
+# "run both modes" rule.
+#
+# PRIVATE GIT-DEP AUTH: r2-hive's [workspace.dependencies] are rev-pinned git deps
+# on the PRIVATE reality2-ai/r2-core repo; the default GITHUB_TOKEN is repo-scoped,
+# so cargo's git fetch needs R2_CORE_READ_TOKEN (fine-grained PAT, r2-core
+# Contents: Read-only — Roy-minted, same secret docs.yml uses).
+
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [platform-trait, main]
   pull_request:
-    branches: [main]
+    branches: [platform-trait, main]
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
 jobs:
-  # Native build + test on Linux. Default features (no keyring/ble/lora)
-  # so the container doesn't need DBus or a Bluetooth adapter.
-  test-linux:
-    name: test (linux x86_64)
+  # ── Native Linux build + test, BOTH build modes (the §5.1 verification gate) ──
+  test:
+    name: test (linux x86_64, prod + dev)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: r2-hive
-      # r2-hive depends on the protocol crates in the sibling r2-core
-      # repo via path. Until those crates are published to crates.io,
-      # CI fetches r2-core into a sibling path.
-      - name: Check out r2-core (sibling)
-        uses: actions/checkout@v4
-        with:
-          repository: reality2-ai/r2-core
-          path: r2-core
-      - name: Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-      - name: Cargo cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: r2-hive
-      - name: Build (default features)
-        run: cargo build --workspace
-        working-directory: r2-hive
-      - name: Test (default features)
-        run: cargo test --workspace
-        working-directory: r2-hive
-      - name: Build (--features keyring)
-        run: cargo build -p r2-hive --features keyring
-        working-directory: r2-hive
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
 
-  # Cross-compile for aarch64 (Pi 5 / UNO-Q targets). Build only — the
-  # 4-node rig in TEST-RIG.md runs the actual integration tests.
+      # Auth for the private r2-core git deps — MUST precede any cargo command
+      # that resolves the workspace (git fetch happens on first build/test).
+      - name: Configure git auth for private core deps
+        run: git config --global url."https://x-access-token:${{ secrets.R2_CORE_READ_TOKEN }}@github.com/reality2-ai/".insteadOf "https://github.com/reality2-ai/"
+
+      # PROD suite (default features = cloud + transport-udp; no system libs —
+      # bluer/dbus is gated behind transport-ble, not default).
+      - name: Test — PROD (default features)
+        run: cargo test --workspace
+
+      # DEV suite — the R2-BUILDMODE §5.1 mode selector. dev = [] adds no deps;
+      # this proves the dev-only surfaces (bench group keys, web-dev-mode args,
+      # BUILD_MODE_VERSION +dev stamp) compile and their tests pass.
+      - name: Test — DEV (--features dev)
+        run: cargo test --workspace --features dev
+
+  # ── Optional-feature build checks (need libdbus: bluer + secret-service) ──
+  feature-builds:
+    name: feature build checks (ble, keyring)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: System deps (libdbus for bluer + secret-service)
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libdbus-1-dev
+      - name: Configure git auth for private core deps
+        run: git config --global url."https://x-access-token:${{ secrets.R2_CORE_READ_TOKEN }}@github.com/reality2-ai/".insteadOf "https://github.com/reality2-ai/"
+      # transport-ble = the §2.2 id-0 BLE L2CAP-CoC bearer (pulls bluer/dbus).
+      - name: Build — transport-ble bearer
+        run: cargo build -p r2-hive --features transport-ble
+      # keyring = the opt-in libsecret/Keychain identity store.
+      - name: Build — keyring identity store
+        run: cargo build -p r2-hive --features keyring
+
+  # ── wasm crate: workspace-EXCLUDED but pins the same rev; host tests + wasm32
+  # check (the false-green guard — the WifiMesh-rename lesson: --workspace skips
+  # the excluded crate, so it must be built explicitly or it rots silently). ──
+  wasm:
+    name: wasm (r2-hive-wasm host tests + wasm32 check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/r2-hive-wasm
+      - name: Configure git auth for private core deps
+        run: git config --global url."https://x-access-token:${{ secrets.R2_CORE_READ_TOKEN }}@github.com/reality2-ai/".insteadOf "https://github.com/reality2-ai/"
+      - name: Test — wasm crate (host target)
+        run: cargo test
+        working-directory: crates/r2-hive-wasm
+      - name: Check — wasm32-unknown-unknown
+        run: cargo check --target wasm32-unknown-unknown
+        working-directory: crates/r2-hive-wasm
+
+  # ── Cross-build for aarch64 (Pi 5 / UNO-Q deployable-node targets). Build-only;
+  # default features need no system libs, just the cross linker. ──
   cross-aarch64:
     name: cross-build (aarch64-unknown-linux-gnu)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: r2-hive
-      - name: Check out r2-core
-        uses: actions/checkout@v4
-        with:
-          repository: reality2-ai/r2-core
-          path: r2-core
-      - name: Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@v2
       - name: Install cross linker
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
-      - name: Build
+      - name: Configure git auth for private core deps
+        run: git config --global url."https://x-access-token:${{ secrets.R2_CORE_READ_TOKEN }}@github.com/reality2-ai/".insteadOf "https://github.com/reality2-ai/"
+      - name: Build — aarch64 (default features)
         run: cargo build --workspace --target aarch64-unknown-linux-gnu
-        working-directory: r2-hive
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
-  # Lint + format gates. cargo fmt --check is intentionally non-fatal
-  # for now; the existing tree predates a formatter pass.
+  # ── Lint + format. Non-fatal (continue-on-error): the tree predates a
+  # formatter pass and a clippy sweep is a separate scheduled item. Kept as a
+  # visible signal, not a gate — matches core's ci.yml posture. ──
   lint:
-    name: lint
+    name: lint (clippy + fmt, non-fatal)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: r2-hive
-      - name: Check out r2-core
-        uses: actions/checkout@v4
-        with:
-          repository: reality2-ai/r2-core
-          path: r2-core
-      - name: Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - name: Cargo cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: r2-hive
+      - uses: Swatinem/rust-cache@v2
+      - name: Configure git auth for private core deps
+        run: git config --global url."https://x-access-token:${{ secrets.R2_CORE_READ_TOKEN }}@github.com/reality2-ai/".insteadOf "https://github.com/reality2-ai/"
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
-        working-directory: r2-hive
         continue-on-error: true
       - name: Format check
         run: cargo fmt --all -- --check
-        working-directory: r2-hive
         continue-on-error: true
