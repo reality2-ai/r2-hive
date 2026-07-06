@@ -26,9 +26,17 @@
   FAILED / no XoscReady at first light. Also CONFIRMED: every SX1262 pin matches the reference exactly
   (5100933 pinout independently validated). **First-light image is now rak4630-fw HEAD 4901717** (fix +
   FIRSTLIGHT.md refresh) — orchestration points at HEAD, not b099c65.
-- 🔴 ROY SAID GO — first-light IN PROGRESS (2026-07-06). URGENT crossing sent: supervisor's GO predated my
-  TCXO fix, so I flagged Roy MUST flash HEAD **4901717** (TCXO V1_8), NOT b099c65 (TCXO V3_3 bug). Standing
-  by to READ the RTT.
+- 🔴 ROY SAID GO — first-light IN PROGRESS (2026-07-06). Standing by to READ the RTT.
+- **THE ONE CORRECT FIRST-LIGHT IMAGE = rak4630-fw HEAD `4901717`** (inc-1 DIO1-RX + HWRNG + TCXO V1_8 fix).
+  NOT b099c65 (TCXO V3_3 bug), NOT r2-core-consolidation @ b2d4ba6. TWO crossings converged here:
+  (a) my supervisor GO predated my TCXO fix → flagged 4901717 not b099c65;
+  (b) CORE INDEPENDENTLY caught the SAME TCXO V3_3→V1_8 bug from the SAME Meshtastic ref (b2d4ba6) — strong
+  double-confirmation of the board fact + core cross-confirmed every pin (triple-confirmed now). BUT core's
+  b2d4ba6 is on r2-core-CONSOLIDATION (a parallel copy), which I diffed = SPIKE-LEVEL (2 inc-1 markers) +
+  the fix; my rak4630-fw @ 4901717 = full inc-1 (16 markers) + the fix. Both have the fix; rak4630-fw is the
+  branch-model flash source + the complete image. NO one-writer collision (different branches). Locked the
+  flash source with supervisor (delivered) + core. FUTURE: rak4630-fw↔consolidation converge → identical
+  TCXO fix reconciles trivially, inc-1 content is mine to carry.
 - **INTERPRETATION RULE (apply when the RTT log comes back — do NOT skip):** condition on WHICH commit was
   flashed. (1) "configure(LoRa) ok" on ANY commit = first-light SUCCESS, call it, mark #44/#51 first-light
   done. (2) "configure(LoRa) FAILED" on **b099c65** = the KNOWN + FIXED TCXO 3.3V bug → re-flash 4901717,
