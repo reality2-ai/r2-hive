@@ -114,6 +114,15 @@ from_tg-filtered NEVER matches / broadcast distinguishes by class hash). 109 lib
 Composer sent consumption guidance incl. the key-state nuance (forgery needs the TG key HELD — their B2
 must load the bench TG in a dev build; zero-keys denies fail_closed; never filter the RED feed by from_tg).
 Wasm half not owed (UDS is the loopback surface; wasm has RxDisposition visibility from #36).
+POST-CLOSE RULINGS (specs, same-day): (b) my ambiguity-qualifier suggestion REFUTED and accepted — H=0 is a
+deterministic frame discriminator; within forgery, wrong-key/corrupted/zeroed are cryptographically
+INDISTINGUISHABLE, so the coarse taxonomy reports exactly what the gate knows (my 3-way triage stays a
+BENCH tool, not wire). (c) RULED MY WAY at v0.6 (specs 915d862) — LOAD-BEARING BUILDMODE PRECEDENT: an
+R2-HOST-API event class is a §5 STANDARD PROTOCOL SURFACE (ships BOTH modes, MUST NOT be compiled out of
+prod), vs §4 registered DEV surfaces (e.g. my queued nz.r2.diag responder #41 sits on THAT side). Rate-
+bounding = MAY in both modes. STANDING DUTY: composer holds the RED renderer until core's adversarial pass
+over the deny CBOR clears — I own SAME-DAY relay of any wire-detail change from that pass (none expected;
+map is pin-tested against the ratified text).
 
 ## 🔒 R2-BUILDMODE §5.1 LINUX HALF SHIPPED (task #50 — the flip-a-flag class killed)
 - New `dev` cargo feature on r2-hive-bin (default = PROD). Prod builds COMPILE OUT all five runtime security
