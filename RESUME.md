@@ -57,8 +57,16 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   MODE-TRANSPARENT in §4.4. Wire untouched. Core lands with a dev-node-undeclared-viable regression test +
   flags specs on canon wording + residual. I requested 3-case pin coverage: Dev+undeclared=viable /
   sticky-Dev survives None refresh / Prod+declared-Dev=non-viable.
-- NEXT TRIGGER: core names the green sha → same-day: bump r2-hive, re-vendor fw r2-route, wire beacon-RX
-  Some(from_wire) upserts + None elsewhere + ctors + §3A drop arms (plan pre-staged below).
+- ✅ SPECS RULED SAME-DAY (R2-BUILDMODE v0.7, 64d8ab9): trichotomy CANON — same-declared viable /
+  different-declared non-viable (incl unknowns) / NO observed declaration = MODE-TRANSPARENT. Specs'
+  strengthening: default-to-Prod at the obs layer = the exact fail-open collapse v0.6 already forbade for
+  unknown values, one layer down — core's shape was doubly wrong by canon's own logic. Absence MUST be
+  representable; the two absence states (no-byte-in-observed-beacon = declared prod vs no-observation =
+  transparent) MUST stay distinguishable. Beacon-to-engine feeds = SHOULD (tightening, not precondition).
+  Roy-bounceable flagged (v0.2 carriage precedent); fallback = declaration-on-every-path — representable
+  absence is needed in BOTH worlds, so the Option shape + my None call sites are bounce-proof.
+- NEXT TRIGGER: core names the CORRECTED green sha (NOT a5d2d7e) → same-day: bump r2-hive, re-vendor fw
+  r2-route, wire beacon-RX Some(from_wire) upserts + None elsewhere + ctors + §3A drop arms (pre-staged).
 
 ## 🛑 §4.4 API LANDED (core a5d2d7e) BUT HELD — MY IMPLEMENTATION-REFUTATION IN FLIGHT (2026-07-06)
 - Core landed the BuildMode API (enum+Other(u8) ✓, from_wire ✓, ctor arg ✓, viability equality in
