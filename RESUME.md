@@ -6,8 +6,14 @@
 - NO-PROBE CONFIRMED (supervisor tailnet scan 2026-07-07): host lsusb shows ONLY the board's Adafruit UF2
   bootloader (239a:8029), no debugger/probe-rs/thumbv7em target. => pivot to UF2 (drag-drop through the
   bootloader, which STAYS intact — no clobber risk). Delivered per supervisor directive.
-- COMMIT: rak4630-fw HEAD `0cbe52a` (UF2 build layer + ARCHITECTURE.md + FAILED-line fix, on
-  d694d1f dev-class). All in platforms/rak4630/ — FIRSTLIGHT.md recipe + ARCHITECTURE.md (ratified).
+- COMMIT: rak4630-fw HEAD `e8dff37` (UF2 build layer + FAILED-line fix + ARCHITECTURE.md w/ core's
+  3 flags resolved, on d694d1f dev-class). platforms/rak4630/ — FIRSTLIGHT.md recipe + ARCHITECTURE.md.
+- ARCHITECTURE.md CORE-CO-SIGNED (ImageSink §5.5 contract + auth + recovery MUST); 3 flags resolved
+  (all OTA-increment §5, NOT first-light blockers): FLAG-A geometry (2×480 doesn't fit → §1.1 per-bank
+  ≤~400 KiB); FLAG-B swap (Adafruit UF2 is a fixed-0x26000 flasher, not pointer-aware → §2.0 R2
+  boot-selection trampoline owns A/B via zero-copy pointer flip); FLAG-C wipe (CredentialStore
+  marker-first, core b359c79, recovery-layer-driven BEFORE handoff). Awaiting core's activate()
+  co-sign against the trampoline mechanism.
 - EXACT USB-CDC lines composer's ttyACM0 ingest (be65eae) matches (NO 'r2-rak4630:' prefix — that's
   RTT-only): greeting 'r2-rak4630 USB-CDC first-light' · 'boot build_mode=dev class=2' ·
   'configure(LoRa) ok' (=WIN) · 'configure(LoRa) FAILED (SPI/DIO2/TCXO wiring)' · 'R2-BEACON advert
