@@ -15,6 +15,14 @@ R2-INTRO v0.9 (da509f1: FAR+MUCH = local ad-hoc radio + infra UDP/IP e.g. GSM/sa
 exposure = honest cost of infra reach) swept same-day: ZERO global-mesh/worldwide framing on any hive/fw/rak
 surface, and zero long-reach-bearer mentions to reframe. No change owed.
 
+**TASK #52 MANDATE SHARPENED (supervisor ruling via supervisor-codex, 2026-07-06):** route layer ACCEPTS the
+replay residual — an authenticated full-route deliverable replay MAY deliver more than once (route-level dedup
+marking rejected: re-opens transit-censorship risk). So my claim-11 assembly is the ONLY replay defense at the
+effect boundary: IdempotencyGuard keyed (origin,msg_id) BEFORE sentant/effect handling on EVERY arm (wasm
+handleRx / Linux router deliver / fw io_task), then DispatchEnvelope+trust context as assigned. Effect
+idempotency = correctness-MANDATORY. Acceptance check owed: replay an authenticated frame through each arm,
+prove single effect. (#52 still HELD for Roy's plan review; this raises its priority-on-release.)
+
 ## 🧭 R2-BUILDMODE §4.4 VIABILITY API IN FLIGHT (2026-07-06 — core proposed, I ack'd with ONE counter)
 - Core proposed the r2-route mode-viability shape (the gate on my §3A drop arms): BuildMode on Observation +
   NeighbourEntry (resolved at MY decoder, absence-is-prod there — r2-route never guesses), own-mode on the engine,
