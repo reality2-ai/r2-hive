@@ -33,19 +33,19 @@ repository = "https://github.com/reality2-ai/r2-hive"
 # wherever any member needs the no_std subset; members that want defaults
 # re-enable them (allowed direction of cargo's inheritance rules).
 [workspace.dependencies]
-r2-hive-core = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
-r2-wire = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492", default-features = false }
-r2-cbor = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
-r2-fnv = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
-r2-route = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
-r2-trust = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
-r2-transport = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
-r2-discovery = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
-r2-engine = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492", default-features = false }
-r2-def = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
-r2-ensemble = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
-r2-dispatch = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
-r2-update = { git = "https://github.com/reality2-ai/r2-core.git", rev = "994344802b2646453280899f631454d8a7f37492" }
+r2-hive-core = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
+r2-wire = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d", default-features = false }
+r2-cbor = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
+r2-fnv = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
+r2-route = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
+r2-trust = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
+r2-transport = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
+r2-discovery = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
+r2-engine = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d", default-features = false }
+r2-def = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
+r2-ensemble = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
+r2-dispatch = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
+r2-update = { git = "https://github.com/reality2-ai/r2-core.git", rev = "b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d" }
 
 # ── Escape hatch (fold-migration local loop) ─────────────────────────────
 # Uncomment to redirect the git-deps to the live sibling checkout when you
