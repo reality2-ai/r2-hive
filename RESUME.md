@@ -103,12 +103,17 @@ their B2 config-only plan needs hives built --features dev (version string +dev 
 socket choice confirmed right (/r2/mgmt WS web-auth has NO prod bypass BY DESIGN; --web-dev-mode is
 dev-feature-only). No hive build task unless they hit a real API seam.
 
-**B2b DENY-EVENT ROUTED SPEC-FIRST (task #54, 2026-07-06):** composer's RED forge-reject blocker — proposal
-to specs: r2.api.event.delivery.denied at the deliver-gate reject arm (symmetric twin of accept-side
-r2.api.event.delivery, same UDS feed; reason enum forgery/unauthenticated/fail_closed; no key material/tag
-bytes carried). My positions on record: ships BOTH modes (operator security observable ≠ fourth-wall break);
-the 3-way hmac ambiguity (absent/zero/wrong-key) flagged for the granularity ruling. On blessing: implement
-hive-bin router deliver-arm emission + wasm deny surface. Canon anchor = Roy's real-red rule.
+**✅ B2b DENY-EVENT CLOSED (task #54 done, bb17f5e):** specs ratified R2-HOST-API v0.4 (d057780) — and the
+FINDING: the implementation ALREADY EXISTED (deny_inbound + build_denied_frame + three router reject arms,
+from the earlier deliver-gate batch; the spec's §3.2.1 ratifies the shipped shape — my "proposal" crossed
+with standing canon). Today's delta = point-for-point verification vs the ratified text (key map 0/2/3/5/7
++ 8/9, omissions 1/4/6 pin-tested; taxonomy verbatim grounded in classify_extended_full; Relay no-denies;
+unkeyed opt-in delivers-never-denies; ships BOTH modes) + the missing ACCEPTANCE PROOF: new flow test —
+a reject actually arrives on subscriber channels per §3.2.1 match rules (denied-class-filtered receives /
+from_tg-filtered NEVER matches / broadcast distinguishes by class hash). 109 lib tests green both modes.
+Composer sent consumption guidance incl. the key-state nuance (forgery needs the TG key HELD — their B2
+must load the bench TG in a dev build; zero-keys denies fail_closed; never filter the RED feed by from_tg).
+Wasm half not owed (UDS is the loopback surface; wasm has RxDisposition visibility from #36).
 
 ## 🔒 R2-BUILDMODE §5.1 LINUX HALF SHIPPED (task #50 — the flip-a-flag class killed)
 - New `dev` cargo feature on r2-hive-bin (default = PROD). Prod builds COMPILE OUT all five runtime security
