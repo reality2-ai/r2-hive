@@ -72,9 +72,23 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   its interop relation gets ruled explicitly AT ACTIVATION — equality is only the meanwhile default, nothing
   pre-judged. Also folded: the §4 wasm-bridge registry row now names r2-hive-wasm's wasm-bindgen surface as THE
   observability seam (Roy-confirmed 3-way wording). Core relayed — nothing waits on specs; API can land.
-- When core lands the r2-route side: wire the Observation feed + §3A drop arms same day (task #50c). Still
-  waiting elsewhere on #50: core's BLE codec sha (LegacyBeacon.build_class → my one prepared line + the legacy
-  dev-beacon conformance vector); routetest telemetry split = MINE + unblocked; recipe-card mode stamps.
+- When core lands the r2-route side: wire the Observation feed + §3A drop arms same day (task #50c).
+- ✅ BLE HALF CLOSED SAME-DAY (core codec b420fb3 → my emit fw 37f23b1 → vector to specs, one cycle):
+  re-vendored r2-discovery wholesale from b420fb3; build_class = BUILD_CLASS set at the LegacyBeacon
+  construction; SIX local-xtensa arms green (incl. bare field — see below — and the canonical
+  field,carrier,loraroute compose) + field×dev gate still fires. Conformance vector generated via the REAL
+  codec (scratchpad host crate, asserts: AD-22 placement, round-trips, dev/prod differ in exactly one byte,
+  18B truncation decodes prod) and delivered to specs with all inputs stated (demo hk 0xA5×32, hive 0x480E900E,
+  epoch 0, sensor class 0x43895E89). LATENT-BREAK FIX en route (got.3 class, PRE-EXISTING — proven red at
+  715064a): mesh_broadcast was cfg(ble) but the fr4 SCF-FWD call is carrier-agnostic → bare field never
+  compiled AND pure-LoRa field composes had no SCF forward; gate now any(ble,loraroute) + ble-gated ESP-NOW
+  arm + carrier-less no-op stub. Honesty correction on the old record: the 715064a "field-prod" arm evidently
+  composed carriers; bare field was NEVER green before this.
+- ✅ PIN BUMPED 9943448 → b420fb3 (bump-core.sh, CI-green gated, full suite + wasm + hygiene green, 5c7de73).
+  Side effect: #52's prereq is SATISFIED (b420fb3 contains fbee20d — ancestry verified); only Roy's plan-review
+  hold remains on the claim-11 assembly.
+- Still waiting on #50: core's r2-route BuildMode API (→ same-day §3A wiring); routetest telemetry split =
+  MINE + unblocked; recipe-card mode stamps; rak4630 dev feature at inc-2.
 
 ## 🔒 R2-BUILDMODE §5.1 LINUX HALF SHIPPED (task #50 — the flip-a-flag class killed)
 - New `dev` cargo feature on r2-hive-bin (default = PROD). Prod builds COMPILE OUT all five runtime security
