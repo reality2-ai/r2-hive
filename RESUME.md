@@ -34,9 +34,11 @@ router relay / wasm), replay boundary per §8.2a as above.
 hosted run 28690391458; carpark F2/F3/F4 harness primitive then signed off same-day at 3c49a40 / run
 28692193276 — pure r2-harness behavioral aggregate testing, NOT firmware/RF simulation, so no firmware-facing
 evidence ask materialized; GROUP_MGMT priority preservation now has a system falsifier there):**
-INBOUND NEXT from core: a SPEC-FIRST grounding pass for the 2b bootloader (no implementation yet) — expect
-boundary questions on esp-hal/espflash, custom rollback, flashing/provisioning, skeleton-vs-full-firmware
-split. Facts to hold in any answer I give: (1) FLASHING/sign/key-mint = HUMAN-ONLY (Roy) — harness+fleet
+2b BOOTLOADER: core's grounding pass ran and CORRECTLY STOPPED same-day — rollback-enabled bootloader ruled
+metal/flashing/provisioning territory, not solo-core. PARKED as low-pri hive/composer-coordinated
+production-hardening (ledger task #53) requiring human/firmware authority; interim = app-level
+ota_confirm_or_rollback + documented residual, sufficient for current gating. Boundary facts staged for
+whenever it wakes: (1) FLASHING/sign/key-mint = HUMAN-ONLY (Roy) — harness+fleet
 gates, non-negotiable; (2) FlashSink/OTA apply backend = hive fw's (ImageSink trait per the OTA per-platform
 sink model; verify = shared r2_update); (3) flash sector registry 0x12000-0x1B000 incl. persona@0x12000 +
 TG@0x14000 + RoleProfile@0x17000 is load-bearing for mode-flip/provisioning semantics (v0.4 persona catch);
