@@ -198,6 +198,10 @@ async fn missing_web_auth_fails_closed_by_default() {
     assert_eq!(resp.status(), 503);
 }
 
+/// DEV-BUILD-ONLY (R2-BUILDMODE §5.1): tests the dev bypass itself; the
+/// setter does not exist in prod builds. The other tests in this file are
+/// the PROD-relevant fail-closed assertions and run in both modes.
+#[cfg(feature = "dev")]
 #[tokio::test]
 async fn explicit_dev_mode_serves_with_warning_header() {
     let tmp = tempfile::tempdir().unwrap();

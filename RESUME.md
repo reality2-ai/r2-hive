@@ -1,5 +1,20 @@
 # RESUME — r2-hive (hive-worker)
 
+## 🔒 R2-BUILDMODE §5.1 LINUX HALF SHIPPED (task #50 — the flip-a-flag class killed)
+- New `dev` cargo feature on r2-hive-bin (default = PROD). Prod builds COMPILE OUT all five runtime security
+  bypasses: --web-dev-mode, --usb-auto-confirm-unsafe, --usb-allow-any, R2_DELIVER_UNKEYED_OPEN, and
+  R2_GROUP_KEYS_BENCH (the fifth was my addition — same class, specs' list had four). Structural absence proven
+  observable: prod binary answers "unexpected argument" to --web-dev-mode; no env read exists in the image.
+- CONSEQUENCE (deliberate, documented in Cargo.toml): a PROD-built Linux daemon today is UNKEYED + fail-closed
+  (relay-only) until R2-KEYSTORE §4 sealed custody lands. FR-2b/bench boxes build --features dev.
+- §6.3: version string mode-stamped (BUILD_MODE_VERSION: bare semver = prod / "+dev" suffix = dev) — flows through
+  daemon.status + logs = runtime which-code-was-flashed declaration. §6.2 n/a on Linux (dev IS the selector).
+- Tests: BOTH modes green (15 suites each). Three dev-bypass-dependent web tests gated cfg(feature="dev") — the
+  six fail-closed web-auth assertions stay in the PROD suite (the prod-relevant ones). mgmt version assertion is
+  mode-aware. Verification gate from here = run the suite BOTH modes.
+- REMAINING #50 (fw side, awaiting specs §8.1 bytes + my build block): generalized prod×dev compile gate on
+  dfr1195, build_class=2 emission (BLE + wasm + LoRa-17B once landed), mode-stamped fw artifact names.
+
 ## 🧬 FOLD CUTOVER DONE (r2-hive-core now lives in r2-core; my re-point+delete landed)
 - Core landed the crate at my freeze d9d4429 into r2-core crates/r2-hive-core; I bumped BOTH manifests to
   9943448 (their CI-green sha — NOT bbd7771, which had silently dropped no_std; core caught it on bare-metal and

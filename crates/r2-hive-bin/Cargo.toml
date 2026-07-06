@@ -70,6 +70,15 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 # --no-default-features drops it (build-time composition). WS/internet is NOT gated here — it is the
 # always-on base bearer (see NOTE below).
 default = ["cloud", "transport-udp"]
+# R2-BUILDMODE §5.1 (specs v0.3, 3f81a54): the DEV build mode for the Linux
+# daemon. PROD (default, feature absent) COMPILES OUT every runtime security
+# bypass — the flags/env below do not exist in a prod binary (structural
+# absence, not default-off): --web-dev-mode, --usb-auto-confirm-unsafe,
+# --usb-allow-any, R2_DELIVER_UNKEYED_OPEN, R2_GROUP_KEYS_BENCH. A prod-built
+# daemon today is therefore UNKEYED + fail-closed (relay-only) until the
+# R2-KEYSTORE §4 sealed-custody path lands — that is the honest §7.5.4
+# posture, not a regression. Bench/FR-2b boxes build --features dev.
+dev = []
 cloud = []
 lan = []
 

@@ -155,9 +155,11 @@ struct Args {
     #[arg(long)]
     no_mgmt: bool,
 
-    /// **DEV/TEST ONLY.** Serve web-plugin assets without browser auth when
-    /// the master-secret-backed web-auth registry is unavailable. Production
-    /// deployments MUST NOT set this; the default is fail-closed.
+    /// **DEV BUILDS ONLY** (R2-BUILDMODE §5.1): serve web-plugin assets
+    /// without browser auth when the web-auth registry is unavailable. The
+    /// flag does not exist in a prod binary — structural absence, not
+    /// default-off.
+    #[cfg(feature = "dev")]
     #[arg(long)]
     web_dev_mode: bool,
 
@@ -187,19 +189,17 @@ struct Args {
     #[arg(long, default_value = "/dev")]
     usb_dir: PathBuf,
 
-    /// **DEV/TEST ONLY.** Auto-confirm any SAS prompt from a freshly
-    /// attached USB peripheral. Equivalent to a UI operator clicking
-    /// "yes, the codes match" with no human in the loop. Production
-    /// deployments MUST NOT set this; it defeats the R2-PROVISION §5.3.4
-    /// (SAS verification).
+    /// **DEV BUILDS ONLY** (R2-BUILDMODE §5.1): auto-confirm any SAS prompt
+    /// from a freshly attached USB peripheral — defeats R2-PROVISION §5.3.4.
+    /// Does not exist in a prod binary.
+    #[cfg(feature = "dev")]
     #[arg(long)]
     usb_auto_confirm_unsafe: bool,
 
-    /// **DEV/TEST ONLY.** Bypass the default-deny USB device filter
-    /// and try to talk R2-USB v0.1 to every CDC-ACM device that
-    /// appears. Production deployments leave this off; the right
-    /// path is `--usb-vid-pid VID:PID` (or `r2hive usb prepare` per
-    /// Phase USB-4) for known peripherals.
+    /// **DEV BUILDS ONLY** (R2-BUILDMODE §5.1): bypass the default-deny USB
+    /// device filter. Does not exist in a prod binary; the prod path is
+    /// `--usb-vid-pid VID:PID` / `r2hive usb prepare`.
+    #[cfg(feature = "dev")]
     #[arg(long)]
     usb_allow_any: bool,
 
@@ -452,6 +452,7 @@ async fn main() {
     log::info!("  WebSocket: ws://{}:{}/r2", args.bind, args.port);
     log::info!("  Buffer: {} frames/group", args.buffer_size);
     log::info!("  Max connections: {}", args.max_connections);
+    #[cfg(feature = "dev")]
     if args.web_dev_mode {
         state.set_web_dev_mode(true);
         log::warn!(
@@ -501,15 +502,22 @@ async fn main() {
     // skip it.
     #[cfg(target_os = "linux")]
     if !args.no_usb {
+        // R2-BUILDMODE §5.1: in a prod build the two USB bypasses are
+        // compile-time false — the flags don't exist, so these fold away.
+        #[cfg(feature = "dev")]
+        let (usb_auto_confirm, usb_allow_any) =
+            (args.usb_auto_confirm_unsafe, args.usb_allow_any);
+        #[cfg(not(feature = "dev"))]
+        let (usb_auto_confirm, usb_allow_any) = (false, false);
         let usb_handle = spawn_usb_watcher(
             args.usb_dir.clone(),
-            args.usb_auto_confirm_unsafe,
-            args.usb_allow_any,
+            usb_auto_confirm,
+            usb_allow_any,
             args.usb_vid_pid.clone(),
             state.clone(),
         );
         state.set_usb_handle(usb_handle);
-        if args.usb_allow_any {
+        if usb_allow_any {
             log::warn!(
                 "  USB watcher: --usb-allow-any is set — every CDC-ACM device \
                  will be probed for R2-USB v0.1. DEVELOPMENT USE ONLY."

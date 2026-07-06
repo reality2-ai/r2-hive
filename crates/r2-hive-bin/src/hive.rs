@@ -343,11 +343,24 @@ impl HiveState {
             lora_transport: RwLock::new(None),
             route_engine: Mutex::new(RouteEngine::new()),
             transport_policy_lease: RwLock::new(None),
+            // R2-BUILDMODE §5.1: both env-var inputs below exist ONLY in dev
+            // builds. A prod binary reads neither — it boots unkeyed +
+            // fail-closed (relay-only) until R2-KEYSTORE §4 sealed custody
+            // lands. Structural absence: no env read, no config path.
+            #[cfg(feature = "dev")]
             group_hmacs: load_bench_group_hmacs(),
-            // R2-TRUST §7.5.4: fail-closed by default; only an explicit operator opt-in flips it to open.
+            #[cfg(not(feature = "dev"))]
+            group_hmacs: HashMap::new(),
+            // R2-TRUST §7.5.4: fail-closed by default; the operator opt-in is
+            // a DEV-build capability only (specs v0.3 ruling: the migration
+            // fail-open predates the compile-time split; refined, it lives in
+            // DEV images — no contradiction).
+            #[cfg(feature = "dev")]
             deliver_unkeyed_open: std::env::var("R2_DELIVER_UNKEYED_OPEN")
                 .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                 .unwrap_or(false),
+            #[cfg(not(feature = "dev"))]
+            deliver_unkeyed_open: false,
             active_tg: RwLock::new(None),
             subscribers: Mutex::new(Vec::new()),
             next_subscriber_id: AtomicU64::new(1),
@@ -385,21 +398,32 @@ impl HiveState {
         self.web_auth.read().expect("web_auth lock").clone()
     }
 
-    /// Enable or disable the explicit web development bypass (DEV ONLY —
-    /// production installs [`Self::set_web_auth`] instead).
+    /// Enable or disable the explicit web development bypass. DEV BUILDS
+    /// ONLY (R2-BUILDMODE §5.1) — the setter does not exist in a prod
+    /// binary, so nothing can ever flip the flag there.
     ///
-    /// **Used-by:** `main.rs` when `--web-dev-mode` is passed.
+    /// **Used-by:** `main.rs` when `--web-dev-mode` is passed (dev builds).
+    #[cfg(feature = "dev")]
     pub fn set_web_dev_mode(&self, enabled: bool) {
         self.web_dev_mode.store(enabled, Ordering::Relaxed);
     }
 
     /// Returns true only when the operator explicitly enabled the web
-    /// development bypass.
+    /// development bypass. In a PROD build this is a compile-time `false`
+    /// (no setter exists; the field is write-never) — the consuming branch
+    /// in `web.rs` folds away.
     ///
     /// **Used-by:** `web.rs` when deciding whether an unauthenticated asset
     /// request may still be served.
     pub fn web_dev_mode(&self) -> bool {
-        self.web_dev_mode.load(Ordering::Relaxed)
+        #[cfg(feature = "dev")]
+        {
+            self.web_dev_mode.load(Ordering::Relaxed)
+        }
+        #[cfg(not(feature = "dev"))]
+        {
+            false
+        }
     }
 
     /// Install the USB peripheral bring-up handle. Until set, the
@@ -1162,6 +1186,9 @@ pub(crate) fn hex_encode(bytes: &[u8]) -> String {
 /// => empty map => gate INACTIVE (migration mode: deliver + warn).
 ///
 /// **Used-by:** [`HiveState::new`] only (populates `group_hmacs` at boot).
+/// DEV BUILDS ONLY (R2-BUILDMODE §5.1): the C3 plaintext-key path does not
+/// exist in a prod binary.
+#[cfg(feature = "dev")]
 fn load_bench_group_hmacs() -> HashMap<u32, GroupHmac> {
     let map = HashMap::new();
     let path = match std::env::var("R2_GROUP_KEYS_BENCH") {
@@ -1189,6 +1216,9 @@ fn load_bench_group_hmacs() -> HashMap<u32, GroupHmac> {
 /// parsing is unit-testable; `load_bench_group_hmacs` handles the env + file read.
 ///
 /// **Used-by:** [`load_bench_group_hmacs`] and the `group_key_tests` module.
+/// Compiled for dev builds + tests (the pure parser stays test-covered in
+/// every mode; only the env/file INPUT path is dev-gated).
+#[cfg(any(test, feature = "dev"))]
 fn parse_bench_group_hmacs(data: &str) -> HashMap<u32, GroupHmac> {
     let mut map = HashMap::new();
     let json: serde_json::Value = match serde_json::from_str(data) {

@@ -23,6 +23,15 @@ use crate::hive::HiveState;
 
 use super::identity::{FileStore, IdentityStore, MasterSecret, StoreBackend};
 
+/// R2-BUILDMODE §6.3: the version string carries the BUILD MODE so the
+/// artifact and every runtime surface that echoes it (daemon.status, logs)
+/// declare which-code-was-flashed. PROD = bare semver (absence-is-prod,
+/// mirroring the beacon rule); DEV = "+dev" suffix.
+#[cfg(feature = "dev")]
+pub const BUILD_MODE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+dev");
+#[cfg(not(feature = "dev"))]
+pub const BUILD_MODE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[derive(Clone)]
 pub struct DaemonState {
     inner: Arc<Inner>,
@@ -58,7 +67,7 @@ impl DaemonState {
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Inner {
-                version: env!("CARGO_PKG_VERSION"),
+                version: BUILD_MODE_VERSION,
                 build_hash: option_env!("R2TGD_BUILD_HASH").unwrap_or("unversioned"),
                 started_at: Instant::now(),
                 identity: None,
@@ -92,7 +101,7 @@ impl DaemonState {
         };
         Ok(Self {
             inner: Arc::new(Inner {
-                version: env!("CARGO_PKG_VERSION"),
+                version: BUILD_MODE_VERSION,
                 build_hash: option_env!("R2TGD_BUILD_HASH").unwrap_or("unversioned"),
                 started_at: Instant::now(),
                 identity: Some(identity),

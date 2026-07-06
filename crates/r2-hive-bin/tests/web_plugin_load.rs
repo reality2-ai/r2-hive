@@ -1,3 +1,9 @@
+//! DEV-BUILD-ONLY suite (R2-BUILDMODE §5.1): asset fetch rides the dev bypass;
+//! `set_web_dev_mode` does not exist in a prod binary, so this file compiles
+//! only under `--features dev`. Run it via the dev-mode gate
+//! (`cargo test -p r2-hive --features dev`) — both modes run in verification.
+#![cfg(feature = "dev")]
+
 //! End-to-end test for path-based `r2.mgmt.ensemble.load` with a web
 //! plugin: load a score from disk, the daemon mounts the bundle, GETs
 //! return the bundle, then `ensemble.stop` unmounts and GETs return 404.

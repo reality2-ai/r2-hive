@@ -39,7 +39,10 @@ async fn daemon_status_round_trip() {
     let parsed = parse_status_response(&response_frame).expect("parse response");
 
     assert_eq!(parsed.correlation_id, correlation_id, "correlation id");
-    assert_eq!(parsed.version, env!("CARGO_PKG_VERSION"), "version");
+    // R2-BUILDMODE §6.3: the daemon's version string is mode-stamped
+    // (bare semver = prod, "+dev" suffix = dev build) — assert against the
+    // mode-aware const so this test is correct in BOTH build modes.
+    assert_eq!(parsed.version, r2_hive::mgmt::state::BUILD_MODE_VERSION, "version");
     // build_hash is "unversioned" unless R2TGD_BUILD_HASH is set; either is acceptable.
     assert!(
         !parsed.build_hash.is_empty(),
