@@ -127,8 +127,12 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   exchange lands (canon now records that mechanism as BOTH the session-binding fix AND the v0.9
   first-attributability event — one mechanism, both jobs; carry the dual framing into the PROVISION
   proposal). PROD-ble arm (blemesh alone) verified specifically to exercise the None fail-closed path.
-  MY side of the caveat CLOSED. Remaining for specs to unqualify: core's L1+L2 sha → uptake → re-verify
-  all three layers together → report shas. Specs RECORDED L3 (884f424 verified in-worktree, all four
+  ✅ ALL THREE LAYERS COMPLETE + UPTAKEN (same-day): L1+L2 = core 41adbd1 (falsification-verified — neuter
+  either guard and its regression test reds); L3 = fw 884f424; uptake = fw e2f0e96 + hive pin 01e3e48.
+  COMPOSED CHAIN re-verified as fact: identity-less control drops (L3; prod drops ALL) → §3A.1 filters
+  declared-cross-mode at poll_scan BEFORE rostering → roster populated ONLY by poll_scan → is_rostered
+  gates creds (L2) → provider guard stops rogue-AP joins (L1). Scan-ingest = the structurally mandatory
+  carriage gate. Unqualify shas sent to specs; awaiting their unqualify of dfr1195 §3A. Specs RECORDED L3 (884f424 verified in-worktree, all four
   sharpenings confirmed) + weighed the composed PROD consequence ON THE RECORD as an ACCEPTABLE named
   capability cost: bulk SoftAP = optional Mode-1b on-demand path, common case elects nothing, so PROD
   loses an optional optimization fail-closed — named not hidden; the PROVISION-lineage handshake is the
