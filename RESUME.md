@@ -16,7 +16,14 @@
   easy to miss). KEY DISAMBIGUATOR = the steady-state RATE (no re-flash needed): ~16 Hz FAST strobe = a
   PANIC (no groups = embassy_nrf::init); ~1 Hz SLOW = NOT a panic = configure(LoRa) FAILED = ALL init passed,
   RADIO-WIRING issue (SPI/DIO2/TCXO, core's 3 cross-checks). Asked Roy: fast or ~1/sec? — AWAITING.
-- NEXT FLASH = out/r2-rak4630-diag.uf2 (rak4630-fw 8e749a8, diag v2 LATCH+REPLAY): stage(n) latches an atomic;
+- ROY CONFIRMED (v1): CONTINUOUS FAST STROBE from boot, ZERO countable stage groups, ZERO boot-blink =>
+  panic at/before stage 1 = likely embassy_nrf::init (nRF52840 HAL bring-up, before any R2 code). Inspected
+  embassy_nrf::init: default path is BENIGN register access (FICR trims, anomaly-66 TEMP) — NO obvious panic
+  site, so I confirm before blind-fixing.
+- NEXT FLASH = out/r2-rak4630-diag.uf2 (rak4630-fw 8afb5cd, diag v3): adds a 1.5s SOLID marker the instant
+  embassy_nrf::init RETURNS (cannot be confused w/ the 16Hz strobe). Read: NO solid + fast strobe = panic
+  INSIDE embassy_nrf::init (turn HAL-init fix); 1.5s SOLID then strobe/replay-N/1Hz/solid = init OK, localize.
+- (v2 8e749a8 LATCH+REPLAY, folded into v3): stage(n) latches an atomic;
   the PANIC HANDLER replays the count FOREVER (n×375ms blinks + 2.5s pause), so the failing stage reads off
   the STEADY state — no boot sequence to catch. repeating-N = panic at stage N (2=ExclusiveDevice unwrap
   [infallible, unlikely] / 3=Sx1262::new+RNG / 4=DataPlane|RouteEngine::new [unwrap/assert, NOT OOM] /
