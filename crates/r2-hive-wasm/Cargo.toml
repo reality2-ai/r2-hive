@@ -14,32 +14,32 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # Same current-TN crates the rest of the hive uses (path during dev). The wasm
 # tier runs the IDENTICAL routing core as Linux/ESP32 — no fork.
-r2-hive-core = { git = "https://github.com/reality2-ai/r2-core.git", rev = "3a835a55a14d026937ae69a9e040e35e505809a1" }
-r2-route = { git = "https://github.com/reality2-ai/r2-core.git", rev = "3a835a55a14d026937ae69a9e040e35e505809a1" }
+r2-hive-core = { git = "https://github.com/reality2-ai/r2-core.git", rev = "41adbd1ea6af5000d245878a5135beb801d444e6" }
+r2-route = { git = "https://github.com/reality2-ai/r2-core.git", rev = "41adbd1ea6af5000d245878a5135beb801d444e6" }
 # EventBus = the basic-ensemble runtime (HB sentant now; OTA plugin+sentant next).
-r2-engine = { git = "https://github.com/reality2-ai/r2-core.git", rev = "3a835a55a14d026937ae69a9e040e35e505809a1", default-features = false, features = ["alloc"] }
+r2-engine = { git = "https://github.com/reality2-ai/r2-core.git", rev = "41adbd1ea6af5000d245878a5135beb801d444e6", default-features = false, features = ["alloc"] }
 # R2-UPDATE OTA verify (verify_header/PayloadVerifier/Ed25519, 4-gate/anti-rollback)
 # — pure no_std verify-only (no getrandom trap, core-confirmed wasm32-clean). The
 # OTA plugin reuses these so the wasm OTA FLOW is the REAL flow (refutable).
-r2-update = { git = "https://github.com/reality2-ai/r2-core.git", rev = "3a835a55a14d026937ae69a9e040e35e505809a1" }
+r2-update = { git = "https://github.com/reality2-ai/r2-core.git", rev = "41adbd1ea6af5000d245878a5135beb801d444e6" }
 # In-wasm R2-WIRE ENCODE (build_heartbeat/build_frame) so each sim node originates
 # its OWN frames — same encoder the firmware uses. no_std/alloc, wasm-clean.
-r2-wire = { git = "https://github.com/reality2-ai/r2-core.git", rev = "3a835a55a14d026937ae69a9e040e35e505809a1", default-features = false, features = ["alloc"] }
+r2-wire = { git = "https://github.com/reality2-ai/r2-core.git", rev = "41adbd1ea6af5000d245878a5135beb801d444e6", default-features = false, features = ["alloc"] }
 # Canonical R2-TRANSPORT §2.7 TransportProfile (core 7f31dab) — single-source the per-transport profile
 # (mtu/power/λ/range-loss slope) + range_to_loss_db so the sim + field share ONE physics table (no drift).
 # default-features=false = no_std (the host-UDP/tcp binding modules must stay std-gated to keep this wasm-clean).
-r2-transport = { git = "https://github.com/reality2-ai/r2-core.git", rev = "3a835a55a14d026937ae69a9e040e35e505809a1", default-features = false }
+r2-transport = { git = "https://github.com/reality2-ai/r2-core.git", rev = "41adbd1ea6af5000d245878a5135beb801d444e6", default-features = false }
 # Real TG GroupHmac (the SAME HMAC-SHA256 the firmware signs/verifies with) so a
 # browser hive can JOIN the boards' trust group: sign its egress + run the real
 # deliver-gate (tg_ok+hmac_ok) on ingress. default-features=false = member-only
 # primitives (GroupHmac/derive_*/parse_persona), no keyholder/getrandom → wasm-clean
 # (the firmware's exact no_std dep). #26 real-r2-trust-in-wasm front half.
-r2-trust = { git = "https://github.com/reality2-ai/r2-core.git", rev = "3a835a55a14d026937ae69a9e040e35e505809a1", default-features = false }
+r2-trust = { git = "https://github.com/reality2-ai/r2-core.git", rev = "41adbd1ea6af5000d245878a5135beb801d444e6", default-features = false }
 # The SHARED no_std RX data-plane: the REAL fused auth→classify→dedup-record→deliver→relay pipeline
 # (handle_rx_frame + RxDisposition) the firmware target runs. The wasm binds it so composer's
 # forged-attribution refutation (TN-L1-IT-BL-700) tests the IDENTICAL A1 verify-then-record dedup as
 # ships — not a wasm-only reimpl. no_std (heapless + r2-route/wire/cbor/trust default-off) → wasm-clean.
-r2-dataplane = { git = "https://github.com/reality2-ai/r2-core.git", rev = "3a835a55a14d026937ae69a9e040e35e505809a1", default-features = false }
+r2-dataplane = { git = "https://github.com/reality2-ai/r2-core.git", rev = "41adbd1ea6af5000d245878a5135beb801d444e6", default-features = false }
 wasm-bindgen = "0.2"
 
 [dev-dependencies]
