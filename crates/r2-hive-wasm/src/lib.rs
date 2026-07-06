@@ -94,6 +94,23 @@ fn kind_from_u8(k: u8) -> TransportKind {
 /// keeps full precision, no i8 stair-step; the metal i8 path (`quality_from_rssi(i8)`) shares the SAME
 /// curve. Compile-time single-source (like `range_to_loss_db`/`transport_profile`) → no drift BY
 /// CONSTRUCTION, not by a tripwire. Anchors: −50 dBm → 1.0, −80 dBm → 0.0, linear between, clamped.
+/// R2-BUILDMODE §3 mode declaration for the wasm tier. This crate IS a DEV
+/// DEVICE, permanently and by purpose (specs v0.3 ruling): the /proof hive is
+/// a fourth-wall instrument — internals-to-JS is its function — so it
+/// declares build_class = 2 like any dev board, is §3A-excluded from working
+/// with prod devices, and its JS bridge is the §4-registered local-page-only
+/// exposure surface. No prod-wasm variant exists or is owed until a wasm
+/// prod deployment story exists (§6.1 as refined). Constant by construction:
+/// there is no prod build of this crate for the value to vary with.
+///
+/// **Used-by:** composer's theatre (the §7 observer contract: render this
+/// hive as the DEV device it declares itself to be) and any admission logic
+/// a scene models (mode-homogeneous TGs, §3A.1.2).
+#[wasm_bindgen(js_name = buildClass)]
+pub fn build_class() -> u8 {
+    2
+}
+
 #[wasm_bindgen]
 pub fn quality_from_rssi(rssi_dbm: f32) -> f32 {
     r2_transport::profile::quality_from_rssi_f32(rssi_dbm)
@@ -1191,6 +1208,14 @@ pub fn version() -> String {
 
 #[cfg(test)]
 mod tests {
+    /// R2-BUILDMODE §3 pin: the wasm tier declares DEV (2), forever — a
+    /// change here means someone invented a prod-wasm variant without the
+    /// §6.1 deployment-story ruling that must precede it.
+    #[test]
+    fn wasm_tier_declares_dev() {
+        assert_eq!(super::build_class(), 2);
+    }
+
     use super::*;
 
     #[test]
