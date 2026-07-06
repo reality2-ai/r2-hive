@@ -50,6 +50,16 @@ hosted CI (local-xtensa + peer-refute only — the say-it-distinctly rule). No h
 skeleton exposes a boundary issue. Upside to note: core's guard will catch no_std API drift against the
 vendored-crate set BEFORE my re-vendor cycles hit it.
 
+## ✅ REFUTATION CONFIRMED — CORE ADOPTED THE COUNTER VERBATIM (2026-07-06, awaiting their green sha)
+- Core: "your refutation is correct and severe" — their test only checked a PROD node (their own
+  verify-then-record miss, owned). ADOPTING verbatim: Observation.build_mode → Option<BuildMode> (None = no
+  declaration), sticky last-DECLARED on NeighbourEntry (None never clobbers Some), undeclared-ever entry
+  MODE-TRANSPARENT in §4.4. Wire untouched. Core lands with a dev-node-undeclared-viable regression test +
+  flags specs on canon wording + residual. I requested 3-case pin coverage: Dev+undeclared=viable /
+  sticky-Dev survives None refresh / Prod+declared-Dev=non-viable.
+- NEXT TRIGGER: core names the green sha → same-day: bump r2-hive, re-vendor fw r2-route, wire beacon-RX
+  Some(from_wire) upserts + None elsewhere + ctors + §3A drop arms (plan pre-staged below).
+
 ## 🛑 §4.4 API LANDED (core a5d2d7e) BUT HELD — MY IMPLEMENTATION-REFUTATION IN FLIGHT (2026-07-06)
 - Core landed the BuildMode API (enum+Other(u8) ✓, from_wire ✓, ctor arg ✓, viability equality in
   try_directed+build_flood_plan ✓, getters ✓ — all as converged). BUT the realization made
