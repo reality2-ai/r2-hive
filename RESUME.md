@@ -27,8 +27,19 @@
   (5100933 pinout independently validated). **First-light image is now rak4630-fw HEAD 4901717** (fix +
   FIRSTLIGHT.md refresh) — orchestration points at HEAD, not b099c65.
 - 🔴 ROY SAID GO — first-light IN PROGRESS (2026-07-06). Standing by to READ the RTT.
-- **THE ONE CORRECT FIRST-LIGHT IMAGE = rak4630-fw HEAD `4901717`** (inc-1 DIO1-RX + HWRNG + TCXO V1_8 fix).
-  NOT b099c65 (TCXO V3_3 bug), NOT r2-core-consolidation @ b2d4ba6. TWO crossings converged here:
+- **THE ONE CORRECT FIRST-LIGHT IMAGE = rak4630-fw HEAD `d694d1f`** (= 4901717 + DEV-CLASS: inc-1 DIO1-RX +
+  HWRNG + TCXO V1_8 + build_class=2). NOT b099c65 (TCXO bug), NOT 4901717 (prod-class), NOT consolidation
+  b2d4ba6.
+- ROY ENSEMBLE SPEC HANDLED (dev-class + report-tables + OTA + no-probe): (1) DEV-CLASS was a real GAP —
+  image was prod (build_class=0); FIXED d694d1f (dev feature default-on, build_class=2 in R2-BEACON §7.4,
+  boot log stamps build_mode=dev class=2). (2) ENSEMBLE-PLAN.md: report-tables = #41 nz.r2.diag applied here
+  (dev/LoRa, NO BLE, query→reply TG-gated) — GATED on §3A.3(5) register-before-ship = ships with #41's spec
+  registration (don't fork); OTA-over-CoC = inc-2 BLE-gated (nrf-sdc+trouble-host, gated on vendored-set →
+  41adbd1) + battery duty-cycle. (3) NO-PROBE PREPPED not built (supervisor hold): UF2 (app-offset 0x26000 +
+  uf2conv 0xADA52840 + drag-drop) + LED state machine (green P1.03) since UF2 loses RTT — FIRSTLIGHT.md
+  branch B; build on Roy's lsusb=no-probe.
+- (prior) 4901717 remains valid for wiring proof (build_class doesn't affect configure); d694d1f is the
+  dev-class superset. Was: NOT b099c65 (TCXO V3_3 bug), NOT r2-core-consolidation @ b2d4ba6. TWO crossings converged here:
   (a) my supervisor GO predated my TCXO fix → flagged 4901717 not b099c65;
   (b) CORE INDEPENDENTLY caught the SAME TCXO V3_3→V1_8 bug from the SAME Meshtastic ref (b2d4ba6) — strong
   double-confirmation of the board fact + core cross-confirmed every pin (triple-confirmed now). BUT core's
