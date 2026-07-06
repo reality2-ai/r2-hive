@@ -105,6 +105,15 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   (b) the wired path's invariant TRANSFERS TO THE OPERATOR — SHOULD: console echoes own mode at the decision
   point → SHIPPED same-turn (8e60241, PROVISION-APPLIED now prints build_mode; it did not before).
   #50 residue (independent of §3A): routetest split + recipe stamps (mine), rak4630 inc-2 dev+vendored-set.
+- ⚠️ CoC-CLOSURE CAVEAT (core refuted my transitive claim; CONFIRMED in my own code same-hour): the
+  control-served path bypasses scan-ingest — inbound CoC accept is unconditional, CTRL_IN has no
+  scan-precondition (pinned-bench path labels anonymous centrals with the constant peer_hive), and core's
+  handle_control does NO sender validation → WifiReq hands creds to peers the §3A.1 filter never saw. Canon
+  UNAFFECTED (attributability qualifier stands; claimed hive_id ≠ declaration; unscanned = transparent).
+  FIX PAIR agreed with core: WifiOffer only-from-elected-provider (core has ready) + WifiReq
+  only-for-ROSTERED-requesters (requested — makes scan-ingest the structurally mandatory creds gate).
+  RE-VERIFY the closure on uptake of core's sha; specs' record carries the caveat meanwhile. Hole class =
+  roster/creds discipline, not mode-inference: presence only, no viability/delivery gain (GroupHmac gates).
 - (superseded by the blessing above) §3A REMAINING PLACEMENTS CLOSED BY ANALYSIS (with specs for blessing):
   CoC-connect = transitively covered in the negotiated flow (only rostered peers reach CoC) + structurally
   IMPOSSIBLE for anonymous inbound accepts (BLE address opacity → no peer identity at connect; anonymous
