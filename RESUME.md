@@ -2,6 +2,26 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
+## ✅ REAL HOSTED CI GREEN (task #55 DONE): r2-hive compiles + tests on runners for the FIRST time
+- ci.yml modernized (1138eb3) + vector vendoring (b5cbba2): all 5 jobs GREEN (run 28778737556) — test
+  PROD+DEV (the §5.1 BUILDMODE both-modes gate, on a runner), feature-builds (ble/keyring), wasm
+  (host+wasm32), cross-aarch64 (Pi5/UNO-Q), lint (non-fatal). **"hosted-CI-green" is now sayable for
+  r2-hive; bump-core.sh's honesty upgrades from local-green to hosted-green.**
+- The stale ci.yml was TRIPLE-dead: main-only trigger (work is on platform-trait), pre-fold sibling-checkout
+  model (dead since the rev-pin), no private-dep auth. Fixed: trigger platform-trait+main, R2_CORE_READ_TOKEN
+  insteadOf auth in every job (Roy's docs-site token, earning its keep twice today), drop the dead checkout.
+- LATENT DEFECT SURFACED + FIXED (the whole point of real CI): host_api_conformance.rs (compile-time
+  include_str!) + vector_coverage.rs (runtime) both coupled the ENTIRE workspace test build to a SIBLING
+  r2-specifications checkout — green on every dev box, RED on any clean runner/clone (non-hermetic build,
+  wrong for open-source). Fixed by vendoring the 4 consumed canonical vectors in-tree (tests/vectors/ +
+  _SYNC.md, the fleet vendoring norm; @ specs 6bebcd1). Build now standalone-hermetic. Specs flagged
+  (heads-up + override offer: shared path or specs-read token if they prefer).
+- DO-NOT-ASSUME: r2-usb-pair-vectors.json trips the local pre-push secret-scanner on synthetic
+  `secret:"1111..."` fields + deterministic public X25519 `shared_secret` outputs — VERIFIED false-positive
+  (public spec test data, Roy-hygiene-gate clean); re-vendors need FLEET_SKIP_SECRET_SCAN=1. lint job shows
+  non-zero in logs but conclusion=success BY DESIGN (clippy/fmt continue-on-error — a visible signal, not a
+  gate; a clippy sweep is a separate scheduled tidyup).
+
 ## 📚 RUSTDOC SITE ✅ LIVE: **reality2.ai/r2-hive/** (task #51 CLOSED; Roy's rustdocs ask delivered)
 - Run 28769099459 both jobs green; site 200; hygiene spot-check clean. /programmers/ SLOT FLIPPED +
   deployed + live-page-probed by specs (crossed with my announce — supervisor's GO beat it); two of Roy's
