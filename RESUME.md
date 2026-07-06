@@ -87,8 +87,28 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
 - ✅ PIN BUMPED 9943448 → b420fb3 (bump-core.sh, CI-green gated, full suite + wasm + hygiene green, 5c7de73).
   Side effect: #52's prereq is SATISFIED (b420fb3 contains fbee20d — ancestry verified); only Roy's plan-review
   hold remains on the claim-11 assembly.
+- ✅ TV6 STAMPED (R2-BEACON v0.31): specs independently recomputed my ENTIRE derivation chain byte-exact
+  (session_key HKDF, RBID HMAC, every §7.3 offset, flags 0x04) and stamped the owner-bytes vector as canon —
+  "the better of the two legacy vectors" (TV5 = core synthetic). Legacy-BLE declaration CLOSED end-to-end:
+  codec + emitter + vectors, all cross-verified. Follow-up banked: core 3f053c9 (specs-vector re-vendor) has
+  CI in_progress — pick up TV5/TV6 byte-anchored tests at the NEXT wholesale r2-discovery re-vendor / pin bump
+  once green.
 - Still waiting on #50: core's r2-route BuildMode API (→ same-day §3A wiring); routetest telemetry split =
   MINE + unblocked; recipe-card mode stamps; rak4630 dev feature at inc-2.
+
+**PILLAR-2 LOOPBACK SUPPORT POSTURE (composer drives; I sanity-check, 2026-07-06):** composer builds the
+3-hive loopback proof (WS bridge as wire, UDS mgmt feed for live delivery, honest bridge-not-P2P badge). TWO
+seams flagged to them PROACTIVELY: (1) R2_GROUP_KEYS_BENCH is COMPILED OUT of prod binaries since dc9d4ae —
+their B2 config-only plan needs hives built --features dev (version string +dev suffix = the check); (2) UDS
+socket choice confirmed right (/r2/mgmt WS web-auth has NO prod bypass BY DESIGN; --web-dev-mode is
+dev-feature-only). No hive build task unless they hit a real API seam.
+
+**B2b DENY-EVENT ROUTED SPEC-FIRST (task #54, 2026-07-06):** composer's RED forge-reject blocker — proposal
+to specs: r2.api.event.delivery.denied at the deliver-gate reject arm (symmetric twin of accept-side
+r2.api.event.delivery, same UDS feed; reason enum forgery/unauthenticated/fail_closed; no key material/tag
+bytes carried). My positions on record: ships BOTH modes (operator security observable ≠ fourth-wall break);
+the 3-way hmac ambiguity (absent/zero/wrong-key) flagged for the granularity ruling. On blessing: implement
+hive-bin router deliver-arm emission + wasm deny surface. Canon anchor = Roy's real-red rule.
 
 ## 🔒 R2-BUILDMODE §5.1 LINUX HALF SHIPPED (task #50 — the flip-a-flag class killed)
 - New `dev` cargo feature on r2-hive-bin (default = PROD). Prod builds COMPILE OUT all five runtime security
