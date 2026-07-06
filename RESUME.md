@@ -14,8 +14,12 @@
   cargo's git fetch of the PRIVATE r2-core dep (default GITHUB_TOKEN is repo-scoped).
 - UNBLOCK (Roy-minted, escalated via supervisor with exact spec): Actions secret **R2_CORE_READ_TOKEN**
   (fine-grained PAT → reality2-ai/r2-core, Contents: Read-only). Workflow already consumes it (insteadOf
-  config, both jobs) — on secret + Pages-enable, re-run deploys; until then HONESTLY RED, not skipped.
-  On green: announce URL (reality2.ai/r2-hive/ pattern) + specs flips the /programmers/ slot.
+  config, both jobs) — until the secret exists it is HONESTLY RED, not skipped.
+  STATUS: Pages on r2-hive ENABLED by supervisor (build_type=workflow, future URL reality2.ai/r2-hive/);
+  token with Roy (one mint serves BOTH repos — composer's R2_CORE_RO_TOKEN closes their F7/#42 too);
+  supervisor re-runs the docs workflow the moment Roy says done. My structural finding (hosted CI never
+  compiled this workspace) is on Roy's record; the same token is the fix.
+  On green: announce URL + specs flips the /programmers/ slot.
 - Same token = prereq for ever having a real build/test ci.yml on this repo (all suite-green claims to
   date are local-only — correctly stated as such, but hosted-unverified).
 
