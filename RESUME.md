@@ -122,7 +122,10 @@ R2-HOST-API event class is a §5 STANDARD PROTOCOL SURFACE (ships BOTH modes, MU
 prod), vs §4 registered DEV surfaces (e.g. my queued nz.r2.diag responder #41 sits on THAT side). Rate-
 bounding = MAY in both modes. STANDING DUTY: composer holds the RED renderer until core's adversarial pass
 over the deny CBOR clears — I own SAME-DAY relay of any wire-detail change from that pass (none expected;
-map is pin-tested against the ratified text).
+map is pin-tested against the ratified text). Specs ACKED closure (bb17f5e verified in-repo; from_tg match
+rule = "exactly the right reading"). FORWARD HOOK banked on #41: §4 DEV surfaces carry a register-BEFORE-
+shipping MUST — before nz.r2.diag implementation, specs gets surface description + proposed gate (reach:
+local-only v1 lean vs on-mesh TG-gated later) and registers the §4 row FIRST.
 
 ## 🔒 R2-BUILDMODE §5.1 LINUX HALF SHIPPED (task #50 — the flip-a-flag class killed)
 - New `dev` cargo feature on r2-hive-bin (default = PROD). Prod builds COMPILE OUT all five runtime security
