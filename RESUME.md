@@ -114,6 +114,13 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   only-for-ROSTERED-requesters (requested — makes scan-ingest the structurally mandatory creds gate).
   RE-VERIFY the closure on uptake of core's sha; specs' record carries the caveat meanwhile. Hole class =
   roster/creds discipline, not mode-inference: presence only, no viability/delivery gain (GroupHmac gates).
+  ESCALATED (specs adversarial check + carriage angle): code-pinned answers delivered — main.rs:3370
+  (serve_coc labels CTRL_IN with the CALLER-supplied peer = pinned-bench constant → identity FABRICATED for
+  anonymous centrals), :3981 (poll_control drains verbatim), :3217 (accept unconditional). LAYERED FIX:
+  L1 core WifiOffer guard + L2 engine WifiReq roster gate + **L3 MINE (shape with specs for blessing):
+  CTRL_IN identity bound by scan-resolution only (the MODE_DECL attribution-safe path), pinned-bench
+  labeling cfg'd dev-only. Honest residual: session-binding vs BLE address opacity = R2-PROVISION lineage,
+  the same seam as the first-attributability rule.** Build L3 on blessing; re-verify on core's L1+L2 sha.
 - (superseded by the blessing above) §3A REMAINING PLACEMENTS CLOSED BY ANALYSIS (with specs for blessing):
   CoC-connect = transitively covered in the negotiated flow (only rostered peers reach CoC) + structurally
   IMPOSSIBLE for anonymous inbound accepts (BLE address opacity → no peer identity at connect; anonymous
