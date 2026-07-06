@@ -69,6 +69,9 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   §3A safety unaffected (refusal arms sit where declarations exist by construction); honest residual flagged
   (a never-beacon-ingesting prod engine can't demote a dev neighbour via §4.4 alone — admission still
   excludes).
+- CROSSING NOTE: core's hosted-green announcement (a5d2d7e ci SUCCESS) crossed with my refutation; I
+  re-pointed them at the queued evidence + answered their refresh-guard re-offer (insufficient alone —
+  never-declared entries default Prod forever). API SHAPE is NOT in dispute, only undeclared-defaults-to-Prod.
 - HOLDS until core+specs converge: NO r2-hive bump past b420fb3, NO fw r2-route re-vendor. Wiring plan
   pre-agreed on acceptance: fw beacon RX upserts Some(from_wire(byte)) (LoRa p[16] + BLE AD-22), HB passes
   None; Linux/wasm pass None everywhere; ctors = Dev under dev feature, wasm Dev always.
