@@ -10,9 +10,17 @@
   (raw_boot_blink repeating = the strobe; no 1.5s solid because init resets before returning; USB never
   enumerates). FIX = config.debug = Debug::NotConfigured (do NOT touch UICR) — rak4630-fw f698d6e. HAL-config
   one-liner, NO memory.x change. UNPROVEN on metal (Roy has the board). All 3 .uf2 rebuilt at 0x26000.
-- NEXT: Roy flashes DIAG first (the 1.5s SOLID now appears = confirms init passes the reset loop + localizes
-  any NEXT stage), then usbserial for the real first-light log. AWAITING his read.
-- (superseded) earlier read: "fast strobe = panic" — CORRECTED to reset loop; the panic-handler never ran.
+- DIAG-FIX FLASH (f698d6e) result = INCOMPLETE WRITE, NOT a firmware issue: board wrote partial blocks,
+  reset ONCE (clean single USB re-enum dev13->14), parked STABLE in bootloader/DFU (idProduct 0029, S140
+  6.1.1) — app never launched. So the APPROTECT fix is STILL UNPROVEN (app didn't run this flash).
+- IMAGE VERIFIED GOOD (from the actual .uf2 payload): vector table @ 0x26000 valid — MSP 0x20040000
+  (top-of-RAM), reset 0x26101 (app region, thumb bit), NMI/HardFault sane. Adafruit app-valid check (first
+  word != 0xFFFFFFFF) passes. NOT a bad-vector image.
+- CAUSE: Linux buffered the drag-drop → bootloader never got the FINAL block (151/152) → parked in DFU. FIX
+  = force flush (sync / eject). SUCCESS TELL = the RAK4631 drive VANISHES (bootloader jumped to app). Diag
+  has NO USB → on success USB stays DARK, watch the LED (1.5s solid then stage/configure). AWAITING clean flush.
+- (superseded) earlier read "fast strobe = panic" -> corrected to APPROTECT reset loop (that was the FIRST,
+  fully-written usbserial flash); this diag-FIX flash is a separate incomplete-write, image is bootable.
 - DIAGNOSIS (owned): the panic is in the SHARED synchronous init, NOT the USB stack. KEY: the USB task is
   spawned before configure but embassy only POLLS it at main's FIRST .await (the Timer in configure-ok /
   the failed loop) = AFTER configure. So USB never ran; the panic happened before configure finished.
