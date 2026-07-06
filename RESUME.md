@@ -218,8 +218,26 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   (sole producer = wired console PROVISION verb, physical-possession operator authority; no over-mesh
   provisioning path exists — arm becomes real when one does, #43 lineage). Specs bless → #50 closes
   end-to-end; refute → I build the named gap.
-- REMAINING #50 (mine-owned regardless): routetest telemetry split, recipe-card mode stamps; rak4630 dev
-  feature + the same coherent vendored-set move at #44 inc-2 (its vendored crates predate d01725d too).
+- REMAINING #50 (mine-owned): routetest telemetry split (DESIGNED — see next block), recipe-card mode
+  stamps; rak4630 dev feature + the same coherent vendored-set move at #44 inc-2 (its vendored crates
+  predate d01725d too).
+
+## 🔀 ROUTETEST SPLIT DESIGNED + REFUTATION-QUEUED (fw 25c02c2, the last #50 residual, NOT executed)
+- Analyzed all 47 cfg(routetest) sites. The relay BEHAVIOUR is already UNGATED (every build relays);
+  routetest gates 4 concerns: (1) RT test-harness, (2) bench topology mask, (3) msg.* telemetry emission —
+  all cleanly dev-class — + (4) fr_origin, the per-(origin,msg_id) multi-hop dedup SEED, field-relevant but
+  ROUTETEST_HASH-tied with a not(routetest)⇒fr_origin=0 fallback.
+- DESIGN (docs/routetest-split-design.md): bisect routetest → `meshrelay` (field, non-dev, owns bucket 4) +
+  `routetest` (=meshrelay+dev, buckets 1-3). Then loraroute/D4 are pure field-relay non-dev, the RT harness
+  declares dev, and field×routetest = field×dev = compile_error stays coherent.
+- **KEY FINDING (verify-then-record): the clean split is COUPLED to task #32.** Bucket 4's fr_origin is
+  extracted ONLY for ROUTETEST_HASH frames — a test-frame-specific hack whose principled home is #32's
+  route_stack[0] dedup. Recommend OPTION B (do routetest-split as the telemetry/harness half of #32, one
+  refactor sharing the fr_origin seam) over OPTION A (split now, keep the ROUTETEST_HASH hack inside a
+  field-named feature = a fresh dirty-split of the same kind).
+- HOLD execution until: hive-codex refutation verdict (dispatched — challenges relay-ungated claim,
+  bucket-4-only, #32-coupling-real, arm-matrix breaks) AND a Roy/supervisor call on B-vs-A scheduling with
+  #32. Substantial + correctness-critical firmware (multi-hop dedup) — refute-before-execute per doctrine.
 
 ## 🛑 §4.4 API LANDED (core a5d2d7e) BUT HELD — MY IMPLEMENTATION-REFUTATION IN FLIGHT (2026-07-06)
 - Core landed the BuildMode API (enum+Other(u8) ✓, from_wire ✓, ctor arg ✓, viability equality in
