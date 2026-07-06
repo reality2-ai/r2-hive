@@ -292,12 +292,12 @@ dependencies = [
 [[package]]
 name = "r2-cbor"
 version = "0.1.0"
-source = "git+https://github.com/reality2-ai/r2-core.git?rev=b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d#b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=d01725d5124280f9034e1927b04cb65327b9122d#d01725d5124280f9034e1927b04cb65327b9122d"
 
 [[package]]
 name = "r2-dataplane"
 version = "0.1.0"
-source = "git+https://github.com/reality2-ai/r2-core.git?rev=b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d#b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=d01725d5124280f9034e1927b04cb65327b9122d#d01725d5124280f9034e1927b04cb65327b9122d"
 dependencies = [
  "heapless",
  "r2-cbor",
@@ -309,7 +309,7 @@ dependencies = [
 [[package]]
 name = "r2-engine"
 version = "0.1.0"
-source = "git+https://github.com/reality2-ai/r2-core.git?rev=b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d#b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=d01725d5124280f9034e1927b04cb65327b9122d#d01725d5124280f9034e1927b04cb65327b9122d"
 dependencies = [
  "r2-cbor",
  "r2-fnv",
@@ -319,12 +319,12 @@ dependencies = [
 [[package]]
 name = "r2-fnv"
 version = "0.1.0"
-source = "git+https://github.com/reality2-ai/r2-core.git?rev=b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d#b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=d01725d5124280f9034e1927b04cb65327b9122d#d01725d5124280f9034e1927b04cb65327b9122d"
 
 [[package]]
 name = "r2-hive-core"
 version = "0.1.0"
-source = "git+https://github.com/reality2-ai/r2-core.git?rev=b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d#b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=d01725d5124280f9034e1927b04cb65327b9122d#d01725d5124280f9034e1927b04cb65327b9122d"
 dependencies = [
  "async-trait",
  "ed25519-dalek",
@@ -358,7 +358,7 @@ dependencies = [
 [[package]]
 name = "r2-route"
 version = "0.1.0"
-source = "git+https://github.com/reality2-ai/r2-core.git?rev=b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d#b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=d01725d5124280f9034e1927b04cb65327b9122d#d01725d5124280f9034e1927b04cb65327b9122d"
 dependencies = [
  "heapless",
  "libm",
@@ -369,7 +369,7 @@ dependencies = [
 [[package]]
 name = "r2-transport"
 version = "0.1.0"
-source = "git+https://github.com/reality2-ai/r2-core.git?rev=b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d#b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=d01725d5124280f9034e1927b04cb65327b9122d#d01725d5124280f9034e1927b04cb65327b9122d"
 dependencies = [
  "libm",
  "r2-wire",
@@ -378,7 +378,7 @@ dependencies = [
 [[package]]
 name = "r2-trust"
 version = "0.1.0"
-source = "git+https://github.com/reality2-ai/r2-core.git?rev=b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d#b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=d01725d5124280f9034e1927b04cb65327b9122d#d01725d5124280f9034e1927b04cb65327b9122d"
 dependencies = [
  "chacha20poly1305",
  "curve25519-dalek",
@@ -399,7 +399,7 @@ dependencies = [
 [[package]]
 name = "r2-update"
 version = "0.1.0"
-source = "git+https://github.com/reality2-ai/r2-core.git?rev=b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d#b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=d01725d5124280f9034e1927b04cb65327b9122d#d01725d5124280f9034e1927b04cb65327b9122d"
 dependencies = [
  "ed25519-dalek",
  "sha2",
@@ -408,7 +408,7 @@ dependencies = [
 [[package]]
 name = "r2-wire"
 version = "0.1.0"
-source = "git+https://github.com/reality2-ai/r2-core.git?rev=b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d#b420fb3e9a809fc53f66e5fe00384e16b9cf7b4d"
+source = "git+https://github.com/reality2-ai/r2-core.git?rev=d01725d5124280f9034e1927b04cb65327b9122d#d01725d5124280f9034e1927b04cb65327b9122d"
 dependencies = [
  "r2-cbor",
  "r2-fnv",

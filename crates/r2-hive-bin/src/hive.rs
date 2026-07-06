@@ -79,7 +79,19 @@ use r2_discovery::bindings::ble::BleTransport;
 #[cfg(feature = "transport-lora")]
 use r2_discovery::bindings::lora::LoraTransport;
 use r2_route::engine::RouteEngine;
+use r2_route::neighbour::BuildMode;
 use r2_route::transport::{Transport, TransportSet};
+
+/// This image's R2-BUILDMODE §4.4 build class, folded at compile time from the
+/// §5.1 `dev` feature (the ONE mode selector — R2-BUILDMODE §3A: a mode flip is
+/// a rebuild + re-provision, so no runtime mutation surface exists). Fed to
+/// [`RouteEngine::new`]; the §4.4 viability filter compares it against
+/// beacon-DECLARED neighbour modes only (v0.7 trichotomy — this daemon's
+/// frame-formed observations are declaration-less and mode-transparent).
+#[cfg(feature = "dev")]
+pub const MY_BUILD_MODE: BuildMode = BuildMode::Dev;
+#[cfg(not(feature = "dev"))]
+pub const MY_BUILD_MODE: BuildMode = BuildMode::Prod;
 use r2_trust::wire_hmac::GroupHmac;
 
 use crate::compat::buffer::RingBuffer;
@@ -341,7 +353,13 @@ impl HiveState {
             ble_transport: RwLock::new(None),
             #[cfg(feature = "transport-lora")]
             lora_transport: RwLock::new(None),
-            route_engine: Mutex::new(RouteEngine::new()),
+            // R2-BUILDMODE §4.4: the engine's OWN build class, compile-time
+            // (mode flip = reflash + re-provision, never a setter). Neighbour
+            // modes arrive only via beacon-DECLARED observations; this daemon's
+            // frame-formed observations all pass build_mode: None (v0.7
+            // trichotomy: undeclared = mode-transparent), so viability is
+            // inert on this tier until a host-side declaration channel lands.
+            route_engine: Mutex::new(RouteEngine::new(MY_BUILD_MODE)),
             transport_policy_lease: RwLock::new(None),
             // R2-BUILDMODE §5.1: both env-var inputs below exist ONLY in dev
             // builds. A prod binary reads neither — it boots unkeyed +

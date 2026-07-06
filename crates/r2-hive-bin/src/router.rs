@@ -241,6 +241,11 @@ pub async fn route_frame(
             rssi: None,
             mcu_origin: header.flags.mcu_origin,
             mobility: MobilityClass::Infrastructure,
+            // R2-BUILDMODE v0.7: frame-formed = NO declaration (None = mode-
+            // transparent; never clobbers a sticky beacon-declared mode). The
+            // host tier has no declaration channel yet — BeaconObservation
+            // lacking the byte is flagged to core as the SHOULD-tightening.
+            build_mode: None,
         };
         engine.ingest_observation(obs);
     }
@@ -527,6 +532,7 @@ async fn reinforce_delivery(
         rssi: None,
         mcu_origin: false,
         mobility: MobilityClass::Infrastructure,
+        build_mode: None, // v0.7: delivery-reinforce carries no declaration
     });
     engine.record_delivery_success(neighbour, neighbour, now_secs);
 }

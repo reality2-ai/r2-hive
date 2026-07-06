@@ -898,6 +898,10 @@ async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Re
                 rssi: None,
                 mcu_origin: false,
                 mobility: MobilityClass::Mobile,
+                // v0.7: this IS a scanning surface, but BeaconObservation does
+                // not yet surface build_class — None until core adds the byte
+                // (flagged; then: Some(BuildMode::from_wire(obs.build_class))).
+                build_mode: None,
             };
             state2.route_engine.lock().await.ingest_observation(route_obs);
         }

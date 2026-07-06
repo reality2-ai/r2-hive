@@ -324,6 +324,7 @@ async fn peer_query_neighbour_returns_status_and_transports() {
             quality: QualitySample::Direct(0.8),
             rssi: Some(-60),
             mcu_origin: false,
+            build_mode: None, // v0.7: frame-formed, no declaration
             mobility: MobilityClass::Mobile,
         });
         engine.ingest_observation(Observation {
@@ -333,6 +334,7 @@ async fn peer_query_neighbour_returns_status_and_transports() {
             quality: QualitySample::Direct(0.9),
             rssi: None,
             mcu_origin: false,
+            build_mode: None, // v0.7: frame-formed, no declaration
             mobility: MobilityClass::Mobile,
         });
     }

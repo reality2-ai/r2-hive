@@ -299,7 +299,9 @@ impl WasmHive {
         bus.register_sentant(Box::new(HbSentant::new(self_hive_id)));
         bus.init_all();
         WasmHive {
-            engine: RouteEngine::new(),
+            // R2-BUILDMODE: the wasm hive is canonically a DEV-class device
+            // (buildClass() exports 2; no prod variant is owed) — own mode is Dev.
+            engine: RouteEngine::new(r2_route::neighbour::BuildMode::Dev),
             bus,
             self_hive_id,
             group_hmac: None,
@@ -393,7 +395,9 @@ impl WasmHive {
         bus.register_sentant(Box::new(OtaSentant::new(cfg, MemSink::new())));
         bus.init_all();
         WasmHive {
-            engine: RouteEngine::new(),
+            // R2-BUILDMODE: the wasm hive is canonically a DEV-class device
+            // (buildClass() exports 2; no prod variant is owed) — own mode is Dev.
+            engine: RouteEngine::new(r2_route::neighbour::BuildMode::Dev),
             bus,
             self_hive_id,
             group_hmac: None,
@@ -528,6 +532,7 @@ impl WasmHive {
                 0, // boot_epoch: session-constant in the sim (H9 keepalive freshness only)
                 self.group_hmac.clone(),
                 r2_route::neighbour::DutyClass::Unknown,
+                r2_route::neighbour::BuildMode::Dev, // §4.4 own mode (dev device, canon)
                 30_000,    // keepalive period (ms) — irrelevant to the RX classify/dedup path
                 [0u8; 16], // fp_seed: unkeyed-but-sound relay fingerprint (sim; no HWRNG)
             ));
