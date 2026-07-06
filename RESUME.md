@@ -65,8 +65,24 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   transparent) MUST stay distinguishable. Beacon-to-engine feeds = SHOULD (tightening, not precondition).
   Roy-bounceable flagged (v0.2 carriage precedent); fallback = declaration-on-every-path — representable
   absence is needed in BOTH worlds, so the Option shape + my None call sites are bounce-proof.
-- NEXT TRIGGER: core names the CORRECTED green sha (NOT a5d2d7e) → same-day: bump r2-hive, re-vendor fw
-  r2-route, wire beacon-RX Some(from_wire) upserts + None elsewhere + ctors + §3A drop arms (pre-staged).
+- ✅ WIRED ALL THREE TIERS SAME-DAY (core's corrected sha d01725d, specs ground-truth-verified + my requested
+  sticky regression included): HOST 1431997 — pin b420fb3→d01725d (manual move, breaking API rides the same
+  commit), MY_BUILD_MODE cfg-fold → RouteEngine::new, all frame-formed obs None, wasm Dev everywhere (ctors +
+  DataPlane 6th param); 16 suites both modes + wasm32 green. FW c638693 — COHERENT VENDORED-SET move
+  (r2-route + r2-transport [WifiMesh rename + §2.2B features] + r2-dataplane + r2-wire [wifi module restored]
+  + r2-discovery [TV5/TV6 vector tests = the banked pickup]; every crate verified zero-local-edits vs the
+  1275732 baseline before copying; adopted core's route_stack Occam cut); own mode = from_wire(BUILD_CLASS);
+  HB obs None; **MODE_DECL declaration feed LIVE** (scan handler → io_task → engine, Some(from_wire);
+  resolve_rbid_windowed is trust-registry-scoped so strangers cannot label members); LoRa declaration
+  documented blocked on the §6.1 rbid→hive resolver. Six local-xtensa arms green; vendored suites
+  hosted-green at d01725d (distinct claims).
+- TRAIL v0.64/v0.65 PORT (forced by re-vendor): msg_id u16→u32, TYPE-field is_reply gate (3d43838 fw
+  sibling), NO_SUCCESSOR at origination AND broadcast relay — honest WEAK-MODE: fw replies are stackless so
+  §4.6.1 retrace cannot fire regardless; old sender-credited strong-reinforce was the spoofable behavior
+  v0.64 killed (not preserved). fw v0.65 stack-carrying reply = follow-on (rides with #32/#45 sibling).
+- REMAINING #50: §3A drop arms gated on TWO one-byte core surface asks (sent): BeaconObservation.build_class
+  (Linux scanner declaration) + NegObservation.build_class (fw negotiation refusal arm). Then: routetest
+  split (mine), recipe-card stamps, rak4630 dev feature + same vendored-set move at #44 inc-2.
 
 ## 🛑 §4.4 API LANDED (core a5d2d7e) BUT HELD — MY IMPLEMENTATION-REFUTATION IN FLIGHT (2026-07-06)
 - Core landed the BuildMode API (enum+Other(u8) ✓, from_wire ✓, ctor arg ✓, viability equality in
