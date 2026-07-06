@@ -30,7 +30,9 @@
   RENDER current canon, not conformance-pinned — do not conflate). Specs recorded the consumer-notify
   obligation (they heads-up hive on vector changes). FLEET-TOOLING GAP flagged to supervisor: the shared
   pre-push bash hook has no allowlist-config → local re-vendor pushes still need FLEET_SKIP_SECRET_SCAN=1
-  until the hook learns to read .gitleaks.toml [allowlist].paths.
+  until the hook learns to read .gitleaks.toml [allowlist].paths. SUPERVISOR OWNS THE FIX (confirmed at
+  source claude-fleet/hooks/git/pre-push; track-2, fail-safe allowlist-read + fleet-wide re-sync + falsifier)
+  — NOT hive's to chase; the manual FLEET_SKIP_SECRET_SCAN=1 is the sanctioned interim workaround.
 
 ## 📚 RUSTDOC SITE ✅ LIVE: **reality2.ai/r2-hive/** (task #51 CLOSED; Roy's rustdocs ask delivered)
 - Run 28769099459 both jobs green; site 200; hygiene spot-check clean. /programmers/ SLOT FLIPPED +
