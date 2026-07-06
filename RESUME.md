@@ -12,11 +12,19 @@
   It's a genuine Rust panic (strobe = my #[panic_handler]), NOT a HardFault (would hang) and NOT a configure
   SPI error (propagates with ? → my slow-blink). RULED OUT EasyDMA-flash-buffer (embassy bounces via
   FORCE_COPY_BUFFER + driver uses ?). RULED-DOWN OOM: DataPlane is heapless/inline (no heap before configure).
-- NEXT FLASH = out/r2-rak4630-diag.uf2 (rak4630-fw 2a20d01, --features diag): LED blinks a RISING count after
-  each init stage (raw busy-wait). Roy counts highest group before strobe → pins the line: 2=ExclusiveDevice
-  unwrap / 3=Sx1262::new+RNG / 4=DataPlane|RouteEngine::new / 6-then-strobe=configure(driver, loop core) /
-  none=embassy_nrf::init / 6-then-solid=USB-specific. Stage table in FIRSTLIGHT.md. AWAITING Roy's count.
-- ledfloor.uf2 will ALSO strobe (same shared-init panic) — diag is strictly more informative, flash it instead.
+- DIAG v1 (2a20d01) result: Roy read "just keeps flashing" = AMBIGUOUS (v1 stage blinks play once at boot,
+  easy to miss). KEY DISAMBIGUATOR = the steady-state RATE (no re-flash needed): ~16 Hz FAST strobe = a
+  PANIC (no groups = embassy_nrf::init); ~1 Hz SLOW = NOT a panic = configure(LoRa) FAILED = ALL init passed,
+  RADIO-WIRING issue (SPI/DIO2/TCXO, core's 3 cross-checks). Asked Roy: fast or ~1/sec? — AWAITING.
+- NEXT FLASH = out/r2-rak4630-diag.uf2 (rak4630-fw 8e749a8, diag v2 LATCH+REPLAY): stage(n) latches an atomic;
+  the PANIC HANDLER replays the count FOREVER (n×375ms blinks + 2.5s pause), so the failing stage reads off
+  the STEADY state — no boot sequence to catch. repeating-N = panic at stage N (2=ExclusiveDevice unwrap
+  [infallible, unlikely] / 3=Sx1262::new+RNG / 4=DataPlane|RouteEngine::new [unwrap/assert, NOT OOM] /
+  6=configure→core); fast strobe = embassy_nrf::init; slow 1Hz = configure FAILED; solid = configure OK.
+- ledfloor.uf2 will ALSO strobe (same shared-init panic) — diag v2 is the build to flash.
+- Prefetch ruled out: ExclusiveDevice::new().unwrap() is INFALLIBLE on nRF (Output err = Infallible); OOM
+  (DataPlane heapless); EasyDMA-flash (embassy bounces + driver uses ?). Live suspects: embassy init / RNG /
+  configure-internal / OR it's not a panic at all (configure FAILED = wiring, loop core).
 - (context) NO-PROBE CONFIRMED (supervisor tailnet scan): host lsusb shows ONLY the board's Adafruit UF2
   bootloader (239a:8029). UF2 drag-drop through the bootloader (STAYS intact — no clobber).
 - COMMIT: rak4630-fw HEAD `5e00adc` (UF2 build layer + FAILED-line fix + ARCHITECTURE.md FULLY
