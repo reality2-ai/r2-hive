@@ -96,7 +96,16 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   self-mode placeholder (never consumed; a prod-claim would misdeclare on dev benches). Six arms green.
   HOST same cycle: pin → 3a835a5 (91d04f2, bump-core.sh clean) + Linux scanner feed now DECLARES (6a39a29,
   Some(from_wire(obs.build_class)) — stated in-code as the WEAKER-attribution v0.5-priced instance).
-- §3A REMAINING PLACEMENTS CLOSED BY ANALYSIS (with specs for blessing, NOT self-declared done):
+- ✅✅ BOTH BLESSED — R2-BUILDMODE v0.9 (specs f712759): **§3A COMPLETE on the dfr1195 tier; #50 CLOSES
+  END-TO-END there** (specs' record + mine). CoC-accept blessed as a GENERAL placement rule with a
+  sharpening I own if it fires: refusal ATTACHES AT FIRST ATTRIBUTABILITY (a live anonymous session later
+  attributed to an opposite-mode declaration MUST be refused from that point — deferred, never waived;
+  banked in-code at the accept site, 8e60241). Provision-accept vacuity blessed with §3A.3(5): (a) MUST
+  trigger-pin — any future over-mesh provisioning path lands its arm IN THE SAME CHANGE (inherited onto #43);
+  (b) the wired path's invariant TRANSFERS TO THE OPERATOR — SHOULD: console echoes own mode at the decision
+  point → SHIPPED same-turn (8e60241, PROVISION-APPLIED now prints build_mode; it did not before).
+  #50 residue (independent of §3A): routetest split + recipe stamps (mine), rak4630 inc-2 dev+vendored-set.
+- (superseded by the blessing above) §3A REMAINING PLACEMENTS CLOSED BY ANALYSIS (with specs for blessing):
   CoC-connect = transitively covered in the negotiated flow (only rostered peers reach CoC) + structurally
   IMPOSSIBLE for anonymous inbound accepts (BLE address opacity → no peer identity at connect; anonymous
   sessions are governed by what they can DO — admission + deliver gates). Provision-accept = VACUOUS today
