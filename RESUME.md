@@ -128,7 +128,11 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   first-attributability event — one mechanism, both jobs; carry the dual framing into the PROVISION
   proposal). PROD-ble arm (blemesh alone) verified specifically to exercise the None fail-closed path.
   MY side of the caveat CLOSED. Remaining for specs to unqualify: core's L1+L2 sha → uptake → re-verify
-  all three layers together → report shas.
+  all three layers together → report shas. Specs RECORDED L3 (884f424 verified in-worktree, all four
+  sharpenings confirmed) + weighed the composed PROD consequence ON THE RECORD as an ACCEPTABLE named
+  capability cost: bulk SoftAP = optional Mode-1b on-demand path, common case elects nothing, so PROD
+  loses an optional optimization fail-closed — named not hidden; the PROVISION-lineage handshake is the
+  unlock. (Answer to any future "why doesn't prod negotiate over CoC": it's a ruled cost, not a bug.)
 - (superseded by the blessing above) §3A REMAINING PLACEMENTS CLOSED BY ANALYSIS (with specs for blessing):
   CoC-connect = transitively covered in the negotiated flow (only rostered peers reach CoC) + structurally
   IMPOSSIBLE for anonymous inbound accepts (BLE address opacity → no peer identity at connect; anonymous
