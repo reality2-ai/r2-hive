@@ -50,6 +50,29 @@ hosted CI (local-xtensa + peer-refute only — the say-it-distinctly rule). No h
 skeleton exposes a boundary issue. Upside to note: core's guard will catch no_std API drift against the
 vendored-crate set BEFORE my re-vendor cycles hit it.
 
+## 🛑 §4.4 API LANDED (core a5d2d7e) BUT HELD — MY IMPLEMENTATION-REFUTATION IN FLIGHT (2026-07-06)
+- Core landed the BuildMode API (enum+Other(u8) ✓, from_wire ✓, ctor arg ✓, viability equality in
+  try_directed+build_flood_plan ✓, getters ✓ — all as converged). BUT the realization made
+  Observation.build_mode a REQUIRED field defaulting Prod on frame-formed observations, and the evidence
+  shows NO tier feeds beacon-declared mode into the engine today: fw main.rs:1654 = the ONLY fw ingest site
+  (HEARTBEAT-formed; beacon decodes feed negotiation/dashboard, never the engine); core's own sync_host.rs =
+  7 ingest sites, all frame-formed; my Linux router obs = frame-formed, bearer has no declaration channel.
+- CONSEQUENCE (why I refused to wire it): every Dev-built engine (bench boards, bench Linux boxes, the wasm
+  hive — canonically a DEV device) sees ALL neighbours as Prod → equality fails → try_directed skips all +
+  flood finds zero → Drop(NoViableNeighbour) on everything → every dev mesh dies on uptake. Only all-prod
+  meshes survive. Core's don't-downgrade offer is necessary but insufficient (never-declared entries read
+  Prod forever).
+- COUNTER-PROPOSAL (to core; canon nuance to specs): Observation.build_mode → Option<BuildMode>; None = this
+  observation carries no declaration; entry keeps sticky last-DECLARED mode; never-declared entries are
+  MODE-TRANSPARENT in §4.4 viability. Key distinction argued: absence-of-the-BYTE in an observed beacon =
+  declared prod (ruled, retroactive, stands); absence of ANY beacon observation is NOT a declaration.
+  §3A safety unaffected (refusal arms sit where declarations exist by construction); honest residual flagged
+  (a never-beacon-ingesting prod engine can't demote a dev neighbour via §4.4 alone — admission still
+  excludes).
+- HOLDS until core+specs converge: NO r2-hive bump past b420fb3, NO fw r2-route re-vendor. Wiring plan
+  pre-agreed on acceptance: fw beacon RX upserts Some(from_wire(byte)) (LoRa p[16] + BLE AD-22), HB passes
+  None; Linux/wasm pass None everywhere; ctors = Dev under dev feature, wasm Dev always.
+
 ## 🧭 R2-BUILDMODE §4.4 VIABILITY API IN FLIGHT (2026-07-06 — core proposed, I ack'd with ONE counter)
 - Core proposed the r2-route mode-viability shape (the gate on my §3A drop arms): BuildMode on Observation +
   NeighbourEntry (resolved at MY decoder, absence-is-prod there — r2-route never guesses), own-mode on the engine,
