@@ -30,8 +30,9 @@ Cluster-II(A) signed off (round-9 clean, hosted green) — uptake follow-ons ban
 consume hold/SCF as applicable + relay_backoff_ms at every platform-IO frame-send site (fw io_task / Linux
 router relay / wasm), replay boundary per §8.2a as above.
 
-**CI OWNERSHIP BOUNDARY (supervisor-codex FYI, 2026-07-06):** core is adding an xtensa CI guard for ITS OWN
-DFR1195 skeleton only — a no_std API-drift build check over r2-wire/transport/route/discovery/sx1262 etc.
+**CI OWNERSHIP BOUNDARY (supervisor-codex FYI, 2026-07-06; guard LANDED GREEN same-day at core 8cd230a,
+hosted run 28690391458 — core next: carpark F2 harness primitive, may ask for firmware-facing evidence):**
+core's xtensa CI guard covers ITS OWN DFR1195 skeleton only — a no_std API-drift build check over r2-wire/transport/route/discovery/sx1262 etc.
 DISTINCT from the full DFR1195 firmware (FlashSink/OTA, dfr1195-fw branch), which stays HIVE-owned with NO
 hosted CI (local-xtensa + peer-refute only — the say-it-distinctly rule). No hive action unless core's
 skeleton exposes a boundary issue. Upside to note: core's guard will catch no_std API drift against the
