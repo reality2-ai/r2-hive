@@ -18,9 +18,18 @@
 - INFORMED-CONSENT FLAG: probe-rs SWD write of an ORIGIN-0x0 image clobbers the WisBlock Adafruit UF2
   bootloader (MBR@0x0) — UF2 fallback gone after first flash, recoverable via SWD (SWD is the path anyway).
 - FLASHING = ROY-ONLY. Reported supervisor + composer (composer builds the tailnet SSH→probe-rs
-  orchestration + adds RAK4630 to the carrier catalogue). NEXT: await Roy's flash + RTT result; then inc-2
-  BLE (nrf-sdc + trouble-host) for OTA-over-L2CAP-CoC + battery duty-cycle/HB-wake — gated on the
-  vendored-crate-set move to core 41adbd1 (the same coherent move the dfr1195 tree took).
+  orchestration + adds RAK4630 to the carrier catalogue).
+- ✅ REFERENCE CROSS-CHECK (Meshtastic RAK4631, GPL facts-only per supervisor directive) CAUGHT A REAL
+  PRE-FLASH BUG: SX1262 TCXO DIO3 voltage was an unverified V3_3 (3.3V) guess — corrected to V1_8 (1.8V,
+  rak4630-fw 079a391), the RAK4630 board fact confirmed BOTH by the metal-validated DFR1195 sibling (V1_8)
+  AND the field-proven WisBlock reference. Old 3.3V would over-drive the 1.8V TCXO ⇒ likely configure(LoRa)
+  FAILED / no XoscReady at first light. Also CONFIRMED: every SX1262 pin matches the reference exactly
+  (5100933 pinout independently validated). **First-light image is now rak4630-fw HEAD 4901717** (fix +
+  FIRSTLIGHT.md refresh) — orchestration points at HEAD, not b099c65.
+- NEXT: await Roy's flash + RTT result (first-responder); then inc-2 BLE (nrf-sdc + trouble-host) for
+  OTA-over-L2CAP-CoC + battery duty-cycle/HB-wake — gated on the vendored-crate-set move to core 41adbd1
+  (same coherent move the dfr1195 tree took). Reference's bootloader/DFU + BLE-host + duty-cycle patterns
+  are inc-2 mining material (net-new, GPL facts-only).
 
 ## ✅ REAL HOSTED CI GREEN (task #55 DONE): r2-hive compiles + tests on runners for the FIRST time
 - ci.yml modernized (1138eb3) + vector vendoring (b5cbba2): all 5 jobs GREEN (run 28778737556) — test
