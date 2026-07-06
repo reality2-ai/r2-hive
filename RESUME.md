@@ -2,10 +2,23 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
-## 🛰️ RAK4630 PHASE-2 FIRST-LIGHT — UF2 image BUILT + delivered, awaiting Roy's drag-drop (task #44)
-- NO-PROBE CONFIRMED (supervisor tailnet scan 2026-07-07): host lsusb shows ONLY the board's Adafruit UF2
-  bootloader (239a:8029), no debugger/probe-rs/thumbv7em target. => pivot to UF2 (drag-drop through the
-  bootloader, which STAYS intact — no clobber risk). Delivered per supervisor directive.
+## 🛰️ RAK4630 FIRST-LIGHT — FLASHED, PANICKED (strobe); diag stage-counter out to localize (task #44)
+- 🔴 FIRST-LIGHT RESULT (2026-07-07): usbserial.uf2 flashed OK (offset 0x26000 correct — bootloader jumped
+  to app, my panic-strobe fired = chip/VTOR/GPIO/panic-path all alive) but board FAST-STROBES = PANIC.
+  USB-CDC did NOT enumerate (USB desc still bootloader PID 239a:0029, ttyACM0 stale).
+- DIAGNOSIS (owned): the panic is in the SHARED synchronous init, NOT the USB stack. KEY: the USB task is
+  spawned before configure but embassy only POLLS it at main's FIRST .await (the Timer in configure-ok /
+  the failed loop) = AFTER configure. So USB never ran; the panic happened before configure finished.
+  It's a genuine Rust panic (strobe = my #[panic_handler]), NOT a HardFault (would hang) and NOT a configure
+  SPI error (propagates with ? → my slow-blink). RULED OUT EasyDMA-flash-buffer (embassy bounces via
+  FORCE_COPY_BUFFER + driver uses ?). RULED-DOWN OOM: DataPlane is heapless/inline (no heap before configure).
+- NEXT FLASH = out/r2-rak4630-diag.uf2 (rak4630-fw 2a20d01, --features diag): LED blinks a RISING count after
+  each init stage (raw busy-wait). Roy counts highest group before strobe → pins the line: 2=ExclusiveDevice
+  unwrap / 3=Sx1262::new+RNG / 4=DataPlane|RouteEngine::new / 6-then-strobe=configure(driver, loop core) /
+  none=embassy_nrf::init / 6-then-solid=USB-specific. Stage table in FIRSTLIGHT.md. AWAITING Roy's count.
+- ledfloor.uf2 will ALSO strobe (same shared-init panic) — diag is strictly more informative, flash it instead.
+- (context) NO-PROBE CONFIRMED (supervisor tailnet scan): host lsusb shows ONLY the board's Adafruit UF2
+  bootloader (239a:8029). UF2 drag-drop through the bootloader (STAYS intact — no clobber).
 - COMMIT: rak4630-fw HEAD `5e00adc` (UF2 build layer + FAILED-line fix + ARCHITECTURE.md FULLY
   core-co-signed, on d694d1f dev-class). platforms/rak4630/ — FIRSTLIGHT.md recipe + ARCHITECTURE.md.
 - ARCHITECTURE.md FULLY CORE-CO-SIGNED (5e00adc): ImageSink §5.5 + auth + recovery MUST + §1.1
