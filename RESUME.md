@@ -132,7 +132,17 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   COMPOSED CHAIN re-verified as fact: identity-less control drops (L3; prod drops ALL) → §3A.1 filters
   declared-cross-mode at poll_scan BEFORE rostering → roster populated ONLY by poll_scan → is_rostered
   gates creds (L2) → provider guard stops rogue-AP joins (L1). Scan-ingest = the structurally mandatory
-  carriage gate. Unqualify shas sent to specs; awaiting their unqualify of dfr1195 §3A. Specs RECORDED L3 (884f424 verified in-worktree, all four
+  carriage gate.
+- ✅✅✅ **UNQUALIFIED — R2-BUILDMODE v0.11 (specs 042ee74): dfr1195 §3A closure stands CLEAN on all three
+  records.** Caveat DISCHARGED in canon (converted to the landed record; every sha verified in specs'
+  sibling checkouts: 41adbd1 / 884f424 / e2f0e96 / 01e3e48). The load-bearing sentence is canon verbatim:
+  "scan ingest — where the §3A.1 mode filter lives — is load-bearing for AP carriage AS FACT." Residual
+  scoped to exactly the named live-session-binding item; the PROVISION-lineage handshake recorded as both
+  its fix and the first-attributability trigger. Specs' ledger note: the arc = the method working (core
+  refuted specs' blessing premise → I confirmed against myself with file:line → canon corrected not
+  defended → three layers across two repos same-day → composed re-verify → discharge).
+  **#50 residue is now ONLY: routetest telemetry split + recipe-card mode stamps (mine, scheduled) +
+  rak4630 dev feature & vendored-set move to 41adbd1 at #44 inc-2.** Specs RECORDED L3 (884f424 verified in-worktree, all four
   sharpenings confirmed) + weighed the composed PROD consequence ON THE RECORD as an ACCEPTABLE named
   capability cost: bulk SoftAP = optional Mode-1b on-demand path, common case elects nothing, so PROD
   loses an optional optimization fail-closed — named not hidden; the PROVISION-lineage handshake is the
