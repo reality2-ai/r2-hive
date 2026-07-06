@@ -2,7 +2,16 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
-## 📚 RUSTDOC SITE (task #51 / Roy's rustdocs ask): BUILT, BLOCKED ON ONE ROY CREDENTIAL
+## 📚 RUSTDOC SITE ✅ LIVE: **reality2.ai/r2-hive/** (task #51 CLOSED; Roy's rustdocs ask delivered)
+- Run 28769099459 both jobs green; site 200; hygiene spot-check clean. Specs announced for the
+  /programmers/ slot flip. Root causes closed: Roy's R2_CORE_READ_TOKEN (the structural finding is FIXED —
+  this workspace now compiles on hosted runners) + the github-pages ENVIRONMENT branch policy needed
+  platform-trait explicitly allowed (template gotcha — bit core too; on the record for composer's
+  replication). FOLLOW-ON OPENED (task #55, not Roy-gated): a real build/test ci.yml is now possible —
+  hosted suite verification both modes + wasm; upgrades bump-core.sh's claim from local-green to
+  hosted-green. Schedule at the next between-blocks slot.
+
+## 📚 (superseded — the build/blocked record) RUSTDOC SITE (task #51): BUILT, BLOCKED ON ONE ROY CREDENTIAL
 - Workflow live (.github/workflows/docs.yml, f9b53e5 + 9cb28d5): core's template replicated — two-build
   split (public-API Pages / org-only internals artifact), render-level hard-fail hygiene gate verbatim,
   false-green guard docs the workspace-EXCLUDED r2-hive-wasm into the same tree, deploy branch-gated to
