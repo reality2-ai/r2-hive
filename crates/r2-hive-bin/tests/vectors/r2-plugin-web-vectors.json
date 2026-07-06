@@ -1,0 +1,131 @@
+{
+  "description": "R2-WEB §4.2/§4.5 WebSocket message-auth conformance vectors. Each message is a JSON envelope {device_id,timestamp,signature,payload} with signature = Ed25519-Sign(DEV_SK, device_id:timestamp:payload) (Ed25519, NOT HMAC — §4.2 v0.3). GENERATED from ed25519-dalek via examples/gen_plugin_web_vectors.rs — do not hand-edit. Spec-driven (r2-hive's §4.2 impl is a future v0.2 deliverable); TEST-ONLY key.",
+  "device_key_seed_hex": "a50102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "spec": "R2-WEB",
+  "vectors": [
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "browser_to_plugin",
+      "expect": "accept",
+      "id": "PW1",
+      "message_type": "command",
+      "payload": "{\"type\":\"command\",\"event\":\"set_level\",\"args\":{\"v\":42}}",
+      "signature": "75d6b1bc67a1267292fec09f244c4803126611d602270f7417c3667fad2e7a8385d2f0b0a90586f01420f736abee1445701a487127c0a71fbeba288d8fd21609",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711900000:{\"type\":\"command\",\"event\":\"set_level\",\"args\":{\"v\":42}}",
+      "timestamp": 1711900000
+    },
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "browser_to_plugin",
+      "expect": "accept",
+      "id": "PW2",
+      "message_type": "query",
+      "payload": "{\"type\":\"query\",\"query\":\"{ sentants { id } }\"}",
+      "signature": "039011725dbd5e2655d499991c8b8f6e079377b7bf1e9ea0914767fbf4e80dc802cb1c039251f1a091227b45494fda85621d0357e8d56798b28a622a98880909",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711900000:{\"type\":\"query\",\"query\":\"{ sentants { id } }\"}",
+      "timestamp": 1711900000
+    },
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "browser_to_plugin",
+      "expect": "accept",
+      "id": "PW3",
+      "message_type": "subscribe",
+      "payload": "{\"type\":\"subscribe\",\"filter\":{\"event\":\"read_level\"}}",
+      "signature": "22cd68ccd425078fd09a08d0167f2d5dd7681a609fd72a52faa7fa2a3100e174f806376ace3ed038edbb133c54a073ceccaa7cf9ff496de8f173312909faca0d",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711900000:{\"type\":\"subscribe\",\"filter\":{\"event\":\"read_level\"}}",
+      "timestamp": 1711900000
+    },
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "browser_to_plugin",
+      "expect": "accept",
+      "id": "PW4",
+      "message_type": "unsubscribe",
+      "payload": "{\"type\":\"unsubscribe\",\"filter\":{\"event\":\"read_level\"}}",
+      "signature": "98115b0dd66ec313a9c58e523f11a343c523761df3af10d8a3f9e76fdabd8df6e3639bdbf87fa19cfc7e2fce8dd8e291dfc35376ea29c91f3e7867e456644704",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711900000:{\"type\":\"unsubscribe\",\"filter\":{\"event\":\"read_level\"}}",
+      "timestamp": 1711900000
+    },
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "browser_to_plugin",
+      "expect": "accept",
+      "id": "PW5",
+      "message_type": "ping",
+      "payload": "{\"type\":\"ping\"}",
+      "signature": "853ad7680b7ba3d50b78d18b74b6de0ebafcad4f76c1af84f55f553b2d57f60de262530fe107c6f2f9590133fb6342b159b9f631eb25c3f9214f1358a50c0d01",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711900000:{\"type\":\"ping\"}",
+      "timestamp": 1711900000
+    },
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "plugin_to_browser",
+      "expect": "accept",
+      "id": "PW6",
+      "message_type": "event",
+      "payload": "{\"type\":\"event\",\"event\":\"read_level\",\"data\":{\"v\":42}}",
+      "signature": "a7c1ffa09b7a62ca32fc2ac31e46779c32d11682627da61466b0436146c6b454afc4cff8b69f7a423a4c110b81e990ec3dc399c920b365cdaedebe091276a90d",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711900000:{\"type\":\"event\",\"event\":\"read_level\",\"data\":{\"v\":42}}",
+      "timestamp": 1711900000
+    },
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "plugin_to_browser",
+      "expect": "accept",
+      "id": "PW7",
+      "message_type": "state",
+      "payload": "{\"type\":\"state\",\"snapshot\":{\"level\":42}}",
+      "signature": "2ed5bf587f43c2a017735ed9538d60baa6ea339f60899c8928a726a4e2d757e718013720b5ef87f3a824ce3c77ff730e637fa4ae6d7ffd4f2f5822b6d6815f02",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711900000:{\"type\":\"state\",\"snapshot\":{\"level\":42}}",
+      "timestamp": 1711900000
+    },
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "plugin_to_browser",
+      "expect": "accept",
+      "id": "PW8",
+      "message_type": "error",
+      "payload": "{\"type\":\"error\",\"code\":\"not_found\"}",
+      "signature": "bf845cd2cee9b6840b981755f90bfd826bf6926075b85e346632af285bb6f5a78a26ee75c641b01cdb62af6640c043b52c39f5d538923f1592c61045819ea705",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711900000:{\"type\":\"error\",\"code\":\"not_found\"}",
+      "timestamp": 1711900000
+    },
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "plugin_to_browser",
+      "expect": "accept",
+      "id": "PW9",
+      "message_type": "pong",
+      "payload": "{\"type\":\"pong\"}",
+      "signature": "29582b619564484dbff9564e8957a348206045bc165b70fd2a21e0b94c16d4a6ba3b99f47cdb9320a0f48ef3aff211c820475a510d1fe159c275914ab7b5a008",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711900000:{\"type\":\"pong\"}",
+      "timestamp": 1711900000
+    },
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "browser_to_plugin",
+      "expect": "reject",
+      "id": "PW10",
+      "message_type": "ping",
+      "payload": "{\"type\":\"ping\"}",
+      "reason": "Ed25519 verification fails against device_id (tampered signature).",
+      "signature": "853ad7680b7ba3d50b78d18b74b6de0ebafcad4f76c1af84f55f553b2d57f60de262530fe107c6f2f9590133fb6342b159b9f631eb25c3f9214f1358a50c0d00",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711900000:{\"type\":\"ping\"}",
+      "timestamp": 1711900000
+    },
+    {
+      "device_id": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344",
+      "direction": "browser_to_plugin",
+      "expect": "reject",
+      "id": "PW11",
+      "message_type": "ping",
+      "payload": "{\"type\":\"ping\"}",
+      "reason": "timestamp outside the ±60s replay window (R2-WEB §4.2).",
+      "signature": "6a40807f27382da40e93919ee069be4c9ea19679154d2e6dd3ad3bddba875c8f01a1e87a5cce06cf007d28599b94110cd46bb5bcafa2a3ef6ddf571a805b8202",
+      "signing_message": "86450242324b7eac96886f22d350ea3e5bacfd0719d2ff72421bc8c7bf0e5344:1711899880:{\"type\":\"ping\"}",
+      "timestamp": 1711899880
+    }
+  ],
+  "version": "0.3"
+}

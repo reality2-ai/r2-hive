@@ -1,0 +1,250 @@
+{
+  "spec": "R2-USB",
+  "version": "0.7",
+  "description": "Conformance vectors for the R2-USB serial transport framing and properties (R2-USB §3 Framing, §4 Transport Properties). USB carries compact R2-WIRE frames length-prefixed on the serial byte stream. All multi-byte integers on the USB framing layer are LITTLE-ENDIAN (§3.2). Hex is lowercase. Vector ids follow the TV<n> scheme cited by consuming impls.",
+  "notes": [
+    "Frame encoding (§3.2): [payload_length: uint16 LE][R2-WIRE compact message: payload_length bytes]. Max payload 255 (compact). payload_length == 0 is a no-op/keepalive that MUST be silently ignored.",
+    "SYNC frame (§3.3): payload_length=4; magic = uint16 0x5232, encoded little-endian -> wire bytes 0x32 0x52 (confirmed against r2-hive SYNC_MAGIC 0x5232 to_le_bytes()); version=0x01; flags (bit0 = extended-format supported, bits 1-7 reserved MUST be 0).",
+    "Behavioural vectors describe a required behaviour rather than a single byte string."
+  ],
+  "re_verify": {
+    "date": "2026-07-03",
+    "against": "R2-USB v0.7",
+    "method": "v0.7 (proactive cross-repo interop sweep) marks §3.7's Error report (msg_type 1) as explicitly deliberate implementation-defined content, not an accidental gap -- a documentation clarification adding a MUST that receivers treat it as opaque, with no byte-layout or wire-format change. Confirmed: none of this file's 26 vectors exercise msg_type 1 / control frames at all (all are §3.2/§4 framing/length-prefix/transport-property tests per the earlier re_verify), so the change cannot have touched any of them.",
+    "verdict": "All 26 vectors HOLD vs R2-USB v0.7. No vector value changed. (Prior re_verify for the 0.3->0.6 catch-up preserved below for history.)",
+    "prior": {
+      "date": "2026-07-02",
+      "against": "R2-USB v0.6",
+      "method": "First re-verify since v0.3 (no prior re_verify block existed). 3 intervening changes, none touching §3/§4 framing: v0.4 added a §3.6 'relation to device_id' cross-ref note (explicitly 'vectors unchanged'); v0.5 dropped a retired DEV_PK token from that same §3.6 cross-ref note (terminology cleanup only); v0.6 added §1 NEW normative host-radio-delegation text (no-BlueZ/all-radio-via-MCU model, explicitly 'No wire/format change'). Confirmed independently: grepped this file for DEV_PK/DEV_SK/device_id -- zero hits; all 26 TV vectors are framing/length-prefix/transport-property byte tests (category: framing etc.), nothing here represents device identity or radio topology, so none of the 3 changes could have touched it either way.",
+      "verdict": "All 26 vectors HOLD vs R2-USB v0.6 (label-lag catch-up 0.3->0.6, byte-identical). No vector value changed."
+    }
+  },
+  "vectors": [
+    {
+      "id": "TV1",
+      "category": "framing",
+      "description": "Encode a compact R2-WIRE frame onto the USB serial stream (§3.2).",
+      "wire_frame_hex": "0053a1b2424d3e4c1a2b3c4da10018ea",
+      "payload_length": 16,
+      "usb_frame_hex": "10000053a1b2424d3e4c1a2b3c4da10018ea",
+      "usb_frame_length": 18,
+      "expect": "accept"
+    },
+    {
+      "id": "TV2",
+      "category": "framing",
+      "description": "payload_length = 255 is the maximum valid compact payload (§3.2, §4.1). Length prefix shown; payload bytes omitted.",
+      "payload_length": 255,
+      "length_prefix_hex": "ff00",
+      "expect": "accept"
+    },
+    {
+      "id": "TV3",
+      "category": "framing",
+      "description": "payload_length > 255 exceeds the compact maximum (§3.2, §4.1) and MUST be rejected.",
+      "payload_length": 256,
+      "length_prefix_hex": "0001",
+      "expect": "reject",
+      "reason": "payload_length exceeds 255-byte compact maximum"
+    },
+    {
+      "id": "TV4",
+      "category": "keepalive",
+      "description": "A zero-length frame (payload_length = 0) is a no-op/keepalive and MUST be silently ignored (§3.2, §3.4).",
+      "payload_length": 0,
+      "usb_frame_hex": "0000",
+      "expect": "ignore"
+    },
+    {
+      "id": "TV5",
+      "category": "sync",
+      "description": "SYNC frame, compact-only (flags = 0x00) (§3.3).",
+      "fields": { "payload_length": 4, "magic": "0x5232", "version": "0x01", "flags": "0x00" },
+      "usb_frame_hex": "040032520100",
+      "usb_frame_length": 6,
+      "expect": "accept"
+    },
+    {
+      "id": "TV6",
+      "category": "sync",
+      "description": "SYNC frame advertising extended-format support (flags bit0 = 1) (§3.3).",
+      "fields": { "payload_length": 4, "magic": "0x5232", "version": "0x01", "flags": "0x01" },
+      "usb_frame_hex": "040032520101",
+      "usb_frame_length": 6,
+      "expect": "accept"
+    },
+    {
+      "id": "TV7",
+      "category": "sync",
+      "description": "SYNC with a reserved flag bit set (flags = 0x02, bit1) is invalid — bits 1-7 MUST be 0 (§3.3).",
+      "fields": { "payload_length": 4, "magic": "0x5232", "version": "0x01", "flags": "0x02" },
+      "usb_frame_hex": "040032520102",
+      "expect": "reject",
+      "reason": "reserved flag bits (1-7) must be zero"
+    },
+    {
+      "id": "TV8",
+      "category": "sync_behaviour",
+      "description": "Receiving a SYNC on an established link MUST reset the link state and respond with a SYNC (§3.3). Both ends MUST accept a SYNC at any time.",
+      "expect": "reset_and_respond"
+    },
+    {
+      "id": "TV9",
+      "category": "keepalive_behaviour",
+      "description": "On an idle link (no frames for 10s) an end SHOULD send a zero-length keepalive; if no data is received for 30s the link SHOULD be considered stale and the transport MAY re-SYNC (§3.4).",
+      "idle_keepalive_seconds": 10,
+      "stale_seconds": 30,
+      "expect": "keepalive_then_stale"
+    },
+    {
+      "id": "TV10",
+      "category": "properties",
+      "description": "USB transport properties (§4): transport id, bitmask, format, max payload, power cost, link quality, broadcast.",
+      "transport_id": 4,
+      "bitmask": "0x10",
+      "wire_format": "compact",
+      "max_payload": 255,
+      "power_cost": 0,
+      "link_quality": 1.0,
+      "broadcast": false,
+      "expect": "accept"
+    },
+    {
+      "id": "TV11",
+      "category": "sync_behaviour",
+      "description": "SYNC handshake procedure (§3.3): host opens the port and sends SYNC; the relay MUST respond with a SYNC within 1 second. The host MAY retry up to 3 times at 500 ms intervals; if there is no response after retries the port is NOT an R2 device.",
+      "response_timeout_ms": 1000,
+      "max_retries": 3,
+      "retry_interval_ms": 500,
+      "expect": "established_or_not_an_r2_device"
+    },
+    {
+      "id": "TV12",
+      "category": "properties_behaviour",
+      "description": "Link quality on disconnect (§4.2): while the serial port is open and responsive the transport reports quality = 1.0; on disconnection it reports no link quality (peer unreachable).",
+      "connected_quality": 1.0,
+      "disconnected": "no link quality / peer unreachable",
+      "expect": "quality_tracks_connection"
+    },
+    {
+      "id": "TV13",
+      "category": "properties_behaviour",
+      "description": "Broadcast semantics (§4.3): USB is point-to-point — a frame sent on USB is delivered to exactly one peer; there is no USB broadcast. The relay node re-broadcasts on its radio transports as part of normal relay behaviour.",
+      "broadcast": false,
+      "delivery": "exactly one peer",
+      "expect": "point_to_point"
+    },
+    {
+      "id": "TV14",
+      "category": "sync",
+      "description": "SYNC frame advertising v2 (type-byte mode), compact-only (§3.3). version = 0x02.",
+      "fields": { "payload_length": 4, "magic": "0x5232", "version": "0x02", "flags": "0x00" },
+      "usb_frame_hex": "040032520200",
+      "usb_frame_length": 6,
+      "expect": "accept"
+    },
+    {
+      "id": "TV15",
+      "category": "version_negotiation",
+      "description": "Effective version = min(host, peripheral) (§3.3). Host v2 + peripheral v1 -> link is v1 (legacy framing, §3.2): NO type byte, NO CAPS, NO control channel. A v2 endpoint MUST fall back to v1.",
+      "host_version": 2,
+      "peripheral_version": 1,
+      "effective_version": 1,
+      "framing": "v1 legacy (no type byte)",
+      "expect": "fall_back_to_v1"
+    },
+    {
+      "id": "TV16",
+      "category": "version_negotiation",
+      "description": "Host v2 + peripheral v2 -> link is v2 (type-byte framing, §3.5): the first payload byte demultiplexes R2-WIRE / CAPS / control.",
+      "host_version": 2,
+      "peripheral_version": 2,
+      "effective_version": 2,
+      "framing": "v2 type-byte",
+      "expect": "type_byte_mode"
+    },
+    {
+      "id": "TV17",
+      "category": "version_negotiation",
+      "description": "An endpoint MUST NOT send type-byte-tagged frames on a link negotiated to v1 (§3.3). Sending a type-byte frame on a v1 link is non-conformant.",
+      "effective_version": 1,
+      "expect": "reject",
+      "reason": "type-byte frames forbidden on a v1-negotiated link"
+    },
+    {
+      "id": "TV18",
+      "category": "type_byte",
+      "description": "v2 local_id-tagged R2-WIRE frame (§3.5, type byte 0x00-0xFB). type byte 0x00 = the transport with local_id 0; body is one R2-WIRE compact message (here the TV1 16-byte frame). usb_frame = [len LE][type][wire].",
+      "fields": { "payload_length": 17, "type_byte": "0x00", "wire_frame_hex": "0053a1b2424d3e4c1a2b3c4da10018ea" },
+      "usb_frame_hex": "1100000053a1b2424d3e4c1a2b3c4da10018ea",
+      "usb_frame_length": 19,
+      "expect": "accept"
+    },
+    {
+      "id": "TV19",
+      "category": "type_byte",
+      "description": "Type bytes 0xFC and 0xFD are RESERVED (§3.5) and MUST NOT be sent; a receiver MUST reject such a frame (and MAY report it via a §3.7 error control frame).",
+      "type_byte": "0xFC",
+      "expect": "reject",
+      "reason": "reserved type byte (0xFC/0xFD)"
+    },
+    {
+      "id": "TV20",
+      "category": "type_byte",
+      "description": "Discriminator collision-freedom (§3.5): an untagged R2-WIRE header's first byte is <= 0x3F (compact, version 0) or <= 0xBF (extended, version < 3), so it can never collide with the type-byte discriminators 0xFC-0xFF (reserved/CAPS/control). The type byte is unambiguous.",
+      "wire_first_byte_max_compact": "0x3F",
+      "wire_first_byte_max_extended": "0xBF",
+      "discriminators": ["0xFC", "0xFD", "0xFE", "0xFF"],
+      "expect": "no_collision"
+    },
+    {
+      "id": "TV21",
+      "category": "caps",
+      "description": "CAPS frame (§3.6, type byte 0xFE): CBOR map {0: hive_id_bytes bstr16, 1: firmware_id tstr, 2: firmware_version uint, 3: transports[ {0: local_id, 1: kind} ]}. Here: hive_id_bytes = the canonical usb_link_id (R2-USB §3.6 / cross-checks r2-usb-pair UP13 851fdee3...), firmware_id 'r2-relay', version 1, one transport {local_id 0, kind 1 = LoRa (Appendix A)}.",
+      "fields": { "hive_id_bytes": "851fdee3082ad30e4f981b08e8e303a3", "firmware_id": "r2-relay", "firmware_version": 1, "transports": [ { "local_id": 0, "kind": 1 } ] },
+      "caps_body_cbor_hex": "a40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a200000101",
+      "usb_frame_hex": "2700fea40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a200000101",
+      "usb_frame_length": 41,
+      "expect": "accept",
+      "notes": "hive_id_bytes == usb_link_id (UP13) is intentional: CAPS keys the host link-key store for pairing/reconnect (R2-PROVISION §5.3.4). Receipt of CAPS is the gate into pairing/reconnect."
+    },
+    {
+      "id": "TV22",
+      "category": "caps",
+      "description": "CAPS validation (§3.6): the transports array MUST contain 1-16 descriptors, every local_id MUST be <= 0xFB, and local_id values MUST be unique. A CAPS frame violating any of these is malformed and MUST be rejected. Example: two descriptors sharing local_id 0.",
+      "invalid_transports": [ { "local_id": 0, "kind": 1 }, { "local_id": 0, "kind": 2 } ],
+      "expect": "reject",
+      "reason": "duplicate local_id in CAPS transports array"
+    },
+    {
+      "id": "TV23",
+      "category": "control",
+      "description": "Control frame (§3.7, type byte 0xFF): CBOR {0: msg_type, 1: body}. Here msg_type 2 = log line, body tstr 'hello'.",
+      "fields": { "type_byte": "0xFF", "msg_type": 2, "body": "hello" },
+      "control_body_cbor_hex": "a20002016568656c6c6f",
+      "usb_frame_hex": "0b00ffa20002016568656c6c6f",
+      "usb_frame_length": 13,
+      "expect": "accept"
+    },
+    {
+      "id": "TV24",
+      "category": "control",
+      "description": "Control frames are link-local (§3.7): they MUST NOT be relayed onto other transports. A relay node MUST consume control frames locally.",
+      "expect": "do_not_relay"
+    },
+    {
+      "id": "TV25",
+      "category": "control",
+      "description": "Control msg_type values 4-11 are the USB pairing flow, defined normatively in R2-PROVISION §5.3.4 (message vocabulary PAIR_HELLO_HOST(4) .. PAIR_ABORT(11)); msg_type 1 = error report, 2 = log line, 3 = transport state change; other msg_types are reserved and MUST be ignored (skipped) by receivers.",
+      "msg_types": { "1": "error", "2": "log", "3": "transport_state", "4-11": "USB pairing (R2-PROVISION §5.3.4)" },
+      "expect": "msg_type_vocabulary"
+    },
+    {
+      "id": "TV26",
+      "category": "type_byte",
+      "description": "v2 payload_length bound (§3.5): a host SHOULD bound the accepted payload_length (RECOMMENDED 4096, covering the R2-WIRE compact max + type-byte + CAPS overhead) and treat larger frames as malformed. NOTE: v2 type-byte frames (CAPS/control) MAY exceed the 255-byte compact limit (TV2/TV3) — that limit applies to the R2-WIRE compact MESSAGE, not to a CAPS/control payload.",
+      "recommended_max_payload_length": 4096,
+      "expect": "bound_payload_length"
+    }
+  ]
+}

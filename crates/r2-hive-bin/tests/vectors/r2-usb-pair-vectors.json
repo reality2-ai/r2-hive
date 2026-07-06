@@ -1,0 +1,127 @@
+{
+  "description": "USB pairing crypto conformance vectors (X25519 / SHA-256 / HKDF-SHA256 / HMAC-SHA256) for R2-PROVISION §5.3.4 (USB Pairing, Wired, MITM-Protected). GENERATED from r2-hive's canonical usb_pair helpers via examples/gen_usb_pair_vectors.rs — do not hand-edit. Canonical home is R2-PROVISION §5.3.4 (was mis-cited as R2-HIVE §6.4, which specs ruled is not a spec). All 12 vectors independently verified byte-exact by specs (2026-06-09). Inputs are deterministic test values; keys are TEST-ONLY.",
+  "spec": "R2-PROVISION",
+  "vectors": [
+    {
+      "category": "x25519",
+      "description": "eph public key from host secret",
+      "id": "UP1",
+      "public": "7b4e909bbe7ffe44c465a220037d608ee35897d31ef972f07f74892cb0f73f13",
+      "secret": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "category": "x25519",
+      "description": "eph public key from peripheral secret",
+      "id": "UP2",
+      "public": "0faa684ed28867b97f4a6a2dee5df8ce974e76b7018e3f22a1c4cf2678570f20",
+      "secret": "2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "category": "x25519",
+      "description": "ECDH shared secret Z (agrees both sides)",
+      "host_secret": "1111111111111111111111111111111111111111111111111111111111111111",
+      "id": "UP3",
+      "peer_public": "0faa684ed28867b97f4a6a2dee5df8ce974e76b7018e3f22a1c4cf2678570f20",
+      "shared_secret": "9e004098efc091d4ec2663b4e9f5cfd4d7064571690b4bea97ab146ab9f35056"
+    },
+    {
+      "category": "commitment",
+      "commitment": "63036b4d1ce9e73c19dfbcdd3238cada9ae44f3186a2139b7ecf47aa0f41625e",
+      "description": "SHA-256(eph_pk_peripheral || nonce_peripheral)",
+      "eph_pk_peripheral": "0faa684ed28867b97f4a6a2dee5df8ce974e76b7018e3f22a1c4cf2678570f20",
+      "id": "UP4",
+      "nonce_peripheral": "4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    {
+      "category": "commitment",
+      "commitment": "63036b4d1ce9e73c19dfbcdd3238cada9ae44f3186a2139b7ecf47aa0f41625e",
+      "description": "verify_commitment accepts correct reveal",
+      "eph_pk_peripheral": "0faa684ed28867b97f4a6a2dee5df8ce974e76b7018e3f22a1c4cf2678570f20",
+      "expect": true,
+      "id": "UP5",
+      "nonce_peripheral": "4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    {
+      "category": "commitment",
+      "commitment": "63036b4d1ce9e73c19dfbcdd3238cada9ae44f3186a2139b7ecf47aa0f41625e",
+      "description": "verify_commitment rejects substituted pk",
+      "eph_pk_peripheral": "0eaa684ed28867b97f4a6a2dee5df8ce974e76b7018e3f22a1c4cf2678570f20",
+      "expect": false,
+      "id": "UP6",
+      "nonce_peripheral": "4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    {
+      "category": "sas",
+      "description": "6-digit SAS code (HKDF-SHA256, % 1_000_000)",
+      "eph_pk_host": "7b4e909bbe7ffe44c465a220037d608ee35897d31ef972f07f74892cb0f73f13",
+      "eph_pk_peripheral": "0faa684ed28867b97f4a6a2dee5df8ce974e76b7018e3f22a1c4cf2678570f20",
+      "id": "UP7",
+      "nonce_host": "3333333333333333333333333333333333333333333333333333333333333333",
+      "nonce_peripheral": "4444444444444444444444444444444444444444444444444444444444444444",
+      "rendered": "488092",
+      "sas_code": 488092,
+      "shared_secret": "9e004098efc091d4ec2663b4e9f5cfd4d7064571690b4bea97ab146ab9f35056"
+    },
+    {
+      "category": "linkkey",
+      "description": "32-byte link key (HKDF-SHA256)",
+      "eph_pk_host": "7b4e909bbe7ffe44c465a220037d608ee35897d31ef972f07f74892cb0f73f13",
+      "eph_pk_peripheral": "0faa684ed28867b97f4a6a2dee5df8ce974e76b7018e3f22a1c4cf2678570f20",
+      "hive_id_bytes": "55555555555555555555555555555555",
+      "id": "UP8",
+      "link_key": "386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
+      "nonce_host": "3333333333333333333333333333333333333333333333333333333333333333",
+      "nonce_peripheral": "4444444444444444444444444444444444444444444444444444444444444444",
+      "shared_secret": "9e004098efc091d4ec2663b4e9f5cfd4d7064571690b4bea97ab146ab9f35056"
+    },
+    {
+      "category": "reconnect",
+      "description": "reconnect tag HMAC-SHA256(link_key, label||nonce_rc||hive_id)[..16]",
+      "hive_id_bytes": "55555555555555555555555555555555",
+      "id": "UP9",
+      "link_key": "386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
+      "nonce_rc": "66666666666666666666666666666666",
+      "reconnect_tag": "2f62edaaa469424d5a5da5630b06967b"
+    },
+    {
+      "category": "reconnect",
+      "description": "verify_reconnect_tag accepts correct tag",
+      "expect": true,
+      "hive_id_bytes": "55555555555555555555555555555555",
+      "id": "UP10",
+      "link_key": "386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
+      "nonce_rc": "66666666666666666666666666666666",
+      "reconnect_tag": "2f62edaaa469424d5a5da5630b06967b"
+    },
+    {
+      "category": "reconnect",
+      "description": "verify_reconnect_tag rejects wrong link key",
+      "expect": false,
+      "hive_id_bytes": "55555555555555555555555555555555",
+      "id": "UP11",
+      "link_key": "396667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
+      "nonce_rc": "66666666666666666666666666666666",
+      "reconnect_tag": "2f62edaaa469424d5a5da5630b06967b"
+    },
+    {
+      "category": "reconnect",
+      "description": "verify_reconnect_tag rejects wrong nonce",
+      "expect": false,
+      "hive_id_bytes": "55555555555555555555555555555555",
+      "id": "UP12",
+      "link_key": "386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
+      "nonce_rc": "67666666666666666666666666666666",
+      "reconnect_tag": "2f62edaaa469424d5a5da5630b06967b"
+    },
+    {
+      "category": "usb_link_id",
+      "description": "USB-link identity (CAPS hive_id_bytes) — stable, TG-independent: usb_link_id = HKDF-SHA256(salt='r2-usb-link-v1', ikm=device_master_secret, info='')[0:16]. R2-USB §3.6 / R2-WIRE §6.2.1.",
+      "id": "UP13",
+      "device_master_secret": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "salt_ascii": "r2-usb-link-v1",
+      "info": "",
+      "usb_link_id": "851fdee3082ad30e4f981b08e8e303a3"
+    }
+  ],
+  "version": "0.1"
+}

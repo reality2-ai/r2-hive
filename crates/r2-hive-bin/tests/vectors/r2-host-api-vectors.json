@@ -1,0 +1,333 @@
+{
+  "description": "Conformance vectors for the R2-HOST-API r2.api.* / r2.mgmt.* event surface. Each vector is a byte-exact EXTENDED R2-WIRE frame (r2_wire::encode_extended) with event_hash == r2_fnv::r2_hash(event_class), a representative CBOR payload, and the UDS framing len_be32(frame)||frame (R2-HOST-API §2). GENERATED from r2-hive's canonical encoders via examples/gen_host_api_vectors.rs — do not hand-edit. [v0.2, 2026-06-22: ensemble verbs synced to R2-TG-TOOL §5.3 canonical set — HA13 load->deploy (0xAFA2A20A), HA17 reset->remove (0xE1336311); FNV-verified, payload ordinals unchanged. r2-hive MUST sync examples/gen_host_api_vectors.rs ensemble verb names so a regen reproduces these bytes.]",
+  "spec": "R2-HOST-API",
+  "vectors": [
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.api.peer.list",
+      "event_hash": "0x5BBAAACB",
+      "frame_hex": "0000000000005bbaaacb000000030000000000000000a10001",
+      "frame_length": 25,
+      "id": "HA01",
+      "payload_hex": "a10001",
+      "uds_frame_hex": "000000190000000000005bbaaacb000000030000000000000000a10001",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.api.peer.query",
+      "event_hash": "0x25B065F1",
+      "frame_hex": "00000000000025b065f1000000030000000000000000a10002",
+      "frame_length": 25,
+      "id": "HA02",
+      "payload_hex": "a10002",
+      "uds_frame_hex": "0000001900000000000025b065f1000000030000000000000000a10002",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.api.tg.current",
+      "event_hash": "0xAC7BAAE1",
+      "frame_hex": "000000000000ac7baae1000000030000000000000000a10003",
+      "frame_length": 25,
+      "id": "HA03",
+      "payload_hex": "a10003",
+      "uds_frame_hex": "00000019000000000000ac7baae1000000030000000000000000a10003",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.api.event.send",
+      "event_hash": "0x9B5E46EB",
+      "frame_hex": "0000000000009b5e46eb000000030000000000000000a10004",
+      "frame_length": 25,
+      "id": "HA04",
+      "payload_hex": "a10004",
+      "uds_frame_hex": "000000190000000000009b5e46eb000000030000000000000000a10004",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.api.event.subscribe",
+      "event_hash": "0x03C1A64F",
+      "frame_hex": "00000000000003c1a64f000000030000000000000000a10005",
+      "frame_length": 25,
+      "id": "HA05",
+      "payload_hex": "a10005",
+      "uds_frame_hex": "0000001900000000000003c1a64f000000030000000000000000a10005",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.api.event.unsubscribe",
+      "event_hash": "0xACFBFDE2",
+      "frame_hex": "000000000000acfbfde2000000030000000000000000a10006",
+      "frame_length": 25,
+      "id": "HA06",
+      "payload_hex": "a10006",
+      "uds_frame_hex": "00000019000000000000acfbfde2000000030000000000000000a10006",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.api.cap.query",
+      "event_hash": "0xF5B0496F",
+      "frame_hex": "000000000000f5b0496f000000030000000000000000a10007",
+      "frame_length": 25,
+      "id": "HA07",
+      "payload_hex": "a10007",
+      "uds_frame_hex": "00000019000000000000f5b0496f000000030000000000000000a10007",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.api.service.advertise",
+      "event_hash": "0xBA3ABC6D",
+      "frame_hex": "000000000000ba3abc6d000000030000000000000000a10008",
+      "frame_length": 25,
+      "id": "HA08",
+      "payload_hex": "a10008",
+      "uds_frame_hex": "00000019000000000000ba3abc6d000000030000000000000000a10008",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.api.service.retract",
+      "event_hash": "0xC1EAE371",
+      "frame_hex": "000000000000c1eae371000000030000000000000000a10009",
+      "frame_length": 25,
+      "id": "HA09",
+      "payload_hex": "a10009",
+      "uds_frame_hex": "00000019000000000000c1eae371000000030000000000000000a10009",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.daemon.status",
+      "event_hash": "0xBCD06E0A",
+      "frame_hex": "000000000000bcd06e0a000000030000000000000000a1000a",
+      "frame_length": 25,
+      "id": "HA10",
+      "payload_hex": "a1000a",
+      "uds_frame_hex": "00000019000000000000bcd06e0a000000030000000000000000a1000a",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.identity.status",
+      "event_hash": "0x2EA1E5FC",
+      "frame_hex": "0000000000002ea1e5fc000000030000000000000000a1000b",
+      "frame_length": 25,
+      "id": "HA11",
+      "payload_hex": "a1000b",
+      "uds_frame_hex": "000000190000000000002ea1e5fc000000030000000000000000a1000b",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.web.provision",
+      "event_hash": "0x64B0DB89",
+      "frame_hex": "00000000000064b0db89000000030000000000000000a1000c",
+      "frame_length": 25,
+      "id": "HA12",
+      "payload_hex": "a1000c",
+      "uds_frame_hex": "0000001900000000000064b0db89000000030000000000000000a1000c",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.ensemble.deploy",
+      "event_hash": "0xAFA2A20A",
+      "frame_hex": "000000000000afa2a20a000000030000000000000000a1000d",
+      "frame_length": 25,
+      "id": "HA13",
+      "payload_hex": "a1000d",
+      "uds_frame_hex": "00000019000000000000afa2a20a000000030000000000000000a1000d",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.ensemble.list",
+      "event_hash": "0xE6EEC5ED",
+      "frame_hex": "000000000000e6eec5ed000000030000000000000000a1000e",
+      "frame_length": 25,
+      "id": "HA14",
+      "payload_hex": "a1000e",
+      "uds_frame_hex": "00000019000000000000e6eec5ed000000030000000000000000a1000e",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.ensemble.info",
+      "event_hash": "0x1AD7EE99",
+      "frame_hex": "0000000000001ad7ee99000000030000000000000000a1000f",
+      "frame_length": 25,
+      "id": "HA15",
+      "payload_hex": "a1000f",
+      "uds_frame_hex": "000000190000000000001ad7ee99000000030000000000000000a1000f",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.ensemble.stop",
+      "event_hash": "0x5D3F9601",
+      "frame_hex": "0000000000005d3f9601000000030000000000000000a10010",
+      "frame_length": 25,
+      "id": "HA16",
+      "payload_hex": "a10010",
+      "uds_frame_hex": "000000190000000000005d3f9601000000030000000000000000a10010",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.ensemble.remove",
+      "event_hash": "0xE1336311",
+      "frame_hex": "000000000000e1336311000000030000000000000000a10011",
+      "frame_length": 25,
+      "id": "HA17",
+      "payload_hex": "a10011",
+      "uds_frame_hex": "00000019000000000000e1336311000000030000000000000000a10011",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.usb.list",
+      "event_hash": "0x046ABBC6",
+      "frame_hex": "000000000000046abbc6000000030000000000000000a10012",
+      "frame_length": 25,
+      "id": "HA18",
+      "payload_hex": "a10012",
+      "uds_frame_hex": "00000019000000000000046abbc6000000030000000000000000a10012",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.usb.prepare",
+      "event_hash": "0xFABD5C01",
+      "frame_hex": "000000000000fabd5c01000000030000000000000000a10013",
+      "frame_length": 25,
+      "id": "HA19",
+      "payload_hex": "a10013",
+      "uds_frame_hex": "00000019000000000000fabd5c01000000030000000000000000a10013",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.usb.confirm",
+      "event_hash": "0x4A23BD62",
+      "frame_hex": "0000000000004a23bd62000000030000000000000000a10014",
+      "frame_length": 25,
+      "id": "HA20",
+      "payload_hex": "a10014",
+      "uds_frame_hex": "000000190000000000004a23bd62000000030000000000000000a10014",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.usb.abort",
+      "event_hash": "0xA9AF2E9C",
+      "frame_hex": "000000000000a9af2e9c000000030000000000000000a10015",
+      "frame_length": 25,
+      "id": "HA21",
+      "payload_hex": "a10015",
+      "uds_frame_hex": "00000019000000000000a9af2e9c000000030000000000000000a10015",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "app_to_hive",
+      "event_class": "r2.mgmt.usb.unpair",
+      "event_hash": "0x61F66E05",
+      "frame_hex": "00000000000061f66e05000000030000000000000000a10016",
+      "frame_length": 25,
+      "id": "HA22",
+      "payload_hex": "a10016",
+      "uds_frame_hex": "0000001900000000000061f66e05000000030000000000000000a10016",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "hive_to_app",
+      "event_class": "r2.api.event.delivery",
+      "event_hash": "0xC19E3C41",
+      "frame_hex": "000000000000c19e3c41000000030000000000000000a10017",
+      "frame_length": 25,
+      "id": "HA23",
+      "payload_hex": "a10017",
+      "uds_frame_hex": "00000019000000000000c19e3c41000000030000000000000000a10017",
+      "uds_frame_length": 29
+    },
+    {
+      "direction": "hive_to_app",
+      "event_class": "r2.mgmt.event.error",
+      "event_hash": "0x975E46E6",
+      "frame_hex": "000000000000975e46e6000000040000000000000000a1001818",
+      "frame_length": 26,
+      "id": "HA24",
+      "payload_hex": "a1001818",
+      "uds_frame_hex": "0000001a000000000000975e46e6000000040000000000000000a1001818",
+      "uds_frame_length": 30
+    },
+    {
+      "direction": "hive_to_app",
+      "event_class": "r2.api.peer.list",
+      "event_hash": "0x5BBAAACB",
+      "frame_hex": "0000000000005bbaaacb000000040000000000000000a1001819",
+      "frame_length": 26,
+      "id": "HA25",
+      "payload_hex": "a1001819",
+      "uds_frame_hex": "0000001a0000000000005bbaaacb000000040000000000000000a1001819",
+      "uds_frame_length": 30
+    },
+    {
+      "direction": "hive_to_app",
+      "event_class": "r2.api.tg.current",
+      "event_hash": "0xAC7BAAE1",
+      "frame_hex": "000000000000ac7baae1000000040000000000000000a100181a",
+      "frame_length": 26,
+      "id": "HA26",
+      "payload_hex": "a100181a",
+      "uds_frame_hex": "0000001a000000000000ac7baae1000000040000000000000000a100181a",
+      "uds_frame_length": 30
+    },
+    {
+      "direction": "hive_to_app",
+      "event_class": "r2.api.cap.query",
+      "event_hash": "0xF5B0496F",
+      "frame_hex": "000000000000f5b0496f000000040000000000000000a100181b",
+      "frame_length": 26,
+      "id": "HA27",
+      "payload_hex": "a100181b",
+      "uds_frame_hex": "0000001a000000000000f5b0496f000000040000000000000000a100181b",
+      "uds_frame_length": 30
+    },
+    {
+      "direction": "hive_to_app",
+      "event_class": "r2.api.peer.query",
+      "event_hash": "0x25B065F1",
+      "frame_hex": "00000000000025b065f1000000040000000000000000a100181c",
+      "frame_length": 26,
+      "id": "HA28",
+      "payload_hex": "a100181c",
+      "uds_frame_hex": "0000001a00000000000025b065f1000000040000000000000000a100181c",
+      "uds_frame_length": 30
+    }
+  ],
+  "version": "0.6",
+  "re_verify": {
+    "date": "2026-07-04",
+    "against": "R2-HOST-API v0.5",
+    "method": "label-lag bump only: v0.5 disambiguated sec3.2.1's key-5 (from_hive) wording for event.delivery.denied -- the denied frame's claimed originator (route_stack[0]), not the local daemon. Wording-only; no key assignment, shape, or byte change to any class these vectors test.",
+    "verdict": "Byte-identical to the v0.4 verify. No vector value changed.",
+    "prior": {
+      "date": "2026-07-04",
+      "against": "R2-HOST-API v0.4",
+      "method": "label-lag bump only: v0.4 added NEW sec3.2.1 registering the event.delivery CBOR key map (matching the already-shipped build_delivery_frame shape) and defining the new event.delivery.denied notification class + its own key map. Neither is a change to the existing UDS/frame-level bytes these vectors test -- a new notification class definition, not a modification of any class this file already covers.",
+      "verdict": "Byte-identical to the v0.3 verify. No vector value changed.",
+      "prior": {
+        "date": "2026-07-02",
+        "against": "R2-HOST-API v0.3",
+        "method": "label-lag bump only (fleet audit dedup-26, doc-hygiene autonomy): v0.3 added NEW §2.4 documenting the shipped /r2/mgmt WebSocket transport -- a separate management-plane bridge from the UDS channel (§2.1-§2.3) these vectors byte-exactly test. §2.4 carries only r2.mgmt.* verbs in a different framing (no length prefix, WS message boundaries); it doesn't change the UDS len_be32-framed event bytes this file pins.",
+        "verdict": "HOLD -- all vectors byte-identical, generated from r2-hive's canonical encoders untouched by the §2.4 addition."
+      }
+    }
+  }
+}
