@@ -62,6 +62,17 @@ jobs:
       - name: System deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libdbus-1-dev libssl-dev libudev-dev
 
+      # PRIVATE GIT-DEP AUTH: r2-hive's [workspace.dependencies] are rev-pinned
+      # git deps on the PRIVATE reality2-ai/r2-core repo. The default GITHUB_TOKEN
+      # is scoped to THIS repo only, so cargo's `git fetch` of r2-core exits 128
+      # on a bare runner (first-run finding, run 28768940350 — this repo's hosted
+      # CI was hygiene-only until now, so nothing ever compiled here before).
+      # R2_CORE_READ_TOKEN = org/repo Actions secret (fine-grained PAT, r2-core
+      # Contents: read-only) — Roy-minted (credential minting is human-only).
+      # Until the secret exists this workflow is HONESTLY RED, not skipped.
+      - name: Configure git auth for private core deps
+        run: git config --global url."https://x-access-token:${{ secrets.R2_CORE_READ_TOKEN }}@github.com/reality2-ai/".insteadOf "https://github.com/reality2-ai/"
+
       # PUBLIC-API surface only — NO --document-private-items.
       - name: Build public-API docs
         run: cargo doc --workspace --no-deps
@@ -161,6 +172,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: System deps
         run: sudo apt-get update && sudo apt-get install -y pkg-config libdbus-1-dev libssl-dev libudev-dev
+      - name: Configure git auth for private core deps
+        run: git config --global url."https://x-access-token:${{ secrets.R2_CORE_READ_TOKEN }}@github.com/reality2-ai/".insteadOf "https://github.com/reality2-ai/"
       - name: Build full-internals docs
         run: cargo doc --workspace --no-deps --document-private-items
       - name: Build excluded-crate docs (full internals)
