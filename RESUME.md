@@ -31,7 +31,9 @@ consume hold/SCF as applicable + relay_backoff_ms at every platform-IO frame-sen
 router relay / wasm), replay boundary per §8.2a as above.
 
 **CI OWNERSHIP BOUNDARY (supervisor-codex FYI, 2026-07-06; guard LANDED GREEN same-day at core 8cd230a,
-hosted run 28690391458 — core next: carpark F2 harness primitive, may ask for firmware-facing evidence):**
+hosted run 28690391458; carpark F2/F3/F4 harness primitive then signed off same-day at 3c49a40 / run
+28692193276 — pure r2-harness behavioral aggregate testing, NOT firmware/RF simulation, so no firmware-facing
+evidence ask materialized; GROUP_MGMT priority preservation now has a system falsifier there):**
 core's xtensa CI guard covers ITS OWN DFR1195 skeleton only — a no_std API-drift build check over r2-wire/transport/route/discovery/sx1262 etc.
 DISTINCT from the full DFR1195 firmware (FlashSink/OTA, dfr1195-fw branch), which stays HIVE-owned with NO
 hosted CI (local-xtensa + peer-refute only — the say-it-distinctly rule). No hive action unless core's
