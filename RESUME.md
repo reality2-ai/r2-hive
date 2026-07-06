@@ -15,8 +15,15 @@
   set_my_build_mode is a mutation surface canon forbids). (c): closed set today (the legacy-BLE gap was the
   missing codec FIELD, ruled v0.26/v0.27, not a third mode) but size for extension via Other(u8).
 - My decode mapping committed in the ack: LoRa len15/16→Prod; len17 p[16]=0x02→Dev, 0x00→Prod (belt-and-braces,
-  my emitter never sends 17B-prod), else Other; BLE AD-offset-22 byte gets the same mapping. Flagged
-  unknown-not-Prod to specs for a one-line canon note (core NOT blocked on it).
+  my emitter never sends 17B-prod), else Other; BLE AD-offset-22 byte gets the same mapping.
+- ✅ RULED SAME-DAY (R2-BUILDMODE v0.6, specs HEAD): unknown-not-Prod blessed AS PROPOSED. Mode homogeneity =
+  EQUALITY on the declared class value; unknown values (reserved 0x01, future 0x03) are cross-class to BOTH
+  shipped modes — non-viable + refused at connection/admission exactly like dev-vs-prod; same-value peers
+  mutually viable; unknown-collapse-to-prod explicitly FORBIDDEN as fail-open. Other(u8)+plain-equality = the
+  canon-named realization. FUTURE-PROOFING PIN: if a reserved value is ever ACTIVATED (0x01 prod-bench etc.),
+  its interop relation gets ruled explicitly AT ACTIVATION — equality is only the meanwhile default, nothing
+  pre-judged. Also folded: the §4 wasm-bridge registry row now names r2-hive-wasm's wasm-bindgen surface as THE
+  observability seam (Roy-confirmed 3-way wording). Core relayed — nothing waits on specs; API can land.
 - When core lands the r2-route side: wire the Observation feed + §3A drop arms same day (task #50c). Still
   waiting elsewhere on #50: core's BLE codec sha (LegacyBeacon.build_class → my one prepared line + the legacy
   dev-beacon conformance vector); routetest telemetry split = MINE + unblocked; recipe-card mode stamps.
