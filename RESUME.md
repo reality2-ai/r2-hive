@@ -12,10 +12,10 @@
   - PRIMARY: out/r2-rak4630-usbserial.uf2 (USB-CDC serial + LED floor; `--features usbserial`, ~50 KiB)
   - FALLBACK: out/r2-rak4630-ledfloor.uf2 (LED-only; `--features uf2`, ~39 KiB)
   - abs path: /home/roycdavies/Development/R2/rak4630-fw-wt/platforms/rak4630/out/
-- 🔑 THE ONE NUMBER TO CONFIRM BEFORE DRAG-DROP: app offset. Baked default = 0x27000 (s140 v7.x). If the
-  board is s140 v6.x it must be 0x26000 (else the app jumps to garbage — recoverable, bootloader untouched).
-  NON-DESTRUCTIVE gate: the bootloader drive's INFO_UF2.TXT names the SoftDevice. v6 => rebuild with
-  `RAK_APP_ORIGIN=0x26000` (one env var, re-pack, seconds). readelf-verified: entry 0x27101 (uf2), 0x101 (swd).
+- 🔑 THE ONE NUMBER TO CONFIRM BEFORE DRAG-DROP: app offset. Baked default = 0x26000 (Roy RATIFIED, R2-UPDATE
+  v0.41 §1.4 / classic WisBlock s140 v6.x). If the board is s140 v7.x it must be 0x27000 (else the app jumps
+  to garbage — recoverable, bootloader untouched). NON-DESTRUCTIVE gate: the bootloader drive's INFO_UF2.TXT
+  names the SoftDevice. v7 => rebuild `RAK_APP_ORIGIN=0x27000` (seconds). readelf-verified: entry 0x26101 (uf2), 0x101 (swd).
 - OBSERVABILITY (no loss vs the old probe/RTT worry): USB-CDC serial /dev/ttyACM* mirrors boot/configure/
   R2-BEACON lines; raw-GPIO LED floor (green P1.03) beneath it as the can't-fail channel — 3-blink boot /
   solid configure-ok / slow-blink FAILED / fast strobe = panic (made visible, not a silent halt).
