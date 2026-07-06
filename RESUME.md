@@ -235,9 +235,17 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   route_stack[0] dedup. Recommend OPTION B (do routetest-split as the telemetry/harness half of #32, one
   refactor sharing the fr_origin seam) over OPTION A (split now, keep the ROUTETEST_HASH hack inside a
   field-named feature = a fresh dirty-split of the same kind).
-- HOLD execution until: hive-codex refutation verdict (dispatched — challenges relay-ungated claim,
-  bucket-4-only, #32-coupling-real, arm-matrix breaks) AND a Roy/supervisor call on B-vs-A scheduling with
-  #32. Substantial + correctness-critical firmware (multi-hop dedup) — refute-before-execute per doctrine.
+- ✅ hive-codex REFUTATION CONFIRMED against the live worktree (fw 9631761): bucket 4 was under-scoped as
+  "dedup seed" — CORRECTED to "field relay identity/origin plumbing". Ground truth: ROUTETEST_HASH is already
+  cfg(any(routetest,fr4)) (the fr4 SCF-hold gate main.rs:2059 consumes it as the app-traffic discriminator);
+  fr_origin feeds relay dedup AND the fr4 SCF msg.hold telemetry (2077); msg.silence is field-clean (keys
+  sensor_seen, not fr_origin). meshrelay must lift ALL of fr_origin (+not(meshrelay)⇒0 fallback for
+  fr4-standalone) / ROUTETEST_HASH-share / relay-fingerprint together — never just the dedup line. The
+  refutation HARDENED Option B: ROUTETEST_HASH-as-discriminator IS the #32-class problem, so routetest-split
+  lands as the telemetry/harness half of #32.
+- HOLD execution on a SCHEDULING CALL (surfaced to supervisor): do routetest-split WITH #32 (Option B,
+  recommended — shared fr_origin seam) vs ship the interim Option A lift now. Refute-before-execute honored;
+  design is refutation-hardened and ready to build the instant the B-vs-A ruling lands.
 
 ## 🛑 §4.4 API LANDED (core a5d2d7e) BUT HELD — MY IMPLEMENTATION-REFUTATION IN FLIGHT (2026-07-06)
 - Core landed the BuildMode API (enum+Other(u8) ✓, from_wire ✓, ctor arg ✓, viability equality in
