@@ -7,6 +7,10 @@ stays required; global mesh-multihop through stranger devices is explicitly NOT 
 Internet relay only. Do NOT chase cold-reach-a-stranger/global-mesh-multihop as hive work unless Roy reopens.
 (Checked against the queue same-day: #31/#32/§3A viability arms are all island-local; bridge/Pillar-2 = the
 relay model. Nothing needed re-scoping.)
+Companion wording addenda (R2-INTRO v0.8 / R2-ARCH v0.13: shouting-not-dialling, bounded reach as feature,
+fit-or-route-elsewhere) swept same-day across hive+fw surfaces: no fixed-endpoint-dialing or broadcast-only
+wording found — "dialect"=score format, "dial"=§2.3C knob sense, "point-to-point"=accurate PHY/link descriptions
+(USB/CoC/harness). No doc or UI change owed.
 
 ## 🧭 R2-BUILDMODE §4.4 VIABILITY API IN FLIGHT (2026-07-06 — core proposed, I ack'd with ONE counter)
 - Core proposed the r2-route mode-viability shape (the gate on my §3A drop arms): BuildMode on Observation +
