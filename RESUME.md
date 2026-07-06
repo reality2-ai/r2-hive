@@ -2,23 +2,29 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
-## 🛰️ RAK4630 PHASE-2 FIRST-LIGHT — image NAMED + verified, awaiting Roy's flash (task #44)
-- Supervisor directive: RAK4630 on host tuxedo-os over tailnet, Roy has it; hive is fw sole writer so I
-  drive. Answered with a VERIFIED committed recipe (rak4630-fw b87d162, platforms/rak4630/FIRSTLIGHT.md).
-- IMAGE = rak4630-fw HEAD b099c65 (inc-1: DIO1-RX + HWRNG, canonical sole-writer branch — supersedes the
-  core-main Phase-1 spike). Build: `cd platforms/rak4630 && cargo build --release` (thumbv7em-none-eabihf
-  auto). ELF verified this session: target/thumbv7em-none-eabihf/release/r2-rak4630 — real .vector_table @
-  0x0, 45.3 KiB flash / 480 KiB slot (~9%), RAM ~38 KiB/256.
-- PATH = SWD + probe-rs (CONFIRMED, not UF2: the image links ORIGIN 0x0 = bare-metal; UF2 needs the
-  bootloader app-offset). Pre-flash gate: `probe-rs info` ⇒ nRF52840 (abort otherwise). Flash: `cargo run
-  --release` (= probe-rs run --chip nRF52840_xxAA). RTT streams defmt live.
-- FIRST-LIGHT DECIDES on the RTT log: boot line = chip alive+toolchain+RTT; "configure(LoRa) ok" = SPI+DIO2
-  antenna-switch+TCXO wiring correct (decisive); "configure(LoRa) FAILED" = observable NON-DAMAGING pin/rail
-  diagnosis (BusyTimeout/no XoscReady), not silicon harm.
-- INFORMED-CONSENT FLAG: probe-rs SWD write of an ORIGIN-0x0 image clobbers the WisBlock Adafruit UF2
-  bootloader (MBR@0x0) — UF2 fallback gone after first flash, recoverable via SWD (SWD is the path anyway).
-- FLASHING = ROY-ONLY. Reported supervisor + composer (composer builds the tailnet SSH→probe-rs
-  orchestration + adds RAK4630 to the carrier catalogue).
+## 🛰️ RAK4630 PHASE-2 FIRST-LIGHT — UF2 image BUILT + delivered, awaiting Roy's drag-drop (task #44)
+- NO-PROBE CONFIRMED (supervisor tailnet scan 2026-07-07): host lsusb shows ONLY the board's Adafruit UF2
+  bootloader (239a:8029), no debugger/probe-rs/thumbv7em target. => pivot to UF2 (drag-drop through the
+  bootloader, which STAYS intact — no clobber risk). Delivered per supervisor directive.
+- COMMIT: rak4630-fw HEAD `ceb5f91` (UF2 build layer on top of d694d1f dev-class). All in
+  platforms/rak4630/ — FIRSTLIGHT.md is the authoritative recipe.
+- DELIVERABLES (gitignored artifacts; regen via cargo + tools/elf2uf2.py):
+  - PRIMARY: out/r2-rak4630-usbserial.uf2 (USB-CDC serial + LED floor; `--features usbserial`, ~50 KiB)
+  - FALLBACK: out/r2-rak4630-ledfloor.uf2 (LED-only; `--features uf2`, ~39 KiB)
+  - abs path: /home/roycdavies/Development/R2/rak4630-fw-wt/platforms/rak4630/out/
+- 🔑 THE ONE NUMBER TO CONFIRM BEFORE DRAG-DROP: app offset. Baked default = 0x27000 (s140 v7.x). If the
+  board is s140 v6.x it must be 0x26000 (else the app jumps to garbage — recoverable, bootloader untouched).
+  NON-DESTRUCTIVE gate: the bootloader drive's INFO_UF2.TXT names the SoftDevice. v6 => rebuild with
+  `RAK_APP_ORIGIN=0x26000` (one env var, re-pack, seconds). readelf-verified: entry 0x27101 (uf2), 0x101 (swd).
+- OBSERVABILITY (no loss vs the old probe/RTT worry): USB-CDC serial /dev/ttyACM* mirrors boot/configure/
+  R2-BEACON lines; raw-GPIO LED floor (green P1.03) beneath it as the can't-fail channel — 3-blink boot /
+  solid configure-ok / slow-blink FAILED / fast strobe = panic (made visible, not a silent halt).
+- KEY FINDINGS (baked in, don't relearn): (1) crate-root memory.x SHADOWS the build.rs-generated one (ld
+  searches linker-CWD before -L OUT_DIR) — DELETED it, build.rs is now single source + emits app_origin.rs
+  for the VTOR reloc lockstep. (2) nRF52840 USBD needs HFXO started manually (raw reg — embassy pac private).
+  (3) rust-objcopy broken here (missing libLLVM) => tools/elf2uf2.py (stdlib ELF->UF2). (4) embassy rev
+  floated 56b52e6->f33eaab7 (adding embassy-usb; unpinned same-repo deps share one rev).
+- FLASHING = ROY-ONLY. Reported supervisor (path + INFO_UF2.TXT gate) + composer FYI (bench pivot: /dev/ttyACM* not probe/RTT).
 - ✅ REFERENCE CROSS-CHECK (Meshtastic RAK4631, GPL facts-only per supervisor directive) CAUGHT A REAL
   PRE-FLASH BUG: SX1262 TCXO DIO3 voltage was an unverified V3_3 (3.3V) guess — corrected to V1_8 (1.8V,
   rak4630-fw 079a391), the RAK4630 board fact confirmed BOTH by the metal-validated DFR1195 sibling (V1_8)
