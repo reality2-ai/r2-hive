@@ -89,9 +89,22 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   feed: it ships as the weaker-attribution instance (provisional-id, no registry resolution) under v0.5
   pricing — state distinctly in that wiring commit; do NOT borrow the fw feed's closed-case status.
   Specs' record: **#50 hive-side SHIPPED IN FULL.**
-- REMAINING #50 TAIL: §3A drop arms gated on TWO one-byte core surface asks (sent): BeaconObservation
-  .build_class (Linux scanner declaration) + NegObservation.build_class (fw negotiation refusal arm). Then:
-  routetest split (mine), recipe-card stamps, rak4630 dev feature + same vendored-set move at #44 inc-2.
+- ✅ §3A ARMS REALIZED SAME-DAY (core 3a835a5 landed both bytes): NEGOTIATION arm BUILT (fw b27c83c) — the
+  refusal lives at poll_scan INGEST in my radio façade (declared-cross-mode never rosters → never electable
+  → never offered; mutual, structural both modes). The three synthetic keep-alive push_scan_obs callers ride
+  as internal-Option UNDECLARED = transparent (v0.7) — no fabricated declaration; engine ride-along byte =
+  self-mode placeholder (never consumed; a prod-claim would misdeclare on dev benches). Six arms green.
+  HOST same cycle: pin → 3a835a5 (91d04f2, bump-core.sh clean) + Linux scanner feed now DECLARES (6a39a29,
+  Some(from_wire(obs.build_class)) — stated in-code as the WEAKER-attribution v0.5-priced instance).
+- §3A REMAINING PLACEMENTS CLOSED BY ANALYSIS (with specs for blessing, NOT self-declared done):
+  CoC-connect = transitively covered in the negotiated flow (only rostered peers reach CoC) + structurally
+  IMPOSSIBLE for anonymous inbound accepts (BLE address opacity → no peer identity at connect; anonymous
+  sessions are governed by what they can DO — admission + deliver gates). Provision-accept = VACUOUS today
+  (sole producer = wired console PROVISION verb, physical-possession operator authority; no over-mesh
+  provisioning path exists — arm becomes real when one does, #43 lineage). Specs bless → #50 closes
+  end-to-end; refute → I build the named gap.
+- REMAINING #50 (mine-owned regardless): routetest telemetry split, recipe-card mode stamps; rak4630 dev
+  feature + the same coherent vendored-set move at #44 inc-2 (its vendored crates predate d01725d too).
 
 ## 🛑 §4.4 API LANDED (core a5d2d7e) BUT HELD — MY IMPLEMENTATION-REFUTATION IN FLIGHT (2026-07-06)
 - Core landed the BuildMode API (enum+Other(u8) ✓, from_wire ✓, ctor arg ✓, viability equality in
