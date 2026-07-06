@@ -11,6 +11,9 @@ Companion wording addenda (R2-INTRO v0.8 / R2-ARCH v0.13: shouting-not-dialling,
 fit-or-route-elsewhere) swept same-day across hive+fw surfaces: no fixed-endpoint-dialing or broadcast-only
 wording found — "dialect"=score format, "dial"=§2.3C knob sense, "point-to-point"=accurate PHY/link descriptions
 (USB/CoC/harness). No doc or UI change owed.
+R2-INTRO v0.9 (da509f1: FAR+MUCH = local ad-hoc radio + infra UDP/IP e.g. GSM/satellite; bearer-metadata
+exposure = honest cost of infra reach) swept same-day: ZERO global-mesh/worldwide framing on any hive/fw/rak
+surface, and zero long-reach-bearer mentions to reframe. No change owed.
 
 ## 🧭 R2-BUILDMODE §4.4 VIABILITY API IN FLIGHT (2026-07-06 — core proposed, I ack'd with ONE counter)
 - Core proposed the r2-route mode-viability shape (the gate on my §3A drop arms): BuildMode on Observation +
