@@ -2,6 +2,23 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
+## 📚 RUSTDOC SITE (task #51 / Roy's rustdocs ask): BUILT, BLOCKED ON ONE ROY CREDENTIAL
+- Workflow live (.github/workflows/docs.yml, f9b53e5 + 9cb28d5): core's template replicated — two-build
+  split (public-API Pages / org-only internals artifact), render-level hard-fail hygiene gate verbatim,
+  false-green guard docs the workspace-EXCLUDED r2-hive-wasm into the same tree, deploy branch-gated to
+  **platform-trait deliberately** (my canonical-branch call; flip-to-main = an item on the Roy-gated
+  main-merge checklist). Local pre-verify: public + wasm + internals doc builds green; all four hard-fail
+  classes CLEAN against the actual render.
+- FIRST RUN (28768940350) SURFACED A STRUCTURAL FINDING: r2-hive's hosted CI has been hygiene-scan-ONLY
+  forever — the docs job is the first thing to ever compile this workspace on a runner, and it failed at
+  cargo's git fetch of the PRIVATE r2-core dep (default GITHUB_TOKEN is repo-scoped).
+- UNBLOCK (Roy-minted, escalated via supervisor with exact spec): Actions secret **R2_CORE_READ_TOKEN**
+  (fine-grained PAT → reality2-ai/r2-core, Contents: Read-only). Workflow already consumes it (insteadOf
+  config, both jobs) — on secret + Pages-enable, re-run deploys; until then HONESTLY RED, not skipped.
+  On green: announce URL (reality2.ai/r2-hive/ pattern) + specs flips the /programmers/ slot.
+- Same token = prereq for ever having a real build/test ci.yml on this repo (all suite-green claims to
+  date are local-only — correctly stated as such, but hosted-unverified).
+
 **SCOPE FENCE (specs c26d1b3, via supervisor-codex 2026-07-06):** B3 closed — local multihop WITHIN an island
 stays required; global mesh-multihop through stranger devices is explicitly NOT required; world-crossing =
 Internet relay only. Do NOT chase cold-reach-a-stranger/global-mesh-multihop as hive work unless Roy reopens.
