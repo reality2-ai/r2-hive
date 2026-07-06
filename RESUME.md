@@ -80,9 +80,18 @@ vendored-crate set BEFORE my re-vendor cycles hit it.
   sibling), NO_SUCCESSOR at origination AND broadcast relay — honest WEAK-MODE: fw replies are stackless so
   §4.6.1 retrace cannot fire regardless; old sender-credited strong-reinforce was the spoofable behavior
   v0.64 killed (not preserved). fw v0.65 stack-carrying reply = follow-on (rides with #32/#45 sibling).
-- REMAINING #50: §3A drop arms gated on TWO one-byte core surface asks (sent): BeaconObservation.build_class
-  (Linux scanner declaration) + NegObservation.build_class (fw negotiation refusal arm). Then: routetest
-  split (mine), recipe-card stamps, rak4630 dev feature + same vendored-set move at #44 inc-2.
+- ✅ v0.8 RULED (specs e0d3434): my trust-registry-scoped-attachment observation generalized into canon —
+  §3A.2 SHOULD: declaration-to-entry attachment identity-bound at least as strongly as the entry's own
+  formation evidence (one node's frame never re-labels another's entry). The fw MODE_DECL feed is cited as
+  the FIRST SHIPPED INSTANCE (verified in-code at c638693 before ruling) and CLOSES the v0.5
+  forged-dev-beacon-demotion DoS lever on that path (residual → closed case). Deliberately SHOULD not MUST
+  (weaker feeds still better than none; v0.5 pricing governs them). PRICING NOTE for the future Linux-scanner
+  feed: it ships as the weaker-attribution instance (provisional-id, no registry resolution) under v0.5
+  pricing — state distinctly in that wiring commit; do NOT borrow the fw feed's closed-case status.
+  Specs' record: **#50 hive-side SHIPPED IN FULL.**
+- REMAINING #50 TAIL: §3A drop arms gated on TWO one-byte core surface asks (sent): BeaconObservation
+  .build_class (Linux scanner declaration) + NegObservation.build_class (fw negotiation refusal arm). Then:
+  routetest split (mine), recipe-card stamps, rak4630 dev feature + same vendored-set move at #44 inc-2.
 
 ## 🛑 §4.4 API LANDED (core a5d2d7e) BUT HELD — MY IMPLEMENTATION-REFUTATION IN FLIGHT (2026-07-06)
 - Core landed the BuildMode API (enum+Other(u8) ✓, from_wire ✓, ctor arg ✓, viability equality in
