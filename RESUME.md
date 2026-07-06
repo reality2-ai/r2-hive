@@ -2,6 +2,12 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
+**SCOPE FENCE (specs c26d1b3, via supervisor-codex 2026-07-06):** B3 closed — local multihop WITHIN an island
+stays required; global mesh-multihop through stranger devices is explicitly NOT required; world-crossing =
+Internet relay only. Do NOT chase cold-reach-a-stranger/global-mesh-multihop as hive work unless Roy reopens.
+(Checked against the queue same-day: #31/#32/§3A viability arms are all island-local; bridge/Pillar-2 = the
+relay model. Nothing needed re-scoping.)
+
 ## 🧭 R2-BUILDMODE §4.4 VIABILITY API IN FLIGHT (2026-07-06 — core proposed, I ack'd with ONE counter)
 - Core proposed the r2-route mode-viability shape (the gate on my §3A drop arms): BuildMode on Observation +
   NeighbourEntry (resolved at MY decoder, absence-is-prod there — r2-route never guesses), own-mode on the engine,
