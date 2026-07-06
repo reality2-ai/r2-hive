@@ -15,13 +15,17 @@ R2-INTRO v0.9 (da509f1: FAR+MUCH = local ad-hoc radio + infra UDP/IP e.g. GSM/sa
 exposure = honest cost of infra reach) swept same-day: ZERO global-mesh/worldwide framing on any hive/fw/rak
 surface, and zero long-reach-bearer mentions to reframe. No change owed.
 
-**TASK #52 MANDATE SHARPENED (supervisor ruling via supervisor-codex, 2026-07-06):** route layer ACCEPTS the
-replay residual — an authenticated full-route deliverable replay MAY deliver more than once (route-level dedup
-marking rejected: re-opens transit-censorship risk). So my claim-11 assembly is the ONLY replay defense at the
-effect boundary: IdempotencyGuard keyed (origin,msg_id) BEFORE sentant/effect handling on EVERY arm (wasm
-handleRx / Linux router deliver / fw io_task), then DispatchEnvelope+trust context as assigned. Effect
-idempotency = correctness-MANDATORY. Acceptance check owed: replay an authenticated frame through each arm,
-prove single effect. (#52 still HELD for Roy's plan review; this raises its priority-on-release.)
+**TASK #52 MANDATE SHARPENED then CORRECTED same-day (supervisor-codex, 2026-07-06):** final boundary per
+R2-WIRE v0.33 §8.2a: core adds a route-layer replay guard for TARGET-ME DIRECTED deliveries (keyed
+origin,msg_id); BROADCAST duplicate delivery remains effect-layer residual (route-level dedup marking for it
+rejected — re-opens transit-censorship risk). My obligation UNCHANGED either way: IdempotencyGuard keyed
+(origin,msg_id) BEFORE sentant/effect handling on EVERY arm (wasm handleRx / Linux router deliver / fw
+io_task), then DispatchEnvelope+trust context as assigned. Do NOT lean on receiver-FSM idempotency — specs
+found R2-SENTANT does not guarantee it. Correctness-MANDATORY. Acceptance checks owed: broadcast replay →
+single effect on each arm (mine); directed target-me replay → blocked by core's §8.2a guard (verify at uptake).
+Exposure note stands until #52 lands: no current hive arm calls the guard (fbee20d postdates pin 9943448), so
+replayed broadcast frames double-fire effects on current builds — flagged to supervisor-codex for release
+timing. (#52 still HELD for Roy's plan review.)
 
 ## 🧭 R2-BUILDMODE §4.4 VIABILITY API IN FLIGHT (2026-07-06 — core proposed, I ack'd with ONE counter)
 - Core proposed the r2-route mode-viability shape (the gate on my §3A drop arms): BuildMode on Observation +
