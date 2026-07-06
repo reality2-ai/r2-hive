@@ -2,7 +2,19 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
-## 🛰️ RAK4630 FIRST-LIGHT — ✅ APPROTECT FIX WORKED (init passed!); 2nd panic at configure-or-after, stage 7/8 diag out (task #44)
+## 🛰️ RAK4630 FIRST-LIGHT — ✅ init passes; 2nd fault = RESET LOOP (not a panic) ~stage 7; reset-catching diag v5 out (task #44)
+- 🔴 UPDATE: the 2nd fault is a RESET LOOP (~10-15s, bootloader device# climbs 22->23): app runs past init
+  (fix good) then FAULTS+RESETS cyclically. So it's a RESET (HardFault-class OR hang+watchdog), NOT a Rust
+  panic — the panic latch-replay can't catch it (why the "6" read was unstable).
+- STRENGTHENED HYPOTHESIS: the fault surfaces at the FIRST interrupt-dependent op. configure's SPI is
+  BLOCKING (busy-polls, no interrupt) + RNG busy-polls, so the FIRST thing needing an interrupt to FIRE is
+  Timer::after(1s).await at stage 7. If RTC1 irq doesn't fire / vectors-wrong behind the MBR/SoftDevice →
+  executor wfe()-sleeps forever (hang) → watchdog reset, OR vectors to garbage → HardFault → reset. = the loop.
+- RESET-CATCHING DIAG v5 (1ad771a; out/r2-rak4630-diag.uf2, 153 blk @0x26000, sha256 322b2199): (a) LIVE
+  markers — stages 6/7/8 blink N the INSTANT reached (catches hang+watchdog; highest before reset = fault
+  stage); (b) HardFault #[exception] handler latch-replays a STABLE count (catches HardFault-class). AWAITING v5 read.
+- IF stage 7: dig interrupt/VTOR/RTC1-behind-MBR (VTOR=0x26000 set in pre_init — verify effective; MBR irq
+  forwarding w/ dormant SoftDevice = suspect). Platform/HAL = hive's. Possible: bootloader watchdog needs feeding.
 - ✅✅ APPROTECT fix (Debug::NotConfigured, f698d6e) CONFIRMED ON METAL: clean-flushed flash took (drive
   vanished, app ran, off-USB, STABLE = reset loop GONE). Init passes. That's the big unblock.
 - 🔴 SECOND panic: diag latch-replayed stage 6 on f698d6e (stages 1-6). Decode: 6 = LAST latch = panic
