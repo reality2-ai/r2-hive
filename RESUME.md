@@ -2,6 +2,26 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
+## 🛰️ RAK4630 PHASE-2 FIRST-LIGHT — image NAMED + verified, awaiting Roy's flash (task #44)
+- Supervisor directive: RAK4630 on host tuxedo-os over tailnet, Roy has it; hive is fw sole writer so I
+  drive. Answered with a VERIFIED committed recipe (rak4630-fw b87d162, platforms/rak4630/FIRSTLIGHT.md).
+- IMAGE = rak4630-fw HEAD b099c65 (inc-1: DIO1-RX + HWRNG, canonical sole-writer branch — supersedes the
+  core-main Phase-1 spike). Build: `cd platforms/rak4630 && cargo build --release` (thumbv7em-none-eabihf
+  auto). ELF verified this session: target/thumbv7em-none-eabihf/release/r2-rak4630 — real .vector_table @
+  0x0, 45.3 KiB flash / 480 KiB slot (~9%), RAM ~38 KiB/256.
+- PATH = SWD + probe-rs (CONFIRMED, not UF2: the image links ORIGIN 0x0 = bare-metal; UF2 needs the
+  bootloader app-offset). Pre-flash gate: `probe-rs info` ⇒ nRF52840 (abort otherwise). Flash: `cargo run
+  --release` (= probe-rs run --chip nRF52840_xxAA). RTT streams defmt live.
+- FIRST-LIGHT DECIDES on the RTT log: boot line = chip alive+toolchain+RTT; "configure(LoRa) ok" = SPI+DIO2
+  antenna-switch+TCXO wiring correct (decisive); "configure(LoRa) FAILED" = observable NON-DAMAGING pin/rail
+  diagnosis (BusyTimeout/no XoscReady), not silicon harm.
+- INFORMED-CONSENT FLAG: probe-rs SWD write of an ORIGIN-0x0 image clobbers the WisBlock Adafruit UF2
+  bootloader (MBR@0x0) — UF2 fallback gone after first flash, recoverable via SWD (SWD is the path anyway).
+- FLASHING = ROY-ONLY. Reported supervisor + composer (composer builds the tailnet SSH→probe-rs
+  orchestration + adds RAK4630 to the carrier catalogue). NEXT: await Roy's flash + RTT result; then inc-2
+  BLE (nrf-sdc + trouble-host) for OTA-over-L2CAP-CoC + battery duty-cycle/HB-wake — gated on the
+  vendored-crate-set move to core 41adbd1 (the same coherent move the dfr1195 tree took).
+
 ## ✅ REAL HOSTED CI GREEN (task #55 DONE): r2-hive compiles + tests on runners for the FIRST time
 - ci.yml modernized (1138eb3) + vector vendoring (b5cbba2): all 5 jobs GREEN (run 28778737556) — test
   PROD+DEV (the §5.1 BUILDMODE both-modes gate, on a runner), feature-builds (ble/keyring), wasm
