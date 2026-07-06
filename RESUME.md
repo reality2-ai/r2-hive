@@ -2,10 +2,17 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
-## 🛰️ RAK4630 FIRST-LIGHT — FLASHED, PANICKED (strobe); diag stage-counter out to localize (task #44)
-- 🔴 FIRST-LIGHT RESULT (2026-07-07): usbserial.uf2 flashed OK (offset 0x26000 correct — bootloader jumped
-  to app, my panic-strobe fired = chip/VTOR/GPIO/panic-path all alive) but board FAST-STROBES = PANIC.
-  USB-CDC did NOT enumerate (USB desc still bootloader PID 239a:0029, ttyACM0 stale).
+## 🛰️ RAK4630 FIRST-LIGHT — ROOT CAUSE FOUND (APPROTECT reset loop) + FIX pushed, awaiting Roy's confirm (task #44)
+- ✅ ROOT CAUSE (2026-07-07, by inspection): the "fast strobe" was a RESET LOOP, NOT a panic. embassy-nrf
+  default Debug::Allowed writes UICR.APPROTECT to disable it; behind the Adafruit bootloader + resident
+  S140 6.1.1 (INFO_UF2.TXT confirmed) the bootloader OWNS UICR.APPROTECT, so the write never persists →
+  uicr_write returns Written EVERY boot → init calls SCB::sys_reset() every boot → infinite reset loop
+  (raw_boot_blink repeating = the strobe; no 1.5s solid because init resets before returning; USB never
+  enumerates). FIX = config.debug = Debug::NotConfigured (do NOT touch UICR) — rak4630-fw f698d6e. HAL-config
+  one-liner, NO memory.x change. UNPROVEN on metal (Roy has the board). All 3 .uf2 rebuilt at 0x26000.
+- NEXT: Roy flashes DIAG first (the 1.5s SOLID now appears = confirms init passes the reset loop + localizes
+  any NEXT stage), then usbserial for the real first-light log. AWAITING his read.
+- (superseded) earlier read: "fast strobe = panic" — CORRECTED to reset loop; the panic-handler never ran.
 - DIAGNOSIS (owned): the panic is in the SHARED synchronous init, NOT the USB stack. KEY: the USB task is
   spawned before configure but embassy only POLLS it at main's FIRST .await (the Timer in configure-ok /
   the failed loop) = AFTER configure. So USB never ran; the panic happened before configure finished.
