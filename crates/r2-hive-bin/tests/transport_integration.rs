@@ -1,3 +1,11 @@
+//! Requires the `transport-udp` bearer (default-on): this suite drives the
+//! UDP-LAN transport surface directly, which is composed out under
+//! `--no-default-features` (§2.2B build-time composition) — found when the
+//! composed-out variant first ran tests (the same false-green class as the
+//! workspace-excluded wasm crate: a config nobody builds is a config nobody
+//! compiles).
+#![cfg(feature = "transport-udp")]
+
 //! Transport integration — hive's multi-transport send path over the REAL
 //! r2-discovery UDP-LAN sockets (core D3a, `52b0e4e`).
 //!
