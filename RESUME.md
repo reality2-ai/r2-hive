@@ -21,6 +21,16 @@
   (public spec test data, Roy-hygiene-gate clean); re-vendors need FLEET_SKIP_SECRET_SCAN=1. lint job shows
   non-zero in logs but conclusion=success BY DESIGN (clippy/fmt continue-on-error — a visible signal, not a
   gate; a clippy sweep is a separate scheduled tidyup).
+- ✅ SPECS BLESSED THE VENDORING (v-ruling) + two robustness follow-ups DONE (3cae033): (1) .gitleaks.toml
+  allowlists tests/vectors/*.json (specs' fleet pattern @ cce4896); (2) ci/check-vendored-vectors.sh = the
+  drift ALERT specs welcomed — diffs vendored vs canon sibling, shouts on drift, NEVER auto-syncs (pin is
+  deliberate; reproducible CI must not follow canon HEAD), hermetic-safe (exit 0 where sibling absent).
+  Specs KEEP-VENDORED ruling: do NOT switch conformance vectors to a live specs-checkout even with a token —
+  reproducibility requires the pin (DISTINCT from the #52 rustdoc seam where PAT-widening was right: docs
+  RENDER current canon, not conformance-pinned — do not conflate). Specs recorded the consumer-notify
+  obligation (they heads-up hive on vector changes). FLEET-TOOLING GAP flagged to supervisor: the shared
+  pre-push bash hook has no allowlist-config → local re-vendor pushes still need FLEET_SKIP_SECRET_SCAN=1
+  until the hook learns to read .gitleaks.toml [allowlist].paths.
 
 ## 📚 RUSTDOC SITE ✅ LIVE: **reality2.ai/r2-hive/** (task #51 CLOSED; Roy's rustdocs ask delivered)
 - Run 28769099459 both jobs green; site 200; hygiene spot-check clean. /programmers/ SLOT FLIPPED +
