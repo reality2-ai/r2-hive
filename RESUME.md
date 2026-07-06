@@ -26,6 +26,16 @@ single effect on each arm (mine); directed target-me replay → blocked by core'
 Exposure note stands until #52 lands: no current hive arm calls the guard (fbee20d postdates pin 9943448), so
 replayed broadcast frames double-fire effects on current builds — flagged to supervisor-codex for release
 timing. (#52 still HELD for Roy's plan review.)
+Cluster-II(A) signed off (round-9 clean, hosted green) — uptake follow-ons banked in #52+#32 metadata:
+consume hold/SCF as applicable + relay_backoff_ms at every platform-IO frame-send site (fw io_task / Linux
+router relay / wasm), replay boundary per §8.2a as above.
+
+**CI OWNERSHIP BOUNDARY (supervisor-codex FYI, 2026-07-06):** core is adding an xtensa CI guard for ITS OWN
+DFR1195 skeleton only — a no_std API-drift build check over r2-wire/transport/route/discovery/sx1262 etc.
+DISTINCT from the full DFR1195 firmware (FlashSink/OTA, dfr1195-fw branch), which stays HIVE-owned with NO
+hosted CI (local-xtensa + peer-refute only — the say-it-distinctly rule). No hive action unless core's
+skeleton exposes a boundary issue. Upside to note: core's guard will catch no_std API drift against the
+vendored-crate set BEFORE my re-vendor cycles hit it.
 
 ## 🧭 R2-BUILDMODE §4.4 VIABILITY API IN FLIGHT (2026-07-06 — core proposed, I ack'd with ONE counter)
 - Core proposed the r2-route mode-viability shape (the gate on my §3A drop arms): BuildMode on Observation +
