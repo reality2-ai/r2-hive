@@ -42,25 +42,21 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
-## 🔀 SEAM: §3.2 RELAY-HANDSHAKE — ⛔ PREMISE REFUTED (Roy); specs justify-or-remove. KS1/hkdf UNAFFECTED
-- ⛔ WHOLE HANDSHAKE PREMISE UNDER specs JUSTIFY-OR-REMOVE (Roy refuted 2026-07-07): why does a device authenticate
-  to a BELOW-TG relay at all? Spec self-contradicts (relay 'untrusted, not a TG member, opaque frames' vs
-  'authenticates device keys'). RE-POINT HELD — the handshake may be REMOVED entirely, so the extract could dissolve.
-- 🗳️ MY OWNER-VIEW fed to specs = REMOVE the device-auth (steelmanned KEEP, it fails on crypto ground truth I
-  verified): the relay holds NO TG secret (grep-clean of GroupHmac/group_key/master_secret/deliver-gate in compat/),
-  so it CANNOT distinguish a TG member from a non-member → device-auth gates nothing (mint a key + claim a tg_hash =
-  in, auth or not; routing is by public tg_hash label). Real security is END-TO-END (§7.5.4 fail-closed deliver-gate
-  + GroupHmac at the receiving DEVICE). Auth buys only Sybil-cheap accountability (CLOSE_BANNED 4403 defeatable by
-  key rotation; CLOSE_TOO_MANY 4429 is connection-count, needs no identity) AND costs the cross-TG linkability
-  (stable device_id cleartext every join). Rec: relay = dumb by-tg_hash opaque reflector; any anti-abuse belongs at
-  the connection layer (rate-limit/PoW/per-TG unlinkable token), NOT stable-device identity. Offered to prototype
-  the auth-free relay path if specs rules remove.
-- ✅ KS1/hkdf CONSOLIDATION UNAFFECTED — that's real + stands (KS1 resident in r2-trust::hkdf). Only the
-  relay_handshake piece is in question. If specs REMOVES the handshake: I strip my compat crypto core entirely (no
-  extract needed); if specs JUSTIFIES it: re-point per the prior plan (home r2-trust favoured, after core additive +
-  heads-up). Either way: DO NOT touch the handshake until specs rules.
-- (prior seam history — home debate r2-keystore→r2-trust, the 3 conditions, device_id-SK verification — below; still
-  valid as the impl-contract + key-fact record IF the handshake survives:)
+## ✅ SEAM CLOSED: relay device-auth REMOVED (Roy ruling 2026-07-07) — /r2 §3.2 handshake DISSOLVED; my view WON
+- ★ ROY RULING: a below-TG relay is now an AUTH-FREE dumb tg_hash pipe (trust = end-to-end TG-HMAC at member
+  devices; routing by tg_hash never needed identity). My owner-view (REMOVE, steelmanned + verified vs my impl)
+  was the ruling. DISSOLVES the /r2 §3.2 handshake AND its extraction ENTIRELY — crypto-extract thread CLOSED,
+  nothing to lift. Also CLOSES the phone cross-TG device_id linkability leak = an M1 SOVEREIGNTY WIN.
+- ✅ KS1/hkdf consolidation UNAFFECTED — stands (KS1 resident in r2-trust::hkdf). That part was always real.
+- ▶️ MY FORWARD ACTION (spec-first, GATED — do NOT start until specs lands): specs is authoring (a) the AUTH-FREE
+  §3.2 (open-and-subscribe, no HELLO signature / device_id / challenge-nonce) and (b) an OPTIONAL per-TG UNLINKABLE
+  capability token (blinded bearer proof, TG-keyholder-issued, relay-verifiable WITHOUT TG secrets) for shared-relay
+  injection-gating. WHEN the auth-free §3.2 lands → rewrite r2-hive-bin/src/compat/handshake.rs to the auth-free path:
+  STRIP the Ed25519 verify + device_id + challenge/nonce/timestamp; KEEP tg_hash subscribe + PeerMap register +
+  opaque-frame broadcast + Ping/Pong + Catchup; anti-abuse FLOOR survives = connection-scoped caps (CLOSE_TOO_MANY
+  4429 stays; CLOSE_BANNED 4403 device-ban goes with auth). The optional token = later, when its spec lands.
+  DO NOT touch the /r2 wire before the spec (it's a relay wire-protocol change = spec-first). Also touches wasm hive
+  if it carries the same compat handshake — check on spec-land.
 - 🔑 KEY-FACT VERIFIED (2026-07-07, specs asked): my handshake signs/verifies with device_id-SK (STABLE class-2
   identity), NOT mesh_sk. Evidence: protocol.rs:16 device_id field; handshake.rs:263 VerifyingKey::from_bytes
   (device_id); :354 vk.verify over nonce:trust_group:device_id:timestamp. ZERO mesh/KS1/hkdf/derive in compat/
