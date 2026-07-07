@@ -9,16 +9,17 @@
   with N=0/dark-off (clean run, no fault handler ran) → RAK4631 is ALIVE running R2 firmware. Chain that nailed
   it: APPROTECT reset-loop root cause + corrupt-buffered-drag insight (the "faults" were bad images, not bugs)
   + legible-count diag + serial-DFU packaging. Serial-DFU (adafruit-nrfutil venv on tuxedo) = reliable PRIMARY.
-- 🟢 CDC 't'-QUERY IS ALREADY BUILT + IN THE .zip (dc27535): out/r2-rak4630-usbserial.zip, sha256
-  a03c37b479cf...15c2a (VERIFIED on disk 2026-07-07; DIAG_REQ symbol present in the ELF). Supervisor asked me to
-  "continue with the CDC 't'-command dump" — it's DONE, sitting in the same usbserial build. Flash it, then send
-  ANY byte (pyserial writer that ASSERTS DTR — printf alone may not) → dumps live TN tables (node/mode/tg/group/
-  duty/neighbours/routes/per-nb rows). Plus a ~5s 'alive t=Ns neighbours=N' heartbeat so a mid-run capture is
-  never empty. LOCAL physical-access diag (#30-class), NOT the #41 on-mesh TG-gated query→reply. Lone board =
-  neighbours=0 routes=0 but proves the TN stack is instantiated + self-declares dev-mode + is queryable.
-- NEXT (only remaining first-light-adjacent step): supervisor serial-flashes a03c37b4 → Roy opens a DTR-asserting
-  reader + sends a byte → confirm the 'diag ...' table dump renders. That closes the CDC-query want. No new build
-  owed. Durable findings baked in [[rak4630-uf2-firstlight]] (APPROTECT fix, memory.x shadow, serial-DFU recipe).
+- ✅✅ CDC 't'-QUERY CONFIRMED END-TO-END ON METAL (supervisor, 2026-07-07): flashed a03c37b4, sent a byte,
+  board dumped 'diag node=0x52414b34 mode=dev class=2 / diag tg=0x00000000 group=keyless duty=AlwaysOn / diag
+  neighbours=0 routes=0 / diag end' + 'alive t=31s neighbours=0' every 5s + 'R2-BEACON advert encoded (30 B)'.
+  Every field correct (node-id=RAK4 ascii, dev/class=2, keyless TG-of-one, AlwaysOn, lone-board 0/0, live loop).
+  = Roy's "show me the internal TN working" fully delivered: full TN stack instantiated + queryable on-metal.
+  FIRST LIGHT PROVEN THREE WAYS (N=0 clean run + beacon text + TN dump). LOCAL physical-access diag (#30-class),
+  NOT #41 on-mesh. Capture needs pyserial (DTR); printf/cat alone don't assert DTR. Findings [[rak4630-uf2-firstlight]].
+- MILESTONE BANKED. Supervisor stood down on the RAK bring-up thread. task #44 first-light DONE. OPTIONAL NEXT
+  (Roy's call): 2-node LoRa test (2nd RAK/DFR board) → would show neighbours>0/routes>0 in the same dump = live
+  discovery on-metal. Beyond that, #44's remaining scope = the repeater RELAY build (io_task → r2_dataplane
+  relay-append, task #32 seam). No new build owed until Roy picks the next step.
 - (superseded diagnostic saga below — reset-loop hypotheses, N-count diag iterations — all RESOLVED by the
   confirmation above; kept only as provenance, safe to prune on next rotation.)
 - 🔴 UPDATE: the 2nd fault is a RESET LOOP (~10-15s, bootloader device# climbs 22->23): app runs past init
