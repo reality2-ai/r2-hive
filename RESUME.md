@@ -48,15 +48,21 @@
   was the ruling. DISSOLVES the /r2 §3.2 handshake AND its extraction ENTIRELY — crypto-extract thread CLOSED,
   nothing to lift. Also CLOSES the phone cross-TG device_id linkability leak = an M1 SOVEREIGNTY WIN.
 - ✅ KS1/hkdf consolidation UNAFFECTED — stands (KS1 resident in r2-trust::hkdf). That part was always real.
-- ✅ KS1 DE-DUP = NO-OP FOR HIVE (core grep-map heads-up 2026-07-07, I traced + cleared it): core collapses
-  r2-hive-core::identity::derive_hive_id (v4-forced UUID) onto r2-trust::hkdf::derive_hive_id (RAW). SAFE for hive
-  because hive's on-wire hive_id NEVER flows through derive_hive_id: self_hive_id = r2_fnv::fnv1a_32(name) at
-  main.rs:367 (FNV-of-NAME); peer ids = fnv1a_32(device_pk) at compat/handshake.rs:374. DerivedIdentity::derive()/
-  the v4 UUID string has ZERO consumers in hive (identity.rs:38 re-exports the TYPES only). So v4→RAW cannot change
-  hive's deployed on-wire id = no migration event. Told core SHIP IT; I re-vendor behind the pin after their push.
-- 🔎 SEPARATE OBSERVATION (flagged to core, orthogonal, NOT a blocker): hive's self_hive_id is FNV-of-NAME, not
-  master_secret+tg per R2-WIRE §6.2.1's derived-UUID model. Maybe intentional daemon-identity choice, maybe a
-  conformance gap — independent of the de-dup. Dig if specs wants.
+- ✅ KS1 DE-DUP = NO-OP FOR HIVE (core grep-map heads-up 2026-07-07; I traced + cleared, told core SHIP IT): core
+  collapses r2-hive-core::identity::derive_hive_id (v4-forced UUID) onto r2-trust::hkdf (RAW). Core asked A/B: is
+  hive's wire u32 = FNV(RAW derive) [A, no-op] or FNV(v4 derive) [B, live bug]? ANSWER = NEITHER (C): hive's on-air
+  ensemble/routing hive_id = raw FNV-1a-32(--name) at main.rs:367 (documented main.rs:365 'no canonicalisation';
+  --name default 'r2-hive' main.rs:125); ensemble.rs:492/500 broadcast uses it; ONLY one self_hive_id assignment in
+  the crate; derive_hive_id + its v4 UUID have ZERO hive consumers (identity.rs:38 re-exports TYPES only). So v4→RAW
+  can't change hive's wire id = de-dup SAFE, no migration. I re-vendor behind the pin after core's push.
+- 🐛 REAL hive_id DRIFT FOUND (core+android are hunting it; it lands HERE, worse than B) — needs specs/Roy ruling:
+  hive's WIRE hive_id is NAME-derived (FNV of --name), NOT master_secret+tg-derived per R2-WIRE §6.2.1 ('everything
+  on-wire is derived from device_master_secret + trust_group_id'). Two consequences: (1) even post-de-dup hive won't
+  match a canon node's KS1-derived wire id (hive uses NEITHER derive path); (2) default name 'r2-hive' → every
+  out-of-box hive COLLIDES on one wire id on a shared mesh. RULING NEEDED: is the wire hive_id (a) self-declared
+  (name OK, just fix the default collision) or (b) MUST be FNV(r2_trust::hkdf raw UUID) per §6.2.1 (then hive is
+  non-conformant → self_hive_id switches to FNV(hkdf raw) = MIGRATION + Roy heads-up). HIVE-OWNED fix, gated on the
+  ruling, SEPARATE from core's de-dup (do not couple). Flagged core + supervisor pair. → task #57.
 - ▶️ MY FORWARD ACTION (spec-first, GATED — do NOT start until specs lands): specs is authoring (a) the AUTH-FREE
   §3.2 (open-and-subscribe, no HELLO signature / device_id / challenge-nonce) and (b) an OPTIONAL per-TG UNLINKABLE
   capability token (blinded bearer proof, TG-keyholder-issued, relay-verifiable WITHOUT TG secrets) for shared-relay
