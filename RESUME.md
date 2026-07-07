@@ -17,6 +17,16 @@
   CI billing-blocked → no push-guard. (3) Roy still to rule whether wairoa_as923_nz/wairoa.reading get renamed.
 
 ## 🟢 LATEST (2026-07-07 pm) — #40 weak-trail acceptance LOCKED + LED reconcile #59 + trail-triage #60
+- **#59 LED reconcile — PEER-REFUTED + fixed; awaiting Roy's metal read only.** rak4630-fw HEAD now **e8b5cd6**
+  (was 281461f). Core adversarial pass acted on: (F1) strobe 0.18s does NOT divide the 60s window → once/min
+  OTA-strobe glitch → FIXED by reducing the strobe phase by its OWN period (STROBE_PERIOD_MS=180; heartbeat keeps
+  the 60s lockstep window, 3.0s divides exactly); host-verified off-cadence edges old=2→new=0; §4 result byte-identical.
+  (C2) panic PSEL release HARDENED — pwm0_disable now also disconnects PSEL.OUT[0] (0x4001_C560=0xFFFFFFFF) so a
+  latched PWM pin can't silence the no-probe panic strobe. Core triaged my 3 concerns: polarity SOUND, 30Hz refuted,
+  panic-release plausible(hardened). All 5 variants green+warning-free. **Artifact:** out/r2-rak4630-usbserial.uf2
+  (0x26000, 53008 B) **sha256 88b377595036918c78c72219963020e6a59ab0a6cc89da11ec39c2db18d40763** (SUPERSEDES a9a2239d).
+  Flagged 0.18-vs-60s to specs. DO-NOT-ASSUME: PWM polarity dim-vs-bright + panic-strobe-visibility still metal-untested
+  (isolated + 1-line-fixable; Roy confirms first read).
 - **§4.6 SETTLED (b66f887, R2-ROUTE v0.64):** reply-retrace + recorded-successor strengthening only, overheard-TX
   reinforcement REMOVED, viability-aware selection required; R2-WIRE §8.5 route-stack append now load-bearing MUST
   (v0.35). → **#60 UNBLOCKED** (the fused-path trail behaviour is now stable to converge onto). Core acked #40 as
