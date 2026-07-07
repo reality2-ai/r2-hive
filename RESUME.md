@@ -16,6 +16,17 @@
   platform-trait by 1 commit (future reconcile = merge not ff). (2) root cause: CI hygiene gate is NOT on main +
   CI billing-blocked → no push-guard. (3) Roy still to rule whether wairoa_as923_nz/wairoa.reading get renamed.
 
+## 🔴 D4 DELIVER-BLOCKED — I REFUTED the 0x14000-wipe (do NOT wipe; gates a Roy-only destructive op)
+- supervisor-codex proposed a Roy-only erase of the 0x14000 sector to fix D4 hmac_ok=false (despite provision-applied
+  + hk-byte-verified). REFUTED against dfr1195-fw code (I own #42): 0x14000 IS the SINGLE credential slot
+  (write_provisioned_tg→0x14000 main.rs:4866/2345; boot→hk @349; deliver-gate group_hmac from it @1026/2088;
+  live-swap via PENDING_PROVISION @1177) → no "stale override" to outrank; a WIPE DELETES the verified-correct key
+  (→ unkeyed fail-closed, rejects MORE, needs full re-install). NON-destructive per the fw's own §7.5.4 note
+  (main.rs:53 — hmac_ok=false 3-way ambiguous, check TAG BYTES first): tag ZERO → #39 sender origination (fix sender,
+  D4 fine, matches earlier verify-true verdict); tag REAL + reject → stale in-RAM group_hmac (alt provision bypassed
+  PENDING_PROVISION) → plain REBOOT re-reads 0x14000 (@349/1026). Tell: absence of 'provision installed live' print
+  (@1181) = the reboot case. Sent to supervisor; 4-board GO held for Roy. **DO-NOT: wipe 0x14000.** [[hmac-false-triage]]
+
 ## 🟡 OTA #49 coex payload — HIVE-OWNED, escalated (gated on Roy #49 GO + inputs)
 - Provenance RESOLVED (composer byte-proof; my task#35 note was WRONG): cb87c8aa-app.bin = NON-coex (predates coex
   3aae196 by 2 days). Board-side stays 29e250cf coex. ACTION on hive: produce a COEX version-marked app.bin (composer
