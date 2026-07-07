@@ -16,7 +16,7 @@ Per supervisor: continue the TN metal refutation campaign autonomously — SPEC-
 (protect the live demo), commit auditable field.* records, tick off survived refutations, keep this file
 current, don't wait per-conjecture.
 - **TN-FR-2 (LoRa<->ESP-NOW gateway / DG-2 #16) = PASS / metal-green (2026-06-23).** field.* =
-  `docs/field-results/lora-fr2-0623/TN-FR-2.json` (+ raw serial). 4 DFR, ONE TG 'wairoa' (3932969629,
+  `docs/field-results/lora-fr2-0623/TN-FR-2.json` (+ raw serial). 4 DFR, ONE TG 'pilot-site' (3932969629,
   composer-prov2'd): D1=origin(480e900e) ->LoRa-> D2=router(2cab5f69) ->LoRa-> D3=BRIDGE(f91c8911, dual-radio
   SX1262+ESP-NOW) ->ESP-NOW-> D4=receiver(06ae082b). PROVEN: **D4 (ESP-NOW-only) DELIVERED 12 distinct Events
   that originated at D1 over LoRa (dlv=11) = the Event CROSSED LoRa->ESP-NOW**; the engine AUTO-BRIDGES — D3
@@ -50,19 +50,19 @@ current, don't wait per-conjecture.
     thread the ingress transport through DATA_RX (add a tag to MeshRxFrame) so the bridge's neighbour table tags
     LoRa-neighbours vs WiFi-neighbours correctly = what makes plan_forward's auto-bridge work (directed). Flood
     bridging works WITHOUT it (broadcast both + dedup), so a flood-first proof is the lower-risk first run.
-  composer's FR-2 DEFS (RECEIVED, locked; full defs catalogue/topologies/wairoa-fr4/, this = fr4 minus the
+  composer's FR-2 DEFS (RECEIVED, locked; full defs catalogue/topologies/pilot-site-fr4/, this = fr4 minus the
   WiFi-router): **D1=origin (480e900e), D2=LoRa-router (2cab5f69), D3=BRIDGE (f91c8911, SX1262 LoRa + onboard
-  WiFi), RECEIVER=PI5 (ssh pi5, Linux r2-hive over WiFi/Internet = the marae hub).** PATH: D1 ->(LoRa)-> D2
+  WiFi), RECEIVER=PI5 (ssh pi5, Linux r2-hive over WiFi/Internet = the site hub).** PATH: D1 ->(LoRa)-> D2
   ->(LoRa)-> D3[bridge] ->(WiFi)-> PI5. MASK: D1->[D2]; D2->[D1,D3]; D3->[D2(LoRa),PI5(WiFi)]; PI5->[D3]. ONE
-  TG 'wairoa' spanning both islands (gateway test, not isolation — the bridge carries the GroupHmac across;
-  keys ~/.r2/group-keys.json#wairoa, composer provisions/hands over). composer PROVISIONS + builds the gateway
+  TG 'pilot-site' spanning both islands (gateway test, not isolation — the bridge carries the GroupHmac across;
+  keys ~/.r2/group-keys.json#pilot-site, composer provisions/hands over). composer PROVISIONS + builds the gateway
   dashboard view; hive builds bridge/leaf fw + flashes + runs via ssh. **SCOPE NOTE: the WiFi side is a REAL
   WiFi link to a LINUX r2-hive (PI5), NOT ESP-NOW — so D3's 2nd carrier = onboard WiFi/UDP to PI5, and PI5 runs
-  the r2-hive Linux/std build as a 'wairoa' routing RECEIVER (its RouteEngine delivers + the receive-flash
+  the r2-hive Linux/std build as a 'pilot-site' routing RECEIVER (its RouteEngine delivers + the receive-flash
   logs). Bigger integration than DFR-only FR-1.**
   OPEN PREREQ (asked composer, queued): how D3 reaches PI5 over WiFi in r2-hive's model — UDP broadcast on a
   shared LAN (D3 STA + PI5 on one router/AP)? D3 joins a PI5 AP? which port / the existing wifi.rs UDP path? +
-  confirm PI5 runs r2-hive Linux as the wairoa routing peer. Don't build D3's WiFi carrier blind = spec-first.
+  confirm PI5 runs r2-hive Linux as the pilot-site routing peer. Don't build D3's WiFi carrier blind = spec-first.
   FIRMWARE TODO (board-map-independent, do in the FR-2 build): (a) transport-tagged DATA_RX ingest — construct
   Observation with the REAL ingress transport (Transport::Lora vs Wifi) instead of hardcoded EspNow (main.rs
   ~954); core confirmed engine auto-populates NeighbourEntry.transports + plan_forward picks egress (dual-homed
@@ -112,7 +112,7 @@ current, don't wait per-conjecture.
   approval-gated, needs the operator or Roy's morning. composer pings `dfr-fr1-off` when 0 holders. THEN:
   flash 3 DFR (A=0dcadbf8, B=2cab5f69, C=f91c8911), watch C's LED flash on each routed message, capture
   directed_via/exactly_once serial -> commit `field.*` TN-FR-1, restore baseline. Ladder after: TN-FR-2
-  (LoRa<->WiFi gateway, DG-2), TN-FR-4 (role-based sensor/router/receiver Wairoa sim).
+  (LoRa<->WiFi gateway, DG-2), TN-FR-4 (role-based sensor/router/receiver pilot-site sim).
 - **DONE: BL-200 RESOLVED + PASS/metal-green** (one-line reply-msgid u16-dedup collision; fix=shared
   `r2_route::trail::reply_msg_id`, commits up to `9fe9068`; §4.3.4 vindicated, §4.6-MUST refuted; baseline
   restored-clean 5/5 DFR multitg). Metal field.* count: BL-100 survived, BL-200 resolved-pass.
@@ -128,11 +128,11 @@ current, don't wait per-conjecture.
   AGNOSTIC (ESP-NOW + WiFi). **4 metal field.*: BL-100, BL-200, BL-103, HBSYNC-WIFI.**
 - **BLE 2-board sync BLOCKED** (finding): blemesh M8b negotiation hardcodes M7_PROVIDER_HIVE=0x0dcadbf8 (a
   fixed test peer) -> elects an absent provider for arbitrary pairs -> no CoC. Needs generalizing; BLE is
-  L0-2-node-only regardless -> BLE-mesh = WAIROA-7 queued for Roy.
+  L0-2-node-only regardless -> BLE-mesh = pilot-site-7 queued for Roy.
 - **⚠️ X4 (2c81b4a3) NEEDS A POWER-CYCLE (Roy, morning):** its USB-JTAG de-enumerated during the WiFi run
   (port vanished from /dev/serial/by-id); X1/X2/X3 restored fine to multitg (one-off X4 USB casualty, not a
   defect). X4 is OFFLINE / stuck on the WiFi build until physically re-plugged. The 5 DFR + 3 XIAO are clean.
-- **🔦 LoRa FIRST LIGHT ACHIEVED (`7387686`) — TOP priority, the Wairoa rung is ALIVE.** Bidirectional
+- **🔦 LoRa FIRST LIGHT ACHIEVED (`7387686`) — TOP priority, the pilot-site rung is ALIVE.** Bidirectional
   LoRa between 2 DFR1195 SX1262 radios: D2 RX from=480e900e (rssi-44 snr12), D1 RX from=2cab5f69 (rssi-45
   snr13), clean 8B payload every cycle. Wired core's r2-sx1262 onto the DFR1195 via esp-hal (SPI3 SCK7/
   MISO5/MOSI6 + NSS10-CS + BUSY40/RST41 + RXEN42 + Delay; Sx1262::new().with_tcxo(V1_8)) + a concrete-typed
@@ -161,7 +161,7 @@ current, don't wait per-conjecture.
   per core's CONTINUOUS-RX / event-driven / ToA-aware pattern (DIO1-IRQ RX + listen-before-talk/CSMA for
   the synchronized-fire collision; asked core for a reference shape). HB on metal = 30B unsigned (nobt),
   §4.2 ToA used 62B -> use actual frame_len. §4.2+shaping are correct components (kept). Baseline restored.
-- THEN (per supervisor): cross-transport LoRa<->WiFi gateway (DG-2, #16); BLE-mesh 'perhaps' (WAIROA-7);
+- THEN (per supervisor): cross-transport LoRa<->WiFi gateway (DG-2, #16); BLE-mesh 'perhaps' (pilot-site-7);
   LR2021 (composer leads). SECONDARY: WiFi MASKED routing (IP-MASK port; specs queued BL-203/200-over-wifi/
   BL-000/AB-000/BL-001) + BL-100 demote sweep (#13). M-ESPNOW-3 (carry frame-origin->ForwardRequest.origin,
   core contract confirmed engine.rs:56-64; + H1 authenticate route_stack[0]) = canonical BL-200-class kill.

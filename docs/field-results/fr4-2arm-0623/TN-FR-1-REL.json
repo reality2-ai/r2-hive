@@ -4,11 +4,11 @@
   "tier": "hardware",
   "transport": "lora",
   "topology": "L1-multihop all-LoRa chain (D1 origin -> D2 router -> D3 receiver; D1<->D3 masked)",
-  "scope": "intra-TG (wairoa 3932969629)",
+  "scope": "intra-TG (pilot-site 3932969629)",
   "payload": "events",
   "run_id": "fr4-2arm-metal-0623",
   "timestamp_utc": "2026-06-23T00:05:00Z",
-  "runner": "hive; 3 tuxedo DFR1195 — D1=480e900e origin, D2=2cab5f69 router, D3=f91c8911 receiver; all-LoRa (no ESP-NOW leg, isolates the LoRa-collision regime); wairoa prov2 by composer; my ssh capture",
+  "runner": "hive; 3 tuxedo DFR1195 — D1=480e900e origin, D2=2cab5f69 router, D3=f91c8911 receiver; all-LoRa (no ESP-NOW leg, isolates the LoRa-collision regime); pilot-site prov2 by composer; my ssh capture",
   "config": "loraroute SF7 916.8 -9dBm + 4B prepend + hive-MASK (D1->[D2] D2->[D1,D3] D3->[D2]) + ALOHA TX-jitter. NEG = tight PCO (loraroute). POS = loose-jittered-HB (loraroute,loosehb: PCO nudge OFF + per-board HB-period jitter).",
   "firmware_commit": "r2-hive 2c64af5 (loosehb) + the dest=D3 all-LoRa build",
   "arms": [

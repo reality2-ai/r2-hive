@@ -129,14 +129,14 @@ index 5a3c89f..1602d6c 100644
 +# Adds neighbour-table telemetry (hive@conf per tick). Dashboard liveness (seen/MESH_PEER_TTL_S) stays
 +# REAL-time (only the engine-facing clock scales). Implies ble.
 +fastevict = ["ble"]
-+# LoRa first-light + mesh (#21/#22, Wairoa rung): wire core's r2-sx1262 (Sx1262<SPI,BUSY,RESET,DELAY>
++# LoRa first-light + mesh (#21/#22, pilot-site rung): wire core's r2-sx1262 (Sx1262<SPI,BUSY,RESET,DELAY>
 +# impl LoRaRadio) onto the DFR1195's SX1262 over SPI3, configure() with wairoa_as923_nz (916.8/SF12/BW125/
 +# CR45/sync0x21/CRC/explicit), and TX/RX a frame = first LoRa light. NOT ble (LoRa is its own radio, no
 +# ESP-NOW/WiFi). loratcxo = the module's ref is a DIO3-TCXO (core: required or the PLL never locks — try
 +# WITHOUT first; add if no RF). Standalone (no ble/nobt): pure-LoRa bring-up build.
 +lora = ["dep:r2-sx1262"]
 +loratcxo = ["lora"]
-+# LoRa MESH (the Wairoa rung beyond first-light): bridge the io_task data plane (leaderless PCO heartbeat
++# LoRa MESH (the pilot-site rung beyond first-light): bridge the io_task data plane (leaderless PCO heartbeat
 +# + r2-route) onto the LoRa carrier — like espnow/blemesh, the lora_mesh_task drains DATA_TX -> LoRa TX and
 +# feeds LoRa RX -> DATA_RX, so the PROVEN io_task PCO/routing runs over LoRa. HALF-DUPLEX (single loop:
 +# mostly listen, switch to TX when DATA_TX pending). Implies ble (the DATA_TX/RX path) + lora. Gates the
@@ -146,7 +146,7 @@ index 5a3c89f..1602d6c 100644
 +# decomposition is runnable: loramesh alone = shaping-only (saturation-isolation arm); loramesh+lorareach
 +# = shaping + §4.2 (full fix). Implies loramesh (the airtime-comp only applies to the LoRa carrier).
 +lorareach = ["loramesh"]
-+# TN-FR-1 (BL-200-over-LoRa MESSAGE-PASSING, the Wairoa data-plane) — route an Event A->B->C over the LoRa
++# TN-FR-1 (BL-200-over-LoRa MESSAGE-PASSING, the pilot-site data-plane) — route an Event A->B->C over the LoRa
 +# carrier using core's READY LoRaTransport::service() data-plane: continuous-RX + TX-pacing + §4.2/§4.3
 +# airtime-gating (defer-not-drop) in one call (r2-transport/alloc gates LoRaTransport in). Sibling to
 +# loramesh (heartbeat-sync, DEFERRED) but: carries EVENTS (not HB-only), sets ForwardRequest.origin = the
@@ -154,7 +154,7 @@ index 5a3c89f..1602d6c 100644
 +# (A={B} B={A,C} C={B}) forcing multi-hop, and flashes the LED on message RECEIPT (not the heartbeat).
 +# Implies routetest (the BL-200 io_task path → ble) + lora. Gates the ESP-NOW carrier off.
 +loraroute = ["lora", "routetest", "r2-transport/alloc"]
-+# TN-FR-2 (LoRa<->WiFi/ESP-NOW gateway, DG-2 #16, the marae bridge) — the BRIDGE node runs BOTH carriers
++# TN-FR-2 (LoRa<->WiFi/ESP-NOW gateway, DG-2 #16, the site bridge) — the BRIDGE node runs BOTH carriers
 +# (lora_route_task over LoRa + espnow_task over ESP-NOW) on the per-transport TX channels, so io_task's
 +# r2-route forwards an Event ACROSS transports (LoRa island -> bridge -> ESP-NOW island). Dedup is transport-
 +# agnostic (keys on frame-carried origin+msg_id) so the crossing is delivered EXACTLY-ONCE (core: DG-2/BL-300).
@@ -168,7 +168,7 @@ index 5a3c89f..1602d6c 100644
 +# fires DECORRELATE on the half-duplex air -> collisions drop -> delivery recovers. (Data-retransmit is the
 +# 2nd half of the fix arm, added on top.) Compose with loraroute/bridge for the FR-4 role-sim run.
 +loosehb = []
-+# TN-FR-4 role-sim (the Wairoa duty-cycle dataflow capstone). Role by hive_id: D1(480e900e)=SENSOR
++# TN-FR-4 role-sim (the pilot-site duty-cycle dataflow capstone). Role by hive_id: D1(480e900e)=SENSOR
 +# (duty-cycled wake->read->send 'wairoa.reading'->sleep), D4(06ae082b)=RECEIVER (record + LED-flash-on-record
 +# + E4 silence-inference), else=ROUTER (always-on relay). Adds F2 STORE-CARRY-FORWARD (specs' SCF-1: ROUTER
 +# buffers an unroutable reading [plan_forward Drop(NoViableNeighbour)] + forwards on dest-path reappearance,
@@ -2899,12 +2899,12 @@ index 8c49f1c..e7dd52a 100644
 +async fn lora_task(mut radio: LoraRadioTy, mut rxen: Output<'static>, my_hive: u32) {
 +    // BENCH first-light: boards are ~30cm apart -> +20dBm SF12 SATURATES the RX (close-range overload ->
 +    // every packet detected but CRC-fails). Drop to the SX1262 high-PA minimum (-9 dBm) for the bench.
-+    // (The Wairoa deployment uses the full +20/+22 for 18km hops; this override is bench-only.)
++    // (The pilot-site deployment uses the full +20/+22 for 18km hops; this override is bench-only.)
 +    let mut cfg = wairoa_as923_nz();
 +    cfg.tx_power_dbm = -9;
 +    // BENCH first-light: SF12 = ~2s time-on-air for an 8B packet, but the listen/TX windows are ~3s, so the
 +    // RX often catches PARTIAL packets (window opens mid-frame) -> CRC fails every time. SF7 = ~40ms ToA ->
-+    // the 3s listen easily catches a COMPLETE frame -> clean CRC. (Wairoa deployment keeps SF12 for 18km
++    // the 3s listen easily catches a COMPLETE frame -> clean CRC. (pilot-site deployment keeps SF12 for 18km
 +    // range; SF is config-driven. This bench override proves the link cleanly; SF12 range is a later test.)
 +    cfg.spreading_factor = 7;
 +    match radio.configure(&cfg) {
@@ -3100,7 +3100,7 @@ index 8c49f1c..e7dd52a 100644
 +async fn lora_route_task(radio: LoraRadioTy, rxen: Output<'static>, my_hive: u32) {
 +    use r2_transport::{LoRaTransport, Transport}; // Transport trait brings send()/current_mtu() into scope
 +    let mut cfg = wairoa_as923_nz();
-+    cfg.tx_power_dbm = -9; // bench close-range (30cm); the Wairoa deployment uses +20/+22 for 18km
++    cfg.tx_power_dbm = -9; // bench close-range (30cm); the pilot-site deployment uses +20/+22 for 18km
 +    cfg.spreading_factor = 7; // SF7 ~40ms ToA = clean bench (SF12 range test is a later rung)
 +    let lora = match LoRaTransport::new(RxenRadio { inner: radio, rxen }, cfg, 8) {
 +        Ok(l) => {
