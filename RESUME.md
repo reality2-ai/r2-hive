@@ -2,6 +2,34 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
+## 🟢 LATEST (2026-07-07 pm) — LED reconcile #59 DONE-pending-refute + §4.3.4 trail-triage #60
+- HEADs: r2-hive `5ee75f5` (clean); rak4630-fw `281461f` (LED reconcile committed, clean). Branch platform-trait / rak4630-fw.
+- **task #59 (combined RAK build a+b+c) — CODE DONE, artifact ready, HELD on peer-refute + Roy metal-read.**
+  rak4630-fw `281461f`: replaced the bespoke dub-dub state machine with the specs **R2-INDICATOR v0.2** state→signal
+  core (reused r2-workshop `dfr1117/led.rs` mono ref byte-for-byte). (a) heartbeat+strobe §4 envelope math via **libm**
+  (full-precision expf); phase = uptime % 60s window (lockstep-ready). (b) Roy calm tuning: **20 BPM + dim ~30% peak duty
+  via REAL PWM** on P1.03 — LED moved GPIO Output → `SimplePwm<PWM0>` (a 1-bit LED can't be dim). (c) CDC dfu-token
+  already in (23f90d0). Overlay priority §7 Updating>Healthy, dev event-blip §6 max-ed on top. **Fault floor preserved**:
+  boot/panic/diag stay RAW GPIO + `pwm0_disable()` (raw PWM0 ENABLE=0 @ 0x4001_C500) first so a running PWM never masks
+  the no-observer strobe. Service loop select3→select4 (+33ms LED arm, ~30Hz render). ALL 5 variants green+warning-free
+  (~52KiB/480KiB). Envelope math HOST-VERIFIED (20 BPM→3.0s divides 60s evenly, lub 1.0/dub 0.70, strobe 50% of 0.18s).
+  **Artifact:** `platforms/rak4630/out/r2-rak4630-usbserial.uf2` (offset 0x26000, 53024 B) **sha256
+  a9a2239d8ce43d9a079f4a740b7a1ba36c8b0c218b18fdaf8ab9a6bce3d4e002**. Reported to supervisor (scps to tuxedo; hive never scps).
+  **DO-NOT-ASSUME:** PWM polarity is a metal-untested claim — embassy-nrf masks the polarity bit ⇒ duty INVERTED for
+  active-high (brightness=(max−duty)/max); isolated to `LedPwm::set_brightness` (one-line flip if a metal read shows it
+  inverted). Fault floor intact ⇒ a bad polarity read is COSMETIC, not a risk. Asked **core** for an adversarial pass on
+  polarity + panic-PWM-disable-release + the 30Hz arm (reply pending in inbox). Keep #59 open until that clears.
+- **task #60 (§4.3.4 trail reinforcement) — TRIAGED against pinned source; hive-bin gap is real but caller-wiring REFUTED.**
+  supervisor relayed core's bounded check ("weak/reply trail not wired in hive-wasm or hive-bin"). Ground truth: **wasm
+  half REFUTED** — BOTH wasm rx paths already reinforce (route_inbound_sync takes `self.reinforcer` as a param, r2-hive-wasm
+  lib.rs:464; the fused `handleRx` reinforces INTERNALLY inside core's `handle_rx_frame` per r2-dataplane lib.rs:229-237 doc
+  "BY CONSTRUCTION", hooks 780/914). Wiring on_received into handleRx would DOUBLE-reinforce → do NOT. **hive-bin half is the
+  real gap** — its async `router::route_frame` drives `engine.plan_forward` directly (router.rs:397) with only §3.6
+  `reinforce_delivery`, no §4.3.4 TrailReinforcer. BUT core's own dataplane doc says the caller-duty on_received recipe is the
+  footgun they deliberately RETIRED. Spec-aligned fix = converge route_frame onto the fused handle_rx_frame (#36 pattern), a
+  real async-daemon refactor. **BLOCKED on core's intent** (asked via fleet). Do NOT hand-wire on_received. Not blocking
+  composer's TG-boundary demo. task #40 (wasm) stands legitimately complete.
+
 ## ✅🛰️ RAK4630 FIRST-LIGHT — CONFIRMED IN TEXT (2026-07-07, task #44 first-light DONE)
 - ✅✅ FIRST LIGHT CONFIRMED (supervisor relayed Roy's /dev/ttyACM0 capture, via pyserial — cat doesn't assert
   DTR, the flow-control hunch was right): 'R2-BEACON advert encoded (30 B)'. Can't beacon without a LIVE radio,
