@@ -77,6 +77,19 @@
   first-light+heartbeat+t/b) BEFORE the BLE host = clean bisection. NEXT 2a: r2-ble reachable from rak4630-fw (core's
   call: git-pin 474ee09 vs land-on-base) → add under ble + apply partition (PPI 0..16/HFXO-drop/seed-before-SDC/6 IRQs)
   + co-author BleHost on spike + advertise → GREEN 2a. The version-axis 2a-foundation blocker is RESOLVED.
+- 🟢 r2-ble WIRED BLOB-FREE (rak4630-fw a0feb69): ble=[dep:r2-ble], git rev 3da1330, default no-features = the
+  pure-data descriptor (core's feature-gate fix; --features ble = NO nrf-sdc/mpsl/bt-hci, cargo-tree verified).
+  Embassy graph anchored. Binding (r2-ble/binding=blob) flips on only on the on-metal spike. 2a foundation progressing.
+- ✅ PROVENANCE FIXED (supervisor): out/*.hex is gitignored/regenerable so its sha moves per rebuild. KNOWN-GOOD
+  'b'-image = commit a3ddff9, usbserial.hex sha d2bbe502 — VERIFIED REPRODUCIBLE (clean rebuild @ a3ddff9 = same
+  sha). Chain: 75e55fed@9ebf7ef (pre-migration) → 60040e05@851fdc0 (migration, pre-LED) → d2bbe502@a3ddff9 (+LED) =
+  current good. I do NOT scp (one-writer); supervisor re-copies + verifies by rebuilding. Has 'b'+migration+LED.
+- 🔵 LED-REUSE DIRECTIVE (supervisor) → task #59: REUSE r2-workshop's canonical LED envelope fns (dfr1117/led.rs:
+  heartbeat=2 gaussians@0.00+0.18=dub-dub, strobe=OTA, single_tick=event, pulse) + LedState enum, don't fork my
+  a3ddff9 square-wave. RAK considerations: (a) gaussian .exp/.powi → no_std needs micromath; (b) mono LED → PWM
+  P1.03 (SimplePwm) for the smooth envelope + wall-clock phase-lock (lockstep). Core: state→pattern = SHARED
+  core-primitive candidate (flag specs; GPIO rendering stays firmware). Focused rework next (not rushed at tail);
+  a3ddff9 square dub-dub works meanwhile for the 'b'+migration metal-check.
 - 🟢 CANONICAL LED SIGNATURE SHIPPED (Roy directive, rak4630-fw a3ddff9; supersedes the single-pulse heartbeat):
   HEALTHY = slow dub-dub DOUBLE-pulse (2×~50ms blips ~120ms apart, ~1.5s pause = human lub-dub, reads ALIVE);
   UPDATING = rapid ~5Hz flash (OTA hook led_signature::UPDATING, set when inc-2c OTA lands); EVENT-ARRIVAL = ~30ms
