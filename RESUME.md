@@ -48,10 +48,13 @@
 - ✅ 2a CO-SCOPED (joint, both non-idle): HIVE half DONE = the peripheral-partition map (BLE-PLAN.md §8, rak4630-fw
   aae487f). HEADLINE — the scary conflict is AVOIDED: embassy-time=RTC1, MPSL=RTC0 → NO RTC clash; TIMER0/RADIO/TEMP/
   SWI free (no timer use; LoRa=external SX1262 so internal radio free; thread-mode executor = no SWI). Conflict surface
-  = 3 SOFT points: RNG order, CLOCK/LFCLK→MPSL, PPI/DPPI partition. Sent core the map + the 3 descriptor answers I need
-  (MPSL PPI/DPPI set / LFCLK source [confirm LFXO] / RNG ownership). `ble` feature gate scaffolded (Cargo.toml stub,
-  0948d94, green). BLOCKED-NEXT on core's descriptor + nrf-sdc binding skeleton; then wire host into main.rs behind
-  `ble` + advertise R2-BEACON bytes. → task #58. CORE half: vendor nrf-sdc + binding skeleton + descriptor.
+  = 3 SOFT points, now 2 RESOLVED with core (e255af4): RNG = MPSL-owns (seed fp_seed BEFORE MPSL init, never touch
+  after); CLOCK/LFCLK = drop manual HFXO under `ble`, LFCLK = LFXO (RAK4630 WisBlock 32.768kHz xtal, BSP-confirmed;
+  definitive xtal-populated check = the 2a metal run). SOLE OPEN item = the exact PPI set MPSL reserves (nRF52840 =
+  PPI not DPPI) — core pulling it from nrf-sdc/mpsl source (must-be-exact, not guessed). `ble` feature gate scaffolded
+  (Cargo.toml stub, 0948d94, green). BLOCKED-NEXT on core's descriptor (PPI set + nrf-sdc version/pin) + the r2-ble
+  binding skeleton (workspace-excluded thumbv7em crate, core-writes/hive-builds-on-metal = esp32 pattern, I'm the
+  on-metal verify); then wire host into main.rs behind `ble` + advertise R2-BEACON bytes. → task #58.
 
 ## 🔵 (superseded) BLE inc-2 PLAN + split LOCKED with core (Roy greenlit 2026-07-07) — awaiting Roy's go, NO build
 - ✅ OWNERSHIP SPLIT LOCKED (core+hive converged, both favour core-owns-binding; rak4630-fw 141775b, BLE-PLAN.md §7):
