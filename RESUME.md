@@ -2,7 +2,20 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
-## 🟢 LATEST (2026-07-07 pm) — LED reconcile #59 DONE-pending-refute + §4.3.4 trail-triage #60
+## 🟢 LATEST (2026-07-07 pm) — #40 weak-trail acceptance LOCKED + LED reconcile #59 + trail-triage #60
+- **task #40 (§4.3.4 weak-trail in wasm) — RE-VERIFIED + acceptance LOCKED (NOT a bump).** Core/supervisor
+  relayed a "proceed with #40 wasm bump to 572650e/ace0d6d/7ac5e1f" ACTION. Ground truth REFUTED the bump: the
+  wasm pin **41adbd1 already CONTAINS all three** (merge-base(41adbd1,7ac5e1f)=7ac5e1f → 7ac5e1f is OLDER; all
+  three are ancestors of 41adbd1). Bumping "to 7ac5e1f" would REGRESS the wasm to older core. trail.rs at the pin
+  is already u32 (note_forwarded/on_received) + reply_msg_id_ext present. The empty wasm paths() symptom = BUILD-LAG
+  (stale pkg), exactly as core's RESUME said. Fix: added host test `forward_frame_lays_weak_origin_trail_in_paths`
+  (r2-hive **525806b**) proving a plain broadcast forward lays a weak origin-ward trail (destination=origin,
+  next_hop=sender) in paths() — passes at 41adbd1; full wasm suite 21/0; wasm32 clean; rebuilt pkg (gitignored,
+  sha 34fc187d → composer rebuilds from hive HEAD). CAVEATS answered to supervisor: (1) double-fire — dfr1195-fw
+  wires TrailReinforcer on its OWN hand-rolled RX (handle_rx_frame DCE-unused there), no double-fire today; only on
+  the #32 fused migration after re-vendor (non-urgent); RAK fw = fused path, zero manual trail, clean. (2) hive-bin
+  = converge on fused path (#60). **DO-NOT-ASSUME:** do NOT bump the wasm core pin backward to 7ac5e1f — 41adbd1 is newer.
+
 - HEADs: r2-hive `5ee75f5` (clean); rak4630-fw `281461f` (LED reconcile committed, clean). Branch platform-trait / rak4630-fw.
 - **task #59 (combined RAK build a+b+c) — CODE DONE, artifact ready, HELD on peer-refute + Roy metal-read.**
   rak4630-fw `281461f`: replaced the bespoke dub-dub state machine with the specs **R2-INDICATOR v0.2** state→signal
