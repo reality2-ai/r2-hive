@@ -42,13 +42,28 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
+## 🔵 BLE inc-2 PLAN DELIVERED (Roy greenlit RAK4630 BLE 2026-07-07) — awaiting Roy's go, NO build started
+- Committed scoping doc: rak4630-fw 4d3c446, platforms/rak4630/BLE-PLAN.md. 3 purposes (beacon-radiate / L2CAP-CoC
+  data-plane alongside LoRa / OTA-over-BLE PSM 0x00D3 TG-gated). DEP CHAIN CORRECTED: NOT gated on 41adbd1 (core:
+  that's CoC hardening, not a crate-set move); nRF52840 BLE stack (nrf-sdc + trouble-host) = GREENFIELD, hive-owned
+  on rak4630-fw, nothing to wait on. Core owns OTA/transport CONTRACTS (r2-update::ImageSink, A7/A8 receiver,
+  r2-transport::WireFormat) + budget ledger, NOT a BLE crate. LoRa(ext SX1262) + BLE(int nRF radio) = separate
+  radios, coexist. INCREMENTS 2a host+beacon (hard bring-up, #1 risk = peripheral arbitration) → 2b CoC transport
+  → 2c OTA receiver → 2d §5.3.1 proximity enrol. FLASH fits (~200KiB image in 412KiB bank). MY REC: gate Roy's go
+  on inc-2a de-risk spike first. Reported to supervisor for Roy's go. = task #44 forward / inc-2 (ARCHITECTURE.md).
+
 ## ✅ SEAM CLOSED: relay device-auth REMOVED (Roy ruling 2026-07-07) — /r2 §3.2 handshake DISSOLVED; my view WON
 - ★ ROY RULING: a below-TG relay is now an AUTH-FREE dumb tg_hash pipe (trust = end-to-end TG-HMAC at member
   devices; routing by tg_hash never needed identity). My owner-view (REMOVE, steelmanned + verified vs my impl)
   was the ruling. DISSOLVES the /r2 §3.2 handshake AND its extraction ENTIRELY — crypto-extract thread CLOSED,
   nothing to lift. Also CLOSES the phone cross-TG device_id linkability leak = an M1 SOVEREIGNTY WIN.
 - ✅ KS1/hkdf consolidation UNAFFECTED — stands (KS1 resident in r2-trust::hkdf). That part was always real.
-- ✅ KS1 DE-DUP = NO-OP FOR HIVE (core grep-map heads-up 2026-07-07; I traced + cleared, told core SHIP IT): core
+- ✅ KS1 DE-DUP SHIPPED by core (95eee98 on r2-core-consolidation): identity.rs now DELEGATES to r2-trust::hkdf
+  RAW (deleted its private hkdf_expand + v4-forcing); hive_id now RAW/canon; r2-trust 85 green + r2-hive-core 37
+  green. Core confirmed my trace: NO-OP for hive (id never flows through derive_hive_id) + MasterSecret/
+  DerivedIdentity/IdentityStore have 0 consumers in r2-core. RE-VENDOR behind the pin whenever (no urgency — it's on
+  the consolidation branch, no-op for my wire id). self_hive_id=FNV(name) §6.2.1 flag → still task #57 (raise to specs).
+- (context) I traced + cleared it before core shipped, told core SHIP IT: core
   collapses r2-hive-core::identity::derive_hive_id (v4-forced UUID) onto r2-trust::hkdf (RAW). Core asked A/B: is
   hive's wire u32 = FNV(RAW derive) [A, no-op] or FNV(v4 derive) [B, live bug]? ANSWER = NEITHER (C): hive's on-air
   ensemble/routing hive_id = raw FNV-1a-32(--name) at main.rs:367 (documented main.rs:365 'no canonicalisation';
@@ -63,15 +78,15 @@
   (name OK, just fix the default collision) or (b) MUST be FNV(r2_trust::hkdf raw UUID) per §6.2.1 (then hive is
   non-conformant → self_hive_id switches to FNV(hkdf raw) = MIGRATION + Roy heads-up). HIVE-OWNED fix, gated on the
   ruling, SEPARATE from core's de-dup (do not couple). Flagged core + supervisor pair. → task #57.
-- ▶️ MY FORWARD ACTION (spec-first, GATED — do NOT start until specs lands): specs is authoring (a) the AUTH-FREE
-  §3.2 (open-and-subscribe, no HELLO signature / device_id / challenge-nonce) and (b) an OPTIONAL per-TG UNLINKABLE
-  capability token (blinded bearer proof, TG-keyholder-issued, relay-verifiable WITHOUT TG secrets) for shared-relay
-  injection-gating. WHEN the auth-free §3.2 lands → rewrite r2-hive-bin/src/compat/handshake.rs to the auth-free path:
-  STRIP the Ed25519 verify + device_id + challenge/nonce/timestamp; KEEP tg_hash subscribe + PeerMap register +
-  opaque-frame broadcast + Ping/Pong + Catchup; anti-abuse FLOOR survives = connection-scoped caps (CLOSE_TOO_MANY
-  4429 stays; CLOSE_BANNED 4403 device-ban goes with auth). The optional token = later, when its spec lands.
-  DO NOT touch the /r2 wire before the spec (it's a relay wire-protocol change = spec-first). Also touches wasm hive
-  if it carries the same compat handshake — check on spec-land.
+- ✅ AUTH-FREE §3.2 SHIPPED (r2-hive 99b336a, task #56 DONE): specs landed v0.11 (441a94b); I dropped
+  compat/handshake.rs + protocol.rs to the auth-free path. Connection = version-3 SUBSCRIBE {version, trust_group,
+  timestamp} — no device_id/signature/challenge. Ephemeral per-connection handle (next_conn_handle) replaces
+  FNV(device_pk); rejects 4400 stale-ts / 4401 retired-version / 4429 too-many; §3.2.2 token field IGNORED (open
+  relay). Removed obsolete Ed25519 VEC_* consts + orphaned ed25519-dalek dep. New structural tests vector-locked to
+  r2-transport-relay-vectors.json v0.11 — 4 green, workspace clean. CLOSES the cross-TG device_id linkability leak.
+  FOLLOW-UPS: (a) the optional §3.2.2 unlinkable capability token = later (spec wire/vectors are a follow-up rev);
+  (b) CHECK wasm hive if it carries the same compat handshake (may need the same drop). No wasm handshake found in
+  the quick grep, but verify when touching wasm next.
 - 🔑 KEY-FACT VERIFIED (2026-07-07, specs asked): my handshake signs/verifies with device_id-SK (STABLE class-2
   identity), NOT mesh_sk. Evidence: protocol.rs:16 device_id field; handshake.rs:263 VerifyingKey::from_bytes
   (device_id); :354 vk.verify over nonce:trust_group:device_id:timestamp. ZERO mesh/KS1/hkdf/derive in compat/
