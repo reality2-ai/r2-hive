@@ -42,11 +42,25 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
-## 🔀 SEAM: §3.2 RELAY-HANDSHAKE + KS1 EXTRACT — ⏸️ HOME = SPECS' FINAL CALL (pending); FREEZE extraction
-- ⏸️ HOME NOT FINAL — it is SPECS' call (supervisor over-relayed the r2-trust "final"; specs picks next, behaviour-
-  identical topology). DO NOT EXTRACT until specs picks. r2-trust STRONGLY favoured (my concurrence + core + super)
-  on verified ground truth (KS1 already resident in r2-trust::hkdf + everyone deps it). My action = Phase-2 re-point,
-  AFTER specs freezes the home AND core's additive land + grep-map heads-up.
+## 🔀 SEAM: §3.2 RELAY-HANDSHAKE — ⛔ PREMISE REFUTED (Roy); specs justify-or-remove. KS1/hkdf UNAFFECTED
+- ⛔ WHOLE HANDSHAKE PREMISE UNDER specs JUSTIFY-OR-REMOVE (Roy refuted 2026-07-07): why does a device authenticate
+  to a BELOW-TG relay at all? Spec self-contradicts (relay 'untrusted, not a TG member, opaque frames' vs
+  'authenticates device keys'). RE-POINT HELD — the handshake may be REMOVED entirely, so the extract could dissolve.
+- 🗳️ MY OWNER-VIEW fed to specs = REMOVE the device-auth (steelmanned KEEP, it fails on crypto ground truth I
+  verified): the relay holds NO TG secret (grep-clean of GroupHmac/group_key/master_secret/deliver-gate in compat/),
+  so it CANNOT distinguish a TG member from a non-member → device-auth gates nothing (mint a key + claim a tg_hash =
+  in, auth or not; routing is by public tg_hash label). Real security is END-TO-END (§7.5.4 fail-closed deliver-gate
+  + GroupHmac at the receiving DEVICE). Auth buys only Sybil-cheap accountability (CLOSE_BANNED 4403 defeatable by
+  key rotation; CLOSE_TOO_MANY 4429 is connection-count, needs no identity) AND costs the cross-TG linkability
+  (stable device_id cleartext every join). Rec: relay = dumb by-tg_hash opaque reflector; any anti-abuse belongs at
+  the connection layer (rate-limit/PoW/per-TG unlinkable token), NOT stable-device identity. Offered to prototype
+  the auth-free relay path if specs rules remove.
+- ✅ KS1/hkdf CONSOLIDATION UNAFFECTED — that's real + stands (KS1 resident in r2-trust::hkdf). Only the
+  relay_handshake piece is in question. If specs REMOVES the handshake: I strip my compat crypto core entirely (no
+  extract needed); if specs JUSTIFIES it: re-point per the prior plan (home r2-trust favoured, after core additive +
+  heads-up). Either way: DO NOT touch the handshake until specs rules.
+- (prior seam history — home debate r2-keystore→r2-trust, the 3 conditions, device_id-SK verification — below; still
+  valid as the impl-contract + key-fact record IF the handshake survives:)
 - 🔑 KEY-FACT VERIFIED (2026-07-07, specs asked): my handshake signs/verifies with device_id-SK (STABLE class-2
   identity), NOT mesh_sk. Evidence: protocol.rs:16 device_id field; handshake.rs:263 VerifyingKey::from_bytes
   (device_id); :354 vk.verify over nonce:trust_group:device_id:timestamp. ZERO mesh/KS1/hkdf/derive in compat/
