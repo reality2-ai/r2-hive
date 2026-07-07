@@ -42,8 +42,25 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
-## 🔀 SEAM: §3.2 RELAY-HANDSHAKE + KS1 EXTRACT — ✅ FINAL: r2-trust (2026-07-07); I re-point in Phase 2
-- ✅ HOME = r2-trust, FINAL + unanimous. relay_handshake joins the KS1 family already in r2-trust::hkdf. My
+## 🔀 SEAM: §3.2 RELAY-HANDSHAKE + KS1 EXTRACT — ⏸️ HOME = SPECS' FINAL CALL (pending); FREEZE extraction
+- ⏸️ HOME NOT FINAL — it is SPECS' call (supervisor over-relayed the r2-trust "final"; specs picks next, behaviour-
+  identical topology). DO NOT EXTRACT until specs picks. r2-trust STRONGLY favoured (my concurrence + core + super)
+  on verified ground truth (KS1 already resident in r2-trust::hkdf + everyone deps it). My action = Phase-2 re-point,
+  AFTER specs freezes the home AND core's additive land + grep-map heads-up.
+- 🔑 KEY-FACT VERIFIED (2026-07-07, specs asked): my handshake signs/verifies with device_id-SK (STABLE class-2
+  identity), NOT mesh_sk. Evidence: protocol.rs:16 device_id field; handshake.rs:263 VerifyingKey::from_bytes
+  (device_id); :354 vk.verify over nonce:trust_group:device_id:timestamp. ZERO mesh/KS1/hkdf/derive in compat/
+  (grep-clean; only Rust #[derive] attrs). Faithful to §3.2 canon (device_id). ⚠️ I RETRACT my earlier
+  "KS1-derived DEV_SK" wording — WRONG conflation: device_id is the NON-derived stable first-firmware key
+  (r2-trust::hkdf says device_id is NOT derived); mesh_key is the KS1/per-TG derived one. Handshake = pure
+  prove-possession-of-device_id-SK.
+- 🕵️ PRIVACY ASYMMETRY FLAGGED to Roy (canon tension, NOT a hive bug): §3.2 puts the STABLE device_id ON THE WIRE
+  in cleartext + signs with it → device LINKABLE across TGs at an untrusted relay. CONTRADICTS §6.2.2 (device_id
+  NEVER on-air, carry per-TG mesh_pk — r2-trust tests assert this). Roy question: should §3.2 switch to a per-TG
+  key (mesh_pk) for relay-unlinkability, matching §6.2.2? Today it does NOT (device_id, linkable) = a §3.2 CANON
+  CHANGE if Roy wants it. My impl mirrors §3.2-as-written; no unlinkability intent was in my code. Supervisor
+  surfacing to Roy.
+- ✅ HOME (favoured) = r2-trust, relay_handshake joins the KS1 family already in r2-trust::hkdf. My
   earlier r2-keystore vote FLIPPED on ground truth I verified myself (honest update, not rubber-stamp): r2-trust::
   hkdf ALREADY houses KS1 (derive_group_keys@55, derive_hive_id@120, derive_mesh_key@148, device_id_selector@166,
   vector-locked to specs KS1 key-schedule, composer-byte-exact + android-consumed), AND firmware+everyone already
