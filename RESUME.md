@@ -42,6 +42,22 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
+## 🔀 SEAM: §3.2 RELAY-HANDSHAKE EXTRACT — my owner-position = RATIFY (2026-07-07, in flight)
+- Q from supervisor (android+core surfaced): §3.2 relay handshake was RULED to hive's compat driver, but
+  android core-ffi now has a 2nd sans-IO impl + composer/phone need byte-identical = 3 drifting impls. Proposal:
+  consolidate to ONE shared no_std sans-IO engine at r2-trust::relay_handshake, hive+composer+phone consume it
+  (vector-locked). Same Q for KS1 derivation → shared r2-trust/r2-keystore.
+- MY POSITION (as current owner): RATIFY the extract, give up the private copy, CONSUME the shared engine.
+  Key facts backing it: (a) it's a TRUST-layer security handshake — one impl makes drift STRUCTURALLY impossible;
+  vector-locking 3 impls only catches drift after-the-fact. (b) ZERO new dep surface — RAK/DFR fw ALREADY links
+  r2-trust no_std (path dep, default-features=false; how §7.5.4 deliver-gate + H9 sign reach me). (c) sans-IO =
+  pure state machine, I drive it over LoRa / composer WS-TCP / phone BLE from one engine. Keep-owned only buys
+  velocity, but a spec-defined handshake has NO legit hive-private variation = illusory.
+- 3 CONDITIONS (contract, not blockers): (a) engine stays no_std + sans-IO + alloc-free/optional (480 KiB bank);
+  (b) vector-locked by the canonical vectors hive already vendors (b5cbba2); (c) land behind vendored-pin +
+  grep-map heads-up before the breaking push ([[shared-checkout-path-dep-coupling]]). Spec-first: want specs to
+  bless the r2-trust home as canonical location, then core implements + I re-point. No M1 block. AWAITING ratify.
+
 ## ✅ REAL HOSTED CI GREEN (task #55 DONE): r2-hive compiles + tests on runners for the FIRST time
 - ci.yml modernized (1138eb3) + vector vendoring (b5cbba2): all 5 jobs GREEN (run 28778737556) — test
   PROD+DEV (the §5.1 BUILDMODE both-modes gate, on a runner), feature-builds (ble/keyring), wasm
