@@ -2,22 +2,25 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
-## 🛰️ RAK4630 FIRST-LIGHT — 🟢 v6 SERIAL-DFU flash = N=0 (NO fault) = likely SUCCESS; usbserial-next for text (task #44)
-- 🟢 BREAKTHROUGH (2026-07-07): v6 flashed via SERIAL DFU (clean 'Device programmed', first CLEAN acknowledged
-  transfer) → Roy reads N=0 = ZERO blinks. v6 replay does LAST_STAGE.load().max(1), so ANY fault blinks >=1;
-  0 blinks = NEITHER panic NOR HardFault ran = NO fault = app ran past every stage CLEANLY.
-- ANGLE (c) — likely the whole 2nd-fault saga was a FLASHING ARTIFACT: every prior "fault" (stage 6/7 reset
-  loop) was flashed via BUFFERED DRAG (proven incomplete → corrupt/partial image → HardFault/reset). This is
-  the FIRST clean serial-DFU flash and it runs. The firmware was probably fine; the drag-writes were corrupt.
-- ONE DECIDER (Roy answering): DARK-OFF = Timer(1s) completed → idle service loop → SUCCESS + async WORKS;
-  SOLID-ON = hung at first Timer await → async/RTC-irq broken (the real issue). Success LED = 3 boot-blinks →
-  1s SOLID (configure ok) → dark idle.
-- NEXT (definitive): flash usbserial serial-DFU .zip (out/r2-rak4630-usbserial.zip, sha a03c37b4, dc27535 —
-  now with the CDC DEV-QUERY). /dev/ttyACM0: boot/configure(LoRa) ok/R2-BEACON = first-light. NEW: a ~5s
-  'alive t=Ns neighbours=N' heartbeat (capture never empty) + a QUERY — send ANY byte (printf t > /dev/ttyACM0)
-  → dumps live TN tables (node/mode/tg/group/duty/neighbours/routes/per-nb). LOCAL physical-access diag
-  (#30-class), NOT #41 on-mesh. Lone board = neighbours=0 routes=0 but proves stack instantiated+queryable.
-  Serial-DFU reliable path (adafruit-nrfutil + tools/elf2hex.py, see [[rak4630-uf2-firstlight]]).
+## ✅🛰️ RAK4630 FIRST-LIGHT — CONFIRMED IN TEXT (2026-07-07, task #44 first-light DONE)
+- ✅✅ FIRST LIGHT CONFIRMED (supervisor relayed Roy's /dev/ttyACM0 capture, via pyserial — cat doesn't assert
+  DTR, the flow-control hunch was right): 'R2-BEACON advert encoded (30 B)'. Can't beacon without a LIVE radio,
+  so configure(LoRa) SUCCEEDED + membership/beacon stack running on-metal + 30-byte advert every 30s. Combined
+  with N=0/dark-off (clean run, no fault handler ran) → RAK4631 is ALIVE running R2 firmware. Chain that nailed
+  it: APPROTECT reset-loop root cause + corrupt-buffered-drag insight (the "faults" were bad images, not bugs)
+  + legible-count diag + serial-DFU packaging. Serial-DFU (adafruit-nrfutil venv on tuxedo) = reliable PRIMARY.
+- 🟢 CDC 't'-QUERY IS ALREADY BUILT + IN THE .zip (dc27535): out/r2-rak4630-usbserial.zip, sha256
+  a03c37b479cf...15c2a (VERIFIED on disk 2026-07-07; DIAG_REQ symbol present in the ELF). Supervisor asked me to
+  "continue with the CDC 't'-command dump" — it's DONE, sitting in the same usbserial build. Flash it, then send
+  ANY byte (pyserial writer that ASSERTS DTR — printf alone may not) → dumps live TN tables (node/mode/tg/group/
+  duty/neighbours/routes/per-nb rows). Plus a ~5s 'alive t=Ns neighbours=N' heartbeat so a mid-run capture is
+  never empty. LOCAL physical-access diag (#30-class), NOT the #41 on-mesh TG-gated query→reply. Lone board =
+  neighbours=0 routes=0 but proves the TN stack is instantiated + self-declares dev-mode + is queryable.
+- NEXT (only remaining first-light-adjacent step): supervisor serial-flashes a03c37b4 → Roy opens a DTR-asserting
+  reader + sends a byte → confirm the 'diag ...' table dump renders. That closes the CDC-query want. No new build
+  owed. Durable findings baked in [[rak4630-uf2-firstlight]] (APPROTECT fix, memory.x shadow, serial-DFU recipe).
+- (superseded diagnostic saga below — reset-loop hypotheses, N-count diag iterations — all RESOLVED by the
+  confirmation above; kept only as provenance, safe to prune on next rotation.)
 - 🔴 UPDATE: the 2nd fault is a RESET LOOP (~10-15s, bootloader device# climbs 22->23): app runs past init
   (fix good) then FAULTS+RESETS cyclically. So it's a RESET (HardFault-class OR hang+watchdog), NOT a Rust
   panic — the panic latch-replay can't catch it (why the "6" read was unstable).
