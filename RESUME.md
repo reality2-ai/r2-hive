@@ -120,11 +120,16 @@
   mine + PENDING. WRINKLE to resolve first: derive_hive_id takes the tg_id STRING but the ensemble has ev.trust_group
   as a u32 WIRE HASH — so derive+cache at PROVISION time (main.rs:737, tg string known) keyed by u32, not on-demand.
   NEXT ACTION when I resume this (implement carefully + peer-refute; security-relevant dedup self-check).
-  LOCALIZED BLOCKER (2026-07-07, asked core): derive_hive_id uses info=tg_id STRING (HKDF salt=r2-hive-id-v1).
-  Need the CANONICAL tg_id string all TG members feed so hive matches DFR/composer. Hive's word-code join
-  (main.rs:737) gives a 'tg_hash' HEX string — is THAT the tg_id, or is tg_id separate + tg_hash=FNV(tg_id)?
-  Deriving with the wrong string reproduces the bug. AWAITING core. Once confirmed = mechanical per-TG refactor
-  (derive+cache hive_id_for_tg at membership-setup + thread master into HiveState + swap ensemble call-sites).
+  CORE CONFIRMED (2026-07-07): tg_id = the trust group's UUID STRING (§2.3 / §6.2.1 line 548 / KS1 vector
+  '550e8400-...'), NOT a hash. My 'a1b2c3d4...' tg_hash is a HASH → deriving from it = the bug.
+  🔴 DEEPER FINDING (verified r2-hive-bin, refutes core's 'tg-of-one proceed now'): the daemon holds ActiveTg.tg_id
+  as [u8;32] = the 32-BYTE KEY HASH (hive.rs:150), has ZERO UUID string anywhere (grep-clean), AND already has an
+  ActiveTg.hive_id:u32 field (non-canonical, no UUID to derive from). So EVEN tg-of-one can't derive today — the
+  UUID input isn't present. #57 = bigger than a derive-swap; needs the UUID ESTABLISHED. BLOCKER asked core (may
+  route specs): is the [u8;32] a hash-OF-a-UUID (→ generate+persist UUID at first boot = identity change) or IS it
+  the canonical tg_id rendered as a UUID string (→ render+derive, bounded)? + joined-TG conveyance gap (specs).
+  HELD on that answer (verified-before-implement — deriving from the wrong input reproduces the bug). SECURITY +
+  now IDENTITY-establishment → focused session + peer-refute when unblocked.
 - ✅ AUTH-FREE §3.2 SHIPPED (r2-hive 99b336a, task #56 DONE): specs landed v0.11 (441a94b); I dropped
   compat/handshake.rs + protocol.rs to the auth-free path. Connection = version-3 SUBSCRIBE {version, trust_group,
   timestamp} — no device_id/signature/challenge. Ephemeral per-connection handle (next_conn_handle) replaces
