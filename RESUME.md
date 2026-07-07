@@ -64,6 +64,12 @@
   git → whole platform migrates to 0.7-family. TOUCHES PROVEN first-light/heartbeat → FOCUSED+TESTED (keep non-ble
   builds green throughout), held for a clean session start (NOT rushed at turn-tail; a half-done embassy migration
   in-tree is worse than a scoped handoff). NEXT ACTION = the migration → then partition + co-author BleHost w/ core.
+  Core CONFIRMED ^0.7 RANGE (not exact): r2-ble is my path-dep → cargo unifies embassy-nrf to ONE 0.7.x, my lockfile
+  pins the patch (no soup). MAIN RISK = embassy-nrf 0.7 SPIM/GPIO/RNG API deltas vs r2-sx1262 (loop core, co-owns it).
+- 🟢 HEADLESS-FLASH WIN SHIPPED (rak4630-fw 9ebf7ef, supervisor request): CDC 'b' command → writes Adafruit DFU
+  magic 0x57 to NRF_POWER->GPREGRET @0x4000_051C + SCB::sys_reset() → board reboots to UF2/DFU, NO double-tap. Live
+  in the CURRENT usbserial build (carries into 2a); any other byte still = table dump. Roy PRE-AUTHORIZED all 2a
+  flashes (build-go + flash-go standing; I hand the .hex path when 2a builds green). usbserial artifact sha 75e55fed.
 
 ## 🔵 (superseded) BLE inc-2 PLAN + split LOCKED with core (Roy greenlit 2026-07-07) — awaiting Roy's go, NO build
 - ✅ OWNERSHIP SPLIT LOCKED (core+hive converged, both favour core-owns-binding; rak4630-fw 141775b, BLE-PLAN.md §7):
