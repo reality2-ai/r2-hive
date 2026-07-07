@@ -42,8 +42,22 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
-## 🔀 SEAM: §3.2 RELAY-HANDSHAKE + KS1 EXTRACT — ✅ RATIFIED (2026-07-07); home=r2-keystore; awaiting core impl → I re-point
-- ✅ HOME REFINED (core, I concur, verified vs my impl): canonical home = a NEW thin r2-keystore crate
+## 🔀 SEAM: §3.2 RELAY-HANDSHAKE + KS1 EXTRACT — ⚖️ HOME CONTESTED (2026-07-07); my owner-vote = r2-keystore
+- ⚖️ HOME CONTESTED: specs BLESSED r2-trust::relay_handshake (2ad5abf); core + supervisor + ME favour r2-keystore.
+  NOBODY EXTRACTS until specs+core+hive agree ONE home. Extract itself (YES) + the 3 conditions are settled; only
+  the crate-HOME is open. KS1 → r2-keystore is NOT contested (settled). BEHAVIOUR identical either way (same §3.2
+  wire, same b5cbba2 vectors) — purely crate LAYERING, safe to optimize for the dep-graph.
+- 🗳️ MY OWNER-VOTE = r2-keystore, on a PRINCIPLE (authentication vs authorization), verified vs my impl
+  (r2-hive-bin/src/compat/handshake.rs): the §3.2 handshake AUTHENTICATES (proves possession of the Ed25519
+  DEV_SK via nonce challenge-response) — it does NOT AUTHORIZE (never checks TG membership/cert/group state; tg is
+  a STRING in the signed msg; membership resolution happens AFTER verify = hive glue, stays with me). So
+  r2-keystore = identity (KS1 derive + proof-of-possession = handshake); r2-trust = what that identity may DO
+  (TG/cert/group/GroupHmac). Handshake sits on the authn boundary, one layer BELOW trust. Dep-direction seals it:
+  identity is the BOTTOM of the stack, trust CONSUMES it (r2-trust deps r2-keystore, never reverse) — home it in
+  r2-trust and EVERY authenticator (phone/android/composer/RAK-DFR fw) must dep the whole cert/group machinery
+  just for a challenge-response. Refute of the likely specs rationale: a relay handshake FEELS like trust because
+  it gates TG entry, but entry = authenticate (handshake) THEN authorize (membership); only the first is in §3.2.
+- ✅ HOME (core's proposal, I concur, verified vs my impl): a NEW thin r2-keystore crate
   (no_std+alloc, crypto-only deps) — NOT r2-trust (certs/group-mgmt = too heavy for a KDF+handshake consumer),
   NOT r2-hive-core (drags engine/update/route). core extracts r2-hive-core::identity VERBATIM (byte-identical, no
   wire change) into r2-keystore; r2-hive-core then deps r2-keystore → HIVE UNAFFECTED until I re-point.
