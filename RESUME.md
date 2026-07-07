@@ -16,6 +16,15 @@
   platform-trait by 1 commit (future reconcile = merge not ff). (2) root cause: CI hygiene gate is NOT on main +
   CI billing-blocked → no push-guard. (3) Roy still to rule whether wairoa_as923_nz/wairoa.reading get renamed.
 
+## 🟡 OTA #49 coex payload — HIVE-OWNED, escalated (gated on Roy #49 GO + inputs)
+- Provenance RESOLVED (composer byte-proof; my task#35 note was WRONG): cb87c8aa-app.bin = NON-coex (predates coex
+  3aae196 by 2 days). Board-side stays 29e250cf coex. ACTION on hive: produce a COEX version-marked app.bin (composer
+  can't build fw) from dfr1195-fw HEAD 9631761 (has coex; newer than 29e250cf → distinguishable), version-mark =
+  R2_BUILD_ID env at build (the OTA-landed verifier), composer signs (seq-based anti-rollback set at sign-time).
+  ESCALATED to supervisor (fleet firmware/key GATE fired → do NOT auto-run). NEED before producing: (a) WiFi STA creds
+  (payload must associate to Alfred post-OTA), (b) R2_BUILD_ID stamp, (c) HEAD-vs-pinned-commit confirm, + Roy's #49 GO.
+  esp toolchain IS on this box (rustup esp + xtensa). NO RUSH. Dry-run framing-proof stays fine with cb87c8aa.
+
 ## 🟢 LATEST (2026-07-07 pm) — #40 weak-trail acceptance LOCKED + LED reconcile #59 + trail-triage #60
 - **#59 LED reconcile — PEER-REFUTED + fixed; awaiting Roy's metal read only.** rak4630-fw HEAD now **e8b5cd6**
   (was 281461f). Core adversarial pass acted on: (F1) strobe 0.18s does NOT divide the 60s window → once/min
