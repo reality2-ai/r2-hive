@@ -42,7 +42,18 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
-## 🔵 BLE inc-2 PLAN DELIVERED + split LOCKED with core (Roy greenlit 2026-07-07) — awaiting Roy's go, NO build
+## 🟢 BLE inc-2 — ROY GO'd (2026-07-07); 2b-2d GATED on GREEN 2a; 2a JOINT spike CO-SCOPED + building (task #58)
+- ✅ ROY'S GO: inc-2 approved with MY recommended gate (2b/2c/2d gated on a green 2a). Locked boundary confirmed.
+  2a = host runs on-metal + R2-BEACON RADIATES. When 2a fw ready → supervisor serial-DFU flashes on Roy's double-tap.
+- ✅ 2a CO-SCOPED (joint, both non-idle): HIVE half DONE = the peripheral-partition map (BLE-PLAN.md §8, rak4630-fw
+  aae487f). HEADLINE — the scary conflict is AVOIDED: embassy-time=RTC1, MPSL=RTC0 → NO RTC clash; TIMER0/RADIO/TEMP/
+  SWI free (no timer use; LoRa=external SX1262 so internal radio free; thread-mode executor = no SWI). Conflict surface
+  = 3 SOFT points: RNG order, CLOCK/LFCLK→MPSL, PPI/DPPI partition. Sent core the map + the 3 descriptor answers I need
+  (MPSL PPI/DPPI set / LFCLK source [confirm LFXO] / RNG ownership). `ble` feature gate scaffolded (Cargo.toml stub,
+  0948d94, green). BLOCKED-NEXT on core's descriptor + nrf-sdc binding skeleton; then wire host into main.rs behind
+  `ble` + advertise R2-BEACON bytes. → task #58. CORE half: vendor nrf-sdc + binding skeleton + descriptor.
+
+## 🔵 (superseded) BLE inc-2 PLAN + split LOCKED with core (Roy greenlit 2026-07-07) — awaiting Roy's go, NO build
 - ✅ OWNERSHIP SPLIT LOCKED (core+hive converged, both favour core-owns-binding; rak4630-fw 141775b, BLE-PLAN.md §7):
   CORE owns a new no_std BLE binding crate (nrf-sdc + trouble-host) + CoC transport-seam adapter (OTA bearer +
   beacon-radiate) + nrf-sdc vendoring/pin (= the GATE, unmet). HIVE owns rak4630 firmware + metal bring-up. Contract
