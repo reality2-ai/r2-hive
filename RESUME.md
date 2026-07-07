@@ -55,6 +55,15 @@
   (Cargo.toml stub, 0948d94, green). BLOCKED-NEXT on core's descriptor (PPI set + nrf-sdc version/pin) + the r2-ble
   binding skeleton (workspace-excluded thumbv7em crate, core-writes/hive-builds-on-metal = esp32 pattern, I'm the
   on-metal verify); then wire host into main.rs behind `ble` + advertise R2-BEACON bytes. → task #58.
+- ✅ ITEM-1 DESCRIPTOR LANDED + CONSUMED (core 474ee09, crates/r2-ble/src/descriptor.rs; BLE-PLAN.md §9): 2a
+  partition FULLY SPECIFIED — PPI app-free=CH0..=16 (MPSL/SDC own 17..=31); LFCLK=LFXO (drop HFXO under ble);
+  RNG=SDC-owned (seed BEFORE sdc::Builder::build); RTC1/RTC0 no clash; 6 IRQs (RNG,EGU0_SWI0,CLOCK_POWER,RADIO,
+  TIMER0,RTC0). Source alexmoon/nrf-sdc@f54b6389 (NOT embassy-rs). ALL 3 soft points now resolved.
+- 🔨 2a FOUNDATION TASK IDENTIFIED = embassy git→0.7 crates.io migration (the real 2a effort). Pin: nrf-sdc 0.3.0 +
+  nrf-mpsl 0.3.0 + embassy-nrf 0.7 + bt-hci 0.4 (crates.io; NOT git-master=nRF54L). Firmware uses ALL embassy from
+  git → whole platform migrates to 0.7-family. TOUCHES PROVEN first-light/heartbeat → FOCUSED+TESTED (keep non-ble
+  builds green throughout), held for a clean session start (NOT rushed at turn-tail; a half-done embassy migration
+  in-tree is worse than a scoped handoff). NEXT ACTION = the migration → then partition + co-author BleHost w/ core.
 
 ## 🔵 (superseded) BLE inc-2 PLAN + split LOCKED with core (Roy greenlit 2026-07-07) — awaiting Roy's go, NO build
 - ✅ OWNERSHIP SPLIT LOCKED (core+hive converged, both favour core-owns-binding; rak4630-fw 141775b, BLE-PLAN.md §7):
