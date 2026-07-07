@@ -10,9 +10,16 @@
   BLOCKING (busy-polls, no interrupt) + RNG busy-polls, so the FIRST thing needing an interrupt to FIRE is
   Timer::after(1s).await at stage 7. If RTC1 irq doesn't fire / vectors-wrong behind the MBR/SoftDevice →
   executor wfe()-sleeps forever (hang) → watchdog reset, OR vectors to garbage → HardFault → reset. = the loop.
-- RESET-CATCHING DIAG v5 (1ad771a; out/r2-rak4630-diag.uf2, 153 blk @0x26000, sha256 322b2199): (a) LIVE
-  markers — stages 6/7/8 blink N the INSTANT reached (catches hang+watchdog; highest before reset = fault
-  stage); (b) HardFault #[exception] handler latch-replays a STABLE count (catches HardFault-class). AWAITING v5 read.
+- REFRAME: board now HOLDS stable off-bus + REPLAYS (a handler is running) = a PANIC or HardFault CAUGHT,
+  NOT a watchdog reset (the device# climbing 22->24 was FLASH ATTEMPTS). So it IS a clean countable fault.
+- LEGIBLE-COUNT DIAG v6 (5269528; out/r2-rak4630-diag.uf2, 152 blk @0x26000, sha256 d6e197c1) — SUPERSEDES v5.
+  Roy couldn't count v5 ("two strong + two weak") because I MIXED blink speeds (fast live-markers=weak,
+  slow replay=strong). v6: REMOVED live markers; panic + HardFault handlers share ONE replay = ~3s DARK gap
+  then N UNIFORM 500ms full-brightness blinks, repeat. Count N = the stage. AWAITING v6 count.
+- RULED OUT (prefetch): embassy timer-queue not-wired (default queue_integrated IS present via
+  embassy-executor-timer-queue). If stage 7 confirmed → RTC1 irq vectoring/firing behind the MBR is the
+  suspect (VTOR=0x26000 set in pre_init). Inspect the EXACT stage once the count lands - stop guessing.
+  (prior v5 note kept for history:) 1ad771a live-markers+HardFault, sha 322b2199.
 - IF stage 7: dig interrupt/VTOR/RTC1-behind-MBR (VTOR=0x26000 set in pre_init — verify effective; MBR irq
   forwarding w/ dormant SoftDevice = suspect). Platform/HAL = hive's. Possible: bootloader watchdog needs feeding.
 - ✅✅ APPROTECT fix (Debug::NotConfigured, f698d6e) CONFIRMED ON METAL: clean-flushed flash took (drive
