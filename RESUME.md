@@ -77,6 +77,14 @@
   first-light+heartbeat+t/b) BEFORE the BLE host = clean bisection. NEXT 2a: r2-ble reachable from rak4630-fw (core's
   call: git-pin 474ee09 vs land-on-base) → add under ble + apply partition (PPI 0..16/HFXO-drop/seed-before-SDC/6 IRQs)
   + co-author BleHost on spike + advertise → GREEN 2a. The version-axis 2a-foundation blocker is RESOLVED.
+- 🟢 CANONICAL LED SIGNATURE SHIPPED (Roy directive, rak4630-fw a3ddff9; supersedes the single-pulse heartbeat):
+  HEALTHY = slow dub-dub DOUBLE-pulse (2×~50ms blips ~120ms apart, ~1.5s pause = human lub-dub, reads ALIVE);
+  UPDATING = rapid ~5Hz flash (OTA hook led_signature::UPDATING, set when inc-2c OTA lands); EVENT-ARRIVAL = ~30ms
+  blip on RxDone. dub-dub + updating in BOTH dev+prod (verified); event-blip DEV-ONLY. New led_signature tick-driven
+  state machine replaced the dev-only heartbeat + 400ms recv-flash. All 4 variants green. Canonical across R2 boards
+  (specs canonicalizing → DFR1195 adopts same); relates to task #34. IN the same usbserial build as the embassy
+  migration → ONE migration-metal-check flash validates embassy-0.7 runtime + the LED signature + t/b commands.
+  Updated artifact: out/r2-rak4630-usbserial.hex sha d2bbe502 (51392B). Reported supervisor for Roy's metal-check.
 - 🟢 HEADLESS-FLASH WIN SHIPPED (rak4630-fw 9ebf7ef, supervisor request): CDC 'b' command → writes Adafruit DFU
   magic 0x57 to NRF_POWER->GPREGRET @0x4000_051C + SCB::sys_reset() → board reboots to UF2/DFU, NO double-tap. Live
   in the CURRENT usbserial build (carries into 2a); any other byte still = table dump. Roy PRE-AUTHORIZED all 2a
