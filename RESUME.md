@@ -66,6 +66,14 @@
   in-tree is worse than a scoped handoff). NEXT ACTION = the migration → then partition + co-author BleHost w/ core.
   Core CONFIRMED ^0.7 RANGE (not exact): r2-ble is my path-dep → cargo unifies embassy-nrf to ONE 0.7.x, my lockfile
   pins the patch (no soup). MAIN RISK = embassy-nrf 0.7 SPIM/GPIO/RNG API deltas vs r2-sx1262 (loop core, co-owns it).
+  ✅ MIGRATION PROBE DONE (2026-07-07, reverted to keep proven fw green): VIABLE — versions resolve, CODE COMPILES
+  ZERO API CHANGES (r2-sx1262 insulated confirmed; platform glue 0.7-ok). SOLE issue = embassy-time VERSION SPLIT
+  at link (undefined __embassy_time_queue_item_from_waker): lock pulled time 0.4.0 (executor 0.7 via
+  executor-timer-queue 0.1) AND 0.5.1 (embassy-nrf 0.7). FIX = one embassy-time (0.5) via executor that pairs with
+  it (likely executor 0.8). BLOCKER: asked core for its EXACT r2-ble/nrf-sdc-0.3 embassy version SET to MATCH (r2-ble
+  compiles standalone = a working single-time set). rak4630 is workspace-EXCLUDED so the migration is ISOLATED (own
+  lock, no ripple to nrf54/members). Note: executor 0.7 feature = 'arch-cortex-m' not git's 'platform-cortex-m'.
+  NEXT ACTION when core sends the set = mechanical migration (keep non-ble builds green throughout).
 - 🟢 HEADLESS-FLASH WIN SHIPPED (rak4630-fw 9ebf7ef, supervisor request): CDC 'b' command → writes Adafruit DFU
   magic 0x57 to NRF_POWER->GPREGRET @0x4000_051C + SCB::sys_reset() → board reboots to UF2/DFU, NO double-tap. Live
   in the CURRENT usbserial build (carries into 2a); any other byte still = table dump. Roy PRE-AUTHORIZED all 2a
