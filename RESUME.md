@@ -42,7 +42,14 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
-## 🔀 SEAM: §3.2 RELAY-HANDSHAKE EXTRACT — my owner-position = RATIFY (2026-07-07, in flight)
+## 🔀 SEAM: §3.2 RELAY-HANDSHAKE EXTRACT — ✅ RATIFIED (2026-07-07); awaiting core impl → I re-point
+- ✅ RATIFIED (supervisor): extract YES, my 3 conditions ACCEPTED AS THE CONTRACT (no_std/sans-IO/alloc-optional;
+  vector-locked on the b5cbba2 canonical vectors; vendored-pin + grep-map heads-up before any breaking push —
+  core told EXPLICITLY to warn me before it bites my path-dep). SEQUENCE: specs blesses r2-trust::relay_handshake
+  as the spec-anchored home → core implements BOTH engines (relay_handshake + KS1 derivation) → HIVE RE-POINTS
+  (drop the private compat-driver copy, consume the shared engine). MY next action = the re-point, AFTER core lands
+  it (not before). Same for KS1 → r2-trust/r2-keystore. No M1 block. DO NOT re-point until core signals + heads-up.
+- (original position + reasoning below, kept as the rationale of record:)
 - Q from supervisor (android+core surfaced): §3.2 relay handshake was RULED to hive's compat driver, but
   android core-ffi now has a 2nd sans-IO impl + composer/phone need byte-identical = 3 drifting impls. Proposal:
   consolidate to ONE shared no_std sans-IO engine at r2-trust::relay_handshake, hive+composer+phone consume it
