@@ -144,6 +144,13 @@
   the canonical tg_id rendered as a UUID string (→ render+derive, bounded)? + joined-TG conveyance gap (specs).
   HELD on that answer (verified-before-implement — deriving from the wrong input reproduces the bug). SECURITY +
   now IDENTITY-establishment → focused session + peer-refute when unblocked.
+  ✅ RESOLVED to (b) + 🔴 NOW HELD ON ROY (2026-07-07): specs CONFIRMED (b) FORCED (self-mastered join unimplementable
+  as written) + pre-specced tg_id = UUID-format-RAW(SHA-256(TG_PK)[0:16]). BYTE-CHANGES the wire-locked KS1 vector →
+  ESCALATED TO ROY (operator-gated). ON ROY'S YES: specs regens KS1 vector + reconciles §6.2.1/§2.3/§4.1; core ships
+  r2_trust::hkdf::trust_group_uuid(tg_pk) vector-locked; I render ActiveTg.tg_id[u8;32]→trust_group_uuid→derive_hive_id
+  →swap ensemble originator+dedup-self-check. My part BOUNDED (core's earlier find = it was a spec name-collision:
+  trust_group_id = §4.1 [u8;32] TG_PK vs §6.2.1 UUID string; daemon holds §4.1). DO NOT implement until Roy yes +
+  core ships the fn/vector. Verify-before-implement caught this whole chain (would've shipped non-canonical hive_id).
 - ✅ AUTH-FREE §3.2 SHIPPED (r2-hive 99b336a, task #56 DONE): specs landed v0.11 (441a94b); I dropped
   compat/handshake.rs + protocol.rs to the auth-free path. Connection = version-3 SUBSCRIBE {version, trust_group,
   timestamp} — no device_id/signature/challenge. Ephemeral per-connection handle (next_conn_handle) replaces
