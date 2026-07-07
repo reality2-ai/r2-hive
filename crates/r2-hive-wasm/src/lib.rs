@@ -1806,6 +1806,33 @@ mod tests {
         );
     }
 
+    /// R2-ROUTE §4.3.4 WEAK reverse trail — the acceptance the composer convergence scene reads:
+    /// a plain FORWARD frame (not a reply) received from an immediate sender lays a WEAK origin-ward
+    /// trail (destination = origin, next_hop = the sender), the "someone reached me from over there"
+    /// evidence. This is the exact behaviour core verified natively ("native lays queryable weak
+    /// entry"); the wasm host build here locks it so a stale/lagging wasm artifact can't silently
+    /// present empty paths() to composer (the build-lag that surfaced this thread). Distinct from
+    /// [`build_reply_frame_strong_reinforces_through_forwarder`] (the STRONG reply-retrace half).
+    #[test]
+    fn forward_frame_lays_weak_origin_trail_in_paths() {
+        let origin = 0x0000_00AA;
+        let sender = 0x0000_00BB; // the immediate upstream radio hop the forward arrives from
+        let downstream = 0x0000_00CC;
+        let mut fwd = WasmHive::new(0x0000_00FF);
+        // Seed a viable flood hop so the broadcast forward has somewhere to relay (mirrors the strong test).
+        let seed = ext_frame(downstream, 0, 5, 3, 0x0100);
+        let _ = fwd.route_frame(downstream, 1, &seed, 90, 0.5);
+        // A broadcast forward (origin → broadcast) arrives via `sender` and floods on.
+        let fwdframe = ext_frame(origin, 0, 5, 3, 0x0000_9001);
+        let out = fwd.route_frame(sender, 1, &fwdframe, 100, 0.5);
+        let paths = fwd.paths();
+        assert!(
+            paths.contains(&format!("\"destination\":{origin}"))
+                && paths.contains(&format!("\"next_hop\":{sender}")),
+            "§4.3.4 weak forward must lay an origin-ward trail via the sender: out={out} paths={paths}"
+        );
+    }
+
     /// v0.65 emit-side roundtrip: the delivered request's stack extracted via
     /// routeStackOf feeds replyMarkerWithStack; the auto variant falls back to
     /// the bare marker under a tight bearer budget — never a partial stack.
