@@ -42,7 +42,19 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
-## 🔵 BLE inc-2 PLAN DELIVERED (Roy greenlit RAK4630 BLE 2026-07-07) — awaiting Roy's go, NO build started
+## 🔵 BLE inc-2 PLAN DELIVERED + split LOCKED with core (Roy greenlit 2026-07-07) — awaiting Roy's go, NO build
+- ✅ OWNERSHIP SPLIT LOCKED (core+hive converged, both favour core-owns-binding; rak4630-fw 141775b, BLE-PLAN.md §7):
+  CORE owns a new no_std BLE binding crate (nrf-sdc + trouble-host) + CoC transport-seam adapter (OTA bearer +
+  beacon-radiate) + nrf-sdc vendoring/pin (= the GATE, unmet). HIVE owns rak4630 firmware + metal bring-up. Contract
+  seams verified drift-clean by core (A7/A8 receiver feed/finish is bearer-agnostic + ALREADY delivered; BlePhy moves
+  WireFormat::Compact). 41adbd1 = non-gate (discovery/CoC hardening), corrected in plan + ARCHITECTURE.md.
+- ✅ I SENT core the BINDING API SURFACE hive wants (mirrors r2-sx1262): (1) peripheral-requirement declaration as
+  DATA (the 2a crux — what nrf-sdc claims: RADIO/TIMER/RTC/RNG/PPI — so I partition embassy-time; requested FIRST),
+  (2) BleHost::new(resources, config), (3) set_advert(bytes) beacon, (4) pollable L2CAP-CoC PHY, (5) OTA-over-CoC via
+  core's receiver. 2a is CO-SCOPED (core's requirement API + partition scaffold; my metal spike proves it). NEXT:
+  await core's peripheral-requirement descriptor + Roy's go (my rec = gate go on inc-2a de-risk spike).
+
+## 🔵 (prior) BLE inc-2 PLAN — awaiting Roy's go, NO build started
 - Committed scoping doc: rak4630-fw 4d3c446, platforms/rak4630/BLE-PLAN.md. 3 purposes (beacon-radiate / L2CAP-CoC
   data-plane alongside LoRa / OTA-over-BLE PSM 0x00D3 TG-gated). DEP CHAIN CORRECTED: NOT gated on 41adbd1 (core:
   that's CoC hardening, not a crate-set move); nRF52840 BLE stack (nrf-sdc + trouble-host) = GREENFIELD, hive-owned
@@ -81,7 +93,10 @@
   just main.rs). Migration: ids change; pre-1.0 dev = re-derive next boot; TG nodes re-derive together. SECURITY-
   RELEVANT (dedup self-check) → implement carefully + PEER-REFUTE before done. Flagged core the per-TG shape
   (awaiting their confirm it's the intended §6.2.1 read). core de-dup (95eee98) gives the fn; the HiveState/ensemble
-  switch is my half. NEXT ACTION when I resume this.
+  switch is my half. specs CONFIRMED (self-corrected): de-dup does NOT auto-fix my wire id — the main.rs switch is
+  mine + PENDING. WRINKLE to resolve first: derive_hive_id takes the tg_id STRING but the ensemble has ev.trust_group
+  as a u32 WIRE HASH — so derive+cache at PROVISION time (main.rs:737, tg string known) keyed by u32, not on-demand.
+  NEXT ACTION when I resume this (implement carefully + peer-refute; security-relevant dedup self-check).
 - ✅ AUTH-FREE §3.2 SHIPPED (r2-hive 99b336a, task #56 DONE): specs landed v0.11 (441a94b); I dropped
   compat/handshake.rs + protocol.rs to the auth-free path. Connection = version-3 SUBSCRIBE {version, trust_group,
   timestamp} — no device_id/signature/challenge. Ephemeral per-connection handle (next_conn_handle) replaces
