@@ -66,6 +66,20 @@
   in-tree is worse than a scoped handoff). NEXT ACTION = the migration → then partition + co-author BleHost w/ core.
   Core CONFIRMED ^0.7 RANGE (not exact): r2-ble is my path-dep → cargo unifies embassy-nrf to ONE 0.7.x, my lockfile
   pins the patch (no soup). MAIN RISK = embassy-nrf 0.7 SPIM/GPIO/RNG API deltas vs r2-sx1262 (loop core, co-owns it).
+- ✅✅✅ MIGRATION METAL-CHECK PASSED (supervisor flashed d2bbe502@a3ddff9 on tuxedo-os 2026-07-07): embassy 0.7
+  BOOTS + runs first-light on REAL HARDWARE (diag on new stack, node 0x52414b34 dev), Roy SAW the dub-dub. Migration
+  did NOT regress boot — the bisection-before-BLE passed AND earned its keep (caught the CDC bug below). → READY for
+  the BleHost co-author on the on-metal 2a spike (r2-ble wired blob-free; flip r2-ble/binding for the spike).
+- ✅ CDC CONNECT-BOUNCE FIXED (rak4630-fw 23f90d0, metal-check finding): embassy-0.7 CDC spurious byte on host-connect
+  was bouncing the board to DFU (my single-byte reader acted on it). Fix: (1) discard RX ~300ms after connect; (2)
+  reboot trigger is now the explicit multi-byte token 'dfu' (NOT bare 'b') — stray byte = harmless dump only. Serial
+  connect no longer bounces; 't' works; reboot = send 'dfu'. All variants green. TRIGGER CHANGED 'b'→'dfu'.
+- 📋 COMBINED BUILD PENDING (supervisor wants ONE flash, a+b+c): (c) CDC fix DONE. (a) LED reconcile to specs'
+  R2-INDICATOR v0.1 canonical envelope + (b) Roy's CALM TUNING (25 BPM slower + ~25-35% peak-duty dim glow via PWM)
+  = task #59, the next focused pass (micromath + PWM + reconcile raw-GPIO paths). Hand ONE build when all 3 in+green.
+- ✅ #57 fn LANDED (core 5b22368 r2-core-consolidation): r2_trust::hkdf::trust_group_uuid(tg_pk)→[u8;36]. My grep hit
+  STALE vendored r2-trust. ACTION = re-pin r2-hive's r2-trust to >=5b22368, then the bounded per-TG change (KAT:
+  trust_group_uuid(0x42*32)=425ed4e4...; master 0xAA*32→hive_id c19eac1d...). Focused pass, peer-refute the self-check.
   ✅✅ MIGRATION DONE (2026-07-07, rak4630-fw 851fdc0): whole platform migrated embassy git→0.7-family crates.io.
   Core's cargo-VERIFIED set (80ebe9d) resolved the embassy-time split: embassy-nrf 0.7.0 / executor 0.9.1 (was my
   0.7 → the fix; 0.7 pulled old executor-timer-queue 0.1 pinning time 0.4) / time 0.5.1 / sync 0.7.2 / usb 0.5.1 /
