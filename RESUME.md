@@ -19,7 +19,13 @@
 - RULED OUT (prefetch): embassy timer-queue not-wired (default queue_integrated IS present via
   embassy-executor-timer-queue). If stage 7 confirmed → RTC1 irq vectoring/firing behind the MBR is the
   suspect (VTOR=0x26000 set in pre_init). Inspect the EXACT stage once the count lands - stop guessing.
-  (prior v5 note kept for history:) 1ad771a live-markers+HardFault, sha 322b2199.
+- 🔧 FLASH UPGRADE: supervisor installed adafruit-nrfutil on tuxedo → SERIAL DFU over /dev/ttyACM0
+  (reliable, headless, no drag/eject). I now emit a .zip too: tools/elf2hex.py (stdlib ELF->ihex, ef5c92a)
+  → genpkg --dev-type 0x0052 --sd-req 0xFFFE (accept-any, bare app) → out/r2-rak4630-diag.zip (sha add7988f,
+  vector table verified). diag-v6 artifacts: .zip (serial, primary) / .uf2 (drag fallback, d6e197c1) / .hex.
+  Serial cmd: adafruit-nrfutil dfu serial --package X.zip -p /dev/ttyACM0 -b 115200. See [[rak4630-uf2-firstlight]].
+- usbserial-for-text (angle): only helps if the count is 8+ (USB-CDC is embassy-async, only runs at the
+  first .await = stage 7; if the fault IS stage 7, USB never enumerates). So LED count first; usbserial if 8+.
 - IF stage 7: dig interrupt/VTOR/RTC1-behind-MBR (VTOR=0x26000 set in pre_init — verify effective; MBR irq
   forwarding w/ dormant SoftDevice = suspect). Platform/HAL = hive's. Possible: bootloader watchdog needs feeding.
 - ✅✅ APPROTECT fix (Debug::NotConfigured, f698d6e) CONFIRMED ON METAL: clean-flushed flash took (drive
