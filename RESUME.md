@@ -2,7 +2,19 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
-## 🛰️ RAK4630 FIRST-LIGHT — ✅ init passes; 2nd fault = RESET LOOP (not a panic) ~stage 7; reset-catching diag v5 out (task #44)
+## 🛰️ RAK4630 FIRST-LIGHT — 🟢 v6 SERIAL-DFU flash = N=0 (NO fault) = likely SUCCESS; usbserial-next for text (task #44)
+- 🟢 BREAKTHROUGH (2026-07-07): v6 flashed via SERIAL DFU (clean 'Device programmed', first CLEAN acknowledged
+  transfer) → Roy reads N=0 = ZERO blinks. v6 replay does LAST_STAGE.load().max(1), so ANY fault blinks >=1;
+  0 blinks = NEITHER panic NOR HardFault ran = NO fault = app ran past every stage CLEANLY.
+- ANGLE (c) — likely the whole 2nd-fault saga was a FLASHING ARTIFACT: every prior "fault" (stage 6/7 reset
+  loop) was flashed via BUFFERED DRAG (proven incomplete → corrupt/partial image → HardFault/reset). This is
+  the FIRST clean serial-DFU flash and it runs. The firmware was probably fine; the drag-writes were corrupt.
+- ONE DECIDER (Roy answering): DARK-OFF = Timer(1s) completed → idle service loop → SUCCESS + async WORKS;
+  SOLID-ON = hung at first Timer await → async/RTC-irq broken (the real issue). Success LED = 3 boot-blinks →
+  1s SOLID (configure ok) → dark idle.
+- NEXT (definitive): flash usbserial serial-DFU .zip (out/r2-rak4630-usbserial.zip, sha c0b75a0a) → /dev/ttyACM0
+  prints boot/configure(LoRa) ok/R2-BEACON = unambiguous first-light. All 3 diag/usbserial packages = .zip(serial)/
+  .uf2/.hex in out/. Serial-DFU is the reliable path now (adafruit-nrfutil, see [[rak4630-uf2-firstlight]]).
 - 🔴 UPDATE: the 2nd fault is a RESET LOOP (~10-15s, bootloader device# climbs 22->23): app runs past init
   (fix good) then FAULTS+RESETS cyclically. So it's a RESET (HardFault-class OR hang+watchdog), NOT a Rust
   panic — the panic latch-replay can't catch it (why the "6" read was unstable).
