@@ -16,10 +16,21 @@
   = Roy's "show me the internal TN working" fully delivered: full TN stack instantiated + queryable on-metal.
   FIRST LIGHT PROVEN THREE WAYS (N=0 clean run + beacon text + TN dump). LOCAL physical-access diag (#30-class),
   NOT #41 on-mesh. Capture needs pyserial (DTR); printf/cat alone don't assert DTR. Findings [[rak4630-uf2-firstlight]].
-- MILESTONE BANKED. Supervisor stood down on the RAK bring-up thread. task #44 first-light DONE. OPTIONAL NEXT
-  (Roy's call): 2-node LoRa test (2nd RAK/DFR board) → would show neighbours>0/routes>0 in the same dump = live
-  discovery on-metal. Beyond that, #44's remaining scope = the repeater RELAY build (io_task → r2_dataplane
-  relay-append, task #32 seam). No new build owed until Roy picks the next step.
+- MILESTONE BANKED. Supervisor stood down on the RAK bring-up thread. task #44 first-light DONE. Repeater RELAY
+  build HELD (Roy has only ONE LoRa board at work → 2-node relay blocked). OPTIONAL later: 2-node LoRa test →
+  neighbours>0/routes>0 in the same dump. #44 remaining = repeater relay (io_task → r2_dataplane, task #32 seam).
+- 🔵 BLE-OTA SCOPE (Roy wants single-board OTA-over-Bluetooth de-risk; supervisor asked, I VERIFIED the repo
+  2026-07-07): (1) RAK firmware has ZERO BLE RUNTIME today — grep src/ = only the R2-BEACON advert CODEC
+  (main.rs:557 'Phase 2 hands the bytes to the BLE advertiser; the spike logs the size'). So 'advert encoded
+  (30 B)' = bytes produced, NOT a BLE packet radiated. Only LoRa + USB-CDC are live. (2) R2-native BLE-L2CAP-CoC
+  OTA receiver = NOT built; ARCHITECTURE.md §5 = inc-2 (nrf-sdc + trouble-host, pure-Rust host), GATED on core
+  vendored-set move 41adbd1. (3) OTA APPLY backend (ImageSink/FlashSink dual-bank) also NOT built — described in
+  ARCHITECTURE.md §2.1 only, no src/ impl. (4) ESP32 BLE-OTA (#18/#19) does NOT transfer (diff chip/host; only
+  R2 protocol layers above are shared). SO: no quick R2-native BLE-OTA on this board. Only bluetooth path that
+  works TODAY = stock Nordic BLE-DFU (phone app → resident S140 6.1.1 + Adafruit bootloader), which ARCH §1
+  DELIBERATELY REJECTS (auth outside R2 = sovereignty bypass) — usable ONLY as a throwaway 'BLE physically
+  reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
+  mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 - (superseded diagnostic saga below — reset-loop hypotheses, N-count diag iterations — all RESOLVED by the
   confirmation above; kept only as provenance, safe to prune on next rotation.)
 - 🔴 UPDATE: the 2nd fault is a RESET LOOP (~10-15s, bootloader device# climbs 22->23): app runs past init
