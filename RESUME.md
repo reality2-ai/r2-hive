@@ -12,9 +12,12 @@
 - ONE DECIDER (Roy answering): DARK-OFF = Timer(1s) completed → idle service loop → SUCCESS + async WORKS;
   SOLID-ON = hung at first Timer await → async/RTC-irq broken (the real issue). Success LED = 3 boot-blinks →
   1s SOLID (configure ok) → dark idle.
-- NEXT (definitive): flash usbserial serial-DFU .zip (out/r2-rak4630-usbserial.zip, sha c0b75a0a) → /dev/ttyACM0
-  prints boot/configure(LoRa) ok/R2-BEACON = unambiguous first-light. All 3 diag/usbserial packages = .zip(serial)/
-  .uf2/.hex in out/. Serial-DFU is the reliable path now (adafruit-nrfutil, see [[rak4630-uf2-firstlight]]).
+- NEXT (definitive): flash usbserial serial-DFU .zip (out/r2-rak4630-usbserial.zip, sha a03c37b4, dc27535 —
+  now with the CDC DEV-QUERY). /dev/ttyACM0: boot/configure(LoRa) ok/R2-BEACON = first-light. NEW: a ~5s
+  'alive t=Ns neighbours=N' heartbeat (capture never empty) + a QUERY — send ANY byte (printf t > /dev/ttyACM0)
+  → dumps live TN tables (node/mode/tg/group/duty/neighbours/routes/per-nb). LOCAL physical-access diag
+  (#30-class), NOT #41 on-mesh. Lone board = neighbours=0 routes=0 but proves stack instantiated+queryable.
+  Serial-DFU reliable path (adafruit-nrfutil + tools/elf2hex.py, see [[rak4630-uf2-firstlight]]).
 - 🔴 UPDATE: the 2nd fault is a RESET LOOP (~10-15s, bootloader device# climbs 22->23): app runs past init
   (fix good) then FAULTS+RESETS cyclically. So it's a RESET (HardFault-class OR hang+watchdog), NOT a Rust
   panic — the panic latch-replay can't catch it (why the "6" read was unstable).
