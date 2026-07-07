@@ -70,14 +70,18 @@
   --name default 'r2-hive' main.rs:125); ensemble.rs:492/500 broadcast uses it; ONLY one self_hive_id assignment in
   the crate; derive_hive_id + its v4 UUID have ZERO hive consumers (identity.rs:38 re-exports TYPES only). So v4→RAW
   can't change hive's wire id = de-dup SAFE, no migration. I re-vendor behind the pin after core's push.
-- 🐛 REAL hive_id DRIFT FOUND (core+android are hunting it; it lands HERE, worse than B) — needs specs/Roy ruling:
-  hive's WIRE hive_id is NAME-derived (FNV of --name), NOT master_secret+tg-derived per R2-WIRE §6.2.1 ('everything
-  on-wire is derived from device_master_secret + trust_group_id'). Two consequences: (1) even post-de-dup hive won't
-  match a canon node's KS1-derived wire id (hive uses NEITHER derive path); (2) default name 'r2-hive' → every
-  out-of-box hive COLLIDES on one wire id on a shared mesh. RULING NEEDED: is the wire hive_id (a) self-declared
-  (name OK, just fix the default collision) or (b) MUST be FNV(r2_trust::hkdf raw UUID) per §6.2.1 (then hive is
-  non-conformant → self_hive_id switches to FNV(hkdf raw) = MIGRATION + Roy heads-up). HIVE-OWNED fix, gated on the
-  ruling, SEPARATE from core's de-dup (do not couple). Flagged core + supervisor pair. → task #57.
+- 🐛→⚖️ hive_id DRIFT — RULING LANDED (specs R2-WIRE v0.42 §6.2.1, 2026-07-07): my FNV(name) hive_id is
+  NON-CONFORMANT. Canon = FNV-1a-32( UUID-format( HKDF("r2-hive-id-v1", master, tg)[0:16] ) ) =
+  r2_trust::hkdf::derive_hive_id(master, tg).1. 3 problems: addressing divergence + default-'r2-hive' collision +
+  name-on-wire = cross-TG LINKABILITY handle (same class as the device_id leak just removed). = task #57 (now
+  IN-PROGRESS, my fix). DESIGN = PER-TG (not core's single-tg one-liner): verified hive is MULTI-TG (hive.rs:255
+  group_hmacs HashMap<u32,GroupHmac> per-TG), master in DaemonState (state.rs:53), self_hive_id = ONE global
+  FNV(name) @main.rs:367 used as ensemble originator + dedup self-check (ensemble.rs:472/492/500). FIX = thread
+  master into HiveState + cached hive_id_for_tg(X)=derive_hive_id(master,X).1 + swap the ensemble call-sites (NOT
+  just main.rs). Migration: ids change; pre-1.0 dev = re-derive next boot; TG nodes re-derive together. SECURITY-
+  RELEVANT (dedup self-check) → implement carefully + PEER-REFUTE before done. Flagged core the per-TG shape
+  (awaiting their confirm it's the intended §6.2.1 read). core de-dup (95eee98) gives the fn; the HiveState/ensemble
+  switch is my half. NEXT ACTION when I resume this.
 - ✅ AUTH-FREE §3.2 SHIPPED (r2-hive 99b336a, task #56 DONE): specs landed v0.11 (441a94b); I dropped
   compat/handshake.rs + protocol.rs to the auth-free path. Connection = version-3 SUBSCRIBE {version, trust_group,
   timestamp} — no device_id/signature/challenge. Ephemeral per-connection handle (next_conn_handle) replaces
