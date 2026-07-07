@@ -2,7 +2,26 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
+## 🔴 PUBLIC-LEAK HARD-GATE CLEARED (2026-07-07) — pilot-site name scrubbed from public main
+- **Roy HARD-GATE:** public r2-hive default branch (main) HEAD had the bare pilot-site name live on GitHub
+  (LORA-FIRSTLIGHT.json + ~10 more files) — my platform-trait scrub never reached public main. **CLEARED:**
+  pushed **main fdfc4bd..c48eb1c** (commit **c48eb1c**), surgical IN-PLACE scrub of 11 files (RESUME.md,
+  dfr1195-firstlight.patch, HEARTBEAT-SIMPLIFICATION.md + 8 field-results) with the reviewed platform-trait
+  convention (the place-name + TG-name string → pilot-site; the two te-reo terms → site / guardian). Pure
+  substitution (36/36 symmetric); JSON re-validated; public-content-hygiene gate + macron sweep pass. VERIFIED
+  from ground truth: git grep origin/main (whole tree) after push = ZERO non-allowlisted hits. ALLOWLIST
+  preserved: the wairoa_as923_nz + wairoa.reading code identifiers (Roy's pending identifier ruling). **DO-NOT-ASSUME / open items:**
+  (1) public **main is 584 commits BEHIND platform-trait** (main ⊆ platform-trait); I did a surgical scrub NOT
+  a fast-forward — advancing/curating main is Roy's/supervisor's call (flagged). This scrub DIVERGES main from
+  platform-trait by 1 commit (future reconcile = merge not ff). (2) root cause: CI hygiene gate is NOT on main +
+  CI billing-blocked → no push-guard. (3) Roy still to rule whether wairoa_as923_nz/wairoa.reading get renamed.
+
 ## 🟢 LATEST (2026-07-07 pm) — #40 weak-trail acceptance LOCKED + LED reconcile #59 + trail-triage #60
+- **§4.6 SETTLED (b66f887, R2-ROUTE v0.64):** reply-retrace + recorded-successor strengthening only, overheard-TX
+  reinforcement REMOVED, viability-aware selection required; R2-WIRE §8.5 route-stack append now load-bearing MUST
+  (v0.35). → **#60 UNBLOCKED** (the fused-path trail behaviour is now stable to converge onto). Core acked #40 as
+  "a no-op that regresses" (matches my disposition). Core's LED 281461f adversarial pass (polarity/panic-disable/30Hz)
+  is QUEUED (not yet returned) → keep #59 held pending it + Roy's metal read.
 - **task #40 (§4.3.4 weak-trail in wasm) — RE-VERIFIED + acceptance LOCKED (NOT a bump).** Core/supervisor
   relayed a "proceed with #40 wasm bump to 572650e/ace0d6d/7ac5e1f" ACTION. Ground truth REFUTED the bump: the
   wasm pin **41adbd1 already CONTAINS all three** (merge-base(41adbd1,7ac5e1f)=7ac5e1f → 7ac5e1f is OLDER; all
