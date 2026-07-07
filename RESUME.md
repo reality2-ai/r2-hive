@@ -33,9 +33,8 @@
   can't build fw) from dfr1195-fw HEAD 9631761 (has coex; newer than 29e250cf → distinguishable), version-mark =
   R2_BUILD_ID env at build (the OTA-landed verifier), composer signs (seq-based anti-rollback set at sign-time).
   ESCALATED to supervisor (fleet firmware/key GATE fired → do NOT auto-run). Supervisor CLEARED 2 of 3 inputs:
-  (1) SOURCE = dfr1195-fw HEAD 9631761 (confirmed) — BUT HEAD SINCE MOVED to b807bb5 (latent BLE-scanner fix,
-  dead-code so runtime-equivalent); flagged supervisor 9631761-exact vs b807bb5-latest (I lean b807bb5);
-  (2) R2_BUILD_ID = coex-9631761 (or coex-b807bb5 if HEAD used). STILL HELD on: (3) WiFi STA creds (Roy-only secret — points me at an Alfred wifi_config.toml
+  (1) SOURCE = dfr1195-fw **b807bb5** (supervisor ENDORSED HEAD-with-audited-fix over the stale 9631761 pin; verified
+  delta = the one scanner-fix commit, +8/-2); (2) R2_BUILD_ID = **coex-b807bb5**. STILL HELD on: (3) WiFi STA creds (Roy-only secret — points me at an Alfred wifi_config.toml
   OR drops creds into a file I read; NEVER over fleet) + Roy's #49 GO. Do NOT compile/produce until both land. esp
   toolchain IS on this box (rustup esp + xtensa). When both in: build coex app.bin → verify coex+build-id → hand
   composer path+sha → composer signs (anti-rollback SEQ). Dry-run framing-proof stays fine with cb87c8aa meanwhile.
