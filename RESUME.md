@@ -19,6 +19,16 @@
 - MILESTONE BANKED. Supervisor stood down on the RAK bring-up thread. task #44 first-light DONE. Repeater RELAY
   build HELD (Roy has only ONE LoRa board at work → 2-node relay blocked). OPTIONAL later: 2-node LoRa test →
   neighbours>0/routes>0 in the same dump. #44 remaining = repeater relay (io_task → r2_dataplane, task #32 seam).
+- 🟢 HEARTBEAT-LED SENTANT SHIPPED (Roy's ask; rak4630-fw b1870f7, pushed): idle LED was DARK so alive/dead
+  looked identical. Added a dev-only heartbeat sentant — brief ~50ms green pulse every ~1.5s, visually distinct
+  from every other LED state (boot 3-blink / configure-ack 1s solid / recv 400ms flash / FAILED 1Hz / panic
+  strobe / diag replay). Plugin+sentant at the SHAPE level (struct HeartbeatLed = state; .tick() = behaviour,
+  driven by the service-loop-as-EventBus) — honest: NOT a runtime-registered sentant (that's #21), re-homes when
+  #21 lands. YIELDS to the recv-flash (traffic legibility > idle, task #33). Non-blocking (off-deadline like
+  flash_off, never awaits). dev-gated → prod --no-default-features STRIPS it (R2-BUILDMODE §6, verified). =
+  task #34 realized on RAK. All 4 variants build green. Artifacts regen'd: out/r2-rak4630-usbserial.{uf2,hex}
+  (52936 B, vec MSP 0x20040000/reset 0x26101/LMA 0x26000) + diag.{uf2,hex}. adafruit-nrfutil NOT on this host →
+  supervisor runs genpkg + serial-DFU on tuxedo. VERIFICATION = Roy eyeballs the pulse on-metal (the refutation).
 - 🔵 BLE-OTA SCOPE (Roy wants single-board OTA-over-Bluetooth de-risk; supervisor asked, I VERIFIED the repo
   2026-07-07): (1) RAK firmware has ZERO BLE RUNTIME today — grep src/ = only the R2-BEACON advert CODEC
   (main.rs:557 'Phase 2 hands the bytes to the BLE advertiser; the spike logs the size'). So 'advert encoded
