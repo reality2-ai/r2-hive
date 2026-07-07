@@ -42,46 +42,30 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
-## 🔀 SEAM: §3.2 RELAY-HANDSHAKE + KS1 EXTRACT — ✅ CONVERGED: r2-keystore-both (2026-07-07); I re-point in Phase 2
-- ✅ HOME CONVERGED = r2-keystore-both (handshake + KS1), UNANIMOUS. My authn/authz argument WON it — specs is
-  re-anchoring 2ad5abf onto my exact reasoning; core + supervisor aligned. My condition-(a) refinement (engine owns
-  ONLY signed-msg construction + Ed25519 verify + timestamp-window + nonce-lifecycle, FRAMING-AGNOSTIC, expose BOTH
-  server+client roles) is RELAYED TO CORE AS THE IMPL CONTRACT.
-- ▶️ SEQUENCE NOW: core does the ADDITIVE Phase-1 (extract r2-hive-core::identity verbatim + build the r2-keystore
-  engine, r2-hive-core deps r2-keystore → I'm UNAFFECTED) → core sends the grep-map HEADS-UP before any breaking
-  push → HIVE PHASE-2 RE-POINT = my next action (drop the compat crypto core, KEEP my WS/JSON/TG-resolution glue,
-  consume the shared engine, re-vendor for fw behind the pin). DO NOT re-point until core's heads-up lands.
-- 🗳️ (rationale of record) owner-vote = r2-keystore, on a PRINCIPLE (authentication vs authorization), verified vs my impl
-  (r2-hive-bin/src/compat/handshake.rs): the §3.2 handshake AUTHENTICATES (proves possession of the Ed25519
-  DEV_SK via nonce challenge-response) — it does NOT AUTHORIZE (never checks TG membership/cert/group state; tg is
-  a STRING in the signed msg; membership resolution happens AFTER verify = hive glue, stays with me). So
-  r2-keystore = identity (KS1 derive + proof-of-possession = handshake); r2-trust = what that identity may DO
-  (TG/cert/group/GroupHmac). Handshake sits on the authn boundary, one layer BELOW trust. Dep-direction seals it:
-  identity is the BOTTOM of the stack, trust CONSUMES it (r2-trust deps r2-keystore, never reverse) — home it in
-  r2-trust and EVERY authenticator (phone/android/composer/RAK-DFR fw) must dep the whole cert/group machinery
-  just for a challenge-response. Refute of the likely specs rationale: a relay handshake FEELS like trust because
-  it gates TG entry, but entry = authenticate (handshake) THEN authorize (membership); only the first is in §3.2.
-- ✅ HOME (core's proposal, I concur, verified vs my impl): a NEW thin r2-keystore crate
-  (no_std+alloc, crypto-only deps) — NOT r2-trust (certs/group-mgmt = too heavy for a KDF+handshake consumer),
-  NOT r2-hive-core (drags engine/update/route). core extracts r2-hive-core::identity VERBATIM (byte-identical, no
-  wire change) into r2-keystore; r2-hive-core then deps r2-keystore → HIVE UNAFFECTED until I re-point.
-- ✅ HANDSHAKE HOME = r2-keystore AGREED. I verified core's framing vs r2-hive-bin/src/compat/handshake.rs: the
-  §3.2 crypto core IS pure prove-possession-of-DEV_SK (v0.2 = issue nonce, Ed25519-verify sig over
-  nonce:tg:device_id:timestamp; v0.1 = no-nonce legacy). NO session-key derivation, NO cert chain, NO group STATE
-  (tg is a STRING in the signed msg; TG RESOLUTION happens AFTER verify = hive glue, STAYS with me). identity +
-  proof-of-possession share DEV_SK + Ed25519 = high cohesion → co-location correct + a security plus (all
-  identity-crypto in one small vector-locked auditable crate).
-- 🔑 MY LOAD-BEARING REFINEMENT to cond (a): shared engine owns ONLY the security-critical canonical bytes
-  (signed-msg construction + Ed25519 verify + timestamp-window + nonce lifecycle), FRAMING-AGNOSTIC — JSON/CBOR
-  envelope + socket IO stay per-consumer. That keeps r2-keystore serde/transport-free (thin) AND is what makes it
-  byte-identical (drift today = each impl rebuilding the signed-msg string differently → put THAT one construction
-  in the vector-locked engine). Corollary: engine exposes BOTH roles — relay/server (issue+verify, my compat
-  today) AND device/client (sign challenge, what RAK/DFR fw + phone need when JOINING a relay).
-- SEQUENCE: specs anchors §3.2 + KS1 at r2-keystore → core extracts identity + lifts handshake engine (both roles),
-  vector-locks on b5cbba2 → HIVE RE-POINTS (drop the compat crypto core, KEEP my WS/JSON/TG-resolution glue). MY
-  next action = the re-point, AFTER core lands it + heads-up (NOT before). 3 conditions ratified as the contract
-  (no_std/sans-IO/alloc-optional; vector-locked b5cbba2; vendored-pin + grep-map heads-up before breaking push —
-  core told to warn me before it bites my path-dep, [[shared-checkout-path-dep-coupling]]). No M1 block.
+## 🔀 SEAM: §3.2 RELAY-HANDSHAKE + KS1 EXTRACT — ✅ FINAL: r2-trust (2026-07-07); I re-point in Phase 2
+- ✅ HOME = r2-trust, FINAL + unanimous. relay_handshake joins the KS1 family already in r2-trust::hkdf. My
+  earlier r2-keystore vote FLIPPED on ground truth I verified myself (honest update, not rubber-stamp): r2-trust::
+  hkdf ALREADY houses KS1 (derive_group_keys@55, derive_hive_id@120, derive_mesh_key@148, device_id_selector@166,
+  vector-locked to specs KS1 key-schedule, composer-byte-exact + android-consumed), AND firmware+everyone already
+  deps r2-trust (GroupHmac/§7.5.4). So my ONE load-bearing premise (r2-keystore saves dep-weight) is FALSE — the
+  weight is already paid; a new crate would MIGRATE working vector-locked code = churn + re-vector risk for ZERO
+  saving. By my own line (behaviour identical → optimize the dep-graph), the dep-graph points r2-trust; and cohesion
+  now points there too (the handshake proves the device_id SK; the device_id/mesh split already lives in hkdf).
+- WHAT SURVIVES: (1) authn/authz principle stays, as INTRA-crate structure — relay_handshake = the AUTHN sub-surface
+  of r2-trust (identity: derive key + prove possession), sans-IO + feature-light, distinct from the AUTHZ surface
+  (certs/group-mgmt/GroupHmac). Same principle, no migration. (2) My cond-(a) refinement is HOME-INDEPENDENT + still
+  the impl contract: engine owns ONLY signed-msg construction + Ed25519 verify + timestamp-window + nonce-lifecycle,
+  FRAMING-AGNOSTIC (JSON/CBOR envelope + socket IO stay per-consumer), exposes BOTH server+client roles. (3) specs
+  keeps the device_id-SK-not-mesh_sk precision — handshake proves the STABLE first-firmware device_id key, NOT the
+  per-TG mesh_sk (r2-trust already enforces device_id-never-on-air; handshake must not blur it).
+- ▶️ SEQUENCE: core does the ADDITIVE Phase-1 (relay_handshake engine into r2-trust::hkdf's authn surface, both
+  roles, vector-locked; r2-hive-core deps it → I'm UNAFFECTED) → core sends grep-map HEADS-UP before any breaking
+  push → HIVE PHASE-2 RE-POINT = my next action (drop my compat crypto core in r2-hive-bin/src/compat/handshake.rs,
+  KEEP my WS/JSON/TG-resolution glue, consume the shared engine, re-vendor for fw behind the pin). DO NOT re-point
+  until core's heads-up lands. 3 conditions are the contract (no_std/sans-IO/alloc-optional; vector-locked b5cbba2;
+  vendored-pin + grep-map heads-up — core warns me before it bites my path-dep, [[shared-checkout-path-dep-coupling]]).
+  No M1 block. Verified vs my impl (compat/handshake.rs): handshake = pure prove-possession-of-device_id-SK
+  (v0.2 nonce challenge-response; v0.1 legacy), no session-key/cert/group-state in the crypto core.
 - (original position + reasoning below, kept as the rationale of record:)
 - Q from supervisor (android+core surfaced): §3.2 relay handshake was RULED to hive's compat driver, but
   android core-ffi now has a 2nd sans-IO impl + composer/phone need byte-identical = 3 drifting impls. Proposal:
