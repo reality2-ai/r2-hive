@@ -26,7 +26,14 @@
   esp toolchain IS on this box (rustup esp + xtensa). NO RUSH. Dry-run framing-proof stays fine with cb87c8aa.
 
 ## 🟢 LATEST (2026-07-07 pm) — #40 weak-trail acceptance LOCKED + LED reconcile #59 + trail-triage #60
-- **#59 LED reconcile — PEER-REFUTED + fixed; awaiting Roy's metal read only.** rak4630-fw HEAD now **e8b5cd6**
+- **#59 LED reconcile — ✅ COMPLETE (all loops CLOSED); only Roy's metal read remains.** specs ruled my strobe-vs-window
+  nit + landed **R2-INDICATOR v0.3 (c6290b8)** adopting my scope-the-window fix (transient envelopes reduce by own period)
+  → "your RAK firmware is conformant as-is", NO change. Core VERIFIED e8b5cd6, review loop CLOSED. Marked #59 done
+  (residual = Roy's metal read of polarity/panic-strobe, isolated + 1-line-fixable, not hive-controllable).
+- **#58 BLE 2a — FULLY UNBLOCKED:** core landed the BleHost contract (c845257, acted on all my review points) + PHY_BLE=0b100
+  ingress arm (eb4f6b6) for the 2c wire. Ready for my first advertise-only 2a cut whenever I flip r2-ble/binding on — a
+  focused joint-with-core on-metal pass (add nrf-sdc/mpsl/bt-hci, apply §8 partition, advertise R2-BEACON). FLASHING = Roy.
+- **#59 details (superseded above; kept for the artifact sha):** rak4630-fw HEAD now **e8b5cd6**
   (was 281461f). Core adversarial pass acted on: (F1) strobe 0.18s does NOT divide the 60s window → once/min
   OTA-strobe glitch → FIXED by reducing the strobe phase by its OWN period (STROBE_PERIOD_MS=180; heartbeat keeps
   the 60s lockstep window, 3.0s divides exactly); host-verified off-cadence edges old=2→new=0; §4 result byte-identical.
