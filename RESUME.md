@@ -42,12 +42,16 @@
   reaches the board' check, NOT the R2 path. HIGHER-VALUE single-board de-risk avail now = the OTA APPLY
   mechanism (ImageSink dual-bank verify→stage→bank-flip→boot-select), transport-AGNOSTIC, buildable WITHOUT BLE.
 
-## 🔀 SEAM: §3.2 RELAY-HANDSHAKE + KS1 EXTRACT — ⚖️ HOME CONTESTED (2026-07-07); my owner-vote = r2-keystore
-- ⚖️ HOME CONTESTED: specs BLESSED r2-trust::relay_handshake (2ad5abf); core + supervisor + ME favour r2-keystore.
-  NOBODY EXTRACTS until specs+core+hive agree ONE home. Extract itself (YES) + the 3 conditions are settled; only
-  the crate-HOME is open. KS1 → r2-keystore is NOT contested (settled). BEHAVIOUR identical either way (same §3.2
-  wire, same b5cbba2 vectors) — purely crate LAYERING, safe to optimize for the dep-graph.
-- 🗳️ MY OWNER-VOTE = r2-keystore, on a PRINCIPLE (authentication vs authorization), verified vs my impl
+## 🔀 SEAM: §3.2 RELAY-HANDSHAKE + KS1 EXTRACT — ✅ CONVERGED: r2-keystore-both (2026-07-07); I re-point in Phase 2
+- ✅ HOME CONVERGED = r2-keystore-both (handshake + KS1), UNANIMOUS. My authn/authz argument WON it — specs is
+  re-anchoring 2ad5abf onto my exact reasoning; core + supervisor aligned. My condition-(a) refinement (engine owns
+  ONLY signed-msg construction + Ed25519 verify + timestamp-window + nonce-lifecycle, FRAMING-AGNOSTIC, expose BOTH
+  server+client roles) is RELAYED TO CORE AS THE IMPL CONTRACT.
+- ▶️ SEQUENCE NOW: core does the ADDITIVE Phase-1 (extract r2-hive-core::identity verbatim + build the r2-keystore
+  engine, r2-hive-core deps r2-keystore → I'm UNAFFECTED) → core sends the grep-map HEADS-UP before any breaking
+  push → HIVE PHASE-2 RE-POINT = my next action (drop the compat crypto core, KEEP my WS/JSON/TG-resolution glue,
+  consume the shared engine, re-vendor for fw behind the pin). DO NOT re-point until core's heads-up lands.
+- 🗳️ (rationale of record) owner-vote = r2-keystore, on a PRINCIPLE (authentication vs authorization), verified vs my impl
   (r2-hive-bin/src/compat/handshake.rs): the §3.2 handshake AUTHENTICATES (proves possession of the Ed25519
   DEV_SK via nonce challenge-response) — it does NOT AUTHORIZE (never checks TG membership/cert/group state; tg is
   a STRING in the signed msg; membership resolution happens AFTER verify = hive glue, stays with me). So
