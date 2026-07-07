@@ -108,6 +108,11 @@
   mine + PENDING. WRINKLE to resolve first: derive_hive_id takes the tg_id STRING but the ensemble has ev.trust_group
   as a u32 WIRE HASH — so derive+cache at PROVISION time (main.rs:737, tg string known) keyed by u32, not on-demand.
   NEXT ACTION when I resume this (implement carefully + peer-refute; security-relevant dedup self-check).
+  LOCALIZED BLOCKER (2026-07-07, asked core): derive_hive_id uses info=tg_id STRING (HKDF salt=r2-hive-id-v1).
+  Need the CANONICAL tg_id string all TG members feed so hive matches DFR/composer. Hive's word-code join
+  (main.rs:737) gives a 'tg_hash' HEX string — is THAT the tg_id, or is tg_id separate + tg_hash=FNV(tg_id)?
+  Deriving with the wrong string reproduces the bug. AWAITING core. Once confirmed = mechanical per-TG refactor
+  (derive+cache hive_id_for_tg at membership-setup + thread master into HiveState + swap ensemble call-sites).
 - ✅ AUTH-FREE §3.2 SHIPPED (r2-hive 99b336a, task #56 DONE): specs landed v0.11 (441a94b); I dropped
   compat/handshake.rs + protocol.rs to the auth-free path. Connection = version-3 SUBSCRIBE {version, trust_group,
   timestamp} — no device_id/signature/challenge. Ephemeral per-connection handle (next_conn_handle) replaces
