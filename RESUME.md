@@ -2,6 +2,13 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
+## 🔦 RAK↔DFR R2 LoRa-mesh pair (2026-07-08, supervisor Roy-ruling) — DFR artifact built, topology call HELD
+- **RAK e8b5cd6 (calm-LED) ALREADY runs live LoRa RX/TX + R2-ROUTE relay** — no combined rebuild needed (4d69f5a Phase-2 event-RX is an ancestor). **BUT it is a KEYLESS REPEATER** (group=None, rak main.rs:535): relays+keepalives, delivers nothing, no TG membership.
+- **DFR LoRa-mesh artifact BUILT** (dfr1195-fw HEAD 61d5757; source 6792f98) `--features loraroute,loratcxo,dev` → ELF **sha256 c0a4e762…becba6d4** at platforms/dfr1195/target/xtensa-esp32s3-none-elf/release/r2-dfr1195. **loratcxo MANDATORY** (SX1262 PLL locks only w/ TCXO 1.8V; plain loraroute = RF-dark). Both call `r2_sx1262::as923_nz()` verbatim (916.8/BW125/SF12/CR45/sync 0x21) — PHY can't drift.
+- **2-board RAK↔DFR = cross-chip LoRa PHY + R2-ROUTE RELAY + mutual RX** (dev event-blip on both LEDs each RxDone) — **NOT two-way app delivery** (RAK keyless; DFR originates to absent dest f91c8911). Delivered-e2e needs supervisor's topology call: (a) RAK=relay-B between two demo-TG DFRs (loraroute default A→B→C, no RAK change, +1 DFR) or (b) rebuild RAK as demo-TG endpoint. **Confirmation + decision sent to supervisor (hop 4/50); HELD on reply.**
+- BLE-onto-RAK (Roy): acknowledged, sequenced AFTER the LoRa test; r2-ble already wired under RAK `ble` feature (a0feb69); 2b-2d gated on GREEN 2a. Not started.
+
+
 ## 🔴 PUBLIC-LEAK HARD-GATE CLEARED (2026-07-07) — pilot-site name scrubbed from public main
 - **Roy HARD-GATE:** public r2-hive default branch (main) HEAD had the bare pilot-site name live on GitHub
   (LORA-FIRSTLIGHT.json + ~10 more files) — my platform-trait scrub never reached public main. **CLEARED:**
