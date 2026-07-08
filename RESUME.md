@@ -16,6 +16,19 @@
   platform-trait by 1 commit (future reconcile = merge not ff). (2) root cause: CI hygiene gate is NOT on main +
   CI billing-blocked → no push-guard. (3) Roy still to rule whether wairoa_as923_nz/wairoa.reading get renamed.
 
+## 🟢 DFR1195 CALM-LED — R2-INDICATOR v0.2 ported (dfr1195-fw 6792f98), artifact reported for flash
+- Supervisor: apply the SAME calm signature to the DFR1195 (canonical cross-board), sequenced AFTER the RAK flash.
+  DONE (code): dfr1195-fw **6792f98** — `led_signature` module (heartbeat 20 BPM / strobe 0.18s via libm) + loop
+  rewrite to §7 priority Identify(solid) > Updating(OTA strobe) > Healthy(calm dim ~30% heartbeat), dev event-blip;
+  esp-hal LEDC on GPIO21, polarity-aware; supersedes the old OTA-breathe/no-idle-heartbeat scheme. Compiles clean
+  prod+dev. ARTIFACT (built on my box — xtensa gcc is in the rustup esp toolchain, add its bin to PATH: ~/.rustup/
+  toolchains/esp/xtensa-esp-elf/esp-15.2.0_20250920/xtensa-esp-elf/bin): ELF at platforms/dfr1195/target/xtensa-esp32s3-none-elf/release/r2-dfr1195,
+  **sha256 b4ddefa1b94548d589de47cef1a24aa4aaf81a15afd8e2ef1b93f7d303553d91**, built --features dev / R2_BUILD_ID=calm-6792f98 /
+  CREDS-LESS. Reported to supervisor (they copy+verify+write via the README esp32-s3 runner over ACM1). FLAGS: (1) creds-less
+  (LED renders regardless; WiFi mesh needs R2_WIFI creds from Roy → rebuild); (2) RAK↔DFR inter-device transport TBD (RAK=LoRa,
+  this DFR build=WiFi/ESP-NOW; confirm a common transport/feature). **OTA #49 pin note:** dfr1195-fw HEAD is now 6792f98
+  (= b807bb5 + calm-LED); the coex OTA payload was pinned coex-b807bb5 — re-confirm 6792f98-vs-b807bb5 at OTA build time.
+
 ## 🔴 D4 DELIVER-BLOCKED — I REFUTED the 0x14000-wipe (do NOT wipe; gates a Roy-only destructive op)
 - supervisor-codex proposed a Roy-only erase of the 0x14000 sector to fix D4 hmac_ok=false (despite provision-applied
   + hk-byte-verified). REFUTED against dfr1195-fw code (I own #42): 0x14000 IS the SINGLE credential slot
