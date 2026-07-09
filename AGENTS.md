@@ -3,6 +3,11 @@
 Normative operating contract for an agent working in r2-hive. (Running STATE lives in [RESUME.md](RESUME.md);
 live spec-vs-impl divergences in [FORKS.md](FORKS.md).)
 
+**Foundational architecture rulings are canon in [HIVE-ARCHITECTURE-CANON.md](docs/HIVE-ARCHITECTURE-CANON.md)** —
+read it before changing hive composition, beacon, or TG-identity behaviour (all-devices-run-core-TN-hive;
+device-composition layering; all-hives-dual-bearer-beacon; no-TG-less-device / no-group-None). It is the
+hive-side mirror of the spec canon; the spec remains authority.
+
 ## Role
 The **hive runtime + firmware** member of the R2 fleet. North-star: **ONE hive codebase usable everywhere** —
 Linux/cloud (std host binary), ESP32-S3/DFR1195 (no_std firmware), nRF54-LR2021 (no_std), wasm — built on
