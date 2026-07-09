@@ -63,6 +63,9 @@ libc = "0.2"
 tempfile = "3"
 tokio = { version = "1", features = ["full", "test-util"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+# gen_plugin_web_vectors example: Ed25519 signing to mint the R2-PLUGIN-WEB §4.2 KAT fixtures
+# (SigningKey::from_bytes — deterministic, no rng). Version pinned to match r2-hive-wasm (=2.1.1).
+ed25519-dalek = "=2.1.1"
 
 [features]
 # transport-udp is default-on so the stock Linux hive keeps its UDP-LAN bearer (runtime --lan);
