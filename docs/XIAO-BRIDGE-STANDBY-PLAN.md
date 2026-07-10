@@ -19,7 +19,13 @@ The **XIAO as the pure EDGE bridge only** (D4 → phone). Mid-mesh-transit (a br
 (D4) and one downstream sink (the phone), which is what makes SCF sizing tractable.
 
 ## 2. PATH 1 — SX1262 RX-duty-cycle + MCU light-sleep (fastest heat win, no phone-coupling)
-The primitive path 2 builds on. Three parts:
+The primitive path 2 builds on. **ARCHITECTURAL FINDING (2026-07-10, code-verified):** path-1 needs
+**TWO core-owned diffs**, not one — because `LoRaTransport` OWNS the radio + RX arming
+(`service()` re-issues continuous `listen()` at `new:61`/TxDone`:154`/RxTimeout`:166`), so firmware
+cannot duty-cycle RX by itself. Both authored as review-ready diffs in
+**docs/SX1262-SETRXDUTYCYCLE-DIFF-PROPOSAL.md** (handed core): Diff 1/2 = the `listen_duty_cycle`
+primitive; **Diff 3 = a duty-cycle MODE on `LoRaTransport`** (`rx_duty` policy None=continuous default
++ `set_rx_standby`/`set_rx_continuous`). Three firmware parts on top:
 - **(1a) Driver — add `SetRxDutyCycle` (0x94) to `r2-sx1262`** *(core-owned crate → author + hand
   core / core commits; flag spec-first N/A, it is an impl capability).* The SX1262 HW duty-cycle:
   `RX for rxPeriod → Sleep(warm) for sleepPeriod → auto-repeat`, DIO1 fires on preamble-detect /
