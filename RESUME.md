@@ -5,6 +5,26 @@
 ## 🛰 RAK SEALED-OTA (task #44 P3, Roy chose B=MCUboot) — write-half BUILT; anti-rollback seam HARDENED, §2/§3 HELD-not-RESOLVED
 Cross-repo pointer (full state: rak4630-fw platforms/rak4630/RAK-MCUBOOT-OTA-PLAN.md + RESUME). **✅ Fork-independent OTA write-half BUILT** (rak4630-fw a6a3526, `ota` feature; FlashSink impls r2_update ImageSink for nRF flash: begin/write/finalize_write-0xFF-pad/abort; activate()=fail-closed ActivateNotWired stub). r2-trust + r2-update re-vendored @core a83b167 (e6ca444, diligence-clean superset). **★ Anti-rollback = COMPOSED two-layer (r2_update signed seq AUTHORITATIVE + MCUboot boot-confirm backstop); HARDENED after a 2026-07-11 adversarial review (hive-codex + core-codex twin, both correct):** (1) STAGE-TIME EQUALITY GATE — core adding an additive `staged_rollback_value()` ImageSink hook my sink overrides (parse inactive-slot MCUboot metadata → core enforces == AppliedUpdate.seq in finish() before activate, fail-closed RollbackValueMismatch); NOT a build-trust promise; (2) SINGLE DERIVED FLOOR — current_seq_floor() DERIVES from the CONFIRMED slot (no non-atomic r2-mirror-write; confirm strictly before advance; boot-time max-reconcile if mirrored); (3) pending_seq() SWAP-STATE-AWARE; + crash-point KATs. **★ CONFIG GAP (hive-codex, correct): MCUBOOT_DOWNGRADE_PREVENTION needs OVERWRITE_ONLY, NOT swap — so with swap/revert the signed r2 seq is the SOLE floor (HW_ROLLBACK_PROT is a distinct security-counter path).** §2 flash map NOT ground-truthed (swap-move-vs-offset/scratch/trailer depend on config). **NEXT GATE: pin exact MCUboot version + swap algorithm + anti-rollback config BEFORE Roy approves the map or activate() is wired.** Core landing the hardened hook (I override when it lands; interim-gate inside activate()). Core raising R2-UPDATE §9.2 (bootloader value derived-from-seq) with specs.
 
+## 🧩 WASM HOST (r2-wasm-host, M3 / task #64) — ABI mechanism PROVEN, but NOT security-complete (c709 review 2026-07-11)
+hive-codex + supervisor-codex adversarial review (both correct) — do NOT record this workstream
+security-complete: the M3 mechanism (byte-exact ABI conformance, [[wasm-host-linkable-base]]) is
+proven, but the HOST is **signature-TODO + UNMETERED**. Confirmed gaps: (1) src/lib.rs L22-25 signed-
+envelope gate is a TODO — the __r2_abi_hash load-gate calls UNVERIFIED guest scratch funcs; must parse
+SIGNED custom-section metadata PRE-instantiate, structurally reject start/unapproved-imports/excessive-
+memory, THEN instantiate. (2) src/lib.rs L179-201 = Engine::default + Store<()> with NO fuel/epoch/
+ResourceLimiter → no CPU/mem/event/log DoS bound; need HostContext(Clock/Rng/Log deterministic) +
+per-call fuel/deadline + memory/table/instance limits + output/emit/log quotas + trap containment. (3)
+capability authz absent: plugin.toml capabilities.requires is a DEPENDENCY DECLARATION (R2-PLUGIN §12.3),
+NOT authorization — broker must gate declared ∩ signed-envelope-authorized ∩ device-available ∩ policy.
+(4) ptr+len = a distinct **Wasm ABI projection**, NOT repr(C) (M1 @73af517's native L3 vtable does NOT
+unblock the L2 Wasm ABI — keep the spike on named exports + checked i32/offsets; don't bind prod host to
+PluginVTableV1; await specs split). (5) the final TG/authority gate + Plugin trampoline are ABI-bound →
+keep provisional WAT test-private + the prod Rust wrapper GATED; expose only an abstract EnvelopeVerifier
+→ VerifiedModule until the UpdateHeader v3 envelope lands. (6) browser nested-guest needs a real JS
+WebAssembly-API Worker spike (existing r2-hive-wasm glue is NOT proof). **Signed provenance does NOT
+neutralise buggy/compromised modules — the mechanics spike MUST falsify loop/trap/import-at-hash +
+allocation-bomb modules before any untrusted use.** Do NOT auto-start hardening; Roy-gated next phase.
+
 ## 🔥 XIAO EDGE-BRIDGE POWER-STANDBY (heat fix, task #65) — ✅ FLASHABLE + STAGED on alfred, Roy-OPERATOR-gated (radio RX-duty-cycle only; MCU light-sleep deferred)
 Roy: the XIAO edge bridge runs hot. **PLAN: docs/XIAO-BRIDGE-STANDBY-PLAN.md (updated 803ad66).** Root cause GROUND-TRUTHED vs LIVE dfr1195-fw 8022c2e: SX1262 CONTINUOUS RX (SetRx RX_CONTINUOUS, r2-sx1262:800) = always-hot; STEP-4 duty-cycle NOT landed (advertised-not-enforced main.rs:388/1288/2816).
 - **PATH 1 (fastest heat win, no phone-coupling):** (1a) add SetRxDutyCycle 0x94 to r2-sx1262 [⚠ CORE-OWNED crate — author + hand core]; (1b) lora_route_task RX-duty-cycle not continuous listen(), OFF-BY-DEFAULT `standby` feature; (1c) MCU light-sleep between DIO1 wakes (esp-hal light_sleep, DIO1+USB-resume wake). **PATH 2 (phone-coupled, separable):** phone-gone (USB-suspend/BLE-disc/app-closed)→Intermittent+deeper sleep; wake on USB-resume/beacon. **SCOPE: XIAO pure EDGE bridge (D4→phone) only; mid-mesh-transit OUT.**
