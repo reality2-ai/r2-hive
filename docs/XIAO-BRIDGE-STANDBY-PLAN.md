@@ -56,8 +56,17 @@ a HARD miss). Current firmware = **3 ms rx / 5 ms sleep = 8 ms cycle**; SF7/BW12
 - **On a high miss-rate, two knobs (core's lean = (b) FIRST):** (a) bump rxPeriod → more detect
   margin but costs idle power (erodes the heat-fix); **(b) lengthen TX-side preamble to 12–16 symbols**
   → costs a little airtime, widens the window for the `cycle ≤ preamble` rule, and helps EVERY
-  receiver + SF12. Prefer (b) before touching rxPeriod. (TX preamble = `as923_nz().preamble_len`,
-  currently 8 — a mesh-wide change: both TX + every RX, so deliberate, post-bench.)
+  receiver + SF12. Prefer (b) before touching rxPeriod.
+  - **⚠ (b) is a CORE-OWNED canonical profile change, NOT a firmware-local edit** (core clarified).
+    `LoRaConfig.preamble_len: u16` is a clean config field applied to BOTH TX (SetPacketParams @
+    configure) and RX-rearm, so TX/RX stay consistent per-node by construction — but it's part of the
+    KAT-locked profile (`as923_nz` / benchsf7), the anti-mutual-deafness single-source-of-truth. A
+    per-node override would risk ASYMMETRIC mesh deafness (short-preamble TX vs long-preamble RX
+    detector = the exact drift the profile-lock prevents). **Workflow:** bench miss-rate high → I ping
+    core → **core** lands the `preamble_len` bump on the canonical profile + EXTENDS the profile-lock
+    KAT to also assert `preamble_len` (it does NOT today ⇒ a preamble drift would be silent; core is
+    closing that gap) → **I re-vendor** the bumped profile. Rollout MUST be uniform (mixed longer-RX /
+    shorter-TX is asymmetric), so it's one coordinated core land re-vendored everywhere.
 - **★ SF12 re-size (quantified — do NOT carry 3/5 to SF12):** SF12/BW125 8-symbol preamble = **262 ms**
   = the SX1262 `sleepPeriod` cap (24-bit × 15.625 µs). So at SF12 the *max* sleep alone already
   meets/exceeds the default preamble — you can't run a long sleep AND an 8-sym preamble under
