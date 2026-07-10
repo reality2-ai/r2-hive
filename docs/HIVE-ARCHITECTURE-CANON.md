@@ -63,15 +63,20 @@ hardware for** (LoRa §8.1 beacon if it has a LoRa radio, BLE R2-BEACON if it ha
 **Heartbeat is not a beacon**: the HB is liveness/relay (origin-only), MUST NOT be substituted
 for a discovery beacon (R2-BEACON §3.3).
 
-**Where in hive code (ground-truth verified):**
-- LoRa §8.1 discovery beacon: `dfr1195/src/main.rs::build_lora_beacon` (15/17B
-  `[0xB2][ver][flags][rbid8][class_hash BE][tx_power][build_class]`), emitted from
-  `lora_route_task`. rbid = `compute_rbid(session_key, epoch)` — REQUIRES TG key material (§4).
-- BLE R2-BEACON: `rak4630/src/main.rs` `ExtendedBeacon`/`build_legacy_beacon` (the advert codec;
-  radiate is inc-2a, task #58).
-- Heartbeat (distinct): `poll_keepalive` (r2-dataplane) — origin-attribution liveness, **not**
-  a discovery beacon. The RAK reconciliation (2026-07-10) confirmed the RAK emits only a
-  keepalive HB today; a real §8.1 beacon requires TG membership (§4).
+**Where in code (ground-truth verified).** NOTE: `build_lora_beacon` lives in the **firmware
+repos** (`dfr1195-fw`, `rak4630-fw` — separate r2-core worktrees), NOT in this r2-hive tree; the
+paths below are repo-qualified:
+- LoRa §8.1 discovery beacon: `build_lora_beacon` (15/17B
+  `[0xB2][ver][flags][rbid8][class_hash BE][tx_power][build_class]`) in
+  `dfr1195-fw/platforms/dfr1195/src/main.rs` (emitted from `lora_route_task`) and — as of the
+  2026-07-10 demomember bake (`rak4630-fw` e4e8334) — `rak4630-fw/platforms/rak4630/src/main.rs`
+  (emitted from the beacon block, `demomember`-gated). rbid = `compute_rbid(session_key, epoch)` —
+  REQUIRES TG key material (§4).
+- BLE R2-BEACON: `rak4630-fw/platforms/rak4630/src/main.rs` `ExtendedBeacon`/`build_legacy_beacon`
+  (the advert codec; radiate is inc-2a, task #58).
+- Heartbeat (distinct): `poll_keepalive` (`r2-dataplane`) — origin-attribution liveness, **not**
+  a discovery beacon. The RAK reconciliation (2026-07-10) confirmed the *bring-up* RAK emits only a
+  keepalive HB; the **demomember** RAK (§4) is now a real TG member emitting a real §8.1 beacon.
 
 **Commitment:** the beacon codec is per-bearer but the *discovery contract* is uniform; the
 XIAO USB bridge forwards LoRa beacon-sightings (transport-local `0xA1` wrapper, raw beacon
@@ -81,13 +86,30 @@ verbatim) as an unauthenticated **presence signpost**, never a passport.
 
 **Canon (R2-TRUST v0.40 §2.3; R2-PROVISION v0.30):** there is **no TG-less device and no
 `group = None`**. Every device is **always** in a Trust-Group — at minimum a **singleton
-TG-of-one** it self-generates at birth (real self-generated `hk` from birth: TG_PK/TG_SK →
-`tg_id` (R2-WIRE §6.2.1) → group HK; NOT a placeholder). A device **proximity-enrols to the
-area TG** (on the bench = the demo TG `0xF305FE07`); enrolment is a **re-persona** (identity
-replacement: wipe the singleton material, join the area TG, adopt its identity whole — groups
-do NOT merge, it is not a re-key). The **relay function is auth-free below-L5** (a node relays
-any TG's frames without membership) — this is **NOT** the same as device identity, which is
-always TG-anchored.
+TG-of-one** it self-generates at birth (real key material from birth, NOT a placeholder).
+
+**Birth derivation** (corrected 2026-07-10 per specs-codex; each step ground-truth-verified in
+`r2-trust`). The earlier draft wrongly chained HK *through* `tg_id` — HK and `tg_id` are two
+**separate** derivations off the TG keypair, they do not chain:
+- generate the TG keypair `TG_SK`/`TG_PK`, then `derive_group_keys(TG_SK)` → **DEK + HK**
+  (R2-TRUST §3.1; `r2-trust/src/hkdf.rs:55`, `lib.rs:13`). HK is derived from the TG **secret**,
+  **NOT** through `tg_id`.
+- `TG_PK` → **`tg_id`** (R2-WIRE §6.2.1) — a *separate* path from the HK derivation.
+- self-issue a **key-holder certificate** (`r2-trust/src/cert.rs::issue` signed by `TG_SK`;
+  `lifecycle.rs:95` "self-issues a key-holder certificate"). **Membership ⟺ a valid cert**, so a
+  singleton is a genuine member (its own key-holder), not a keyless node.
+- device identity: `device_master_secret + tg_id` → **`hive_id`** (`derive_hive_id`, HKDF label
+  `r2-hive-id-v1`) and the TG-scoped on-air **`mesh_sk`/`mesh_pk`** (`derive_mesh_key`, label
+  `r2-dev-key-v1`) — both per-TG, so a different TG yields an unlinkable identity (R2-WIRE §6.2.2).
+- beacon RBID: `session_key = HKDF-Expand(PRK=HK, info="r2-beacon-rbid-v1" ‖ hive_id_be32, L=16)`
+  → `rbid = HMAC(session_key, epoch_be64)[:8]` (`r2-discovery/src/beacon.rs`). The RBID keys off
+  **HK** (group) + **hive_id** (per-member) — a TG peer holding HK resolves it, a stranger cannot.
+
+A device **proximity-enrols to the area TG** (on the bench = the demo TG `0xF305FE07`); enrolment
+is a **re-persona** (identity replacement: wipe the singleton material, join the area TG, adopt its
+identity whole — groups do NOT merge, it is not a re-key). The **relay function is auth-free
+below-L5** (a node relays any TG's frames without membership) — this is **NOT** the same as device
+identity, which is always TG-anchored.
 
 Deliver-gate (R2-TRUST §2.3, §7.5.4): a born singleton is **deliver-enabled to its OWN group**
 (verifies + delivers its own GroupHmac'd traffic), and **fail-closed cross-TG** (unique HK) —
@@ -96,13 +118,16 @@ because there was *no key to verify with*; a singleton *has* its own HK.
 
 **Where in hive code (ground-truth verified) — and the TYPE-LEVEL commitment:**
 - **Firmware substrate:** `r2-dataplane::DataPlane.group: Option<GroupHmac>`
-  (`crates/r2-dataplane/src/lib.rs:145` field, `:212` constructor). Today `None` = the
-  keyless-repeater bring-up posture (rak4630 `main.rs:535`). **The invariant makes this
-  non-Optional** — `DataPlane` holds a real `GroupHmac` (born-singleton default) so that a
-  TG-less device is **UN-CONSTRUCTIBLE**, a type property not a runtime check. `r2-dataplane`
-  is **core-owned**; hive requests/coordinates the `Option<GroupHmac>` → non-Optional change
-  spec-first with `core`, and meanwhile commits to passing a real `GroupHmac` (never `None`)
-  at **every** construction site (dfr1195-fw, rak4630-fw, xiaobridge).
+  (`crates/r2-dataplane/src/lib.rs:145` field, `:212` constructor). The RAK now has **both**
+  construction sites (`rak4630-fw/platforms/rak4630/src/main.rs`, cfg-split at `DataPlane::new`):
+  the default bring-up passes `None` (keyless-repeater posture) while the **`demomember`** build
+  (e4e8334) passes `Some(GroupHmac::new(HK))` — a real member of demo TG `0xF305FE07`, which is the
+  first concrete realization of this invariant on metal. **The invariant makes the field
+  non-Optional** — `DataPlane` holds a real `GroupHmac` (born-singleton default) so that a TG-less
+  device is **UN-CONSTRUCTIBLE**, a type property not a runtime check. `r2-dataplane` is
+  **core-owned**; hive requests/coordinates the `Option<GroupHmac>` → non-Optional change spec-first
+  with `core`, and meanwhile commits to passing a real `GroupHmac` (never `None`) at **every**
+  construction site (dfr1195-fw, rak4630-fw, xiaobridge) — `demomember` proves the member path works.
 - **Host daemon:** `r2-hive-bin` — membership is `hive.rs:255 group_hmacs: HashMap<u32, GroupHmac>`;
   the keyless-dev-daemon path (`router.rs:276` returns `None` "no group keys configured",
   `R2_DELIVER_UNKEYED_OPEN`) is the host analogue of `group = None`. The invariant: the daemon
@@ -118,7 +143,8 @@ coordinated with `core` and gated on R2-TRUST §2.3 (now pinned) + R2-PROVISION 
 
 ## Cross-references
 - Spec canon (authority): R2-ARCH v0.15, R2-RUNTIME v0.24, R2-INDICATOR v0.5, R2-BEACON v0.41,
-  R2-HEARTBEAT v0.17, R2-TRUST v0.40 (§2.3), R2-PROVISION v0.30, R2-WIRE §6.2.1, R2-LORA §3.0/§8.1.
+  R2-HEARTBEAT v0.17, R2-TRUST v0.40 (§2.3 deliver-gate, §3.1 DEK/HK derivation), R2-PROVISION v0.30,
+  R2-WIRE §6.2.1 (tg_id/hive_id/mesh_key), §6.2.2 (device_id unlinkability), R2-LORA §3.0/§8.1.
 - Hive state/trail: `RESUME.md` (r2-hive), `dfr1195-fw/RESUME.md`, `rak4630-fw/RESUME.md`.
 - Related invariant work: hive_id KS1-derivation (R2-WIRE §6.2.1, task #57); benchsf7 SF7
   bench profile (R2-LORA §3.0 v0.4.22).
