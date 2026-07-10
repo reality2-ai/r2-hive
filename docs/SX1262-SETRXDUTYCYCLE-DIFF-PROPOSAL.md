@@ -5,6 +5,11 @@
 > ratified @4072063; Roy scope-eyeball CONFIRMED; supervisor GREEN). Matches core's pre-flagged
 > driver shape (fleet, this turn) and folds its **two correctness points**. Physical-µs params keep
 > the chip-agnostic seam intact and let firmware size per-SF.
+>
+> **TWO core-owned diffs (both required for path-1):** Diff 1/2 = the `listen_duty_cycle` **primitive**
+> (r2-transport seam + r2-sx1262 `0x94`); Diff 3 = the **LoRaTransport RX-arming MODE** (because
+> `LoRaTransport::service` OWNS RX arming — the firmware can't duty-cycle by itself). See Diff 3's
+> architectural-finding note.
 
 ## Design: one new trait method + one Sx1262 override (NON-BREAKING)
 `listen_duty_cycle(rx_period_us, sleep_period_us)` on `LoRaRadio`, **with a default that falls back
@@ -100,8 +105,70 @@ Not needed for RxDone-driven drain (we wake on a *completed* packet); only usefu
 on a preamble. My lean: **do NOT add it** for path-1 (RxDone-wake suffices, keeps the diff minimal);
 revisit if bench shows we need earlier wake. Flag if you disagree.
 
+## Diff 3 — `crates/r2-transport/src/lora_transport.rs` (LoRaTransport RX-arming MODE) — REQUIRED
+**Architectural finding (evidence):** `LoRaTransport` OWNS the radio (moved in at `new`) and OWNS RX
+arming — it re-issues continuous `radio.listen()` at THREE sites: `new:61`, TxDone re-listen `:154`,
+RxTimeout/CrcErr re-listen `:166`. So the firmware **cannot** duty-cycle RX by itself once the radio
+is inside the transport — path-1 needs a duty-cycle MODE here. This is the clean seam (keeps TX
+airtime-gating intact); the alternative (firmware bypasses `service` for RX) splits radio ownership
+and is worse. **This is a SECOND core-owned change, on top of Diff 1/2.**
+
+**(3a)** add a field to `struct LoRaTransport` + init in `new`:
+```rust
+    /// RX arming policy: `None` = continuous `listen()` (default = today's behaviour);
+    /// `Some((rx_us, sl_us))` = SetRxDutyCycle standby (R2-RUNTIME §3.2.6 pure-edge-bridge
+    /// standby). Set by the firmware on sink-ABSENT; cleared on sink-PRESENT.
+    rx_duty: Cell<Option<(u32, u32)>>,
+```
+`new`: add `rx_duty: Cell::new(None),` to the struct literal (keeps `new`'s `radio.listen()` as-is —
+a fresh node starts continuous; the firmware opts into standby after).
+
+**(3b)** one private helper + route all re-arm sites through it:
+```rust
+    /// Arm RX per the current policy — continuous or duty-cycled. Every re-listen site
+    /// routes through here so the mode is honoured uniformly. Takes `&mut R` (the caller
+    /// already holds the radio borrow) to avoid a double-borrow.
+    fn arm_rx(&self, radio: &mut R) -> Result<(), R::Error> {
+        match self.rx_duty.get() {
+            Some((rx, sl)) => radio.listen_duty_cycle(rx, sl),
+            None => radio.listen(),
+        }
+    }
+```
+Replace the two in-`service` re-arm calls (`:154`, `:166`) `let _ = radio.listen();` →
+`let _ = self.arm_rx(&mut radio);`. (Leave `new:61` continuous.)
+
+**(3c)** two public setters the firmware calls on sink-presence transitions (re-arm immediately):
+```rust
+    /// Switch RX to duty-cycled standby (R2-RUNTIME §3.2.6): the radio autonomously cycles
+    /// `rx_period_us` ↔ warm-sleep `sleep_period_us`, waking on DIO1/RxDone. Re-arms now.
+    /// Call on sink-ABSENT. `rx_period_us` MUST be ≥ the per-SF preamble window; note the
+    /// SX1262 `sleepPeriod` caps at 24-bit × 15.625 µs ≈ 262 ms, so radio-duty-cycle alone
+    /// gives a sub-second wake cadence (the R2-RUNTIME §3.2.6 `scf_ttl_s` sizing bound binds
+    /// path-2's DEEP MCU light-sleep, not this radio primitive).
+    pub fn set_rx_standby(&self, rx_period_us: u32, sleep_period_us: u32) -> Result<(), R::Error> {
+        self.rx_duty.set(Some((rx_period_us, sleep_period_us)));
+        self.arm_rx(&mut self.radio.borrow_mut())
+    }
+    /// Switch RX back to continuous listen (sink-PRESENT / AlwaysOn). Re-arms now.
+    pub fn set_rx_continuous(&self) -> Result<(), R::Error> {
+        self.rx_duty.set(None);
+        self.arm_rx(&mut self.radio.borrow_mut())
+    }
+```
+Non-breaking: default `None` = exactly today's continuous behaviour; TX still `standby()`+`transmit()`
+then TxDone re-arms via `arm_rx` back into duty-cycle. (`Cell`/`RefCell` already imported.)
+
+## Firmware side (hive-owned, dfr1195-fw — authored after core accepts + re-vendor)
+- **`RxenRadio` MUST override `listen_duty_cycle`** (rxen HIGH + `inner.listen_duty_cycle`) — else it
+  inherits the trait default (`self.listen()` = continuous) and the mode is a no-op. (main.rs)
+- **`lora_route_task`**, off-by-default `standby` feature: after `LoRaTransport::new`, call
+  `lora.set_rx_standby(rx_us, sl_us)` (path-1: unconditional; path-2: on sink-absent, `set_rx_continuous`
+  on sink-present) + MCU `light_sleep` between DIO1/USB wakes.
+- Sizing (SF7 bench first): `rx_us` ≥ SF7 preamble window (SF7 symbol ≈ 1.02 ms); `sl_us` up to the
+  ~262 ms cap. Re-size for SF12 before any field use.
+
 ## Notes
-- No change to `Lr2021` or the `lora_transport.rs` mock — the trait default covers them (non-breaking).
-- Firmware side (dfr1195-fw `lora_route_task`, off-by-default `standby` feature + MCU light-sleep) is
-  authored separately in the dfr1195-fw worktree; it calls `listen_duty_cycle` + waits on DIO1. It
-  becomes flashable once core accepts this diff and hive re-vendors r2-sx1262/r2-transport.
+- No change to `Lr2021` or the `lora_transport.rs` mock — the Diff-1 trait default covers them.
+- Two core-owned diffs total: Diff 1/2 (the `listen_duty_cycle` primitive) + Diff 3 (the LoRaTransport
+  mode). Firmware becomes flashable once core accepts BOTH and hive re-vendors r2-sx1262 + r2-transport.
