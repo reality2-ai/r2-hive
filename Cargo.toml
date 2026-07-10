@@ -10,6 +10,10 @@ members = [
 # wasm32-unknown-unknown --release  (see crates/r2-hive-wasm/src/lib.rs).
 exclude = [
     "crates/r2-hive-wasm",
+    # r2-wasm-host = the linkable-base wasm HOST (M3). Depends on wasmtime (heavy) and is a
+    # separate build like r2-hive-wasm — kept out of the default no_std/host workspace + CI.
+    # Build/test explicitly: cargo test -p r2-wasm-host --manifest-path crates/r2-wasm-host/Cargo.toml
+    "crates/r2-wasm-host",
 ]
 
 [workspace.package]

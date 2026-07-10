@@ -1,0 +1,37 @@
+# r2-wasm-host — the LINKABLE-BASE wasm HOST (Milestone M3, hive-owned).
+#
+# The stable core TN base HOSTS a wasm runtime and loads compiled ensemble modules
+# as sandboxed .wasm — the Level-2 mechanism from
+# r2-specifications/docs/proposals/R2-LINKABLE-BASE-AND-VARIANT-MANAGEMENT-2026-07-10.md.
+# This is the INVERSE of crates/r2-hive-wasm (which is R2 compiled TO wasm): here the
+# base is the HOST and ensembles are the guests.
+#
+# Runtime backends (D.1): std host = wasmtime (JIT, near-native, sandbox); browser =
+# native WebAssembly; MCU (esp32s3+PSRAM / one nrf52840 slot) = wasm3 — added later.
+#
+# EXCLUDED from the r2-hive default workspace (like r2-hive-wasm): wasmtime is a heavy
+# dep and must never be pulled into the no_std host/firmware CI. Build explicitly:
+#   cargo test -p r2-wasm-host
+#
+# ⛔ GATE: the host-IMPORT surface (surface #2) is the frozen R2-PLUGIN §12.4 repr(C)
+# ABI (Milestone M1, core-drafting / specs-ratifies). NOTHING ABI-bound is frozen here
+# ahead of that ratification — the `provisional_abi` module is a PLACEHOLDER to prove
+# host MECHANICS only, and is swapped for the ratified §12.4 lowering when M1 lands.
+[package]
+name = "r2-wasm-host"
+version = "0.0.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Linkable-base wasm host: the core TN base hosts sandboxed wasm ensemble modules (M3). std/wasmtime first; host-import ABI gated on R2-PLUGIN §12.4 freeze (M1)."
+
+[features]
+default = ["std-wasmtime"]
+# std host backend — wasmtime (the D.1 std runtime choice).
+std-wasmtime = ["dep:wasmtime"]
+
+[dependencies]
+# wasmtime = the std-host runtime backend (sandbox + Cranelift JIT). `wat` (default) lets
+# us load the mechanics-spike module from inline WebAssembly text — no external toolchain.
+wasmtime = { version = "27", optional = true, default-features = false, features = ["cranelift", "runtime", "wat"] }
+# anyhow = the error type wasmtime's host-fn / trap API uses.
+anyhow = "1"
