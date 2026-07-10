@@ -95,12 +95,14 @@ TG-of-one** it self-generates at birth (real key material from birth, NOT a plac
   (R2-TRUST §3.1; `r2-trust/src/hkdf.rs:55`, `lib.rs:13`). HK is derived from the TG **secret**,
   **NOT** through `tg_id`.
 - `TG_PK` → **`tg_id`** (R2-WIRE §6.2.1) — a *separate* path from the HK derivation.
-- self-issue a **key-holder certificate** (`r2-trust/src/cert.rs::issue` signed by `TG_SK`;
-  `lifecycle.rs:95` "self-issues a key-holder certificate"). **Membership ⟺ a valid cert**, so a
-  singleton is a genuine member (its own key-holder), not a keyless node.
 - device identity: `device_master_secret + tg_id` → **`hive_id`** (`derive_hive_id`, HKDF label
-  `r2-hive-id-v1`) and the TG-scoped on-air **`mesh_sk`/`mesh_pk`** (`derive_mesh_key`, label
+  `r2-hive-id-v1`) and the TG-scoped on-air keypair **`mesh_sk`/`mesh_pk`** (`derive_mesh_key`, label
   `r2-dev-key-v1`) — both per-TG, so a different TG yields an unlinkable identity (R2-WIRE §6.2.2).
+- self-issue a **key-holder certificate** whose **subject is `mesh_pk`** (`r2-trust/src/cert.rs::issue`
+  signed by `TG_SK`; the subject is the per-TG mesh signing pubkey — `revocation.rs:52`
+  `cert_subject_pk`; `lifecycle.rs:95` "self-issues a key-holder certificate"). **Membership ⟺ a
+  valid cert**, so a singleton is a genuine member (its own key-holder over its own `mesh_pk`), not a
+  keyless node.
 - beacon RBID: `session_key = HKDF-Expand(PRK=HK, info="r2-beacon-rbid-v1" ‖ hive_id_be32, L=16)`
   → `rbid = HMAC(session_key, epoch_be64)[:8]` (`r2-discovery/src/beacon.rs`). The RBID keys off
   **HK** (group) + **hive_id** (per-member) — a TG peer holding HK resolves it, a stranger cannot.
