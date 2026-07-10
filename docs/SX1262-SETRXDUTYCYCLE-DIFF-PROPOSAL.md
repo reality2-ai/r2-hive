@@ -100,12 +100,23 @@ fn us_to_steps(us: u32) -> [u8; 3] {
 ## DIO1 wake — already wired, ONE open decision for core
 `configure()` already arms `irq::ALL` (incl. `RX_DONE = 1<<1`) on the DIO1 mask (lib.rs:501-506), so
 **RxDone → DIO1 wake works with no change** — that is exactly the bridge's wake-and-drain signal.
-**Open (core's call):** whether to ALSO arm `PreambleDetected` (`1<<5`, currently unarmed) on DIO1.
-Not needed for RxDone-driven drain (we wake on a *completed* packet); only useful for waking earlier
-on a preamble. My lean: **do NOT add it** for path-1 (RxDone-wake suffices, keeps the diff minimal);
-revisit if bench shows we need earlier wake. Flag if you disagree.
+**RULED (core, agreed):** do NOT arm `PreambleDetected` — the SX126x intermediate-RX mode receives a
+detected packet to completion before resuming the duty-cycle loop, so RxDone is the correct + sufficient
+wake-and-drain signal; preamble-wake would wake the host pre-packet for zero drain benefit + burn
+wake-power (defeats the heat-fix). Minimal diff wins.
+**⚠ CORRECTION (core, for the record — no code impact, not armed):** my prose said `1<<5`; that is WRONG
+— on the SX1262 `PreambleDetected` is **BIT 2 (`1<<2` = 0x04)**; `1<<5` (0x20) is `HeaderErr`. The driver
+has no `PreambleDetected` const today (`irq::` = TX_DONE `1<<0` / RX_DONE `1<<1` / CRC_ERR `1<<6` /
+TIMEOUT `1<<9`). A future arming would add `PREAMBLE_DETECTED = 1<<2`, not `1<<5`.
 
-## Diff 3 — `crates/r2-transport/src/lora_transport.rs` (LoRaTransport RX-arming MODE) — REQUIRED
+## Diff 3 — `crates/r2-transport/src/lora_transport.rs` (LoRaTransport RX-arming MODE) — REQUIRED, ⚠ NOT YET LANDED
+> **STATUS (2026-07-10):** Diff 1/2 **LANDED @1bbb32b** (core; verified in tree: `listen_duty_cycle`
+> default in lora.rs:67, `SET_RX_DUTY_CYCLE=0x94` + `us_to_steps` + Sx1262 override in r2-sx1262).
+> **Diff 3 is NOT in 1bbb32b** — `lora_transport.rs` still re-issues plain `radio.listen()`; no
+> `set_rx_standby`/`rx_duty`/`arm_rx`. The firmware (dfr1195-fw 810573e) calls `lora.set_rx_standby(..)`,
+> so it will NOT compile until Diff 3 lands. **Re-vendor HELD on Diff 3.** (Core landed from the first
+> handoff, 733d82d — the Diff 3 follow-up c7fc7a8 was queued while core was busy; re-flagged.)
+
 **Architectural finding (evidence):** `LoRaTransport` OWNS the radio (moved in at `new`) and OWNS RX
 arming — it re-issues continuous `radio.listen()` at THREE sites: `new:61`, TxDone re-listen `:154`,
 RxTimeout/CrcErr re-listen `:166`. So the firmware **cannot** duty-cycle RX by itself once the radio
