@@ -48,10 +48,14 @@ pub mod abi {
     ];
 
     // ── the 8 module exports (§12.4.3.1) ──
+    // NOTE (v0.8 ruling-direction, core 5447034 on real wasm32): abi_version + plugin_id are
+    // VALUE-RETURNING FUNCS `() -> i32`, NOT globals — a Rust `pub static` compiles to a wasm
+    // global holding the value's ADDRESS (a linear-memory offset), so a host reading the global
+    // gets a pointer, not the value. Funcs are toolchain-independent + uniform with the other 6.
     pub const EXPORT_MEMORY: &str = "memory";
-    pub const GLOBAL_ABI_VERSION: &str = "__r2_abi_version";
+    pub const FUNC_ABI_VERSION: &str = "__r2_abi_version";
     pub const FUNC_ABI_HASH: &str = "__r2_abi_hash";
-    pub const GLOBAL_PLUGIN_ID: &str = "__r2_plugin_id";
+    pub const FUNC_PLUGIN_ID: &str = "__r2_plugin_id";
     pub const FUNC_INIT: &str = "r2_init";
     pub const FUNC_EXECUTE: &str = "r2_execute";
     pub const FUNC_POLL: &str = "r2_poll";
@@ -191,7 +195,7 @@ mod wasmtime_backend {
                 .get_memory(&mut store, abi::EXPORT_MEMORY)
                 .ok_or_else(|| anyhow!("module exports no `{}`", abi::EXPORT_MEMORY))?;
 
-            let abi_version = read_i32_global(&instance, &mut store, abi::GLOBAL_ABI_VERSION)? as u32;
+            let abi_version = call_i32_func(&instance, &mut store, abi::FUNC_ABI_VERSION)? as u32;
             if abi_version != abi::ABI_VERSION {
                 bail!("module abi_version {abi_version} != host v{}", abi::ABI_VERSION);
             }
@@ -210,8 +214,7 @@ mod wasmtime_backend {
                 );
             }
 
-            let plugin_id = (read_i32_global(&instance, &mut store, abi::GLOBAL_PLUGIN_ID)?
-                & 0xff) as u8;
+            let plugin_id = (call_i32_func(&instance, &mut store, abi::FUNC_PLUGIN_ID)? & 0xff) as u8;
 
             // r2_init (required export) — must return Ok.
             let init = instance
@@ -307,13 +310,14 @@ mod wasmtime_backend {
         parse_abi_result(&buf)
     }
 
-    fn read_i32_global(instance: &Instance, store: &mut Store<()>, name: &str) -> Result<i32> {
+    /// Call a `() -> i32` value-returning export (§12.4.3.1 v0.8: abi_version / plugin_id are
+    /// funcs, not globals — a Rust `pub static` global would export the value's ADDRESS, not the
+    /// value; a func returns the value directly, toolchain-independent).
+    fn call_i32_func(instance: &Instance, store: &mut Store<()>, name: &str) -> Result<i32> {
         instance
-            .get_global(&mut *store, name)
-            .ok_or_else(|| anyhow!("module exports no global `{name}`"))?
-            .get(&mut *store)
-            .i32()
-            .ok_or_else(|| anyhow!("global `{name}` is not i32"))
+            .get_typed_func::<(), i32>(&mut *store, name)
+            .with_context(|| format!("module missing `{name}` () -> i32"))?
+            .call(&mut *store, ())
     }
 
     fn hex(b: &[u8]) -> String {

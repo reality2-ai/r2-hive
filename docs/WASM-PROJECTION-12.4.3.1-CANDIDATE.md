@@ -28,9 +28,9 @@ native `vtable_for`); hive's `r2-wasm-host` consumes them.
 | # | Export | Kind | Signature | Meaning |
 |---|---|---|---|---|
 | 1 | `memory` | memory | — | the module's linear memory (host reads/writes buffers here). |
-| 2 | `__r2_abi_version` | global i32 | (immutable) | `abi_version: u32` (§12.4.3). Read **first**. |
+| 2 | `__r2_abi_version` | func | `() -> i32` | returns `abi_version: u32`. Read **first**. *(v0.8: func not global — a Rust `pub static` global exports the value's ADDRESS, not the value; core 5447034 on wasm32.)* |
 | 3 | `__r2_abi_hash` | func | `(out_ptr: i32) -> ()` | writes the **full 32 B** `abi_hash` (SHA-256) into memory at `out_ptr`. |
-| 4 | `__r2_plugin_id` | global i32 | (immutable) | `id: u8`. |
+| 4 | `__r2_plugin_id` | func | `() -> i32` | returns `id: u8` *(v0.8: func not global — same reason as #2)*. |
 | 5 | `r2_init` | func | `(result_ptr: i32) -> ()` | runs `init`; writes an `AbiResult` image at `result_ptr`. Called once, post-load. |
 | 6 | `r2_execute` | func | `(command: i32, data_ptr: i32, data_len: i32, result_ptr: i32) -> ()` | reads `data_len` bytes at `data_ptr`; writes an `AbiResult` image at `result_ptr`. |
 | 7 | `r2_poll` | func | `(ev_hash_out_ptr: i32, buf_ptr: i32, cap: i32) -> i32` | writes ≤`cap` bytes at `buf_ptr` + the `u32` event hash at `ev_hash_out_ptr`; returns written len, or **-1 = None**. |

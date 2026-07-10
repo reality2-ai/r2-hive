@@ -15,8 +15,9 @@ use r2_wasm_host::{PluginResult, WasmHost};
 const CONFORMANT_WAT: &str = r#"
 (module
   (memory (export "memory") 1)
-  (global (export "__r2_abi_version") i32 (i32.const 1))
-  (global (export "__r2_plugin_id") i32 (i32.const 7))
+  ;; v0.8: abi_version + plugin_id are value-returning funcs () -> i32 (not globals)
+  (func (export "__r2_abi_version") (result i32) (i32.const 1))
+  (func (export "__r2_plugin_id") (result i32) (i32.const 7))
   ;; abi_hash v1 (32 B) at offset 0 — c37f504d4c2a9d8c1f5bc214aa229b4ae8c0d88897a49cce519814d8915a817e
   (data (i32.const 0) "\c3\7f\50\4d\4c\2a\9d\8c\1f\5b\c2\14\aa\22\9b\4a\e8\c0\d8\88\97\a4\9c\ce\51\98\14\d8\91\5a\81\7e")
   ;; __r2_abi_hash(out_ptr): copy the 32 B hash from [0..32] to out_ptr
@@ -62,8 +63,8 @@ const CONFORMANT_WAT: &str = r#"
 const WRONG_HASH_WAT: &str = r#"
 (module
   (memory (export "memory") 1)
-  (global (export "__r2_abi_version") i32 (i32.const 1))
-  (global (export "__r2_plugin_id") i32 (i32.const 7))
+  (func (export "__r2_abi_version") (result i32) (i32.const 1))
+  (func (export "__r2_plugin_id") (result i32) (i32.const 7))
   (data (i32.const 0) "\00\7f\50\4d\4c\2a\9d\8c\1f\5b\c2\14\aa\22\9b\4a\e8\c0\d8\88\97\a4\9c\ce\51\98\14\d8\91\5a\81\7e")
   (func (export "__r2_abi_hash") (param $out i32)
     (local $i i32)
