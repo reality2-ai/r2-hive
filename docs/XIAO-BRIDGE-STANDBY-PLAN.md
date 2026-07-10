@@ -32,8 +32,9 @@ primitive; **Diff 3 = a duty-cycle MODE on `LoRaTransport`** (`rx_duty` policy N
 + `set_rx_standby`/`set_rx_continuous`). Three firmware parts on top:
 - **(1a) Driver — add `SetRxDutyCycle` (0x94) to `r2-sx1262`** *(core-owned crate → author + hand
   core / core commits; flag spec-first N/A, it is an impl capability).* The SX1262 HW duty-cycle:
-  `RX for rxPeriod → Sleep(warm) for sleepPeriod → auto-repeat`, DIO1 fires on preamble-detect /
-  RxDone, the chip stays in warm-sleep between windows (µA-class vs mA continuous). Sizing invariant:
+  `RX for rxPeriod → Sleep(warm) for sleepPeriod → auto-repeat`, DIO1 fires on **RxDone**
+  (PreambleDetected is NOT armed — the core impl arms RxDone only, and RxDone-wake is sufficient); the
+  chip stays in warm-sleep between windows (µA-class vs mA continuous). Sizing invariant:
   `sleepPeriod + rxPeriod ≤ D4 preamble airtime` so the periodic RX window is guaranteed to catch a
   D4 frame's preamble (SF7/BW125 preamble ≈ a few ms; the SX1262 datasheet duty-cycle sizing math).
 - **(1b) Firmware — `lora_route_task` uses RX-duty-cycle instead of continuous `listen()`**, behind
@@ -71,12 +72,18 @@ a HARD miss). Current firmware = **3 ms rx / 5 ms sleep = 8 ms cycle**; SF7/BW12
     KAT to also assert `preamble_len` (it does NOT today ⇒ a preamble drift would be silent; core is
     closing that gap) → **I re-vendor** the bumped profile. Rollout MUST be uniform (mixed longer-RX /
     shorter-TX is asymmetric), so it's one coordinated core land re-vendored everywhere.
-- **★ SF12 re-size (quantified — do NOT carry 3/5 to SF12):** SF12/BW125 8-symbol preamble = **262 ms**
-  = the SX1262 `sleepPeriod` cap (24-bit × 15.625 µs). So at SF12 the *max* sleep alone already
-  meets/exceeds the default preamble — you can't run a long sleep AND an 8-sym preamble under
-  `cycle ≤ preamble`. SF12 duty-cycle needs EITHER a shorter sleep (less power saving) OR a longer TX
-  preamble (16+ sym = 524 ms for headroom). **Decide the SF12 TX-preamble length before any field
-  deploy** (SF12 is field canon; benchsf7 SF7 is bench-only). See [[extended-frames-dont-fit-sf12]].
+- **★ SF12 re-size (do NOT carry 3/5 to SF12):** SF12/BW125 8-symbol preamble = **262.144 ms** — that
+  is the *detection budget* (`rxPeriod + sleepPeriod ≤ 262 ms` so the periodic window always spans a
+  preamble). **⚠ CORRECTED 2026-07-11 (supervisor-codex, math-verified):** this 262 ms is the PREAMBLE
+  airtime, NOT the hardware sleep cap. The SX1262 `SetRxDutyCycle` 24-bit `sleepPeriod` hardware max =
+  `0xFFFFFF × 15.625 µs` = **262.144 SECONDS** — 1000× the SF12 preamble, so it is **NOT the binding
+  constraint**; the prior text conflated the two (262 ms preamble vs 262 s cap share the digits, differ
+  ×1000). **Consequence:** SF12 ALLOWS a much LONGER duty cycle than SF7 (≈262 ms `rx+sleep` budget vs
+  SF7's tight 8.19 ms), so SF12 is *more* power-favorable — carrying SF7's 3ms/5ms to SF12 WASTES that
+  headroom (an ~8 ms cycle where ~250 ms is allowed), it is not blocked by any cap. **Re-size SF12 from
+  the preamble/detection-margin + SCF/power policy** (e.g. rx≈8 ms / sleep≈250 ms), not from the
+  hardware cap. SF12 is field canon; benchsf7 SF7 is bench-only. See [[setrxdutycycle-preamble-sizing]],
+  [[extended-frames-dont-fit-sf12]].
 
 ## 3. PATH 2 — phone-coupled standby (builds on path 1, separable)
 - **Phone-presence hook:** phone-gone detected via (a) USB suspend (USB-Serial-JTAG suspend), (b) BLE
@@ -110,10 +117,14 @@ When the edge bridge sleeps, D4's frames must not be lost. **RESOLVED — no new
 1. ✅ **This doc → supervisor/Roy** (scope-eyeball). — reported.
 2. ✅ **Hand specs the §4 contract** → **RATIFIED** R2-RUNTIME v0.25 §3.2.6 @4072063 (merged main),
    no new wire, sizing invariant refined (cadence < upstream `scf_ttl_s`).
-3. ⏸ **Path 1** (driver 1a with core → 1b/1c firmware) — **HELD on Roy scope-eyeball** (supervisor
-   gate: report plan before deep implementation). On Roy GO: request core add `SetRxDutyCycle`
-   (r2-sx1262), then build 1b/1c behind the off-by-default `standby` feature; verify heat drop on the
-   bench; keep the D4→XIAO→phone delivered-path green (SCF-hold honoured).
+3. ✅ **Path 1 (driver 1a + firmware 1b) LANDED + STAGED** — core landed all 3 duty-cycle diffs
+   (`SetRxDutyCycle` 0x94 + `listen_duty_cycle` seam + `LoRaTransport` RX-arming mode) @core `8508309`;
+   hive surgically re-vendored r2-sx1262 + r2-transport into dfr1195-fw (`bd67669`+`4af9b97`, byte-
+   identical) + committed the off-by-default `standby` firmware arm (`810573e`); both
+   `cargo +esp check --features xiaobridge` (off) AND `xiaobridge,standby` (on) green; standby ELF
+   BUILT + STAGED on alfred (stage-only, NEVER flash — Roy-only). **REMAINING: Roy-gated bench flash**
+   → idle-draw/heat + duty-engages measurement + keep the D4→XIAO→phone delivered-path green
+   (SCF-hold honoured) → path-1 closes. 1c (MCU light-sleep) = documented TODO (untestable off-metal).
 4. **Path 2** on top, separable.
 
 *Trail: dfr1195-fw RESUME; r2-hive RESUME. Driver crate: r2-sx1262 (core-owned).*
