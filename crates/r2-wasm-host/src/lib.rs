@@ -85,7 +85,7 @@ pub mod abi {
 /// non-overlapping fixed sub-buffers within it (the 1000 B floor = 32+136+64+256+512). `INPUT` is
 /// the input sub-buffer start; its capacity is `scratch_len - INPUT` (the module may reserve more).
 mod scratch {
-    pub const MIN_LEN: u32 = 1000; // spec floor (§12.4.3.2)
+    pub const MIN_LEN: u32 = 1004; // spec floor (§12.4.3.2 v0.10): 32+136+64+(4+256)+512
     pub const HASH: u32 = 0; // 32 B (__r2_abi_hash out)
     pub const RESULT: u32 = 32; // 136 B (AbiResult)
     pub const NAME: u32 = 168; // NAME_CAP
@@ -93,7 +93,7 @@ mod scratch {
     pub const POLL_EV: u32 = 232; // 4 B (u32 event hash)
     pub const POLL_BUF: u32 = 236; // POLL_CAP
     pub const POLL_CAP: u32 = 256;
-    pub const INPUT: u32 = 492; // execute input; cap = scratch_len - INPUT
+    pub const INPUT: u32 = 492; // execute input (poll ends at 236+256=492); cap = scratch_len - INPUT
 }
 
 /// A verified/parsed plugin result (host view of the 136 B `AbiResult` image).
