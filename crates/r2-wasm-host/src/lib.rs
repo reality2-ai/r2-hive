@@ -266,17 +266,22 @@ mod wasmtime_backend {
         pub fn plugin_id(&self) -> u8 {
             self.plugin_id
         }
+        /// The module-advertised host-scratch region length (`__r2_scratch_len()`).
+        pub fn scratch_len(&self) -> u32 {
+            self.scratch_len
+        }
 
         /// Absolute linear-memory offset of a scratch sub-buffer (`scratch_base + relative`).
         fn off(&self, rel: u32) -> usize {
             (self.scratch_base + rel) as usize
         }
 
-        /// Call `r2_execute(command, data)` and return the parsed result. Input is placed in the
-        /// §12.4.3.2 scratch region if it fits the in-region cap (`scratch_len - INPUT`), else
-        /// fail-closed (the `__r2_alloc` escalation for oversized std/browser inputs is a follow-on;
-        /// MCU modules never carry it — §12.4.3.2).
-        pub fn execute(&mut self, command: u8, data: &[u8]) -> Result<PluginResult> {
+        /// Call `r2_execute(command, data)` and return the **raw 136 B `AbiResult` image** from the
+        /// scratch region — for byte-exact interop comparison against a shared vector. Input is
+        /// placed in the §12.4.3.2 scratch region if it fits the in-region cap (`scratch_len -
+        /// INPUT`), else fail-closed (the `__r2_alloc` escalation for oversized std/browser inputs
+        /// is a follow-on; MCU modules never carry it — §12.4.3.2).
+        pub fn execute_raw(&mut self, command: u8, data: &[u8]) -> Result<[u8; abi::ABI_RESULT_LEN]> {
             let input_cap = (self.scratch_len - scratch::INPUT) as usize;
             if data.len() > input_cap {
                 bail!(
@@ -297,7 +302,16 @@ mod wasmtime_backend {
                 &mut self.store,
                 (command as i32, input_off as i32, data.len() as i32, result_off as i32),
             )?;
-            read_result(&self.memory, &self.store, result_off)
+            let mut buf = [0u8; abi::ABI_RESULT_LEN];
+            self.memory
+                .read(&self.store, result_off, &mut buf)
+                .context("read AbiResult image")?;
+            Ok(buf)
+        }
+
+        /// Call `r2_execute(command, data)` and return the parsed result.
+        pub fn execute(&mut self, command: u8, data: &[u8]) -> Result<PluginResult> {
+            parse_abi_result(&self.execute_raw(command, data)?)
         }
 
         /// Call `r2_poll`; returns `Some((event_hash, payload))` or `None` (-1).
