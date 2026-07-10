@@ -25,22 +25,34 @@ sufficient on MCU (no allocator, deterministic bounds); std/browser MAY addition
 allocation.
 
 ### REQUIRED — the module-reserved host-scratch region
-A conformant Level-2 module MUST export two immutable globals delimiting a linear-memory region it
-**reserves for the host** and guarantees never to read or write except as the host's buffer target:
+A conformant Level-2 module MUST export two **value-returning funcs** (`() -> i32`, **not globals** —
+uniform with `__r2_abi_version`/`__r2_plugin_id` per the v0.8 metadata-funcs resolution: a Rust
+`pub static` global exports the value's *address*, not the value) delimiting a linear-memory region
+it **reserves for the host** and guarantees never to read or write except as the host's buffer target:
 | Export | Kind | Meaning |
 |---|---|---|
-| `__r2_scratch_ptr` | global i32 | start offset of the host-scratch region. |
-| `__r2_scratch_len` | global i32 | length (bytes) of the region. |
+| `__r2_scratch_ptr` | func `() -> i32` | start offset of the host-scratch region. |
+| `__r2_scratch_len` | func `() -> i32` | length (bytes) of the region. |
 
-- The host owns `[__r2_scratch_ptr, __r2_scratch_ptr + __r2_scratch_len)` for the lifetime of the
-  instance and places all §12.4.3.1 call buffers there.
-- **Sizing invariant (r2-forge enforces):** `__r2_scratch_len` MUST be ≥ the **fixed-buffer floor**
-  — `32` (`__r2_abi_hash` out) `+ 136` (`AbiResult`) `+ NAME_CAP + POLL_CAP` — **plus** a minimum
-  **input margin** `INPUT_MIN` for `r2_execute` data. r2-forge sizes the reservation per target:
-  bounded on MCU (fits the ≤32 KB slot — e.g. a few KB), larger on std/browser.
+- The host owns `[__r2_scratch_ptr(), __r2_scratch_ptr() + __r2_scratch_len())` for the lifetime of
+  the instance and places all §12.4.3.1 call buffers there.
+- **Pinned buffer bounds (co-pin proposal; caps are the required minimums, r2-forge may size larger):**
+  `__r2_abi_hash` out = **32 B**; `AbiResult` result slot = **136 B** (fixed, §12.4.3.1);
+  `r2_name` out cap `NAME_CAP` = **64 B**; `r2_poll` payload cap `POLL_CAP` = **256 B**;
+  `r2_execute` input margin `INPUT_MIN` = **512 B** (the in-region input ceiling before escalation).
+- **Sizing invariant (r2-forge enforces):** `__r2_scratch_len()` MUST be ≥ the **fixed-buffer floor**
+  `32 + 136 + NAME_CAP + POLL_CAP + INPUT_MIN` (= **1000 B** at the pinned caps). r2-forge sizes the
+  reservation per target: bounded on MCU (fits the ≤32 KB slot), larger on std/browser.
+- **Owner + lifetime:** the **host** owns the region for the instance's lifetime; buffers within it
+  are **transient per call** (host writes input before a call, reads the result after). The module
+  MUST NOT retain or read host-written bytes in the region across calls, and MUST NOT read the
+  non-selected `AbiResult` branch bytes.
 - **Determinism + security:** the region is module-declared and bounded, so the host never guesses;
-  there is **no allocator** and hence no allocator attack surface on MCU; buffer placement is fully
-  deterministic (KAT-pinnable).
+  there is **no allocator** and hence no allocator attack surface on MCU; placement is fully
+  deterministic (KAT-pinnable). **Sandbox-safe by construction:** the host writes only through the
+  wasm engine's bounds-checked linear memory — a ptr/len outside the module's memory **traps** (the
+  engine bounds-checks every access), so even a host bug is a trap, never silent corruption; the
+  module-declared region is the *correctness* layer atop that *safety* floor.
 
 ### OPTIONAL — dynamic allocation (std/browser flexibility)
 A module MAY additionally export:
