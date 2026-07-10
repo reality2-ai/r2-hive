@@ -28,8 +28,8 @@ The primitive path 2 builds on. Three parts:
   D4 frame's preamble (SF7/BW125 preamble ≈ a few ms; the SX1262 datasheet duty-cycle sizing math).
 - **(1b) Firmware — `lora_route_task` uses RX-duty-cycle instead of continuous `listen()`**, behind
   an OFF-BY-DEFAULT `standby` feature (no per-target fork; the STEP-4 enforcement path). The
-  advertised `wake_cadence`/`wake_window` (§3.2.2 knobs, already plumbed) become the *real* rxPeriod/
-  sleepPeriod.
+  **local** `wake_cadence`/`wake_window` (§3.2.2 *config* knobs — LOCAL power policy, **NOT** wire
+  fields; specs ruled `dc` is class-only, R2-ROUTE §3B.1) become the *real* rxPeriod/sleepPeriod.
 - **(1c) MCU light-sleep between DIO1 wakes** — esp-hal `light_sleep` with DIO1 GPIO wake + USB-resume
   wake. WiFi is already off on the pure edge bridge (LoRa + USB only), so light-sleep gates the CPU +
   peripherals between DIO1/USB events. (Embassy already idles the CPU on `await`; light-sleep is the
@@ -45,25 +45,35 @@ always-hot idle draw drops with **no phone-coupling**.
 - **Wake on:** phone-reconnect (USB-resume) / its own beacon cadence (periodic wake to beacon
   presence so the phone can re-discover it) / DIO1 (a frame still arrives in the sparse window).
 
-## 4. SPEC CONTRACT — lands FIRST (specs ratify, BLOCKS path-1 flash)
-When the edge bridge sleeps, D4's frames must not be lost. The contract to pin:
-- **dc-advertise (§12.6):** the duty-cycled edge bridge advertises its `duty_class` (Intermittent) +
-  `wake_cadence`/`wake_window` on the HB `dc` field (already *advertised*, now *load-bearing*).
-- **SCF-1 store-carry-forward (§3B.2):** the upstream sensor (D4) with frames destined **through** a
-  duty-cycled next-hop bridge **MUST SCF-hold** them until the bridge's next advertised wake window;
-  the SCF-hold TTL is sized by the advertised cadence (§3B.2 TTL invariant).
-- **The question for specs (the net-new bit):** §3B.2 SCF today covers a sleeping *originator*
-  (neighbours hold inbound for a sleeping sensor). Here the sleeping node is a **transit edge bridge**
-  — D4 holds *outbound* frames for a sleeping *next hop*. Does §12.6 + §3B.2 already cover the
-  duty-cycled-next-hop-bridge case, or does it need a normative statement (bridge advertises RX window
-  → upstream SCF-holds destined-through frames to that window; TX-outside-window or sleep-without-
-  advertise = conformance violation)? **Ratify first.**
+## 4. SPEC CONTRACT — RATIFIED (specs, R2-RUNTIME v0.25 §3.2.6 @4072063, merged main)
+When the edge bridge sleeps, D4's frames must not be lost. **RESOLVED — no new wire:**
+- **dc-advertise (§12.6):** the duty-cycled edge bridge advertises **only its `duty_class`
+  (Intermittent, key `dc`=1 value 2)** — `dc` is **class-only** (specs held the ratified §3B.1 ruling
+  `R2-ROUTE.md:693`: "`dc` is class-only, no cadence/period; §12.6 needs no `dc` period field").
+  `wake_cadence`/`wake_window` are **LOCAL config, NOT wire fields** (my draft's "on the dc field"
+  wording was rejected + is corrected here).
+- **SCF (reuse §3B.1, UNCHANGED):** D4 is XIAO's **direct neighbour**, so §3B.1 hop-by-hop custody
+  ("cannot currently forward toward destination → buffer", push-on-wake flush) already covers holding
+  destined-**through** frames for a sleeping next-hop. specs confirmed §12.6/§3B.1 UNCHANGED (no new
+  §3B.x route rule needed — the carve-out lives entirely in R2-RUNTIME §3.2.6).
+- **Sizing invariant (specs-refined):** the standby `wake_cadence` MUST be **shorter than the UPSTREAM
+  buffering node's `scf_ttl_s`** (§3.2.2 policy, F2-default **120 s**) — **NOT the literal 120 s**.
+  Reason: `scf_ttl_s` is a deployment-tunable knob on the *upstream* node; a bridge sleeping 90 s
+  satisfies "<120 s" but silently drops if an operator set upstream `scf_ttl_s`=60 s. The *relationship*
+  is always correct; 120 s is only the field-proven default.
+- **Carve-out landed (§3.2.6):** bridge=AlwaysOn default; PURE EDGE BRIDGE (sole downstream = a
+  presence-driven sink) MAY standby → advertise Intermittent. **Discriminator invariant:** standby
+  legal IFF no dependent downstream expects it awake. **Transit bridge** (LoRa island) MUST stay
+  AlwaysOn — Intermittent-transit = conformance violation (discriminator = *topology*, not hardware).
 
 ## 5. Sequencing (report-first, then spec, then impl)
-1. **This doc → supervisor/Roy** (scope-eyeball). ← now.
-2. **Hand specs the §4 contract** → specs ratifies the dc-advertise/SCF-for-duty-cycled-bridge piece.
-3. **Path 1** (driver 1a with core → 1b/1c firmware) once the contract is ratified; verify heat drop
-   on the bench; keep the D4→XIAO→phone delivered-path green (SCF-hold honoured).
+1. ✅ **This doc → supervisor/Roy** (scope-eyeball). — reported.
+2. ✅ **Hand specs the §4 contract** → **RATIFIED** R2-RUNTIME v0.25 §3.2.6 @4072063 (merged main),
+   no new wire, sizing invariant refined (cadence < upstream `scf_ttl_s`).
+3. ⏸ **Path 1** (driver 1a with core → 1b/1c firmware) — **HELD on Roy scope-eyeball** (supervisor
+   gate: report plan before deep implementation). On Roy GO: request core add `SetRxDutyCycle`
+   (r2-sx1262), then build 1b/1c behind the off-by-default `standby` feature; verify heat drop on the
+   bench; keep the D4→XIAO→phone delivered-path green (SCF-hold honoured).
 4. **Path 2** on top, separable.
 
 *Trail: dfr1195-fw RESUME; r2-hive RESUME. Driver crate: r2-sx1262 (core-owned).*

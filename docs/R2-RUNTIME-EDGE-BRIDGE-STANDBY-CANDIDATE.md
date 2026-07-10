@@ -1,8 +1,10 @@
-# R2-RUNTIME §3.2.1 — pure-edge-bridge standby carve-out — CANDIDATE
+# R2-RUNTIME §3.2.1 — pure-edge-bridge standby carve-out — RATIFIED
 
-> **Status:** CANDIDATE for specs ratification (2026-07-10, Roy GO for the XIAO heat fix). Drafted
-> by hive against specs' pre-loaded anchors. **No new wire** (reuse R2-WIRE §12.6 `dc` + §3B.1 SCF);
-> this is a **normative role-model carve-out** only. Blocks the path-1 flash (spec-first).
+> **Status:** ✅ **RATIFIED** — landed as **R2-RUNTIME v0.25 §3.2.6 @4072063** (specs, merged main,
+> gates green). Drafted by hive against specs' pre-loaded anchors; landed **verbatim** with ONE
+> specs correctness-refinement to the sizing invariant (see §3). **No new wire** (reuse R2-WIRE §12.6
+> `dc` class-only + §3B.1 SCF, both UNCHANGED); a **normative role-model carve-out** only. This doc is
+> hive's mirror of the ratified text; **R2-RUNTIME §3.2.6 is the normative source**.
 >
 > **Reconciles the contradiction specs flagged:** R2-RUNTIME §3.2.1 says `bridge = AlwaysOn`
 > (§3.2.1 table; "a duty-cycled bridge is invalid" ~line 308; Bridge=AlwaysOn ~line 222) — which a
@@ -36,9 +38,15 @@ hardware.
 A standby edge bridge advertising `dc = Intermittent` is **SCF-buffered by upstream neighbours per
 §3B.1 automatically** (self-asserted, no-auth, `SCF_TTL_S = 120`, F2-proven) — the upstream sensor
 (D4) holds destined-through frames exactly as it already holds for any Intermittent neighbour.
-**Sizing invariant (normative):** the standby **`wake_cadence` MUST be `< SCF_TTL_S` (120 s)** so
-upstream-buffered frames are delivered within their SCF hold before expiry. (An edge bridge that
-sleeps longer than `SCF_TTL_S` would silently drop upstream-buffered traffic — a violation.)
+**Sizing invariant (normative — as specs REFINED it):** the standby **`wake_cadence` MUST be shorter
+than the UPSTREAM buffering node's `scf_ttl_s`** (§3.2.2 policy, F2-default **120 s**) — **NOT the
+literal 120 s**. My draft said "`< SCF_TTL_S` (120 s)"; specs corrected it to the *relationship*
+because `scf_ttl_s` is a deployment-tunable knob on the *upstream* node (a DIFFERENT knob than the
+bridge's own cadence): if an operator validly sets upstream `scf_ttl_s`=60 s, a bridge sleeping 90 s
+satisfies "<120 s" yet its buffered frames drop at 60 s → silent loss. The relationship (cadence <
+upstream TTL) is always correct; 120 s is only the field-proven default. (This is the
+independent-knobs discipline: check same-quantity vs independent knobs before pinning an ordering
+MUST.)
 
 ## Phone-presence transition (R2-RUNTIME §3.2.x — runtime state, self-asserted)
 The edge bridge transitions **AlwaysOn ↔ Intermittent** on **sink-presence**, self-asserted like
@@ -50,11 +58,14 @@ The transition is a runtime power-state, orthogonal to the deploy-time role (the
 bridge*); only its advertised `duty_class` changes. Presence is a local hardware/host signal
 (USB suspend-resume, BLE link state, app heartbeat), not a wire-authenticated claim.
 
-## Landing map
-- **R2-RUNTIME §3.2.1** — the carve-out + the invariant (this doc §1–2). Roy-GO-approved direction.
-- **R2-RUNTIME §3.2.x** — the phone-presence transition (this doc §4), as a runtime power-state note.
-- **R2-WIRE §12.6 / §3B.1** — UNCHANGED (reuse `dc=Intermittent` + existing SCF; no wire surface).
-- Impl (separate, non-spec): `r2-sx1262` `SetRxDutyCycle` (core-owned) + `dfr1195-fw` standby feature.
+## Landing map — AS LANDED
+- **R2-RUNTIME §3.2.6** (NEW, v0.25 @4072063) — the carve-out + discriminator invariant + transit
+  exclusion + phone-presence transition + sizing invariant. Annotated **§3.2.1** Bridge row + **§3.3**
+  power admissibility. This is the normative source; this doc is hive's mirror.
+- **R2-WIRE §12.6 / R2-ROUTE §3B.1** — UNCHANGED (reuse `dc=Intermittent` class-only + existing
+  hop-by-hop SCF custody; no wire surface, no new §3B.x rule).
+- Impl (separate, non-spec, **HELD on Roy scope-eyeball**): `r2-sx1262` `SetRxDutyCycle` (core-owned)
+  + `dfr1195-fw` off-by-default `standby` feature.
 
 ---
-*Open for specs ratify. hive drafts (host/impl view); specs owns the normative R2-RUNTIME text.*
+*✅ RATIFIED as R2-RUNTIME §3.2.6 @4072063. hive mirror (host/impl view); specs owns the normative text.*
