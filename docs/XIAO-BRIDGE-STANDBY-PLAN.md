@@ -1,9 +1,13 @@
 # XIAO edge-bridge power-standby — firmware plan (the heat fix)
 
-> **Status:** PLAN for Roy scope-eyeball (Roy GO via supervisor 2026-07-10). SPEC-FIRST: the
-> dc-advertise/SCF contract (§4) lands in `r2-specifications` **before** any path-1 flash.
-> Report-plan-before-deep-implementation per supervisor. Verified against the LIVE `dfr1195-fw`
-> worktree `8022c2e` (not just the committed patch).
+> **Status: ✅ PATH-1 FLASHABLE + STAGED on alfred — Roy-OPERATOR-gated (not scope-gated).** All gates
+> cleared: spec ratified (R2-RUNTIME §3.2.6 @4072063), Roy scope CONFIRMED, core landed both driver diffs
+> (@8508309), surgically re-vendored (dfr1195-fw bd67669), both `cargo +esp check` green. **Staged:**
+> `alfred:~/xiao-standby-04ce0049.elf` (+ standby-off fallback `xiao-fieldfallback-a6114724.elf`).
+> **SCOPE NOTE: the staged image is RADIO RX-duty-cycle ONLY — MCU light-sleep (1c) is DEFERRED**
+> (documented TODO; radio duty-cycle alone is the fastest heat win). **SF7 miss-rate gate (metal):**
+> a high SF7 3ms/5ms miss-rate → ask CORE for a canonical `preamble_len` profile/KAT bump (core-owned,
+> §2 path-(b)), NOT a local firmware tweak. Remaining = Roy flashes (XIAO not on alfred yet) + bench.
 
 ## 0. Root cause (ground-truthed, live worktree)
 The XIAO edge bridge (`xiaobridge` feature: ESP32-S3 + Wio-SX1262; `lora_route_task` RXes, drains
