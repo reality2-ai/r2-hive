@@ -109,13 +109,14 @@ wake-power (defeats the heat-fix). Minimal diff wins.
 has no `PreambleDetected` const today (`irq::` = TX_DONE `1<<0` / RX_DONE `1<<1` / CRC_ERR `1<<6` /
 TIMEOUT `1<<9`). A future arming would add `PREAMBLE_DETECTED = 1<<2`, not `1<<5`.
 
-## Diff 3 — `crates/r2-transport/src/lora_transport.rs` (LoRaTransport RX-arming MODE) — REQUIRED, ⚠ NOT YET LANDED
-> **STATUS (2026-07-10):** Diff 1/2 **LANDED @1bbb32b** (core; verified in tree: `listen_duty_cycle`
-> default in lora.rs:67, `SET_RX_DUTY_CYCLE=0x94` + `us_to_steps` + Sx1262 override in r2-sx1262).
-> **Diff 3 is NOT in 1bbb32b** — `lora_transport.rs` still re-issues plain `radio.listen()`; no
-> `set_rx_standby`/`rx_duty`/`arm_rx`. The firmware (dfr1195-fw 810573e) calls `lora.set_rx_standby(..)`,
-> so it will NOT compile until Diff 3 lands. **Re-vendor HELD on Diff 3.** (Core landed from the first
-> handoff, 733d82d — the Diff 3 follow-up c7fc7a8 was queued while core was busy; re-flagged.)
+## Diff 3 — `crates/r2-transport/src/lora_transport.rs` (LoRaTransport RX-arming MODE) — ✅ LANDED
+> **STATUS (2026-07-10): ALL THREE LANDED + RE-VENDORED + BUILT GREEN.** Diff 1/2 @1bbb32b, Diff 3
+> @8508309 (verified in-tree: `rx_duty`/`arm_rx`/`set_rx_standby`/`set_rx_continuous` + both re-arm
+> sites routed + dispatch KAT). Surgically cherry-picked into dfr1195-fw's vendored r2-sx1262 +
+> r2-transport (bd67669 — NOT wholesale; the vendored crates are a pinned base 172 lines diverged).
+> `cargo +esp check --features xiaobridge,standby` exit 0. (History: core landed Diff 1/2 from the
+> first handoff 733d82d; the Diff 3 follow-up c7fc7a8 was queued while core was busy → I verify-then-
+> recorded that only Diff 1/2 was in 1bbb32b, re-flagged, core then landed Diff 3 @8508309.)
 
 **Architectural finding (evidence):** `LoRaTransport` OWNS the radio (moved in at `new`) and OWNS RX
 arming — it re-issues continuous `radio.listen()` at THREE sites: `new:61`, TxDone re-listen `:154`,
