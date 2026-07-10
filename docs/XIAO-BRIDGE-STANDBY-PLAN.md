@@ -44,6 +44,27 @@ primitive; **Diff 3 = a duty-cycle MODE on `LoRaTransport`** (`rx_duty` policy N
 **Effect:** radio warm-sleeps between windows + MCU light-sleeps between DIO1/USB events → the
 always-hot idle draw drops with **no phone-coupling**.
 
+### Bench sizing — core-verified (correctness-#2 lane), READ BEFORE the metal bench
+**Detection rule (governs every SetRxDutyCycle window):** `(rxPeriod + sleepPeriod) ≤ TX preamble
+length` — so the preamble always spans ≥1 full RX window (else it can fall entirely in a sleep gap =
+a HARD miss). Current firmware = **3 ms rx / 5 ms sleep = 8 ms cycle**; SF7/BW125 8-symbol preamble =
+**8.19 ms** ⇒ cycle < preamble ✓.
+- **⚠ SF7 marginal knob:** rxPeriod 3 ms ≈ 2.9 SF7 symbols of worst-case detect overlap. If the
+  SX1262 preamble-detect threshold needs **>3 symbols**, that is exactly where a non-trivial SF7
+  miss-rate comes from. **Bench 3/5 + 8-sym preamble FIRST** (the aggressive low-power config — the
+  heat-fix goal); measure miss-rate, then adjust on data (don't preemptively soften).
+- **On a high miss-rate, two knobs (core's lean = (b) FIRST):** (a) bump rxPeriod → more detect
+  margin but costs idle power (erodes the heat-fix); **(b) lengthen TX-side preamble to 12–16 symbols**
+  → costs a little airtime, widens the window for the `cycle ≤ preamble` rule, and helps EVERY
+  receiver + SF12. Prefer (b) before touching rxPeriod. (TX preamble = `as923_nz().preamble_len`,
+  currently 8 — a mesh-wide change: both TX + every RX, so deliberate, post-bench.)
+- **★ SF12 re-size (quantified — do NOT carry 3/5 to SF12):** SF12/BW125 8-symbol preamble = **262 ms**
+  = the SX1262 `sleepPeriod` cap (24-bit × 15.625 µs). So at SF12 the *max* sleep alone already
+  meets/exceeds the default preamble — you can't run a long sleep AND an 8-sym preamble under
+  `cycle ≤ preamble`. SF12 duty-cycle needs EITHER a shorter sleep (less power saving) OR a longer TX
+  preamble (16+ sym = 524 ms for headroom). **Decide the SF12 TX-preamble length before any field
+  deploy** (SF12 is field canon; benchsf7 SF7 is bench-only). See [[extended-frames-dont-fit-sf12]].
+
 ## 3. PATH 2 — phone-coupled standby (builds on path 1, separable)
 - **Phone-presence hook:** phone-gone detected via (a) USB suspend (USB-Serial-JTAG suspend), (b) BLE
   disconnect (if the BLE leg is up), or (c) app-closed (app-heartbeat absence over the USB pipe) →
