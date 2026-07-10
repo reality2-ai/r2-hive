@@ -36,13 +36,18 @@ it **reserves for the host** and guarantees never to read or write except as the
 
 - The host owns `[__r2_scratch_ptr(), __r2_scratch_ptr() + __r2_scratch_len())` for the lifetime of
   the instance and places all §12.4.3.1 call buffers there.
-- **Pinned buffer bounds (co-pin proposal; caps are the required minimums, r2-forge may size larger):**
+- **Spec-pinned buffer bounds (NORMATIVE constants — so host + r2-forge agree by construction):**
   `__r2_abi_hash` out = **32 B**; `AbiResult` result slot = **136 B** (fixed, §12.4.3.1);
-  `r2_name` out cap `NAME_CAP` = **64 B**; `r2_poll` payload cap `POLL_CAP` = **256 B**;
-  `r2_execute` input margin `INPUT_MIN` = **512 B** (the in-region input ceiling before escalation).
-- **Sizing invariant (r2-forge enforces):** `__r2_scratch_len()` MUST be ≥ the **fixed-buffer floor**
-  `32 + 136 + NAME_CAP + POLL_CAP + INPUT_MIN` (= **1000 B** at the pinned caps). r2-forge sizes the
-  reservation per target: bounded on MCU (fits the ≤32 KB slot), larger on std/browser.
+  `NAME_CAP` = **64 B** (`r2_name` out); `POLL_CAP` = **256 B** (`r2_poll` payload). `INPUT_MIN` =
+  **≥ 512 B** is a **per-target minimum** (the in-region `r2_execute` input ceiling before escalation):
+  r2-forge picks it per target (bounded MCU / larger std). **The host ALWAYS reads `__r2_scratch_len()`
+  to learn the actual region size — it never assumes the floor.**
+- **Sizing invariant (r2-forge enforces):** `__r2_scratch_len()` MUST be ≥ `32 + 136 + NAME_CAP +
+  POLL_CAP + INPUT_MIN` (≥ **1000 B** at the pinned caps). r2-forge sizes the reservation per target:
+  bounded on MCU (fits the ≤32 KB slot), larger on std/browser.
+- **Net export rule (§12.4.3.1 v0.8 + §12.4.3.2, core-converged):** **every scalar export is a
+  value-returning func; `memory` is the only non-func export.** No metadata globals anywhere (they
+  are toolchain-ambiguous — a Rust `pub static` global exports the value's address, not the value).
 - **Owner + lifetime:** the **host** owns the region for the instance's lifetime; buffers within it
   are **transient per call** (host writes input before a call, reads the result after). The module
   MUST NOT retain or read host-written bytes in the region across calls, and MUST NOT read the
