@@ -49,7 +49,7 @@ forces union-align 4):
 
 ```
 offset 0   : tag u8         (0 = Ok, 1 = Err)
-offset 1..4: padding
+offset 1..4: padding        (MUST be zero — see padding pin below)
 --- tag 0 (Ok) — mirrors AbiResponse { data:[u8;128], len:u16 } ---
 offset 4..132  : data[128]
 offset 132..134: len u16      (len ≤ 128)
@@ -62,6 +62,18 @@ offset 72..74  : desc_len u16
 
 Field **order mirrors §12.4.3** (data-then-len; code, desc, desc_len) — an earlier hive draft
 len-prefixed and mis-sized (132 B); corrected here to the native image per core's review.
+
+**Padding pin (core co-pin refinement, f866c3f/co-pin):** all padding bytes — offsets `[1..4]`
+after `tag`, plus any tail padding up to 136 B, plus the unused branch bytes (the `Err` region on an
+`Ok` result and vice-versa **need not** be zeroed since the host reads only the tag-selected fields,
+but the **inter-field padding MUST be zero**) — **MUST be written zero**. Native Rust leaves
+`repr(C, u8)` padding *uninitialised*; the wire projection pins it to zero so the 136 B buffer is
+**fully determined + KAT-pinnable** and host reads are deterministic. r2-forge asserts padding-zero
+on emit.
+
+**Host endianness requirement (core co-pin):** the result buffer is a native **little-endian**
+image, so a conformant host MUST be little-endian. This is satisfied on every target: wasm linear
+memory is LE, and the std/browser hosts (x86/ARM) are LE.
 
 ## The abi_hash gate (two forms — targeting ≠ authorization, memo B.2.0)
 - **Full 32 B** SHA-256 over the canonical schema — exported by the module (`__r2_abi_hash`),
