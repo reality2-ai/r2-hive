@@ -25,10 +25,23 @@ provisioning facts (hive_id / TG) are read from each board.
   topological isomorphism with the real LoRa mesh. Which one applies is a bench-physical fact — CONFIRM the
   module before claiming real-LoRa.
 
-## Open (blockers to full confirmation — need a safe read or a bench fact)
-1. Is the XIAO CURRENTLY flashed with the `xiaobridge` fw + running/beaconing? (BLE scan on Alfred saw ~10 BLE
-   devices in a home RF environment but could NOT positively ID the R2-BEACON: opaque advert address, and
-   raw mfr-data needs `btmon` privileges / a serial banner.)
-2. Serial banner read is BLOCKED: no pip/pyserial for a DTR-low read, and a plain console-open risks resetting
-   the S3 into ROM download mode (the DFR1195 §USB-1 #14 lesson) — NOT attempted against the live board.
-3. LoRa module physically attached? (decides real-LoRa vs UDP-sim.)
+## ✅ RESOLVED via android's passive serial capture + fw-source decode (2026-07-12)
+- **CURRENTLY FLASHED + RUNNING** the `xiaobridge` build (android receives its USB stream). NOT dead.
+- **USB stream format** (`xiao_bridge_task`, dfr1195 main.rs:4923): one-shot opening SYNC `04 00 32 52 02 00`
+  = `[len 4 LE][magic 0x3252][v2][flags 0x00 = COMPACT]` at STARTUP (missed on a late connect), then each
+  message = `[u16 LE payload_len][payload VERBATIM]`. Payloads = **LoRa RX frames forwarded verbatim** —
+  compact R2-WIRE DATA (byte0>>6==0) that passed the target-group prefilter, or 0xA1 beacon-sightings. It is
+  the compact-on-LoRa bridge stream (was extended `…02 01` pre-2026-07-10), NOT full R2-USB v2 §3.5 type-demux.
+- **EGRESS free-runs** (LoRa→USB forwarded regardless of host). **INGRESS** (host→XIAO→LoRa TX) requires the
+  host to send its opening SYNC first, then framed messages (XIAO consumes the 1st framed msg as SYNC).
+- **Bearers, current xiaobridge build:** WiFi = **REAL + UP** (net_task+wifi_task unconditional). LoRa = **REAL
+  + UP** (loraroute+loratcxo; a LoRa peer is TX'ing ~2s compact frames the XIAO RX's + forwards). BLE = **HW
+  present but NOT advertising** — `xiaobridge` does NOT pull the `ble` feature, so `ble_task` is not spawned.
+- **⚠ GAP for the multi-bearer BEACONING task:** the current build beacons on LoRa + serves WiFi but does NOT
+  advertise BLE R2-BEACON. To meet "beaconing on every bearer" → rebuild `--features xiaobridge,ble` (adds
+  ble_task = R2-BEACON advertise + L2CAP CoC). **Reflash HELD** — android is live-capturing the current LoRa
+  stream; coordinate before reflashing so we don't disrupt its bench capture.
+
+## Still open
+1. **hive_id / TG** — read from a safe serial banner or the flashed KS1 (still no pyserial; not risked).
+2. Whether to reflash `xiaobridge,ble` now (BLE beacon) vs keep the current LoRa/USB bridge for android's capture.
