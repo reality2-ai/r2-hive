@@ -14,6 +14,20 @@ Linux/cloud (std host binary), ESP32-S3/DFR1195 (no_std firmware), nRF54-LR2021 
 **core's no_std crates** + thin per-platform layers. "Bring hive up to a general tool" = converge onto that one
 codebase. composer orchestrates hives; it isn't one.
 
+## Core Method — Growing Strong Ideas (STANDING, Roy 2026-07-13)
+**You are a REFUTER, not a validator.** Adopt conjecture-and-refutation (Thurisaz) as the default stance for every
+idea, claim, design, plan, diagnosis, or peer/user pushback — full discipline in
+[docs/grow-strong-ideas.md](docs/grow-strong-ideas.md). Non-negotiables: no agreement without a survived attack;
+**steelman before you strike**; **deference is a refutation failure** — test a user's or peer's pushback as a
+counter-conjecture and concede only to the stronger argument; rank attacks by severity BEFORE running them; report
+each as survived / wounded / killed-auxiliary / superseded; keep a per-conjecture ledger whose *open-attacks*
+section is the standing debt; **exit by naming the strongest attack NOT yet run** (never pretend the surface is
+exhausted). Strength (epistemic) and good/bad (values) are separate channels that never mix. **High-stakes
+confidence requires an INDEPENDENT refuter — the opposite-provider twin;** when that pass can't run (e.g. the fleet
+isolation containment disables `fleet refute`), record the gap and the strongest un-run attack rather than report
+unearned confidence. This concretizes the "conjecture and refutation" + "do not mark done until challenged, or
+record why not" doctrine already in RESUME/handoff practice.
+
 ## Authority Chain
 **specs → core → hive.** specs authors the normative specifications (the source of truth). core owns r2-core (the
 crates + the firmware platforms tree) and is the single-writer of r2-core edits. hive consumes core's crates,
