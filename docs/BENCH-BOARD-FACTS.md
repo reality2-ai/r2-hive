@@ -77,8 +77,23 @@ have; the forward-task also can't wedge on it (USB-Serial-JTAG egress drops byte
 blocks). ⇒ safe confirm = check whether the LoRa PEER is still transmitting, NOT poke the XIAO tty. Board
 untouched (download-mode-reset risk + android's live capture port).
 
+## Bench-owner decisions locked (composer eb0bc75 + android, 2026-07-12)
+- **Bearer roles:** LoRa = REAL (Wio-SX1262, confirmed by android's live RX), WiFi = REAL (§3.2 IP join, android
+  proceeding no-fw-change), BLE = dark on `xiaobridge`.
+- **❌ inject-per-transport harness CANCELLED (composer #2):** WiFi real + LoRa real ⇒ NO no-RF sim leg needed ⇒
+  do NOT build the fw inject harness. (Removes the open item; the BLE choice narrows to `--features ble` vs skip.)
+- **⏳ 2nd LoRa node = HIVE-owned (composer #1), GATED on supervisor GO:** android core-ffi is phone-provisioner
+  ONLY, so the node↔node LoRa counterparty MUST be a HIVE node, not android. Ask = stand a SECOND LoRa node at
+  **SF7 (`benchsf7`)** as the R2-PROVISION §3.2 join counterparty to the XIAO. **Deps to resolve on GO:** (a) a 2nd
+  SX1262 board physically attached (RAK is DISCONNECTED; need Roy to attach hardware) — candidates: RAK4630 (on
+  reconnect) or a 2nd DFR/XIAO+SX1262; (b) BOTH nodes must run the §3.2 JOIN role, so the counterparty is a
+  join-capable build, not the keyless `xiaobridge` bridge — a build-role question to settle when GO'd.
+- **Golden decode ref DELIVERED to android** (this doc's "Golden decode reference" section + fleet send, commit
+  95d5148) ⇒ android's bridge-stream PARSER lib fn is unblocked (independent of capture drops).
+
 ## Still open
-1. **hive_id / persona / TG / build_id** — exact values need the boot banner (android can catch on a reset) or
-   a safe serial read (no pyserial; not risked). Defaults above apply if unprovisioned.
-2. Whether to reflash `xiaobridge,ble` now (BLE beacon) vs keep the current LoRa/USB bridge for android's capture.
-3. Whether the bench needs a fw USB inject-per-transport harness (composer) — a fw feature, not present today.
+1. **hive_id / persona / TG / build_id** — catch on the next XIAO reset boot banner (android or me) for the shared
+   record; defaults above apply if unprovisioned. (composer #3 + android will catch.)
+2. **Reflash `xiaobridge,ble`** (BLE beacon) — SEQUENCE against android's live LoRa capture so it isn't disrupted;
+   held behind composer's BLE-real-vs-skip finalize (inject-harness now off the table).
+3. **2nd LoRa SF7 join counterparty** — prep on supervisor GO (hardware + join-role build, see decisions above).
