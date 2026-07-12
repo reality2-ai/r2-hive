@@ -77,6 +77,14 @@ have; the forward-task also can't wedge on it (USB-Serial-JTAG egress drops byte
 blocks). ⇒ safe confirm = check whether the LoRa PEER is still transmitting, NOT poke the XIAO tty. Board
 untouched (download-mode-reset risk + android's live capture port).
 
+## ★ COMPLEX-HIVE reframe (Roy via supervisor, 2026-07-13)
+phone + XIAO = **ONE complex hive** (single indivisible unit); the **USB link is an INTERNAL bus**; the XIAO
+MCU is a **faculty** of the hive. The §5.3.4 USB pairing is the **simple internal handshake** between the two
+faculties — NOT a cross-TG join. The complex hive joins its TG **as a unit**; there is **NO key-bearing /
+group-key-over-USB machinery** (confirms the pairing SM scope: establishes the internal `link_key` only). This
+is why `usb_link_id` can be a bench-derived internal identity (both faculties just need to agree) and why the
+spec's key-bearing-USB gate is a non-issue here.
+
 ## Bench-owner decisions locked (composer eb0bc75 + android, 2026-07-12)
 - **Bearer roles:** LoRa = REAL (Wio-SX1262, confirmed by android's live RX), WiFi = REAL (§3.2 IP join, android
   proceeding no-fw-change), BLE = dark on `xiaobridge`.
