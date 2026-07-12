@@ -42,6 +42,19 @@ provisioning facts (hive_id / TG) are read from each board.
   ble_task = R2-BEACON advertise + L2CAP CoC). **Reflash HELD** — android is live-capturing the current LoRa
   stream; coordinate before reflashing so we don't disrupt its bench capture.
 
+## Harness facts (composer bearer-map, 2026-07-12)
+- **USB console = LoRa TX/RX BRIDGE only — NO per-transport inject-as-received.** Egress = LoRa RX→USB
+  (verbatim). Ingress = USB→**real LoRa TX** (`DATA_TX_LORA`→`lora_route_task` transmits on-air). There is
+  NO inject-as-RECEIVED (BLE/LoRa) + NO R2RX tap of the DUT radio TX. ⇒ a no-RF SIM leg for BLE/WiFi needs a
+  **firmware change** (add a USB control-frame inject-per-transport-origin + a TX tap); LoRa is exercisable
+  only via real RF through the bridge. (Composer flagged wanting a no-firmware-change sim leg — that path
+  doesn't exist yet; scope a fw inject-harness feature if the bench needs it.)
+- **Identity is in the BOOT BANNER** (`DEV … hive={my_hive:08x} TG={tg_label} persona={bool} role`), catchable
+  on the next reset. Defaults if UNPROVISIONED: TG = `r2tg-demo-0000-0000-0000-000000000001`, hive_id =
+  mac_low3 fallback from `75:C3:3C`. persona.bin@0x12000 (if present) overrides with hk/tg_hash/hive_id/label.
+
 ## Still open
-1. **hive_id / TG** — read from a safe serial banner or the flashed KS1 (still no pyserial; not risked).
+1. **hive_id / persona / TG / build_id** — exact values need the boot banner (android can catch on a reset) or
+   a safe serial read (no pyserial; not risked). Defaults above apply if unprovisioned.
 2. Whether to reflash `xiaobridge,ble` now (BLE beacon) vs keep the current LoRa/USB bridge for android's capture.
+3. Whether the bench needs a fw USB inject-per-transport harness (composer) — a fw feature, not present today.
