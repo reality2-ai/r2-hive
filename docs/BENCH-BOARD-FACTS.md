@@ -53,6 +53,30 @@ provisioning facts (hive_id / TG) are read from each board.
   on the next reset. Defaults if UNPROVISIONED: TG = `r2tg-demo-0000-0000-0000-000000000001`, hive_id =
   mac_low3 fallback from `75:C3:3C`. persona.bin@0x12000 (if present) overrides with hk/tg_hash/hive_id/label.
 
+## Golden decode reference (for android's offline decode-proof, 2026-07-12)
+android's live `dd bs=1` capture byte-DROPS the USB egress (measured 27–30B vs the true fixed 31B), so a
+naive `decode_compact` hit `InvalidRouteLen` — a capture-tooling artifact, NOT a decoder bug. Proof of the
+artifact: byte0=`0x06` sets `has_route`, so a single dropped byte makes `data[12]` read as `rlen=0x00` →
+exactly `InvalidRouteLen`. Byte-exact golden frame from the CANONICAL `r2_wire::encode_compact`
+(`crates/r2-hive-bin/examples/gen_golden_compact_frame.rs`, round-trips `decode_compact`):
+- **compact frame (31B):** `0653000164cedbf305fe0701011234a10018eaa101182a0102030405060708`
+  - `06`=ver0|Event(type0)|route+hmac · `53`=ttl5/k3 · `0001`=msg_id · `64cedbf3`=event_hash ·
+    `05fe0701`=target · `01`=route_len · `1234`=route[0] · 8B payload · 8B hmac (arbitrary; `decode_compact`
+    only slices the tag — HMAC *verify* is separate `verify_compact`).
+- **R2-USB DATA record (33B):** `1f000653000164cedbf305fe0701011234a10018eaa101182a0102030405060708`
+  (`1f00` = payload_len 31 LE).
+- **0xA1 sighting golden** already in `dfr1195 platforms/dfr1195/USB-BEACON-SIGHTING-FORMAT.md` KAT:
+  `1700 A1 01 02 11 B201007FCE111165325A9ABAFE8AC11402 D6 09` (rssi/snr trailing 2B are SAMPLE-only).
+
+## Board-health note — the QUIET is peer-driven, not a wedge (2026-07-12)
+The `xiao_bridge_task` egress is PURE forwarded LoRa RX with NO local keepalive — if the LoRa peer stops
+TX'ing, egress goes to 0 bytes (benign). android confirmed the XIAO is STILL enumerated at the same MAC
+(D8:3B:DA:75:C3:3C) → it did NOT reset into ROM download mode (that re-enumerates). A single DTR toggle on
+a Python close does NOT force S3 download mode (that needs the esptool RTS/DTR *sequence*) and could not
+have; the forward-task also can't wedge on it (USB-Serial-JTAG egress drops bytes when unread, never
+blocks). ⇒ safe confirm = check whether the LoRa PEER is still transmitting, NOT poke the XIAO tty. Board
+untouched (download-mode-reset risk + android's live capture port).
+
 ## Still open
 1. **hive_id / persona / TG / build_id** — exact values need the boot banner (android can catch on a reset) or
    a safe serial read (no pyserial; not risked). Defaults above apply if unprovisioned.
