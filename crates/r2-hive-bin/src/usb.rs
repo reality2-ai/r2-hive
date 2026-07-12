@@ -809,7 +809,15 @@ impl UsbSession {
             self.send_abort("commit_mismatch");
             return self.fail_pairing("commit_mismatch", events);
         }
-        let z = usb_pair::shared_secret(&p.eph_sk_host, &pk_periph);
+        // R2-PROVISION §5.3.4 non-contributory reject (UP14): a zero/low-order peripheral eph key
+        // forces Z=0 → reject before deriving SAS/link_key (bad_key abort).
+        let z = match usb_pair::shared_secret(&p.eph_sk_host, &pk_periph) {
+            Some(z) => z,
+            None => {
+                self.send_abort("bad_key");
+                return self.fail_pairing("bad_key", events);
+            }
+        };
         let sas = usb_pair::sas_code(
             &z,
             &p.eph_pk_host,
