@@ -46,7 +46,7 @@ fn main() {
     // Derived via the canonical helpers.
     let pk_host = public_key_from_secret(&sk_host);
     let pk_periph = public_key_from_secret(&sk_periph);
-    let z = shared_secret(&sk_host, &pk_periph);
+    let z = shared_secret(&sk_host, &pk_periph).expect("contributory Z for test vectors");
     let commit = commitment(&pk_periph, &nonce_periph);
     let sas = sas_code(&z, &pk_host, &pk_periph, &nonce_host, &nonce_periph);
     let lk = link_key(&z, &pk_host, &pk_periph, &nonce_host, &nonce_periph, &hive_id);
