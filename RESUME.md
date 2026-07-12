@@ -8,6 +8,19 @@
 
 > **✅ CANONICAL SPEC REF — FINALIZED (supervisor 2026-07-11, supersedes the interim branch rule):** specs PUSHED origin/main (Roy-authorized, `8c8310d→e4b818e`, all 27 session commits); supervisor VERIFIED **origin/main = R2-UPDATE v0.60** (reject codes 16/17/18 present in origin/main:R2-UPDATE.md), board/chip_profile schema v0.34, TG-lane v0.59. **origin/main is canonical + current again — verify/build against origin/main as normal.** The interim "track spec-conformance-v0.2, avoid origin/main" rule is RESCINDED. specs adopts push-after-every-merge, so origin stays honest. **My threads: PIECE-B reject codes 16/17/18 now on origin/main (still deferred until the CoC receiver); tn_base board_profile tracks schema v0.34 on origin/main.**
 
+## 🔬 XIAO BENCH decode-support (android, 2026-07-12) — golden frames handed + board-health cleared (commit 95d5148)
+android hit two things decoding the XIAO USB egress: (1) InvalidRouteLen on live captures, (2) the stream went QUIET.
+**Both answered via fleet send + persisted to docs/BENCH-BOARD-FACTS.md.** (1) ROOT CAUSE = capture drop, NOT a
+decoder bug: `dd bs=1` byte-drops the egress (27–30B vs true fixed 31B); byte0=0x06 sets has_route, so ONE dropped
+byte reads data[12] as rlen=0x00 = InvalidRouteLen exactly. Handed a byte-exact GOLDEN frame from canonical
+`r2_wire::encode_compact` (round-trips decode_compact): compact 31B = `0653000164cedbf305fe0701011234a10018eaa101182a0102030405060708`;
+R2-USB DATA record 33B = `1f00…` (1f00 = payload_len 31 LE). Emitter LANDED = `crates/r2-hive-bin/examples/gen_golden_compact_frame.rs`
+(regen: `cargo run -p r2-hive --example gen_golden_compact_frame`). 0xA1 sighting golden already byte-exact in
+dfr1195 `USB-BEACON-SIGHTING-FORMAT.md` KAT. (2) QUIET = peer-silence (egress is PURE forwarded LoRa RX, NO
+keepalive); board still enumerated at same MAC = NOT in ROM download mode; forward-task can't wedge on a DTR toggle
+(USB-JTAG egress drops-when-unread, never blocks). Did NOT touch the board. **Do-not-assume:** the reflash decision
+(`xiaobridge,ble` vs keep bridge) is STILL held behind composer's BLE-real-vs-bridged-sim call + android's HOLD.
+
 ## 📡 RAK BLE bring-up (P4 = task #58/#44) — PRIORITY (Roy LIFTED do-not-flash 2026-07-11); AUTHORING the 2a spike
 **do-not-flash-RAK LIFTED** — Roy de-risks BLE NOW on the connected RAK (iterative dev flashes; final sealed image stays flash-once). **Profile RESOLVED = LEGACY 31B** (core+supervisor aligned, specs ruling incoming; extended/bloom DEFERRED — no consumer, ext-adv not universally phone-scannable, legacy→extended is additive). Step-1 (embassy 0.7 migration) DONE (dc6e3ed). Weight-anchor (main.rs:814-830, extended placeholder) to be REPLACED by the real legacy path in the spike.
 **⚠ SAFETY — FLASH ttyACM1 ONLY** (verified on Alfred: ttyACM1 = `r2-rak4630` VID **1209** Reality2 serial rak4630-dev = RAK nRF52840; ttyACM0 = Arduino Leonardo VID 2341 = **DO-NOT-TARGET**). Verify board identity BEFORE every flash. Roy runs one-liners unless he delegates with strict ttyACM1-only verify.
