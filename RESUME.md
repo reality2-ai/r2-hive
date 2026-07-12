@@ -68,6 +68,16 @@ integration wiring yet — carrying that as an explicit gap. **Also owed:** DTR-
 authorized) for the XIAO hive_id/TG. **Vectors:** UP1-8,13,14,18 ACTIVE; UP9-12,15-17 NON-ACTIVE (durability).
 **Vector generator (r2-hive gen_usb_pair_vectors.rs) still emits the OLD UP1-12 set — coverage-floor regen owed
 (the LANDED vector file @specs is already v0.47 simple-secure + is the contract; generator is stale hygiene).**
+**✅ REFLASH STAGED (2026-07-13, supervisor 4-point resolve) — dfr1195-fw platforms/dfr1195/REFLASH-XIAO-PAIRING.md (pushed).**
+Complex-hive reframe CONFIRMS scope (phone+XIAO=1 hive, USB=internal bus, no group-key-over-USB; specs will REMOVE
+the USB-SAS key-bearing path entirely, Roy-gated). **Artifact transfer = GIT reproducible-build-on-Alfred** (release
+VERIFIED here: compiles+LINKS clean once export-esp.sh sourced = 1.12MB ELF; NO binary in git). **Flash = 1 human-gated
+espflash cmd** keyed on STABLE by-id serial D8:3B:DA:75:C3:3C (never bare ttyACM; ttyACM0=Arduino=NEVER), Roy runs,
+sequenced vs android capture. **⚠ BANNER-READ MOOT** (supervisor authorized DTR-LOW read, but xiaobridge esp-println/no-op
+= NO banner on the USB stream); identity = MAC-derived usb_link_id (pairing binds this) + likely-unprovisioned mac_low3
+hive; **CAPS emission = the clean identity+usb_link_id exposure path — PROPOSED, pending android confirm they want it.**
+**STILL THE reflash gate: android framing/usb_link_id/CAPS answer (fleet-sent, pending) → then build CAPS if needed →
+Alfred build+flash by Roy.**
 
 ## 📦 ARCHIVE — P3 Profile-A/B durability saga (BENCH-DROPPED, superseded by the v0.50 simple-secure GO above)
 The v0.34→v0.44 Profile-A/B refutation arc (whipsaw A→retract→B→simple; STAGE-1 crypto built @9114254, reverted @3fff533, restored @5fc3a20; hive-codex/supervisor-codex durability blockers = REVEAL-crash split, simultaneous-power-loss split, lineage/target_gen, v1-fallback-bypass-gate) is **no longer the active path** — Roy dropped full durability for the bench (USB link is transitional→on-board). Full crash-durability is a parked FIELD track (`docs/proposals/USB-PAIRING-DURABILITY-REWRITE-2026-07-12.md`). **Two durability findings still worth carrying into the simple SM build:** (i) my host `usb.rs` negotiates down to v1 (`negotiates_down_to_v1_when_peripheral_responds_v1`) — simple-secure doesn't gate on a durable activation, but keep the pairing carried over the v2 control-frame path; (ii) the hive_id-vs-usb_link_id input to link_key = the CAPS `hive_id_bytes` (usb_link_id, TG-independent device-life-stable), NOT the mesh hive_id (spec §5.3.4 lines 556-571 + UP13). Detail lives in git history / RESUME-archive if the field track revives.
