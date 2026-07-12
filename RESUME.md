@@ -18,8 +18,14 @@ R2-USB DATA record 33B = `1f00…` (1f00 = payload_len 31 LE). Emitter LANDED = 
 (regen: `cargo run -p r2-hive --example gen_golden_compact_frame`). 0xA1 sighting golden already byte-exact in
 dfr1195 `USB-BEACON-SIGHTING-FORMAT.md` KAT. (2) QUIET = peer-silence (egress is PURE forwarded LoRa RX, NO
 keepalive); board still enumerated at same MAC = NOT in ROM download mode; forward-task can't wedge on a DTR toggle
-(USB-JTAG egress drops-when-unread, never blocks). Did NOT touch the board. **Do-not-assume:** the reflash decision
-(`xiaobridge,ble` vs keep bridge) is STILL held behind composer's BLE-real-vs-bridged-sim call + android's HOLD.
+(USB-JTAG egress drops-when-unread, never blocks). Did NOT touch the board.
+**★ BEARER-OWNER DECISIONS LOCKED (composer eb0bc75 + android, 2026-07-12):** LoRa REAL + WiFi REAL + BLE dark.
+**(a) fw inject-per-transport harness CANCELLED** (composer #2 — no no-RF sim leg needed; removed from open items).
+**(b) NEW hive task #66 (composer #1), GATED on supervisor GO:** stand a 2nd LoRa node at SF7 (`benchsf7`) as the
+R2-PROVISION §3.2 JOIN counterparty to the XIAO (android is phone-provisioner ONLY). Deps on GO: 2nd SX1262 board
+attached (RAK DISCONNECTED — need Roy hw) + a JOIN-role build (not keyless xiaobridge). **Do-not-assume:** reflash
+`xiaobridge,ble` still held behind composer's BLE-real-vs-skip finalize (inject-harness now off the table); sequence
+it against android's live LoRa capture. boot-banner hive_id/TG/persona/build_id owed on next reset catch.
 
 ## 📡 RAK BLE bring-up (P4 = task #58/#44) — PRIORITY (Roy LIFTED do-not-flash 2026-07-11); AUTHORING the 2a spike
 **do-not-flash-RAK LIFTED** — Roy de-risks BLE NOW on the connected RAK (iterative dev flashes; final sealed image stays flash-once). **Profile RESOLVED = LEGACY 31B** (core+supervisor aligned, specs ruling incoming; extended/bloom DEFERRED — no consumer, ext-adv not universally phone-scannable, legacy→extended is additive). Step-1 (embassy 0.7 migration) DONE (dc6e3ed). Weight-anchor (main.rs:814-830, extended placeholder) to be REPLACED by the real legacy path in the spike.
