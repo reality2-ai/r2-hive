@@ -98,6 +98,12 @@ untouched (download-mode-reset risk + android's live capture port).
 ## Still open
 1. **hive_id / persona / TG / build_id** — catch on the next XIAO reset boot banner (android or me) for the shared
    record; defaults above apply if unprovisioned. (composer #3 + android will catch.)
-2. **Reflash `xiaobridge,ble`** (BLE beacon) — SEQUENCE against android's live LoRa capture so it isn't disrupted;
-   held behind composer's BLE-real-vs-skip finalize (inject-harness now off the table).
+2. **Reflash `xiaobridge,ble` — composer FINALIZED BLE-REAL (0b2d0bd); reflash still HELD.** ADDITIVE (keeps the
+   LoRa bridge, adds ble_task). Sequence trigger: AFTER (a) the WiFi leg is proven AND (b) android's BlueZ central
+   is built, at a convenient break in android's live LoRa capture. **✅ compile-verified LOCALLY (xtensa esp
+   toolchain, 2026-07-12): `--no-default-features --features xiaobridge,ble,benchsf7` builds GREEN (warnings-only,
+   pre-existing dead-code) ⇒ NO feature-unification blocker** (ble = esp-radio/ble+coex+esp-now + trouble-host/bt-hci
+   coexists with xiaobridge's esp-println/no-op + lora). **⚠ compile-green ≠ coex-proven:** BLE+WiFi+LoRa on the one
+   S3 radio is a METAL-only validation at reflash time ([[local-check-vs-hosted-ci]]). Full ELF owed at the reflash
+   window (not staged now — fw may change first).
 3. **2nd LoRa SF7 join counterparty** — prep on supervisor GO (hardware + join-role build, see decisions above).
