@@ -38,13 +38,19 @@
 pub mod abi {
     /// `abi_version` of the frozen ABI (v1). Read first (module exports it as a global).
     pub const ABI_VERSION: u32 = 1;
-    /// Full 32 B `abi_hash` v1 — the fail-closed load-gate exact-match value (Ruling 2). The
-    /// module exports it via `__r2_abi_hash`; the host embeds it here and compares byte-exact.
-    /// First 8 B (`c37f504d4c2a9d8c`) are the `UpdateHeader`/recipe compat truncation (Ruling 1).
-    pub const ABI_HASH_V1: [u8; 32] = [
-        0xc3, 0x7f, 0x50, 0x4d, 0x4c, 0x2a, 0x9d, 0x8c, 0x1f, 0x5b, 0xc2, 0x14, 0xaa, 0x22, 0x9b,
-        0x4a, 0xe8, 0xc0, 0xd8, 0x88, 0x97, 0xa4, 0x9c, 0xce, 0x51, 0x98, 0x14, 0xd8, 0x91, 0x5a,
-        0x81, 0x7e,
+    /// 32 B **`ABI_HASH_WASM`** (R2-PLUGIN §12.4.3.3 v0.14 — the M1 abi_hash SPLIT) — the
+    /// fail-closed load-gate exact-match value (Ruling 2). The module exports it via
+    /// `__r2_abi_hash`; the host embeds it here and compares byte-exact. Post-split this is the
+    /// WASM-target hash (universal for wasm32's fixed ABI), **distinct from** per-ISA
+    /// `ABI_HASH_NATIVE` — so the load gate can tell wasm vs native models apart (D2 fix).
+    /// Computed by core's independent Python oracle + matched byte-exact by the Rust runtime KAT.
+    /// First 8 B (`5b6c9317beca30c5`) are the `UpdateHeader`/recipe compat truncation (Ruling 1).
+    /// **Synced in LOCKSTEP with core's abi_hash-split commit 2 (pre-staged 2026-07-12); before
+    /// the split this was the shared `ABI_HASH_FULL` = `c37f504d…817e`.**
+    pub const ABI_HASH_WASM: [u8; 32] = [
+        0x5b, 0x6c, 0x93, 0x17, 0xbe, 0xca, 0x30, 0xc5, 0x53, 0xa0, 0xbb, 0x2f, 0xf0, 0xfd, 0x69,
+        0xc5, 0xba, 0x70, 0x40, 0x97, 0x95, 0x7d, 0x0a, 0x75, 0xcf, 0x8a, 0x6b, 0x20, 0x16, 0x1c,
+        0x97, 0x17,
     ];
 
     // ── the 8 module exports (§12.4.3.1) ──
@@ -228,9 +234,9 @@ mod wasmtime_backend {
             abi_hash_fn.call(&mut store, hash_off as i32)?;
             let mut got = [0u8; 32];
             memory.read(&store, hash_off, &mut got)?;
-            if got != abi::ABI_HASH_V1 {
+            if got != abi::ABI_HASH_WASM {
                 bail!(
-                    "abi_hash mismatch — refuse to instantiate (Ruling 2): module {} != host v1",
+                    "abi_hash mismatch — refuse to instantiate (Ruling 2): module {} != host wasm",
                     hex(&got)
                 );
             }

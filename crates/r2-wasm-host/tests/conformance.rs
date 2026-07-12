@@ -21,8 +21,8 @@ const CONFORMANT_WAT: &str = r#"
   ;; §12.4.3.2: host-scratch region reserved at [16384, 16384+2048) — module never touches it.
   (func (export "__r2_scratch_ptr") (result i32) (i32.const 16384))
   (func (export "__r2_scratch_len") (result i32) (i32.const 2048))
-  ;; abi_hash v1 (32 B) at offset 0 — c37f504d4c2a9d8c1f5bc214aa229b4ae8c0d88897a49cce519814d8915a817e
-  (data (i32.const 0) "\c3\7f\50\4d\4c\2a\9d\8c\1f\5b\c2\14\aa\22\9b\4a\e8\c0\d8\88\97\a4\9c\ce\51\98\14\d8\91\5a\81\7e")
+  ;; ABI_HASH_WASM (32 B, R2-PLUGIN §12.4.3.3 v0.14 split) at offset 0 — 5b6c9317beca30c553a0bb2ff0fd69c5ba704097957d0a75cf8a6b20161c9717
+  (data (i32.const 0) "\5b\6c\93\17\be\ca\30\c5\53\a0\bb\2f\f0\fd\69\c5\ba\70\40\97\95\7d\0a\75\cf\8a\6b\20\16\1c\97\17")
   ;; __r2_abi_hash(out_ptr): copy the 32 B hash from [0..32] to out_ptr
   (func (export "__r2_abi_hash") (param $out i32)
     (local $i i32)
@@ -62,7 +62,7 @@ const CONFORMANT_WAT: &str = r#"
 )
 "#;
 
-/// Same module but with one abi_hash byte flipped — the load gate MUST refuse it (Ruling 2).
+/// Same module but with one ABI_HASH_WASM byte flipped (first byte 5b→00) — the load gate MUST refuse it (Ruling 2).
 const WRONG_HASH_WAT: &str = r#"
 (module
   (memory (export "memory") 1)
@@ -70,7 +70,7 @@ const WRONG_HASH_WAT: &str = r#"
   (func (export "__r2_plugin_id") (result i32) (i32.const 7))
   (func (export "__r2_scratch_ptr") (result i32) (i32.const 16384))
   (func (export "__r2_scratch_len") (result i32) (i32.const 2048))
-  (data (i32.const 0) "\00\7f\50\4d\4c\2a\9d\8c\1f\5b\c2\14\aa\22\9b\4a\e8\c0\d8\88\97\a4\9c\ce\51\98\14\d8\91\5a\81\7e")
+  (data (i32.const 0) "\00\6c\93\17\be\ca\30\c5\53\a0\bb\2f\f0\fd\69\c5\ba\70\40\97\95\7d\0a\75\cf\8a\6b\20\16\1c\97\17")
   (func (export "__r2_abi_hash") (param $out i32)
     (local $i i32)
     (block $d (loop $l
