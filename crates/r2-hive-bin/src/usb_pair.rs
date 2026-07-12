@@ -48,20 +48,10 @@ pub type HiveIdBytes = [u8; 16];
 pub type ReconnectNonce = [u8; 16];
 /// 16-byte truncated HMAC tag for reconnect responses.
 pub type ReconnectTag = [u8; 16];
-/// 16-byte truncated HMAC key-confirmation tag for the terminal handshake
-/// (PAIR_CONFIRM msg 7 / PAIR_DONE msg 8 / PAIR_ACK msg 14). 16 B to match [`ReconnectTag`].
-pub type ConfirmTag = [u8; 16];
 
 const SAS_LABEL: &[u8] = b"r2-usb-pair-sas-v1";
 const LINK_KEY_LABEL: &[u8] = b"r2-usb-pair-linkkey-v1";
 const RECONNECT_LABEL: &[u8] = b"r2-usb-reconnect-v1";
-/// Direction-separated terminal key-confirmation labels (R2-PROVISION §5.3.4 v0.42, UP14).
-/// PAIR_CONFIRM(7)=host, PAIR_DONE(8)=peripheral, PAIR_ACK(14)=host — so a tag minted for one
-/// message can never verify as another. Byte-identical across Profile A and B (terminal transcript
-/// is generation-independent — hive impl-source owner confirmed, v0.41 re-lock).
-const CONFIRM_HOST_LABEL: &[u8] = b"r2-usb-pair-confirm-host-v1";
-const CONFIRM_PERIPHERAL_LABEL: &[u8] = b"r2-usb-pair-confirm-peripheral-v1";
-const ACK_HOST_LABEL: &[u8] = b"r2-usb-pair-ack-host-v1";
 
 /// Compute the host's X25519 public key from a raw secret. The
 /// `x25519-dalek` `StaticSecret::from(bytes)` clamps internally on
@@ -73,20 +63,13 @@ pub fn public_key_from_secret(sk: &SecretKey32) -> PublicKey32 {
 }
 
 /// X25519 ECDH: compute the shared secret `Z` from one side's secret
-/// and the other side's public key. Both sides arrive at the same value.
-///
-/// **R2-PROVISION §5.3.4 non-contributory reject (UP14, defense-in-depth MUST):** returns `None` when
-/// the peer's key is zero/low-order so that `Z` is non-contributory (all-zero). Accepting it would make
-/// the SAS + link_key attacker-influenced; the caller MUST treat `None` as a `bad_key` pairing abort and
-/// derive nothing. Both host and peripheral apply this before any SAS / link_key / terminal-MAC step.
-pub fn shared_secret(self_sk: &SecretKey32, peer_pk: &PublicKey32) -> Option<SharedSecret> {
+/// and the other side's public key. Both sides arrive at the same
+/// value.
+pub fn shared_secret(self_sk: &SecretKey32, peer_pk: &PublicKey32) -> SharedSecret {
     let sec = StaticSecret::from(*self_sk);
     let pk = PublicKey::from(*peer_pk);
     let z = sec.diffie_hellman(&pk);
-    if !z.was_contributory() {
-        return None;
-    }
-    Some(*z.as_bytes())
+    *z.as_bytes()
 }
 
 /// SHA-256(eph_pk_peripheral ‖ nonce_peripheral). The peripheral's
@@ -197,83 +180,6 @@ pub fn verify_reconnect_tag(
     constant_time_eq(expected, &computed)
 }
 
-/// Terminal key-confirmation MAC over the pairing transcript (R2-PROVISION §5.3.4 v0.42 — UP14).
-///
-/// `tag = HMAC-SHA256(link_key, label || eph_pk_host || eph_pk_peripheral || nonce_host || nonce_peripheral)[..16]`
-///
-/// The 128 B transcript = the SAME four committed values that bind [`sas_code`] / [`link_key`], keyed by
-/// the link key (K1). `label` is direction-separated (see the CONFIRM/DONE/ACK label consts). Each side
-/// persists the link key ONLY after constant-time-verifying the peer's tag (defeats the empty-CONFIRM/DONE
-/// key-confirmation desync). Callers use [`confirm_tag`] / [`done_tag`] / [`ack_tag`].
-fn terminal_tag(
-    link_key: &LinkKey,
-    label: &[u8],
-    eph_pk_host: &PublicKey32,
-    eph_pk_peripheral: &PublicKey32,
-    nonce_host: &Nonce32,
-    nonce_peripheral: &Nonce32,
-) -> ConfirmTag {
-    let mut mac = <Hmac<Sha256> as Mac>::new_from_slice(link_key)
-        .expect("HMAC-SHA256 accepts any key length");
-    mac.update(label);
-    mac.update(eph_pk_host);
-    mac.update(eph_pk_peripheral);
-    mac.update(nonce_host);
-    mac.update(nonce_peripheral);
-    let full = mac.finalize().into_bytes();
-    let mut tag = [0u8; 16];
-    tag.copy_from_slice(&full[..16]);
-    tag
-}
-
-/// PAIR_CONFIRM (msg 7, host→peripheral) key-confirmation tag — [`terminal_tag`] w/ the host label.
-pub fn confirm_tag(
-    link_key: &LinkKey,
-    eph_pk_host: &PublicKey32,
-    eph_pk_peripheral: &PublicKey32,
-    nonce_host: &Nonce32,
-    nonce_peripheral: &Nonce32,
-) -> ConfirmTag {
-    terminal_tag(link_key, CONFIRM_HOST_LABEL, eph_pk_host, eph_pk_peripheral, nonce_host, nonce_peripheral)
-}
-
-/// PAIR_DONE (msg 8, peripheral→host) key-confirmation tag — [`terminal_tag`] w/ the peripheral label.
-pub fn done_tag(
-    link_key: &LinkKey,
-    eph_pk_host: &PublicKey32,
-    eph_pk_peripheral: &PublicKey32,
-    nonce_host: &Nonce32,
-    nonce_peripheral: &Nonce32,
-) -> ConfirmTag {
-    terminal_tag(link_key, CONFIRM_PERIPHERAL_LABEL, eph_pk_host, eph_pk_peripheral, nonce_host, nonce_peripheral)
-}
-
-/// PAIR_ACK (msg 14, host→peripheral) finalizer key-confirmation tag — [`terminal_tag`] w/ the ack label.
-pub fn ack_tag(
-    link_key: &LinkKey,
-    eph_pk_host: &PublicKey32,
-    eph_pk_peripheral: &PublicKey32,
-    nonce_host: &Nonce32,
-    nonce_peripheral: &Nonce32,
-) -> ConfirmTag {
-    terminal_tag(link_key, ACK_HOST_LABEL, eph_pk_host, eph_pk_peripheral, nonce_host, nonce_peripheral)
-}
-
-/// Verify a terminal key-confirmation tag in constant time. `tag_fn` is the direction's tag builder
-/// ([`confirm_tag`] / [`done_tag`] / [`ack_tag`]). Returns true iff `expected` matches.
-pub fn verify_terminal_tag(
-    expected: &ConfirmTag,
-    tag_fn: fn(&LinkKey, &PublicKey32, &PublicKey32, &Nonce32, &Nonce32) -> ConfirmTag,
-    link_key: &LinkKey,
-    eph_pk_host: &PublicKey32,
-    eph_pk_peripheral: &PublicKey32,
-    nonce_host: &Nonce32,
-    nonce_peripheral: &Nonce32,
-) -> bool {
-    let computed = tag_fn(link_key, eph_pk_host, eph_pk_peripheral, nonce_host, nonce_peripheral);
-    constant_time_eq(expected, &computed)
-}
-
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
@@ -332,42 +238,6 @@ mod tests {
         )
     }
 
-    /// Profile A (R2-PROVISION §5.3.4 v0.42) — terminal MACs (UP14) + gen-free reconnect (UP18) +
-    /// non-contributory reject, byte-exact vs the landed origin vectors (r2-usb-pair-vectors 0.10).
-    #[test]
-    fn profile_a_terminal_reconnect_and_reject_vectors() {
-        let (sk_host, sk_periph, nonce_host, nonce_periph, hive_id, nonce_rc) = fixed();
-        let pk_host = public_key_from_secret(&sk_host);
-        let pk_periph = public_key_from_secret(&sk_periph);
-        let z = shared_secret(&sk_host, &pk_periph).expect("contributory Z");
-        let k1 = link_key(&z, &pk_host, &pk_periph, &nonce_host, &nonce_periph, &hive_id);
-        // Canonical link_key K1 (UP8 / UP18).
-        assert_eq!(
-            k1,
-            arr::<32>("386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb")
-        );
-        // UP14 terminal MACs (CONFIRM→DONE→ACK), keyed by K1 over the 128 B transcript.
-        assert_eq!(
-            confirm_tag(&k1, &pk_host, &pk_periph, &nonce_host, &nonce_periph),
-            arr::<16>("4e4c5ff286e30e55bd71c2efdc869f4e")
-        );
-        assert_eq!(
-            done_tag(&k1, &pk_host, &pk_periph, &nonce_host, &nonce_periph),
-            arr::<16>("08ba274f802d982844df255fe5a68be8")
-        );
-        assert_eq!(
-            ack_tag(&k1, &pk_host, &pk_periph, &nonce_host, &nonce_periph),
-            arr::<16>("1ec03c3d79e1f6f19b6a797d24142d72")
-        );
-        // UP18 Profile-A gen-free reconnect tag (the existing reconnect_tag helper).
-        assert_eq!(
-            reconnect_tag(&k1, &nonce_rc, &hive_id),
-            arr::<16>("2f62edaaa469424d5a5da5630b06967b")
-        );
-        // UP14 non-contributory reject: an all-zero peer key forces Z=0 → None (→ bad_key abort).
-        assert!(shared_secret(&sk_host, &[0u8; 32]).is_none());
-    }
-
     #[test]
     fn pinned_eph_pk_host() {
         let (sk_host, _, _, _, _, _) = fixed();
@@ -391,8 +261,8 @@ mod tests {
         let (sk_host, sk_periph, _, _, _, _) = fixed();
         let pk_host = public_key_from_secret(&sk_host);
         let pk_periph = public_key_from_secret(&sk_periph);
-        let z_host = shared_secret(&sk_host, &pk_periph).expect("contributory Z");
-        let z_periph = shared_secret(&sk_periph, &pk_host).expect("contributory Z");
+        let z_host = shared_secret(&sk_host, &pk_periph);
+        let z_periph = shared_secret(&sk_periph, &pk_host);
         assert_eq!(z_host, z_periph, "ECDH must agree on both sides");
         assert_eq!(
             z_host,
@@ -434,7 +304,7 @@ mod tests {
         let (sk_host, sk_periph, nonce_host, nonce_periph, _, _) = fixed();
         let pk_host = public_key_from_secret(&sk_host);
         let pk_periph = public_key_from_secret(&sk_periph);
-        let z = shared_secret(&sk_host, &pk_periph).expect("contributory Z");
+        let z = shared_secret(&sk_host, &pk_periph);
         let code = sas_code(&z, &pk_host, &pk_periph, &nonce_host, &nonce_periph);
         assert_eq!(code, 488_092);
     }
@@ -453,7 +323,7 @@ mod tests {
         let (sk_host, sk_periph, nonce_host, nonce_periph, hive_id_bytes, _) = fixed();
         let pk_host = public_key_from_secret(&sk_host);
         let pk_periph = public_key_from_secret(&sk_periph);
-        let z = shared_secret(&sk_host, &pk_periph).expect("contributory Z");
+        let z = shared_secret(&sk_host, &pk_periph);
         let lk = link_key(
             &z,
             &pk_host,
@@ -473,7 +343,7 @@ mod tests {
         let (sk_host, sk_periph, nonce_host, nonce_periph, hive_id_bytes, nonce_rc) = fixed();
         let pk_host = public_key_from_secret(&sk_host);
         let pk_periph = public_key_from_secret(&sk_periph);
-        let z = shared_secret(&sk_host, &pk_periph).expect("contributory Z");
+        let z = shared_secret(&sk_host, &pk_periph);
         let lk = link_key(
             &z,
             &pk_host,
@@ -491,7 +361,7 @@ mod tests {
         let (sk_host, sk_periph, nonce_host, nonce_periph, hive_id_bytes, nonce_rc) = fixed();
         let pk_host = public_key_from_secret(&sk_host);
         let pk_periph = public_key_from_secret(&sk_periph);
-        let z = shared_secret(&sk_host, &pk_periph).expect("contributory Z");
+        let z = shared_secret(&sk_host, &pk_periph);
         let lk = link_key(
             &z,
             &pk_host,
@@ -509,7 +379,7 @@ mod tests {
         let (sk_host, sk_periph, nonce_host, nonce_periph, hive_id_bytes, nonce_rc) = fixed();
         let pk_host = public_key_from_secret(&sk_host);
         let pk_periph = public_key_from_secret(&sk_periph);
-        let z = shared_secret(&sk_host, &pk_periph).expect("contributory Z");
+        let z = shared_secret(&sk_host, &pk_periph);
         let lk = link_key(
             &z,
             &pk_host,
@@ -529,7 +399,7 @@ mod tests {
         let (sk_host, sk_periph, nonce_host, nonce_periph, hive_id_bytes, nonce_rc) = fixed();
         let pk_host = public_key_from_secret(&sk_host);
         let pk_periph = public_key_from_secret(&sk_periph);
-        let z = shared_secret(&sk_host, &pk_periph).expect("contributory Z");
+        let z = shared_secret(&sk_host, &pk_periph);
         let lk = link_key(
             &z,
             &pk_host,
