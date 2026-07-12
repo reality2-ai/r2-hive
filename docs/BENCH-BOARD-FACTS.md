@@ -88,8 +88,12 @@ untouched (download-mode-reset risk + android's live capture port).
   SX1262 board physically attached (RAK is DISCONNECTED; need Roy to attach hardware) — candidates: RAK4630 (on
   reconnect) or a 2nd DFR/XIAO+SX1262; (b) BOTH nodes must run the §3.2 JOIN role, so the counterparty is a
   join-capable build, not the keyless `xiaobridge` bridge — a build-role question to settle when GO'd.
-- **Golden decode ref DELIVERED to android** (this doc's "Golden decode reference" section + fleet send, commit
-  95d5148) ⇒ android's bridge-stream PARSER lib fn is unblocked (independent of capture drops).
+- **✅ Golden decode ref DELIVERED + CONSUMED (android d8696fd, 2026-07-12):** both golden frames decode byte-exact
+  (compact via `decode_compact_frame` — ttl5/k3/msg_id1/event_hash 0x64cedbf3/has_hmac; 0xA1 via
+  `decode_beacon_sighting` — bearer LoRa/rssi -42/snr +9, over the TV27-locked b201007fce… beacon). android built
+  `core-ffi/src/bridge.rs parse_bridge_stream` (SYNC + [len][payload] dispatch, streaming + reconnect-safe, never
+  panics, 6 KATs green). **HOST-SIDE RECEIVE PATH FOR THE BRIDGE STREAM = DONE + offline-verified.** My
+  InvalidRouteLen drop-diagnosis CONFIRMED by android. Live decode works whenever a LoRa peer TX's (see task #66).
 
 ## Still open
 1. **hive_id / persona / TG / build_id** — catch on the next XIAO reset boot banner (android or me) for the shared
