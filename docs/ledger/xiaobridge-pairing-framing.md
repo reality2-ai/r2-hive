@@ -26,23 +26,33 @@ Confidence: 0.5 → 0.25   (as of 2026-07-13)
   breaks android's parser + its live capture until android reworks it. | severity 0.6 | **wounded** | not a spec
   defect but a real interop/sequencing cost — the "no egress change" clause of the conjecture is false.
 
-## Superseding conjecture (v2)
+## Superseding conjecture (v2) — Confidence: 0.5 → 0.85 (as of 2026-07-13)
 "Converge the xiaobridge to a FULLY §3.5-conformant R2-USB v2 link: prepend a `local_id` type byte to LoRa-bridge
 frames, emit a §3.6 CAPS frame (`0xFE`) after SYNC advertising `hive_id_bytes = usb_link_id` + the transports, and
-carry pairing on `0xFF` control frames. Coordinate the egress change with android (whose parser reworks anyway)."
-- Resolves stronger: spec-clean (survives the §3.5 MUST), and matches the north-star (conformant R2-USB, not a
-  bespoke bridge stream). Cost: android parser rework + egress format change → MUST be sequenced (don't break the
-  live capture). Escalated to supervisor for the conformance call + sequencing.
+carry pairing on `0xFF` control frames + sightings on `0xFF` msg_type=12 observation. Coordinate with android."
 
-## Open attacks (generated, not yet run)
-- Does the COMPLEX-HIVE reframe (USB = INTERNAL bus, not an external R2-USB provisioning link) EXEMPT the bridge
-  from full §3.5 conformance? i.e. is the internal faculty↔faculty bus spec-governed at all, or impl-free? | est.
-  severity 0.7 | — the pivotal question; only specs/supervisor can rule. If exempt, v1 (hybrid) may be acceptable.
-- Byte-verify the framing against android's ACTUAL built host-TX (currently only design-intent; their SM is HELD).
-  | est. severity 0.5
-- Does a `local_id` type byte on LoRa frames interact with the 0xA1 sighting envelope (which is NOT an R2-WIRE
-  frame)? Sightings would need their own type-byte treatment under a conformant link. | est. severity 0.4
+### Attempts (v2)
+- [2026-07-13] Interop cost: does converging break android's built parser + live capture? | severity 0.6 |
+  **SURVIVED** | android: its host ALREADY has the §3.5 type-byte demux built (core-ffi/src/usb.rs — USB_TYPE_CAPS
+  0xFE / USB_TYPE_CONTROL 0xFF / encode_local_id_frame / decode @389); bridge.rs converges to a thin
+  SYNC+len-deframer feeding the existing §3.5 decoder = LESS code, not a rewrite; **NO live LoRa capture running**
+  (XIAO quiet, no 2nd SX1262) so nothing to break. The interop-cost auxiliary of conjecture v1 is fully refuted.
+- [2026-07-13] 0xA1 sighting has no conformant home under a typed link. | severity 0.4 | **killed-auxiliary:0xA1-wrapper**
+  | android: the 0xA1 raw wrapper is RETIRED canon; sightings ride as `0xFF` control **msg_type=12 observation**
+  (§3.7.1) — already in android's demux. Progressive (not ad hoc): removes a bespoke type, unifies on the control channel.
+- [2026-07-13] usb_link_id needs an unprovisioned shared-constant decision. | severity 0.3 | **SURVIVED (refuted the objection)**
+  | host binds link_key to whatever CAPS advertises → the peripheral's per-device value (MAC/master-derived),
+  re-advertised identically on reconnect, is authoritative; no shared constant needed. android ACCEPTED.
+- [2026-07-13] CAPS frame buildable + parseable by android's §3.6 parser? | severity 0.4 | **SURVIVED (partial — awaits android confirm)**
+  | encode_caps built + 12 host KATs green; exact 59B sample frame sent to android to confirm its Phase-2 parser.
+
+### Open attacks (v2)
+- **PIVOTAL:** does the COMPLEX-HIVE reframe (USB = INTERNAL bus) EXEMPT the bridge from full §3.5 conformance? |
+  est. severity 0.6 | only specs/supervisor rule. NOTE: even if exempt, v2 is never *wrong* (strictly more
+  conformant + the north-star) — so it dominates; the ruling only decides whether the simpler v1 was *also* allowed.
+- android's Phase-2 §3.6 parser confirms the exact CAPS bytes (sent, pending). | est. severity 0.4
+- Byte-verify the full choreography against android's built host-TX once its SM un-holds. | est. severity 0.5
 
 ## Value flags (separate channel — never moves confidence)
-- Conformant-now vs bench-expedient is partly a values/priority call (spec-purity vs not disrupting the live
-  capture) — routes to supervisor, does not move the epistemic confidence above.
+- Conformant-now vs bench-expedient is a values/priority call — routes to supervisor. (Epistemically v2 dominates
+  regardless; this flag is only about *effort timing*, not correctness.)
