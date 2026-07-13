@@ -78,6 +78,21 @@ sequenced vs android capture. **⚠ BANNER-READ MOOT** (supervisor authorized DT
 hive; **CAPS emission = the clean identity+usb_link_id exposure path — PROPOSED, pending android confirm they want it.**
 **STILL THE reflash gate: android framing/usb_link_id/CAPS answer (fleet-sent, pending) → then build CAPS if needed →
 Alfred build+flash by Roy.**
+**★ android ANSWERED (design-intent, their host SM HELD/reverted @7a2c950 pending specs+ping): (1) FRAMING confirmed
+== my build ([len][0xFF‖CBOR]); (2) CAPS REQUIRED — host expects §3.6 CAPS advertising hive_id_bytes(=usb_link_id)
+BEFORE opening, binds link_key to the CAPS value.** **⚠ CONFORMANCE FINDING (grow-strong-ideas, before building CAPS
+— ledger docs/ledger/xiaobridge-pairing-framing.md):** R2-USB §3.5 = a v2 link MUST type-byte EVERY frame
+(0x00-0xFB local_id R2-WIRE, 0xFE CAPS, 0xFF control); §3.5:313-315 "no dev-mode shortcut" = advertising v2 while
+sending untyped/legacy frames OR skipping CAPS is NON-CONFORMANT. The xiaobridge SYNC advertises v2 (`02`) but
+forwards RAW untyped LoRa frames → non-conformant. My 0xFF control demux IS §3.5-clean; the GAPS = no CAPS (0xFE) +
+untagged LoRa frames. **Superseding conjecture (v2): converge the bridge to a FULLY §3.5-conformant v2 link
+(prepend local_id byte to LoRa frames + emit §3.6 CAPS + 0xFF pairing) — spec-clean + north-star, BUT changes the
+egress format android's built parse_bridge_stream (d8696fd) + its LIVE capture depend on → cross-repo, MUST be
+sequenced.** **PIVOTAL OPEN ATTACK: does the complex-hive reframe (USB=INTERNAL bus) EXEMPT the bridge from full
+§3.5 conformance? Only specs/supervisor can rule.** ESCALATED to supervisor for the conformance call + sequencing;
+android heads-up sent. usb_link_id: canonical = HKDF(r2-usb-link-v1, device_master_secret)[0:16] (§3.6 normative,
+UP13); host takes it from CAPS so NO unprovisioned-fallback decision needed (my refutation of android's "needs a
+fallback"). **Do NOT build CAPS / rework egress framing until the §3.5-conformance path is ruled.**
 
 ## 📦 ARCHIVE — P3 Profile-A/B durability saga (BENCH-DROPPED, superseded by the v0.50 simple-secure GO above)
 The v0.34→v0.44 Profile-A/B refutation arc (whipsaw A→retract→B→simple; STAGE-1 crypto built @9114254, reverted @3fff533, restored @5fc3a20; hive-codex/supervisor-codex durability blockers = REVEAL-crash split, simultaneous-power-loss split, lineage/target_gen, v1-fallback-bypass-gate) is **no longer the active path** — Roy dropped full durability for the bench (USB link is transitional→on-board). Full crash-durability is a parked FIELD track (`docs/proposals/USB-PAIRING-DURABILITY-REWRITE-2026-07-12.md`). **Two durability findings still worth carrying into the simple SM build:** (i) my host `usb.rs` negotiates down to v1 (`negotiates_down_to_v1_when_peripheral_responds_v1`) — simple-secure doesn't gate on a durable activation, but keep the pairing carried over the v2 control-frame path; (ii) the hive_id-vs-usb_link_id input to link_key = the CAPS `hive_id_bytes` (usb_link_id, TG-independent device-life-stable), NOT the mesh hive_id (spec §5.3.4 lines 556-571 + UP13). Detail lives in git history / RESUME-archive if the field track revives.
