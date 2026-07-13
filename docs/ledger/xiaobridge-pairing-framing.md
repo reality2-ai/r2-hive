@@ -58,14 +58,25 @@ carry pairing on `0xFF` control frames + sightings on `0xFF` msg_type=12 observa
   only) + a §3.4(b) glance-SAS fix (not USB pairing); main RESUME states "no byte drift". Peripheral CONFIRMED
   byte-conformant to android's build target.
 
-### Open attacks (v2)
-- **PIVOTAL:** does the COMPLEX-HIVE reframe (USB = INTERNAL bus) EXEMPT the bridge from full §3.5 conformance? |
-  est. severity 0.6 | only specs/supervisor rule. NOTE: even if exempt, v2 is never *wrong* (strictly more
-  conformant + the north-star) — so it dominates; the ruling only decides whether the simpler v1 was *also* allowed.
-- Byte-verify the full choreography against android's built host-TX once its SM un-holds. | est. severity 0.5 |
-  **IN PROGRESS (android building PairingHost SM vs merged v0.50, supervisor GO; will ping byte-for-byte confirm).**
-  All 3 contract items (framing / usb_link_id-from-CAPS / CAPS-required-gate) RE-CONFIRMED from android's host side
-  2026-07-13 + match my build; CAPS already byte-exact @363a39d. Only the built-host-TX byte-replay remains un-run.
+### Attempts (v2) — continued
+- [2026-07-13] Byte-verify the full choreography against android's BUILT host-TX. | severity 0.5 | **SURVIVED (vector-transcript level)**
+  | android's PairingHost SM built + byte-proven @ff649da (11 KATs: host frames HELLO/HOST_REVEAL/CONFIRM/ACK
+  byte-exact vs UP14, reconnect tag 2f62edaa vs UP18). Both sides independently replay the SAME UP14/UP18 transcript:
+  my `first_pair_choreography_matches_vectors` KAT feeds the exact UP14 HOST frames into my peripheral + asserts the
+  correct UP14 peripheral responses; android's KATs replay the mirror. Shared byte-identical constructions ⇒ interop
+  for ANY keys, not just the test transcript. Contract confirmed from BUILT code (framing/usb_link_id/CAPS/msg_types).
+
+## Open attacks (v2) — the LAST one
+- **METAL interop** (the only un-run test): real random ephemerals/nonces + real USB-JTAG link + live SYNC→CAPS→
+  pairing timing on the actual XIAO↔phone. A survived *vector* test is weaker than a survived *metal* test — this is
+  gated on the reflash (Roy reconnects the XIAO to Alfred's bus + runs the by-id espflash; android drives PairingHost
+  over ttyACM1). | est. severity 0.5 | Confidence: 0.92 → 0.95 (vector-transcript interop proven both sides; metal
+  pending — will NOT claim done until a real pair lights).
+
+## Resolved attacks (no longer open)
+- **PIVOTAL (RESOLVED 2026-07-13):** does the COMPLEX-HIVE reframe (USB = INTERNAL bus) EXEMPT the bridge from full
+  §3.5 conformance? → supervisor RULED **default-to-conformant, no exemption** (if the XIAO ever stands alone it's
+  already clean). v2 built. (Was severity 0.6; v2 dominated regardless — the ruling only confirmed effort-timing.)
 
 ## Value flags (separate channel — never moves confidence)
 - Conformant-now vs bench-expedient is a values/priority call — routes to supervisor. (Epistemically v2 dominates
