@@ -50,6 +50,14 @@ carry pairing on `0xFF` control frames + sightings on `0xFF` msg_type=12 observa
   mutually LOCKED: LoRa=[len][0x02][compact], sighting=[len][0xFF][{0:12}], CAPS=[len][0xFE], pairing=[len][0xFF].
   android host parser side READY on all 4 arms; nothing blocked on android.
 
+- [2026-07-13] Version-drift: peripheral built @v0.50 0f61c81; android builds against merged §5.3.4 (specs main).
+  Did any construction / frame shape / vector drift break byte-compat? | severity 0.6 | **SURVIVED** | diff
+  0f61c81..origin/main: r2-usb-pair-vectors.json UNCHANGED (all UP1-8/13/14/18 values + frame_hex identical); TV27
+  observation on main = ffa2000c01a40051b201007fce…0307 = byte-identical to my encode_observation KAT; CAPS/local_id
+  framing unchanged. Main's §5.3.4 change = USB-SAS key-bearing REMOVAL (a path I never built — scope was link_key
+  only) + a §3.4(b) glance-SAS fix (not USB pairing); main RESUME states "no byte drift". Peripheral CONFIRMED
+  byte-conformant to android's build target.
+
 ### Open attacks (v2)
 - **PIVOTAL:** does the COMPLEX-HIVE reframe (USB = INTERNAL bus) EXEMPT the bridge from full §3.5 conformance? |
   est. severity 0.6 | only specs/supervisor rule. NOTE: even if exempt, v2 is never *wrong* (strictly more
