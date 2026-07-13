@@ -108,6 +108,14 @@ release LINKS clean = 1.125MB ELF (reflash artifact ready, recipe unchanged).** 
 bridge.rs to the conformant framing (they said they'd do it once I land the egress = DONE) + un-holds+builds its host
 PairingHost SM (gated on specs+ping) → Roy runs the Alfred flash (recipe REFLASH-XIAO-PAIRING.md, sequenced). The
 reflash puts the conformant peripheral on the board; the pair LIGHTS once android's host SM is built.
+**✅ VERSION-DRIFT CHECK CLEAN (grow-strong-ideas, 2026-07-13): peripheral CONFIRMED byte-conformant to android's build
+target.** Diff my pin (v0.50 @0f61c81) → specs origin/main: r2-usb-pair-vectors.json UNCHANGED (all UP1-8/13/14/18 +
+frame_hex identical); TV27 observation on main = byte-identical to my encode_observation KAT; CAPS/local_id framing
+unchanged; main's §5.3.4 change = USB-SAS key-bearing REMOVAL (a path I never built — scope was link_key only) +
+§3.4(b) glance-SAS fix; "no byte drift". **REFLASH is now Roy+android-gated (nothing owed from hive):** android
+un-held + building host SM+KATs + bridge.rs align (supervisor pinged it, main v0.66); XIAO is OFF-bus (RAK holds
+ttyACM1) so Roy must reconnect it + run the by-id espflash recipe (capture-pause moot). Last open attack = byte-verify
+vs android's built host-TX when its SM KATs land.
 
 ## 📦 ARCHIVE — P3 Profile-A/B durability saga (BENCH-DROPPED, superseded by the v0.50 simple-secure GO above)
 The v0.34→v0.44 Profile-A/B refutation arc (whipsaw A→retract→B→simple; STAGE-1 crypto built @9114254, reverted @3fff533, restored @5fc3a20; hive-codex/supervisor-codex durability blockers = REVEAL-crash split, simultaneous-power-loss split, lineage/target_gen, v1-fallback-bypass-gate) is **no longer the active path** — Roy dropped full durability for the bench (USB link is transitional→on-board). Full crash-durability is a parked FIELD track (`docs/proposals/USB-PAIRING-DURABILITY-REWRITE-2026-07-12.md`). **Two durability findings still worth carrying into the simple SM build:** (i) my host `usb.rs` negotiates down to v1 (`negotiates_down_to_v1_when_peripheral_responds_v1`) — simple-secure doesn't gate on a durable activation, but keep the pairing carried over the v2 control-frame path; (ii) the hive_id-vs-usb_link_id input to link_key = the CAPS `hive_id_bytes` (usb_link_id, TG-independent device-life-stable), NOT the mesh hive_id (spec §5.3.4 lines 556-571 + UP13). Detail lives in git history / RESUME-archive if the field track revives.
