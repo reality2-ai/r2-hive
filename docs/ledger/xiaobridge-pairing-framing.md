@@ -62,7 +62,10 @@ carry pairing on `0xFF` control frames + sightings on `0xFF` msg_type=12 observa
 - **PIVOTAL:** does the COMPLEX-HIVE reframe (USB = INTERNAL bus) EXEMPT the bridge from full §3.5 conformance? |
   est. severity 0.6 | only specs/supervisor rule. NOTE: even if exempt, v2 is never *wrong* (strictly more
   conformant + the north-star) — so it dominates; the ruling only decides whether the simpler v1 was *also* allowed.
-- Byte-verify the full choreography against android's built host-TX once its SM un-holds. | est. severity 0.5
+- Byte-verify the full choreography against android's built host-TX once its SM un-holds. | est. severity 0.5 |
+  **IN PROGRESS (android building PairingHost SM vs merged v0.50, supervisor GO; will ping byte-for-byte confirm).**
+  All 3 contract items (framing / usb_link_id-from-CAPS / CAPS-required-gate) RE-CONFIRMED from android's host side
+  2026-07-13 + match my build; CAPS already byte-exact @363a39d. Only the built-host-TX byte-replay remains un-run.
 
 ## Value flags (separate channel — never moves confidence)
 - Conformant-now vs bench-expedient is a values/priority call — routes to supervisor. (Epistemically v2 dominates
