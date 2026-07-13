@@ -97,10 +97,17 @@ fallback"). **★ android DE-RISKED path (A) (2026-07-13):** its host ALREADY ha
 OBSERVATION** (retires 0xA1, resolves my open attack); **NO live LoRa capture running** (XIAO quiet, no 2nd SX1262)
 so sequence-free; usb_link_id refutation ACCEPTED. Ledger v2 conjecture rose **0.5→0.85**. **KEY: path (A) DOMINATES**
 — even if the reframe would exempt the bridge, (A) is never wrong (more conformant + north-star), so the ruling only
-decides effort-timing. **✅ BUILT the §3.6 CAPS encoder (r2-usb-pair encode_caps, 12 host KATs green); sent android
-the exact 59B CAPS frame to confirm its parser** (dfr1195-fw crate commit pushed). **⏳ HOLDING the FW-side convergence
-(CAPS-emit + local_id egress tagging + sighting→obs-12 = the invasive egress-format change) for supervisor's explicit
-GO — recommended GO(A) since android is fully ready + no live capture.** Reflash downstream of that.
+decides effort-timing. **✅ BUILT the §3.6 CAPS encoder (r2-usb-pair encode_caps, host KATs green); android CONFIRMED byte-exact @363a39d.**
+**★ supervisor GO'd path (A) + ruled DEFAULT-TO-CONFORMANT (no complex-hive exemption) 2026-07-13 → CONVERGENCE LANDED
+(dfr1195-fw 06a4dab):** the xiaobridge is now a fully §3.5-conformant v2 link — CAPS(0xFE) emitted after SYNC; LoRa
+egress frames tagged with local_id 0x02 ([len][02][compact]); sightings re-encoded 0xA1→§3.7.1 OBSERVATION
+[len][0xFF][{0:12,1:{0:beacon,1:bearer,2:rssi,3:snr}}] (encode_observation, **byte-exact vs TV27**); ingress
+local_id-tagged frames stripped+TX'd; pairing on 0xFF unchanged. **13 crate KATs green; BOTH xtensa builds green;
+release LINKS clean = 1.125MB ELF (reflash artifact ready, recipe unchanged).** Pivotal open attack (reframe-exemption)
+= RESOLVED (supervisor: conformant, no exemption). **REFLASH now READY on my side** — coordinate: android aligns
+bridge.rs to the conformant framing (they said they'd do it once I land the egress = DONE) + un-holds+builds its host
+PairingHost SM (gated on specs+ping) → Roy runs the Alfred flash (recipe REFLASH-XIAO-PAIRING.md, sequenced). The
+reflash puts the conformant peripheral on the board; the pair LIGHTS once android's host SM is built.
 
 ## 📦 ARCHIVE — P3 Profile-A/B durability saga (BENCH-DROPPED, superseded by the v0.50 simple-secure GO above)
 The v0.34→v0.44 Profile-A/B refutation arc (whipsaw A→retract→B→simple; STAGE-1 crypto built @9114254, reverted @3fff533, restored @5fc3a20; hive-codex/supervisor-codex durability blockers = REVEAL-crash split, simultaneous-power-loss split, lineage/target_gen, v1-fallback-bypass-gate) is **no longer the active path** — Roy dropped full durability for the bench (USB link is transitional→on-board). Full crash-durability is a parked FIELD track (`docs/proposals/USB-PAIRING-DURABILITY-REWRITE-2026-07-12.md`). **Two durability findings still worth carrying into the simple SM build:** (i) my host `usb.rs` negotiates down to v1 (`negotiates_down_to_v1_when_peripheral_responds_v1`) — simple-secure doesn't gate on a durable activation, but keep the pairing carried over the v2 control-frame path; (ii) the hive_id-vs-usb_link_id input to link_key = the CAPS `hive_id_bytes` (usb_link_id, TG-independent device-life-stable), NOT the mesh hive_id (spec §5.3.4 lines 556-571 + UP13). Detail lives in git history / RESUME-archive if the field track revives.
