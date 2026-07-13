@@ -78,8 +78,10 @@ carry pairing on `0xFF` control frames + sightings on `0xFF` msg_type=12 observa
   is the pending K cleared on every abort path?; RAM transcript residue) are a SEPARATE attack surface my own tests
   cannot independently refute (same author blind spot). High-stakes security crypto → the AGENTS.md high-stakes rule
   requires an independent refuter. android's SM is getting exactly this (android-codex, relayed by supervisor). |
-  est. severity 0.6 | **REQUESTED via supervisor** (isolation containment disables fleet-refute; supervisor relays,
-  mirroring android's pass). MUST land before I claim the peripheral metal-ready.
+  est. severity 0.6 | **IN PROGRESS** — supervisor tasked the RESIDENT hive-codex (window 7, live) with the pass on
+  all 6 targets @06a4dab; codex can't fleet-send back (#65) so supervisor captures its verdict from the window +
+  relays it. MUST survive before I claim the peripheral metal-ready. On verdict: triage each finding
+  confirmed/partial/refuted, fix confirmed, re-verify; only then does this attack move to survived.
 - **METAL interop** (the physical un-run test): real random ephemerals/nonces + real USB-JTAG link + live SYNC→CAPS→
   pairing timing on the actual XIAO↔phone. A survived *vector* test is weaker than a survived *metal* test — this is
   gated on the reflash (Roy reconnects the XIAO to Alfred's bus + runs the by-id espflash; android drives PairingHost
