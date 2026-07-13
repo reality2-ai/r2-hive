@@ -6,12 +6,20 @@ persistent-claim-state roots?
    factory / lifecycle" mark that cannot be un-set).
 2. **Monotonic HW counter** — a *dedicated* hardware monotonic counter for the anti-rollback `hw_epoch`,
    DISTINCT from the firmware `security_version` counter (and how many bits / increments).
-3. **HUK / secure element** — a hardware-unique key (not SW-readable) or SE able to derive `K_slot` +
-   `K_persona` to seal the persona at rest.
+3. **Encrypt-at-rest for the persona blob** — ⚠ REFRAMED per core's ruling (2026-07-14): the contract
+   (`r2-trust/src/persist.rs:10-14`) is NOT "does silicon expose a HUK" — the serialized persona/member blob
+   carries RAW secrets (member: DEV_SK+DEK+HK+cert) and *"Callers MUST encrypt or protect the bytes at rest
+   using platform-appropriate mechanisms."* So root-3 = "does the platform provide encrypt-at-rest" (any of:
+   transparent encrypted-flash, keychain, HUK-derived AEAD); mechanism is unspecified. "K_slot/K_persona" was
+   THIS matrix's terminology, not core's — a per-slot HUK derivation is only needed IF core later defines one.
+   Load-bearing for a MEMBER: DEK/HK/DEV_SK can't be derived-on-demand (no TG_SK) → they MUST be persisted →
+   platform encrypt-at-rest is mandatory.
 
 **Tiers:** T1 native-persistent · T2 needs-external-SE · T3 non-persistent-only.
-**Status:** DRAFT. Grounded in silicon knowledge + in-repo config; confidence + FLAGs are explicit. Core asked
-to rule on the K_persona derivation column (fleet ask sent 2026-07-14) — that ruling folds into rows' root-3.
+**Status:** root-3 RULED by core 2026-07-14 (folded below). Grounded in silicon + in-repo config; confidence
++ FLAGs explicit. **Dev-trial context (Roy ratified 2026-07-14):** the RAK dev persona is PLAINTEXT-CBOR under
+the accepted wipe-only soft-seal model — so the root-3 gap below is a deferred PROD/specs decision, not a
+dev-flash blocker.
 
 ## The boards → the real silicon (only 3 distinct dies)
 | Board | MCU | Core ISA | In-repo evidence |
@@ -22,6 +30,35 @@ to rule on the K_persona derivation column (fleet ask sent 2026-07-14) — that 
 | FireBeetle-2 | **ESP32-C6FH4** | RISC-V (rv32imac) | `platforms/esp32` → `MCU=esp32c6`, `riscv32imac-esp-espidf` |
 
 → XIAO and DFR1195 are the **same die (ESP32-S3)**; the matrix has THREE distinct silicon rows.
+
+## ★ CORE ROOT-3 RULING (folded 2026-07-14 — the K_persona/encrypt-at-rest contract; core, read-only)
+Ground truth = `persist.rs:10-14` (encrypt-at-rest, mechanism unspecified — NOT a core-defined HUK derivation).
+- **ESP32-S3 / C6 → CONFORMANT (T1), with ONE config condition.** Flash-Encryption (XTS-AES, eFuse key HW-only,
+  transparent) satisfies encrypt-at-rest DIRECTLY, zero core key-derivation. (HMAC-peripheral + eFuse `HMAC_UP`
+  key = an UPGRADE path only if core later mandates domain-separated per-slot keys — that's where a real
+  K_persona would live; DS peripheral also present.) **Condition:** conformant ONLY in the HARDENED config =
+  Flash-Encryption **Release** mode (NOT Development) **+ Secure Boot v2**. Dev-mode flash-enc is
+  re-flashable/bypassable; without SB-v2 a malicious image reads decrypted flash. So "ESP32 satisfies it" is
+  TRUE IFF Release-flash-enc + SB-v2 are provisioned — a **BOM/provisioning gate, not a silicon gate**. HIGH.
+- **nRF52840 → NONCONFORMANT natively (literal contract gap).** APPROTECT is ACCESS-CONTROL (debug-lock), NOT
+  encryption → ZERO at-rest confidentiality; the member persona's DEV_SK/DEK/HK sit as PLAINTEXT in flash. Two
+  extraction paths defeat it: (1) PUBLISHED fault-injection bypass — LimitedResults "nRF52 Debug Resurrection"
+  (2020) voltage-glitches the APPROTECT load → full SWD → dumps plaintext flash (newer revs harden APPROTECT
+  but it's STILL only a debug-lock, not encryption); (2) decap/microprobe reads flash regardless. So vs a
+  PHYSICAL-extraction threat model it does NOT meet "MUST encrypt at rest". **Roy decision (the one real call):**
+  (a) physical-extraction resistance ⇒ **external SE MANDATORY** on the RAK BOM (ATECC608A-class: wrap the
+  sealing key in the SE, never in nRF flash); OR (b) Roy's ratified **wipe-only** model (attacker can ERASEALL-
+  wipe but not EXTRACT) ⇒ soft-seal acceptable, NO SE — **but** then `persist.rs`'s at-rest clause must be
+  EXPLICITLY amended ("T2/T3 platforms MAY substitute an APPROTECT-gated soft-seal under the wipe-only model"),
+  a **specs decision (route to specs)**, else contract+silicon silently disagree. HIGH on the mismatch + bypass.
+  ⟹ **Dev-trial takes (b) implicitly** (plaintext dev persona, reflashable); the specs amendment + SE choice is
+  a PROD-flash decision, deferred. FLAG: exact RAK4630 rev APPROTECT-hardness = bench-verify (doesn't change
+  "not encryption").
+- **Q3 unary-eFuse counter:** BLOCK_USR_DATA = 256 one-time bits (S3+C6); a unary `hw_epoch` ≤ 256 IF the whole
+  block is free, but it's SHARED with root-1 + other user data ⇒ real budget < 256. SB-v2 `SECURE_VERSION` is a
+  SEPARATE dedicated eFuse field (= the fw security_version), distinct from a USR_DATA-unary `hw_epoch` — as the
+  matrix says. DEFERRED (no fabricated number): exact `SECURE_VERSION` width + free USR_DATA remainder = read
+  off-silicon (`espefuse.py summary` + IDF `esp_efuse_table` per chip-rev). C6 HMAC+DS = HIGH-conf present.
 
 ## THE MATRIX
 
