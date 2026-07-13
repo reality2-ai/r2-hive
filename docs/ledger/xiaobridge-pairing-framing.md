@@ -43,14 +43,17 @@ carry pairing on `0xFF` control frames + sightings on `0xFF` msg_type=12 observa
 - [2026-07-13] usb_link_id needs an unprovisioned shared-constant decision. | severity 0.3 | **SURVIVED (refuted the objection)**
   | host binds link_key to whatever CAPS advertises → the peripheral's per-device value (MAC/master-derived),
   re-advertised identically on reconnect, is authoritative; no shared constant needed. android ACCEPTED.
-- [2026-07-13] CAPS frame buildable + parseable by android's §3.6 parser? | severity 0.4 | **SURVIVED (partial — awaits android confirm)**
-  | encode_caps built + 12 host KATs green; exact 59B sample frame sent to android to confirm its Phase-2 parser.
+- [2026-07-13] CAPS frame buildable + parseable by android's §3.6 parser? | severity 0.4 | **SURVIVED (CONFIRMED)**
+  | encode_caps built + 12 host KATs green; android's Phase-2 decode_caps parses the exact 59B frame byte-exact
+  (@363a39d, added as a KAT, 99 tests green): hive_id_bytes/firmware_id/version/transports[{local_id 2, kind
+  LoRa}] all resolve; region as923 skipped forward-compat. §3.6 CAPS interop PROVEN cross-repo. Egress mapping
+  mutually LOCKED: LoRa=[len][0x02][compact], sighting=[len][0xFF][{0:12}], CAPS=[len][0xFE], pairing=[len][0xFF].
+  android host parser side READY on all 4 arms; nothing blocked on android.
 
 ### Open attacks (v2)
 - **PIVOTAL:** does the COMPLEX-HIVE reframe (USB = INTERNAL bus) EXEMPT the bridge from full §3.5 conformance? |
   est. severity 0.6 | only specs/supervisor rule. NOTE: even if exempt, v2 is never *wrong* (strictly more
   conformant + the north-star) — so it dominates; the ruling only decides whether the simpler v1 was *also* allowed.
-- android's Phase-2 §3.6 parser confirms the exact CAPS bytes (sent, pending). | est. severity 0.4
 - Byte-verify the full choreography against android's built host-TX once its SM un-holds. | est. severity 0.5
 
 ## Value flags (separate channel — never moves confidence)
