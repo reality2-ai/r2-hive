@@ -65,6 +65,11 @@ carry pairing on `0xFF` control frames + sightings on `0xFF` msg_type=12 observa
   my `first_pair_choreography_matches_vectors` KAT feeds the exact UP14 HOST frames into my peripheral + asserts the
   correct UP14 peripheral responses; android's KATs replay the mirror. Shared byte-identical constructions ⇒ interop
   for ANY keys, not just the test transcript. Contract confirmed from BUILT code (framing/usb_link_id/CAPS/msg_types).
+  **BYTE-ENUMERATED CONFIRM (android, 2026-07-13):** host emits HELLO `ffa2000401a0` / HOST_REVEAL
+  `ffa2000d01a2015820<eph_pk_host>025820<nonce_host>` / CONFIRM `ffa2000701a10150<4e4c5ff2…>` / ACK
+  `ffa2000e01a101501ec03c3d…`; verifies my DONE `08ba274f…` constant-time before persist+ACK; reconnect CHALLENGE
+  `ffa2000901a10150<nonce_rc>` → verifies my RESPONSE vs UP18 `2f62edaa…`. 11 host KATs + 110 lib tests green. Both
+  sides + I agree: this is vector-transcript SURVIVED, metal is still the sole un-run test — nobody claims done.
 
 ## Open attacks (v2) — the LAST one
 - **METAL interop** (the only un-run test): real random ephemerals/nonces + real USB-JTAG link + live SYNC→CAPS→
