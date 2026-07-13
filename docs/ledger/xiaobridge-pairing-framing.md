@@ -71,8 +71,16 @@ carry pairing on `0xFF` control frames + sightings on `0xFF` msg_type=12 observa
   `ffa2000901a10150<nonce_rc>` → verifies my RESPONSE vs UP18 `2f62edaa…`. 11 host KATs + 110 lib tests green. Both
   sides + I agree: this is vector-transcript SURVIVED, metal is still the sole un-run test — nobody claims done.
 
-## Open attacks (v2) — the LAST one
-- **METAL interop** (the only un-run test): real random ephemerals/nonces + real USB-JTAG link + live SYNC→CAPS→
+## Open attacks (v2)
+- **INDEPENDENT ADVERSARIAL PASS on the peripheral SM** (opposite-provider = hive-codex): the vector KATs are
+  survived attacks on the *constructions*, but the SM *dynamics* (phase transitions, idempotent dup, abort/
+  protocol_error/bad_key paths, terminal-timeout teardown) and *secret lifetime* (eph_sk + Z zeroize completeness;
+  is the pending K cleared on every abort path?; RAM transcript residue) are a SEPARATE attack surface my own tests
+  cannot independently refute (same author blind spot). High-stakes security crypto → the AGENTS.md high-stakes rule
+  requires an independent refuter. android's SM is getting exactly this (android-codex, relayed by supervisor). |
+  est. severity 0.6 | **REQUESTED via supervisor** (isolation containment disables fleet-refute; supervisor relays,
+  mirroring android's pass). MUST land before I claim the peripheral metal-ready.
+- **METAL interop** (the physical un-run test): real random ephemerals/nonces + real USB-JTAG link + live SYNC→CAPS→
   pairing timing on the actual XIAO↔phone. A survived *vector* test is weaker than a survived *metal* test — this is
   gated on the reflash (Roy reconnects the XIAO to Alfred's bus + runs the by-id espflash; android drives PairingHost
   over ttyACM1). | est. severity 0.5 | Confidence: 0.92 → 0.95 (vector-transcript interop proven both sides; metal
