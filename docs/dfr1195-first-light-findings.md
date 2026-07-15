@@ -5,7 +5,7 @@ SSH → build-on-Alfred / flash-on-tuxedo. This is the metal-validation half of 
 **core authors the skeleton, hive builds+flashes on real hardware and feeds defects back.** Here's the loop's first pass.
 
 ## ✅ Confirmed from silicon (`espflash board-info`)
-- **Chip: esp32s3 (rev v0.1), Flash: 4MB, WiFi+BLE**, MAC f4:12:fa:50:26:98, Secure Boot + Flash Encryption **disabled**.
+- **Chip: esp32s3 (rev v0.1), Flash: 4MB, WiFi+BLE**, MAC xx:xx:xx:xx:xx:xx, Secure Boot + Flash Encryption **disabled**.
 - Definitively **ESP32-S3** — closes the C6/S3 question with the actual chip ID. (core's skeleton's `esp32c6` was a DFR1117-Beetle-C6 conflation.)
 
 ## ✅ Pipeline established

@@ -1608,8 +1608,13 @@ mod tests {
         let mut hh = Sha256::new();
         hh.update(&payload);
         let phash: [u8; 32] = hh.finalize().into();
-        let mut header = [0u8; 123];
-        header[0] = 2; // PACKAGE_VERSION
+        // R2-UPDATE v0.50: PACKAGE_VERSION 2->3, HEADER_LEN 123->137 (v3 appends the ABI tail
+        // abi_hash[123..131] / min_core_abi[131..133] / ensemble_semver[133..137]). The first 123B
+        // layout is unchanged, so the field offsets below still hold; the v3 tail stays ZERO — the
+        // firmware-full ABI exemption (abi_hash=0 / min_core_abi=0). Size off r2_update::HEADER_LEN
+        // so a future header-length bump can't silently reintroduce the BadHeader(1) reject.
+        let mut header = [0u8; r2_update::HEADER_LEN];
+        header[0] = 3; // PACKAGE_VERSION (v3)
         header[41] = 0x01; // firmware-full
         header[42..46].copy_from_slice(&(payload.len() as u32).to_be_bytes());
         header[46..78].copy_from_slice(&phash);

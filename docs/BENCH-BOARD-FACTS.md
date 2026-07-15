@@ -7,7 +7,7 @@ provisioning facts (hive_id / TG) are read from each board.
 | fact | value | source |
 |---|---|---|
 | chip | **ESP32-S3** (Seeed XIAO ESP32-S3; the off-the-shelf stand-in for the custom-sensor MCU stage) | MAC OUI D8:3B:DA = Espressif; [[custom-sensor-3stage-architecture]] |
-| WiFi/base MAC | **D8:3B:DA:75:C3:3C** | `/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_D8:3B:DA:75:C3:3C`, udevadm ID_SERIAL_SHORT |
+| WiFi/base MAC | **xx:xx:xx:xx:xx:xx** | `/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_xx:xx:xx:xx:xx:xx`, udevadm ID_SERIAL_SHORT |
 | USB | VID **303a** (Espressif), USB-Serial/JTAG native, **/dev/ttyACM1** | udevadm |
 | firmware | **dfr1195 platform (esp-hal/embassy, ESP32-S3) + `xiaobridge` feature** | dfr1195-fw platforms/dfr1195; xiaobridge = the pure edge-bridge build |
 | bearers (HW) | **BLE real** (esp-radio/ble+coex+esp-now → trouble-host), **WiFi real** (esp-radio/wifi), **LoRa** (r2-sx1262) **only if a SX1262 module is physically attached** | Cargo features `ble`/`lora`; LoRa presence = a BENCH-PHYSICAL fact (unconfirmed from here) |
@@ -71,7 +71,7 @@ exactly `InvalidRouteLen`. Byte-exact golden frame from the CANONICAL `r2_wire::
 ## Board-health note — the QUIET is peer-driven, not a wedge (2026-07-12)
 The `xiao_bridge_task` egress is PURE forwarded LoRa RX with NO local keepalive — if the LoRa peer stops
 TX'ing, egress goes to 0 bytes (benign). android confirmed the XIAO is STILL enumerated at the same MAC
-(D8:3B:DA:75:C3:3C) → it did NOT reset into ROM download mode (that re-enumerates). A single DTR toggle on
+(xx:xx:xx:xx:xx:xx) → it did NOT reset into ROM download mode (that re-enumerates). A single DTR toggle on
 a Python close does NOT force S3 download mode (that needs the esptool RTS/DTR *sequence*) and could not
 have; the forward-task also can't wedge on it (USB-Serial-JTAG egress drops bytes when unread, never
 blocks). ⇒ safe confirm = check whether the LoRa PEER is still transmitting, NOT poke the XIAO tty. Board

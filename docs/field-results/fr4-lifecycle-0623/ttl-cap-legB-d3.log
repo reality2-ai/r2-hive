@@ -47,7 +47,7 @@ r2-dfr1195: LORA task spawned (SPI3 SCK7/MISO5/MOSI6 NSS10 RST41 BUSY40 RXEN42 D
 r2-dfr1195: LORA-ROUTE up (SF7 BW125 916.8 sync0x21 -9dBm) — BL-200 message-passing over LoRa
 r2-dfr1195: ESP-NOW mesh up (hive f91c8911) ch1 — heartbeat over ESP-NOW broadcast
 r2-dfr1195: FIRE seq=2 beat (leaderless)
-r2-dfr1195: ESP-NOW peer MAPPED hive=06ae082b mac=f4:12:fa:52:99:28
+r2-dfr1195: ESP-NOW peer MAPPED hive=06ae082b mac=xx:xx:xx:xx:xx:xx
 r2-dfr1195: HB<-esp-now from=6ae082b e=-0.150 spread=299ms (leaderless)
 r2-dfr1195: LORA-RX sender=480e900e len=66 rssi=-33dBm masked=true
 r2-dfr1195: LORA-RX sender=480e900e len=65 rssi=-33dBm masked=true

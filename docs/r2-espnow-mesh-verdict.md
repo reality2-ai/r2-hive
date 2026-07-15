@@ -85,7 +85,7 @@ no SPOF, no two-AP. Infra-SoftAP (Mode 1b, criterion#1 PROVEN on metal) kept LIG
 
 ## ESP-NOW mesh demo — BUILD STATUS (2026-06-21)
 - **M-ESPNOW-1 DONE on metal:** ESP-NOW true-mesh FORMS — board A recvs board B's connectionless broadcast
-  (`ESP-NOW RECV peer_hive=2cab5f69 src=f4:12:fa:b7:90:10`), no AP, src-MAC captured, coex w/ WiFi+BLE.
+  (`ESP-NOW RECV peer_hive=2cab5f69 src=xx:xx:xx:xx:xx:xx`), no AP, src-MAC captured, coex w/ WiFi+BLE.
 - **Canon:** Transport::EspNow = **id 5 / 0x20** (R2-TRANSPORT §2.2; USB owns 4) — core re-landing at id 5.
   Affects core's transport tag, NOT my esp-radio ESP-NOW mechanics; I wire r2-route against id 5.
 - **NEXT — sync over ESP-NOW (the heartbeat):** route io_task's PROVEN conductor-PLL over ESP-NOW via a BRIDGE

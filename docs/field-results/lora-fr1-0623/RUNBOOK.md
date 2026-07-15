@@ -4,9 +4,9 @@ Staged 2026-06-23. Firmware: r2-hive commit `4042042` (`loraroute`). ELF + espfl
 pre-staged on tuxedo at `~/r2-flash/`. Flash ONLY after composer pings `dfr-fr1-off` (0 tty holders).
 
 ## Boards (hive ⇄ MAC ⇄ role)
-- **A** = `0dcadbf8` (f4:12:fa:50:23:e4) — ORIGINATOR (auto-sends Event→C every ~6s; can_hear={B})
-- **B** = `2cab5f69` (f4:12:fa:b7:90:10) — RELAY (can_hear={A,C})
-- **C** = `f91c8911` (f4:12:fa:b6:0a:a0) — DESTINATION (can_hear={B}); **LED flashes on each receipt**
+- **A** = `0dcadbf8` (xx:xx:xx:xx:xx:xx) — ORIGINATOR (auto-sends Event→C every ~6s; can_hear={B})
+- **B** = `2cab5f69` (xx:xx:xx:xx:xx:xx) — RELAY (can_hear={A,C})
+- **C** = `f91c8911` (xx:xx:xx:xx:xx:xx) — DESTINATION (can_hear={B}); **LED flashes on each receipt**
 
 A↮C is masked → A→C is forced multi-hop via B. Get the live `/dev/serial/by-id/...` per-board paths
 from composer at release (ports renumber on reset — never use ttyACMn).
