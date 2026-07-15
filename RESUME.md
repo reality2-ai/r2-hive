@@ -91,6 +91,18 @@
 > - **Lesson:** in a multi-check gate, audit EVERY check for the fail-open, not just the one being edited — a
 >   sibling check's `|| true` / bare `if assignment` is the identical hole. Fail-CLOSED must hold gate-wide.
 >
+> **▶ RE-PASS ROUND 7 (2026-07-16) — hive-codex CLEARED the hard gate; I added the final LOW hardening. NO PUSH.**
+> - hive-codex round-7 on `653a5bf`: **HARD HYGIENE GATES CLEAN, no blocker** — rc-injection on hard git-grep,
+>   hard filter, tree grep, ls-files, parser all propagate nonzero; findings cannot mask an abort; mixed-EUI
+>   end-to-end flags [MAC] rc0; no remaining rc-swallow in checks 1–4 / docs hard scan; RESUME accurate.
+> - **hostname ADVISORY rc-swallow (LOW latent) — FIXED** (the one item hive-codex flagged, and the last `|| true`
+>   in the gate). It was safe today (advisory only warns) but would become fail-OPEN the instant HOSTNAME_SEVERITY
+>   flips to hardfail. Made rc-aware: a scan tool failure WARNS under advisory (behavior unchanged) and EXITS
+>   CLOSED under hardfail. Verified: hostname-scan-rc2 → advisory exit 0 (warn+continue), hardfail exit 2.
+> - **The gate is now fail-CLOSED gate-wide — zero rc-swallows remain.** F4/Pages branch stays HELD (publication
+>   policy; scanner clearance does not clear it). Next: one confirmatory re-pass of the hostname commit, then push
+>   the feature branch (per supervisor-codex) — NOT merge to main, NOT touch F4.
+>
 > **Verified state:** a value-blind control audit replays the old inventory against the base and reproduces
 > **4/17 live historical tails, 26 files, 41 location/format pairs** (colon 0 / hyphen 4 / compact 37 / 53 token
 > occurrences). The same audit against the working tree is **0/17, 0 files, 0 pairs, 0 tokens**. All 41 known

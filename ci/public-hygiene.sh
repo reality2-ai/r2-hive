@@ -428,7 +428,18 @@ fi
 # further Roy ruling. (Roy-canon: extend BENCH_HOSTS via Roy.)
 HOSTNAME_SEVERITY='advisory'
 BENCH_HOSTS='Alfred|Tuxedo'
-hosthits=$(git grep -inwE "$BENCH_HOSTS" -- . "${PATHSPEC[@]}" 2>/dev/null || true)
+# rc-aware even though it is advisory today: the `|| true` here would become fail-OPEN the moment
+# HOSTNAME_SEVERITY is flipped to hardfail (a scan tool failure would pass as "no hostnames"). Capture
+# the status now so the flip is safe — advisory WARNS on a scan failure, hardfail EXITS closed
+# (hive-codex round-7 latent note; the last rc-swallow in this gate).
+hosthits=$(gg -inwE "$BENCH_HOSTS" -- . "${PATHSPEC[@]}") && hrc=0 || hrc=$?
+if [ "$hrc" -gt 1 ]; then
+  if [ "$HOSTNAME_SEVERITY" = "hardfail" ]; then
+    echo "::error::hostname scan failed rc=$hrc — failing closed."; exit "$hrc"
+  else
+    echo "::warning::[ADVISORY] hostname scan failed rc=$hrc — the scan did NOT run; not failing (advisory)."
+  fi
+fi
 if [ -n "$hosthits" ]; then
   if [ "$HOSTNAME_SEVERITY" = "hardfail" ]; then
     echo "::error::bench hostname(s) ($BENCH_HOSTS):"
