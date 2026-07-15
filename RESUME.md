@@ -99,9 +99,17 @@
 >   in the gate). It was safe today (advisory only warns) but would become fail-OPEN the instant HOSTNAME_SEVERITY
 >   flips to hardfail. Made rc-aware: a scan tool failure WARNS under advisory (behavior unchanged) and EXITS
 >   CLOSED under hardfail. Verified: hostname-scan-rc2 → advisory exit 0 (warn+continue), hardfail exit 2.
-> - **The gate is now fail-CLOSED gate-wide — zero rc-swallows remain.** F4/Pages branch stays HELD (publication
->   policy; scanner clearance does not clear it). Next: one confirmatory re-pass of the hostname commit, then push
->   the feature branch (per supervisor-codex) — NOT merge to main, NOT touch F4.
+> - **The gate is now fail-CLOSED gate-wide — zero rc-swallows remain.**
+> - **DONE (2026-07-16): hive-codex gave a CLEAN confirmatory re-pass of a491d27, and the reviewed FEATURE BRANCH
+>   was PUSHED — `origin/hygiene-scanner-v2 = a491d27`; hosted `public-content-hygiene` GREEN on its own (no
+>   FLEET_SKIP). `origin/main` UNTOUCHED at `b3817dc`.** `ci.yml`/`docs.yml` are branch-gated to [platform-trait,
+>   main] so they did NOT run on the feature branch — they run on the eventual main-merge. Writer-ownership
+>   CONFIRMED (resident hive = sole writer; hive-hygiene-writer + codex = read-only).
+> - **ALL Roy-GATED, do NOT act without Roy's authorization relayed via supervisor:** (a) opening the PR
+>   (reality2-ai/r2-hive/pull/new/hygiene-scanner-v2), (b) merging to main, (c) the F4/Pages-deploy-branch flip to
+>   `refs/heads/main`. Supervisor is surfacing the ready-to-merge state to Roy and will route the PR back if
+>   authorized. Until then: HOLD. (This RESUME edit is a local handoff update, not pushed — the pushed tip stays
+>   at the reviewed a491d27.)
 >
 > **Verified state:** a value-blind control audit replays the old inventory against the base and reproduces
 > **4/17 live historical tails, 26 files, 41 location/format pairs** (colon 0 / hyphen 4 / compact 37 / 53 token
