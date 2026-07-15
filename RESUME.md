@@ -2,7 +2,7 @@
 
 > Older closed arcs live in RESUME-archive.md (rotated 2026-07-06; this file holds LIVE state only — keep it readable in one pass).
 
-> **▶ CURRENT (2026-07-15) — PUBLIC HYGIENE SCANNER v2 COMPLETE LOCALLY; NO PUSH / NO HARDWARE.**
+> **▶ CURRENT (2026-07-15) — PUBLIC HYGIENE SCANNER v2 FIXED AFTER INDEPENDENT HOLD; NO PUSH / NO HARDWARE.**
 > Objective: replace the fail-open, reversible tail-hash gate on branch `hygiene-scanner-v2` (base `b3817dc`),
 > scrub the stale exact inventory, and leave one bounded production classifier shared by source, filename, and
 > end-to-end KAT paths. Branch/commit: this entry travels in the local handoff commit; use `git log -1` for its
@@ -12,36 +12,46 @@
 > **4/17 live historical tails, 26 files, 41 location/format pairs** (colon 0 / hyphen 4 / compact 37 / 53 token
 > occurrences). The same audit against the working tree is **0/17, 0 files, 0 pairs, 0 tokens**. All 41 known
 > representations were replaced by shape-preserving placeholders; the broader contextual classifier found and
-> removed one additional separated tail without ever printing it. No old hash-prefix denylist or real-tail KAT
-> remains in the production guard.
+> removed one additional separated tail without ever printing it. An independent opposite-provider exact review
+> then found four historical tails embedded in eight-hex derived values, wounding the exact-six-token assumption;
+> a structural follow-up found a fifth explicit zero-prefixed fallback. All five were scrubbed. A value-blind
+> substring sweep derived from the four base-live tails now reports **0 residual occurrences in 0 files**, including
+> embedded forms. No old hash-prefix denylist or real-tail KAT remains in the production guard.
 >
 > **Implementation:** `ci/public-hygiene.sh` now has one Perl classifier fed NUL-delimited Git records. The same
 > invocation receives tracked content and filename pseudo-records, uses exact whole-token allowlists, covers colon,
-> hyphen, bare-compact, and compact-0x forms, reports only redacted location/reason/shape, and fails closed on a
-> malformed record stream. Context windows are local for ambiguous bare compact values; exact public partition
-> bounds and placeholders are explicit. `.github/workflows/docs.yml` now anchors the rendered-MAC allowlist to full
-> tokens and reports match category/count only, never matched values. Changed scope: scanner + rendered-doc workflow,
-> 26 scrubbed data/docs/log files, this handoff. No core, firmware-worktree, binary, secret, or hardware change.
+> hyphen, bare-compact, compact-0x, and narrowly structural eight-hex derived forms, reports only redacted
+> location/reason/shape, and fails closed on a malformed record stream. Context windows are local for ambiguous bare
+> compact values; exact public partition bounds and placeholders are explicit. Opaque 32-bit hive IDs remain public;
+> only explicit zero-prefix fallback and adjacent JSON hive-to-MAC mappings are classified as derived tails.
+> `.github/workflows/docs.yml` now anchors the rendered-MAC allowlist to full tokens and reports match category/count
+> only, never matched values. Changed scope: scanner + rendered-doc workflow, 27 scrubbed data/docs/log files, this
+> handoff. No core, firmware-worktree, binary, secret, or hardware change.
 >
-> **Verification (all exit 0):** `bash -n ci/public-hygiene.sh`; `bash ci/public-hygiene.sh --selftest` **36/36**
-> (includes actual Git extraction, mixed allowed/private line, compact filename, output-redaction, and malformed-input
-> fail-closed controls); full `bash ci/public-hygiene.sh` **OK in 0.98 s**; exact base-vs-working audit as above;
+> **Verification (all exit 0):** `bash -n ci/public-hygiene.sh`; `bash ci/public-hygiene.sh --selftest` **41/41**
+> (includes actual Git extraction, mixed allowed/private line, compact filename, embedded-derivation controls,
+> filename-only and empty-index controls, output-redaction, and malformed-input fail-closed controls); full
+> `bash ci/public-hygiene.sh` **OK in ~1.0 s**;
+> exact base-vs-working audit and four-live-tail substring clearance as above;
 > rendered rustdoc hygiene clean (35 benign long-hex tokens); `cargo test --workspace` (PROD), `cargo test --workspace
 > --features dev`, excluded WASM `cargo test` (21 pass / 1 pre-existing ignored), WASM32 check, workspace rustdoc, and
 > excluded WASM rustdoc. PROD/DEV retain the pre-existing authenticated-dedup ignored integration test; rustdoc emits
 > pre-existing link warnings. `actionlint`, `shellcheck`, Ruby, PyYAML, and Node YAML modules were unavailable; Bash
 > syntax and both changed workflow-shell negative controls ran directly.
 >
-> **Refutation ledger — conjecture `public-hygiene-v2` (empirical), confidence 0.50 → 0.93 provisional:**
+> **Refutation ledger — conjecture `public-hygiene-v2` (empirical), confidence 0.50 → 0.88 provisional:**
 > exact historical recall attack (severity .95) **survived after scrub**; production-vs-KAT path divergence (.90)
 > **survived** via temporary-Git end-to-end controls; substring/line allowlist and boundary bypasses (.90)
 > **survived**; public-log value disclosure (.90) **survived**; full-tree false-positive/load attack (.75)
 > **killed the line-wide-context auxiliary** and the local-window replacement survived at 0.98 s; generic scan
 > **wounded** the initial 41-only scope by finding one further tail, which was scrubbed. Independent opposite-provider
-> read-only review is requested through the supervisor and is the remaining confidence cap.
+> exact review (severity .98) **wounded** the exact-six-token assumption with four embedded derived values; the
+> structural eight-hex classifier, five additional scrubs, and direct substring-clearance audit supersede that
+> auxiliary design. Fresh exact re-review of the amended commit remains the confidence cap.
 >
-> **Open attacks / do not assume:** strongest unrun semantic attack = a future *context-free bare* six-hex tail is
-> intentionally indistinguishable from a short revision/colour and can pass (0x and device-context forms do not).
+> **Open attacks / do not assume:** strongest unrun attack = a complete private-device inventory beyond the 17-value
+> historical set; the scanner is structural and carries no secret oracle. A future *context-free bare* six-hex tail
+> is intentionally indistinguishable from a short revision/colour and can pass (0x and device-context forms do not).
 > Do not restore the reversible historical hashes to close that ambiguity; grow context/KATs instead. Do not infer
 > hosted CI from these local results. Do not push, flash, provision, or touch board ports for this work.
 

@@ -90,8 +90,8 @@
   THE BENCH VIEW IS LIT with the boards' true route-engine tables = bench-mirrors-reality on screen. No bridge fix needed
   (bonus: my bridge correctly REJECTED the pass-through --rt-forward unknown arg — validation worked).**
 - **⚖️ IDENTITY ADJUDICATED (supervisor ask): verdict (a) — legit re-provision, records stale, NO clobber.** Three legs: (1) DECISIVE:
-  clobber yields the UNPROVISIONED fallback (0x00+mac_low3 + '!! UNPROVISIONED' boot line) — D1 fallback would be 0x00502698 vs actual
-  0x8900955E, D2 0x00B79010 vs 0xB14B07D8 → personas PRESENT+VALID; (2) app-only flash cannot change ids → these ids predate today's
+  clobber yields the UNPROVISIONED fallback (0x00+mac_low3 + '!! UNPROVISIONED' boot line) — D1 fallback would be 0x00XXXXXX vs actual
+  0x8900955E, D2 0x00XXXXXX vs 0xB14B07D8 → personas PRESENT+VALID; (2) app-only flash cannot change ids → these ids predate today's
   flashing; (3) cross-board coherence (same-TG neighbour rows). **NEAR-MISS owned + rule corrected everywhere (triage sheet, bench
   memory): id-mismatch-vs-records = STALE RECORDS, not clobber; only the fallback pattern = clobber.** New truth table: xx:xx:xx =
   0x8900955E, xx:xx:xx = 0xB14B07D8; 480e900e/2cab5f69 RETIRED. Composer reminded to persist the map (board-details policy) + verify
@@ -102,7 +102,7 @@
   composer's sim namespace), NOT a board persona — never lock it in a board column; f91c8911 = FR-era presumptively stale;
   655a9e5f = strongest candidate, UNVERIFIED. Verify method: the carrier runs the radio-modem image (likely NO rt.snap — no
   engine/viz) → read the boot 'hive=<8hex>' banner or HEALTH key0 at the next natural tty-cycle window (NOT mid-demo); fallback
-  clobber-check vs 0x00b60aa0.**
+  clobber-check vs 0x00XXXXXX.**
 - **✅✅ DRAG WRITE-PATH PROVEN (composer live test): VMASK df on D1 → SILENT in ~2s (0 heard) while D2 stayed heard (falsifier
   held); VMASK ff → D1 returned. theatre→adapter→bridge→serial = end-to-end REAL reversible mesh effect. BENCH_TX_ORD=5 (WifiMesh/
   ESP-NOW) confirmed; VMASK = binary drag today; VDIST-gradient needs the routetest loop (same flow that lights bench rt.path
@@ -131,7 +131,7 @@
   flash = NOT YET HAPPENED.** Decisive: FIRE seq=53103 ≈ 29.5h continuous uptime (flash reboots + resets the counter → nothing
   flashed today). Old image ALSO emits rt.* (viz) → telemetry-presence is NOT the discriminator on this board; UPTIME is.
   Persona console-truth = 0x09A07E47 — MATCHES the historical label (this board was NOT in the re-provision wave, unlike D1/D2)
-  + not the clobber fallback (0x005023E4). Healthy: 4 viable nbrs (incl D1/D2 ~0.6 conf), 2 paths; port FREE. **POST-FLASH
+  + not the clobber fallback (0x00XXXXXX). Healthy: 4 viable nbrs (incl D1/D2 ~0.6 conf), 2 paths; port FREE. **POST-FLASH
   VERIFY PROTOCOL (standing offer to Roy): I re-run the same 15s read on his word — success = fresh boot banner + beats≈0 +
   persona still 09a07e47.** My safe-read tooling: vendored pyserial at crates/r2-hive-wasm/carrier-bridge (PYTHONPATH=that dir,
   `import serial`), stty -hupcl first, dtr=True/rts=False before open.

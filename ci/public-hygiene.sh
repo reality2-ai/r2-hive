@@ -37,6 +37,8 @@ fail=0
 redact_stream() {
   perl -pe '
     s{(?i)(?<![0-9a-f])(?:[0-9a-f]{2}[:-]){2,}[0-9a-f]{2}(?![0-9a-f])}{<redacted-hex-run>}g;
+    s{(?i)(?<![0-9a-z_])0x[0-9a-f]{7,8}(?![0-9a-z_])}{0x<redacted-hex>}g;
+    s{(?i)(?<![0-9a-z_])[0-9a-f]{7,8}(?![0-9a-z_])}{<redacted-hex>}g;
     s{(?i)(?<![0-9a-z_])0x[0-9a-f]{6}(?![0-9a-z_])}{0xXXXXXX}g;
     s{(?i)(?<![0-9a-z_])[0-9a-f]{6}(?![0-9a-z_])}{<redacted-hex>}g;
   '
@@ -105,6 +107,11 @@ TAIL_CTX='(?i:mac_low3|mac[ _-]?low|mac[ _-]?tail|\bmacs?\b|\bbssid\b|\beui\b|\b
 # Bare compact tokens need a stricter vocabulary plus adjacency checks in the classifier. In particular,
 # prose such as `-b 115200 -> Device programmed` is not a device ID merely because both tokens share a line.
 COMPACT_CTX='(?i:mac_low3|mac[ _-]?low|mac[ _-]?tail|\bmacs?\b|\bbssid\b|\beui\b|\boui\b|fingerprint|device[ _-]?id|board[ _-]?id|hive[ _-]?id|raw_serial)'
+# An 8-hex token is normally an opaque public ID. Two structural derivations are not: `00` + mac_low3
+# under explicit fallback context, and a JSON `hive` value mapped directly to a `mac` field. Keep the
+# recognition structural: treating every public 32-bit hive_id near the word "fallback" as a tail
+# destroys useful field evidence and produces a large false-positive surface.
+ZERO_PAD_CTX='(?i:mac_low3|mac[ _-]?low|mac[ _-]?tail|fallback|clobber)'
 # Exact public flash/partition bounds seen in this tree. Unlike the old blanket `000$` exception, these
 # pass only without nearby device context: `DEV 0x...` still fails even if its digits equal an offset.
 OFFSET_ALLOW_EXACT='1e0000
@@ -123,18 +130,21 @@ hygiene_scan() {
   perl -e '
     use strict;
     use warnings;
-    my ($mac_text, $tail_text, $compact_text, $offset_text, $tail_ctx_text, $compact_ctx_text) = splice @ARGV, 0, 6;
+    my ($mac_text, $tail_text, $compact_text, $offset_text, $tail_ctx_text, $compact_ctx_text, $zero_pad_ctx_text) = splice @ARGV, 0, 7;
     my %mac_allow = map { lc($_) => 1 } grep { length } split /\n/, $mac_text;
     my %tail_allow = map { lc($_) => 1 } grep { length } split /\n/, $tail_text;
     my %compact_allow = map { lc($_) => 1 } grep { length } split /\n/, $compact_text;
     my %offset_allow = map { lc($_) => 1 } grep { length } split /\n/, $offset_text;
     my $tail_ctx = qr/(?:$tail_ctx_text)/;
     my $compact_ctx = qr/(?:$compact_ctx_text)/;
+    my $zero_pad_ctx = qr/(?:$zero_pad_ctx_text)/;
     my %reported;
 
     sub redact {
       my ($text) = @_;
       $text =~ s{(?i)(?<![0-9a-f])(?:[0-9a-f]{2}[:-]){2,}[0-9a-f]{2}(?![0-9a-f])}{<redacted-hex-run>}g;
+      $text =~ s{(?i)(?<![0-9a-z_])0x[0-9a-f]{7,8}(?![0-9a-z_])}{0x<redacted-hex>}g;
+      $text =~ s{(?i)(?<![0-9a-z_])[0-9a-f]{7,8}(?![0-9a-z_])}{<redacted-hex>}g;
       $text =~ s{(?i)(?<![0-9a-z_])0x[0-9a-f]{6}(?![0-9a-z_])}{0xXXXXXX}g;
       $text =~ s{(?i)(?<![0-9a-z_])[0-9a-f]{6}(?![0-9a-z_])}{<redacted-hex>}g;
       return $text;
@@ -171,7 +181,7 @@ hygiene_scan() {
       $consumed = pos($data);
       # One internal prefilter, shared by production and KATs. It is a strict superset: separated
       # three-byte runs, 0x compact tails, and context-bearing bare compact tails all reach verdicts.
-      next unless $content =~ /(?:[0-9a-f]{2}[:-]){2}[0-9a-f]{2}|(?<![0-9a-z_])(?:0x)?[0-9a-f]{6}(?![0-9a-z_])/i;
+      next unless $content =~ /(?:[0-9a-f]{2}[:-]){2}[0-9a-f]{2}|(?<![0-9a-z_])(?:0x)?[0-9a-f]{6,8}(?![0-9a-z_])/i;
 
       # Extract the maximal pair run, then reject mixed separators as one malformed fragment. Boundary
       # checks exclude only hex, not the separator: x-02-...-y and usb_02:...-if00 must both reach here.
@@ -211,9 +221,21 @@ hygiene_scan() {
         next if $prefix eq "" && !$has_ctx;
         report($path, $line, $prefix eq "" ? "TAIL-COMPACT" : "TAIL-0x", $prefix . $hex);
       }
+
+      # Eight-hex values are scanned only under the two structural derivations described above. Report
+      # the whole token redacted; the guard deliberately carries no historical tail values or hashes.
+      while ($content =~ /(?<![0-9a-z_])(0x)?([0-9a-f]{8})(?![0-9a-z_])/ig) {
+        my ($prefix, $hex) = (defined($1) ? $1 : "", lc $2);
+        my $before = substr($content, $-[0] > 48 ? $-[0] - 48 : 0, $-[0] > 48 ? 48 : $-[0]);
+        my $after = substr($content, $+[0], 48);
+        my $zero_padded = $hex =~ /\A00[0-9a-f]{6}\z/ && nearby($content, $-[0], $+[0], 96) =~ $zero_pad_ctx;
+        my $json_mapping = $before =~ /"hive"\s*:\s*"\s*\z/i && $after =~ /\A\s*"\s*,\s*"mac"\s*:/i;
+        next unless $zero_padded || $json_mapping;
+        report($path, $line, "TAIL-EMBEDDED", $prefix . $hex);
+      }
     }
     die "malformed hygiene record stream\n" if $consumed != length($data);
-  ' "$MAC_ALLOW_EXACT" "$TAIL_ALLOW_EXACT" "$COMPACT_ALLOW_EXACT" "$OFFSET_ALLOW_EXACT" "$TAIL_CTX" "$COMPACT_CTX"
+  ' "$MAC_ALLOW_EXACT" "$TAIL_ALLOW_EXACT" "$COMPACT_ALLOW_EXACT" "$OFFSET_ALLOW_EXACT" "$TAIL_CTX" "$COMPACT_CTX" "$ZERO_PAD_CTX"
 }
 
 # The production extraction path is also a single helper so the end-to-end KAT can exercise it in a
@@ -222,15 +244,25 @@ hygiene_scan() {
 # drift into separate classifiers (and a compact tail in a filename cannot bypass the content-only grep).
 hygiene_scan_tree() {
   local root=$1
+  local grep_status
   shift
   (
-    git -C "$root" grep -z -I -n -e '' -- . "$@" 2>/dev/null || exit
+    if git -C "$root" grep -z -I -n -e '' -- . "$@" 2>/dev/null; then
+      :
+    else
+      grep_status=$?
+      # Status 1 means there are no grep-able content lines. That is not permission to skip tracked
+      # filenames: feed those through the same classifier below. Any actual Git error still fails closed.
+      [ "$grep_status" -eq 1 ] || exit "$grep_status"
+    fi
     git -C "$root" ls-files -z | perl -0ne '
+      $seen = 1;
       s/\0\z//;
       die "newline in tracked path is unsupported by hygiene records\n" if /\n/;
       my $path = $_;
       my $content = join " ", map { "raw_serial $_" } split m{/}, $path;
       print $path, "\0", "0\0", $content, "\n";
+      END { die "no tracked paths for hygiene scan\n" unless $seen; }
     ' || exit
   ) | hygiene_scan
 }
@@ -284,11 +316,15 @@ if [ "${1:-}" = "--selftest" ]; then
   kat "0x flash offset passes"                               'persona @0x12000 and 0x1E0000'             0
   kat "0x placeholder passes"                                'magic 0xC0FFEE and 0xFFFFFF'               0
   kat "0x 8-digit word is not a 3-byte tail"                 'reg 0x02345A99 write'                      0
+  # --- embedded compact tail derivations ---
+  kat "zero-prefixed mac_low3 derivation flags"              'fallback 0x0002345A from mac_low3'         1
+  kat "suffixed JSON hive-to-MAC mapping flags"              '{"hive":"02345Aaa","mac":"xx:xx:xx:xx:xx:xx"}' 1
+  kat "opaque 32-bit hive id remains public"                'hive_id 02345A99'                         0
 
   # Output itself is a security surface: findings may identify locations/shapes, never the value.
   k=$((k+1))
-  redacted=$(printf 'f\0001\000DEV 02345A mac 02:11:22:33:44:55\n' | hygiene_scan)
-  if printf '%s' "$redacted" | grep -qiE '02345a|02:11:22:33:44:55'; then
+  redacted=$(printf 'f\0001\000DEV 02345A mac 02:11:22:33:44:55 fallback 0x0002345A from mac_low3\n' | hygiene_scan)
+  if printf '%s' "$redacted" | grep -qiE '02345a|02:11:22:33:44:55|0002345a'; then
     echo "  FAIL scanner output exposed a fixture value"
   else p=$((p+1)); echo "  ok   scanner output redacts every fingerprint"; fi
 
@@ -318,6 +354,20 @@ if [ "${1:-}" = "--selftest" ]; then
   if [ -z "$(hygiene_scan_tree "$tmp")" ]; then
     p=$((p+1)); echo "  ok   production extraction accepts allowlisted negative control"
   else echo "  FAIL production extraction rejected allowlisted negative control"; fi
+  rm "$tmp/allow.txt"
+  git -C "$tmp" add -u
+  touch "$tmp/board-02345A.log"
+  git -C "$tmp" add board-02345A.log
+  k=$((k+1))
+  if [ -n "$(hygiene_scan_tree "$tmp")" ]; then
+    p=$((p+1)); echo "  ok   production extraction scans filename-only tree"
+  else echo "  FAIL production extraction skipped filename-only tree"; fi
+  rm "$tmp/board-02345A.log"
+  git -C "$tmp" add -u
+  k=$((k+1))
+  if hygiene_scan_tree "$tmp" >/dev/null 2>&1; then
+    echo "  FAIL empty tracked tree passed open"
+  else p=$((p+1)); echo "  ok   empty tracked tree fails closed"; fi
   rm -rf "$tmp"
   trap - EXIT
 
