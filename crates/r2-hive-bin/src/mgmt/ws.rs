@@ -15,20 +15,35 @@
 //! Text WebSocket messages are a protocol violation per R2-HOST-API §2.2
 //! and cause the handler to close the connection.
 //!
-//! v0.1 access control: the route is bound to loopback by the axum
-//! `bind` address and trusts the loopback origin. Browser device pairing
-//! (R2-WEB §1.1) is a v0.2 deliverable.
+//! Access control: the route is mounted only on loopback listeners and
+//! every upgrade must carry a valid active R2 web-auth session cookie.
+//! Browser-originated upgrades are additionally same-origin checked.
+//!
+//! ## Interlinks + canon
+//!
+//! Mounted at `/r2/mgmt` by `main.rs` ONLY on loopback listeners; upgrade
+//! gated by [`authorize_upgrade`] (same-origin + web-auth cookie,
+//! fail-closed) — which `main.rs` also reuses to gate `/stats` and
+//! `/routes`. Same dispatcher (`api.rs`) and subscriber model
+//! (`HiveState::register_subscriber`) as the UDS path. Canon: R2-HOST-API
+//! §2.4 (the ratified `/r2/mgmt` WebSocket bridge — one extended frame per
+//! binary WS message, no length prefix) —
+//! `r2-specifications/specs/r2-core/R2-HOST-API.md`; cookie scheme
+//! R2-PLUGIN §13.5 — `r2-specifications/specs/r2-core/R2-PLUGIN.md`.
 
 use std::sync::Arc;
 
 use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
+use axum::extract::State;
+use axum::http::{header, HeaderMap, StatusCode};
 use axum::Extension;
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use tokio::sync::{mpsc, Mutex};
 
 use super::api::handle_frame_with_subs;
 use super::state::DaemonState;
 use super::subscriptions::SubscriptionRegistry;
+use crate::hive::HiveState;
 
 /// Outbound mpsc channel capacity per connection. Per R2-HOST-API §4.3.
 const OUTBOUND_QUEUE_CAPACITY: usize = 1024;
@@ -43,9 +58,55 @@ const OUTBOUND_QUEUE_CAPACITY: usize = 1024;
 /// router-wide state-type refactor.
 pub async fn handler(
     ws: WebSocketUpgrade,
+    State(hive): State<Arc<HiveState>>,
+    headers: HeaderMap,
     Extension(state): Extension<DaemonState>,
-) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
+) -> Response {
+    match authorize_upgrade(&hive, &headers) {
+        Ok(()) => ws.on_upgrade(move |socket| handle_socket(socket, state)).into_response(),
+        Err(resp) => resp,
+    }
+}
+
+/// Reused by the `/routes` + `/stats` topology-read endpoints (R2 audit P0): those exposed the
+/// neighbour/path graph unauthenticated while publicly proxied. Gating them behind this same
+/// same-origin + web-auth-cookie check closes the leak with the mgmt-equivalent posture.
+pub fn authorize_upgrade(hive: &HiveState, headers: &HeaderMap) -> Result<(), Response> {
+    if !same_origin_or_non_browser(headers) {
+        return Err((StatusCode::FORBIDDEN, "origin rejected").into_response());
+    }
+
+    let Some(auth) = hive.web_auth() else {
+        return Err((StatusCode::SERVICE_UNAVAILABLE, "web auth not configured").into_response());
+    };
+    let cookie_header = headers
+        .get(header::COOKIE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    match auth.verify_cookie_header(cookie_header) {
+        Ok(_device_id) => Ok(()),
+        Err(_) => Err((StatusCode::UNAUTHORIZED, "authentication required").into_response()),
+    }
+}
+
+fn same_origin_or_non_browser(headers: &HeaderMap) -> bool {
+    let Some(origin) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) else {
+        return true;
+    };
+    let Some(host) = headers.get(header::HOST).and_then(|v| v.to_str().ok()) else {
+        return false;
+    };
+    origin_authority(origin)
+        .map(|authority| authority.eq_ignore_ascii_case(host))
+        .unwrap_or(false)
+}
+
+fn origin_authority(origin: &str) -> Option<&str> {
+    let rest = origin
+        .strip_prefix("http://")
+        .or_else(|| origin.strip_prefix("https://"))?;
+    let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+    Some(&rest[..end])
 }
 
 async fn handle_socket(mut socket: WebSocket, state: DaemonState) {
@@ -108,5 +169,62 @@ async fn handle_socket(mut socket: WebSocket, state: DaemonState) {
 
     if let (Some(hive), Some(id)) = (state.hive_state(), subscriber_id) {
         hive.unregister_subscriber(id).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::HeaderValue;
+    use crate::web_auth::WebAuth;
+
+    fn headers(cookie: Option<&str>) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert(header::HOST, HeaderValue::from_static("127.0.0.1:21042"));
+        h.insert(header::ORIGIN, HeaderValue::from_static("http://127.0.0.1:21042"));
+        if let Some(cookie) = cookie {
+            h.insert(header::COOKIE, HeaderValue::from_str(cookie).unwrap());
+        }
+        h
+    }
+
+    #[test]
+    fn authorize_upgrade_requires_auth_registry() {
+        let hive = HiveState::new(0x1, 64, 4);
+        let err = authorize_upgrade(&hive, &headers(None)).unwrap_err();
+        assert_eq!(err.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[test]
+    fn authorize_upgrade_rejects_missing_cookie() {
+        let hive = HiveState::new(0x1, 64, 4);
+        hive.set_web_auth(Arc::new(WebAuth::new([0x11; 32])));
+        let err = authorize_upgrade(&hive, &headers(None)).unwrap_err();
+        assert_eq!(err.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn authorize_upgrade_accepts_active_cookie_and_rejects_revoked_cookie() {
+        let hive = HiveState::new(0x1, 64, 4);
+        let auth = Arc::new(WebAuth::new([0x22; 32]));
+        let code = auth.mint_provision_code_with_ttl(60);
+        let (cred, set_cookie) = auth.redeem_provision_code(&code).unwrap();
+        let cookie = set_cookie.split(';').next().unwrap().to_string();
+        hive.set_web_auth(auth.clone());
+
+        assert!(authorize_upgrade(&hive, &headers(Some(&cookie))).is_ok());
+        auth.revoke_device(&cred.device_id);
+        let err = authorize_upgrade(&hive, &headers(Some(&cookie))).unwrap_err();
+        assert_eq!(err.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn authorize_upgrade_rejects_cross_origin_browser() {
+        let hive = HiveState::new(0x1, 64, 4);
+        hive.set_web_auth(Arc::new(WebAuth::new([0x33; 32])));
+        let mut h = headers(None);
+        h.insert(header::ORIGIN, HeaderValue::from_static("https://evil.example"));
+        let err = authorize_upgrade(&hive, &h).unwrap_err();
+        assert_eq!(err.status(), StatusCode::FORBIDDEN);
     }
 }

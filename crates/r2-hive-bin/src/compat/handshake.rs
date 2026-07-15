@@ -1,41 +1,68 @@
-//! WebSocket connection handler with HELLO/WELCOME handshake.
+//! WebSocket connection handler — AUTH-FREE §3.2 relay subscribe.
 //!
-//! This is the legacy relay compatibility layer. It:
-//! 1. Performs Ed25519-authenticated HELLO/WELCOME handshake
-//! 2. Registers the peer with the WebSocket transport's PeerMap
+//! The below-TG relay compatibility layer. It:
+//! 1. Accepts a version-3 SUBSCRIBE (trust_group + timestamp; NO device identity)
+//! 2. Registers the connection with the WebSocket transport's PeerMap under an
+//!    EPHEMERAL per-connection handle (no stable device id is recorded)
 //! 3. Routes binary frames through the PeerMap (broadcast to trust group)
 //! 4. Handles Ping/Pong and Catchup signaling
 //!
-//! In future phases, step 3 will be replaced by route-engine-driven
-//! forwarding. The handshake and signaling stay.
+//! Trust is END-TO-END (TG-HMAC + §7.5.4 deliver-gate at member devices), never
+//! device-to-relay: the relay holds no TG secret, so it authenticates nothing.
+//! The former Ed25519 device-first handshake (v0.2–v0.10) was REMOVED by Roy ruling
+//! (2026-07-07) — it violated the R2-WIRE §6.2.2 `device_id`-off-air MUST and gated
+//! nothing. In future phases step 3 is replaced by route-engine-driven forwarding.
+//!
+//! ## Interlinks + canon
+//!
+//! Entered from `main.rs`'s `/r2` route (`ws_handler` upgrade). Uses the
+//! TG-compat surface on `HiveState` (register/broadcast/buffer/catchup —
+//! see the banner in `hive.rs`) and hands binary frames to
+//! `router::route_frame`, consuming the outcome (`NotR2Wire` → legacy
+//! broadcast; `Flooded` → `flood_tg_peers_not_in` enrichment). Canon:
+//! R2-TRANSPORT-RELAY §3.2 v0.11 (auth-free subscribe; structural vectors in
+//! `r2-specifications/testing/test-vectors/r2-transport-relay-vectors.json`) —
+//! `r2-specifications/specs/r2-core/R2-TRANSPORT-RELAY.md`.
 
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use r2_discovery::{LinkQuality, OutboundRx, PeerMap, RelayConn};
 
 use super::protocol::*;
-use crate::hive::HiveState;
+use crate::hive::{hex_encode, HiveState};
 
 const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(90);
 const TIMESTAMP_WINDOW: u64 = 60;
-/// Max lifetime of a v0.2 challenge nonce — the device must return its AUTH
-/// within this window or the handshake is rejected (R2-TRANSPORT-RELAY §3.2.1).
-const CHALLENGE_TTL: Duration = Duration::from_secs(10);
+
+/// Ephemeral per-connection handle source. The auth-free relay records NO stable device
+/// identity (R2-TRANSPORT-RELAY §3.2 v0.11), so the PeerMap key is just a process-unique
+/// connection handle: unique-among-live-connections is all the routing/"don't echo to
+/// sender" logic needs. Wrap after 2^32 connections is a non-issue (no 4B live at once).
+static NEXT_CONN_HANDLE: AtomicU32 = AtomicU32::new(1);
+
+/// Allocate the next ephemeral connection handle (never 0 — 0 stays reserved as "none").
+fn next_conn_handle() -> u32 {
+    let h = NEXT_CONN_HANDLE.fetch_add(1, Ordering::Relaxed);
+    if h == 0 {
+        NEXT_CONN_HANDLE.fetch_add(1, Ordering::Relaxed)
+    } else {
+        h
+    }
+}
 
 /// Handle a single WebSocket connection through its full lifecycle.
 pub async fn handle_connection(mut socket: WebSocket, state: Arc<HiveState>) {
     // Phase 1: Handshake
-    let (tg_hash, device_id, hive_id) = match handshake(&mut socket, &state).await {
+    let (tg_hash, hive_id) = match subscribe(&mut socket, &state).await {
         Some(result) => result,
         None => return,
     };
 
     log::info!(
-        "device {} joined tg:{} (hive_id=0x{:08X})",
-        &device_id[..16.min(device_id.len())],
+        "connection joined tg:{} (conn=0x{:08X})",
         hex_encode(&tg_hash),
         hive_id
     );
@@ -177,215 +204,108 @@ pub async fn handle_connection(mut socket: WebSocket, state: Arc<HiveState>) {
     state.unregister_tg_peer(&tg_hash, hive_id).await;
 
     log::info!(
-        "device {} left tg:{} (hive_id=0x{:08X})",
-        &device_id[..16.min(device_id.len())],
+        "connection left tg:{} (conn=0x{:08X})",
         hex_encode(&tg_hash),
         hive_id
     );
 }
 
-/// Perform the relay-side HELLO/WELCOME handshake. Returns (tg_hash,
-/// device_id_hex, hive_id).
+/// Accept the relay-side AUTH-FREE §3.2 subscribe (R2-TRANSPORT-RELAY v0.11). Returns
+/// `(tg_hash, ephemeral_conn_handle)` on accept, `None` (socket already closed) on reject.
 ///
-/// Supports both relay-protocol versions (R2-TRANSPORT-RELAY §3.2):
-///   * **v0.1** — single HELLO carrying the Ed25519 signature over
-///     `<trust_group>:<device_id>:<timestamp>`. Kept for legacy clients.
-///   * **v0.2** — device-first challenge-response. HELLO carries no signature;
-///     the relay replies with a single-use CHALLENGE nonce, and the device
-///     returns an AUTH signed over
-///     `<nonce>:<trust_group>:<device_id>:<timestamp>`.
+/// The open is a single version-3 SUBSCRIBE `{version, trust_group, timestamp}` — no
+/// `device_id`, no signature, no challenge-response. The relay authenticates NOTHING about the
+/// device (trust is end-to-end at member devices); it only:
+///   1. rejects retired versions 1/2 (§3.2.3, close 4401),
+///   2. stateless stale-timestamp fast-rejects BEFORE allocating state (§3.2.1, close 4400),
+///   3. enforces the connection-scoped cap (§3.2.1, close 4429),
+///   4. resolves the `trust_group` routing hash and mints an EPHEMERAL per-connection handle
+///      (no stable device identity is recorded).
 ///
-/// This is the relay (server) half: the device's `v2-pinned` downgrade
-/// protection (§3.2.2) lives on the client and is not implemented here.
-async fn handshake(
+/// The optional §3.2.2 capability token is a deferred follow-up rev: this OPEN relay ignores a
+/// token field entirely (never emits close 4403). **Used-by:** [`handle_connection`].
+async fn subscribe(
     socket: &mut WebSocket,
     state: &Arc<HiveState>,
-) -> Option<([u8; 8], String, u32)> {
-    let hello = tokio::time::timeout(Duration::from_secs(10), socket.recv()).await;
+) -> Option<([u8; 8], u32)> {
+    let first = tokio::time::timeout(Duration::from_secs(10), socket.recv()).await;
 
-    let hello_text = match hello {
+    let text = match first {
         Ok(Some(Ok(Message::Text(text)))) => text.to_string(),
         _ => {
-            close_with(socket, CLOSE_AUTH_FAILED, "expected HELLO").await;
+            close_with(socket, CLOSE_RETIRED_VERSION, "expected SUBSCRIBE").await;
             return None;
         }
     };
 
-    let msg: ClientMessage = match serde_json::from_str(&hello_text) {
+    let msg: ClientMessage = match serde_json::from_str(&text) {
         Ok(msg) => msg,
         Err(_) => {
-            close_with(socket, CLOSE_AUTH_FAILED, "malformed HELLO").await;
+            close_with(socket, CLOSE_RETIRED_VERSION, "malformed SUBSCRIBE").await;
             return None;
         }
     };
 
-    let (version, trust_group_hex, device_id_hex, timestamp, hello_signature) = match msg {
-        ClientMessage::Hello {
+    let (version, trust_group_hex, timestamp) = match msg {
+        ClientMessage::Subscribe {
             version,
             trust_group,
-            device_id,
             timestamp,
-            signature,
-        } => (version, trust_group, device_id, timestamp, signature),
+        } => (version, trust_group, timestamp),
         _ => {
-            close_with(socket, CLOSE_AUTH_FAILED, "expected HELLO").await;
+            close_with(socket, CLOSE_RETIRED_VERSION, "expected SUBSCRIBE").await;
             return None;
         }
     };
 
-    // Stateless timestamp fast-reject (±60s), applied BEFORE any challenge
-    // state is issued or consumed (R2-TRANSPORT-RELAY §3.2 step 4 / §3.2.1).
+    // §3.2.3: only version 3 is served. Versions 1/2 (the retired Ed25519 device-auth
+    // handshakes) — and any other version — are rejected. A conforming device opens with 3.
+    if version != 3 {
+        close_with(socket, CLOSE_RETIRED_VERSION, "retired protocol version").await;
+        return None;
+    }
+
+    // §3.2.1: stateless stale-timestamp fast-reject, applied BEFORE allocating any connection
+    // state (don't spend state on a clock-skewed / replayed open).
     let now = state.platform.now_unix();
     if timestamp > now + TIMESTAMP_WINDOW || now > timestamp + TIMESTAMP_WINDOW {
-        close_with(socket, CLOSE_AUTH_FAILED, "timestamp out of range").await;
+        close_with(socket, CLOSE_STALE_TIMESTAMP, "timestamp out of range").await;
         return None;
     }
 
-    // Device public key (Ed25519) — the claimed identity, common to both versions.
-    let device_pk_bytes = match hex_decode(&device_id_hex) {
-        Some(b) if b.len() == 32 => b,
-        _ => {
-            close_with(socket, CLOSE_AUTH_FAILED, "invalid device_id").await;
-            return None;
-        }
-    };
-    let vk = match VerifyingKey::from_bytes(device_pk_bytes[..32].try_into().unwrap()) {
-        Ok(vk) => vk,
-        Err(_) => {
-            close_with(socket, CLOSE_AUTH_FAILED, "invalid public key").await;
-            return None;
-        }
-    };
-
-    // Resolve the signature and the exact message it must sign, per version.
-    let (signature_hex, msg_to_verify) = match version {
-        1 => {
-            // v0.1: signature is inline in HELLO; signs tg:device_id:timestamp.
-            let sig = match hello_signature {
-                Some(s) => s,
-                None => {
-                    close_with(socket, CLOSE_AUTH_FAILED, "missing signature").await;
-                    return None;
-                }
-            };
-            let msg = format!("{}:{}:{}", trust_group_hex, device_id_hex, timestamp);
-            (sig, msg)
-        }
-        2 => {
-            // v0.2: device-first challenge-response. Issue a single-use nonce,
-            // then read the AUTH carrying the echoed nonce + signature.
-            let nonce_hex = issue_nonce(&*state.platform);
-
-            let challenge = serde_json::to_string(&ServerMessage::Challenge {
-                version: 2,
-                nonce: nonce_hex.clone(),
-            })
-            .unwrap();
-            if socket.send(Message::Text(challenge.into())).await.is_err() {
-                return None;
-            }
-
-            // The AUTH must arrive within the challenge lifetime (≤10s, §3.2.1).
-            let auth = tokio::time::timeout(CHALLENGE_TTL, socket.recv()).await;
-            let auth_text = match auth {
-                Ok(Some(Ok(Message::Text(text)))) => text.to_string(),
-                _ => {
-                    close_with(socket, CLOSE_AUTH_FAILED, "expected AUTH").await;
-                    return None;
-                }
-            };
-            let auth_msg: ClientMessage = match serde_json::from_str(&auth_text) {
-                Ok(m) => m,
-                Err(_) => {
-                    close_with(socket, CLOSE_AUTH_FAILED, "malformed AUTH").await;
-                    return None;
-                }
-            };
-            let (auth_nonce, auth_sig) = match auth_msg {
-                ClientMessage::Auth {
-                    nonce, signature, ..
-                } => (nonce, signature),
-                _ => {
-                    close_with(socket, CLOSE_AUTH_FAILED, "expected AUTH").await;
-                    return None;
-                }
-            };
-
-            // The echoed nonce MUST match the one we issued to this connection
-            // (single-use, unexpired). The nonce is public, so a plain compare
-            // is sufficient — there is no secret to leak by timing.
-            if auth_nonce != nonce_hex {
-                close_with(socket, CLOSE_AUTH_FAILED, "nonce mismatch").await;
-                return None;
-            }
-
-            let msg = format!(
-                "{}:{}:{}:{}",
-                nonce_hex, trust_group_hex, device_id_hex, timestamp
-            );
-            (auth_sig, msg)
-        }
-        _ => {
-            close_with(socket, CLOSE_AUTH_FAILED, "unsupported version").await;
-            return None;
-        }
-    };
-
-    // Verify the Ed25519 signature over the version-specific message.
-    let sig_bytes = match hex_decode(&signature_hex) {
-        Some(b) if b.len() == 64 => b,
-        _ => {
-            close_with(socket, CLOSE_AUTH_FAILED, "invalid signature").await;
-            return None;
-        }
-    };
-    let sig = Signature::from_bytes(sig_bytes[..64].try_into().unwrap());
-    if vk.verify(msg_to_verify.as_bytes(), &sig).is_err() {
-        close_with(socket, CLOSE_AUTH_FAILED, "signature verification failed").await;
-        return None;
-    }
-
-    // Parse trust group hash (exact 16-char hex or 2-6 char prefix for word code join)
-    let tg_hash_bytes = match state.resolve_tg_hash(&trust_group_hex).await {
-        Ok(h) => h,
-        Err(reason) => {
-            close_with(socket, CLOSE_AUTH_FAILED, reason).await;
-            return None;
-        }
-    };
-
-    // Connection limit
+    // §3.2.1: connection-scoped anti-abuse floor (no device identity is involved).
     if state.ws_transport.peers().peer_count() >= state.max_connections {
         close_with(socket, CLOSE_TOO_MANY, "too many connections").await;
         return None;
     }
 
-    // Compute hive_id: FNV-1a of device public key bytes (shared r2-fnv impl).
-    let hive_id = r2_fnv::fnv1a_32(&device_pk_bytes);
+    // Resolve the trust-group routing hash (exact 16-char hex or a 2-6 char word-code prefix).
+    // An unresolvable group is a non-conforming open — nothing to route it into.
+    let tg_hash_bytes = match state.resolve_tg_hash(&trust_group_hex).await {
+        Ok(h) => h,
+        Err(reason) => {
+            close_with(socket, CLOSE_RETIRED_VERSION, reason).await;
+            return None;
+        }
+    };
 
-    // Send WELCOME, echoing the negotiated protocol version.
+    // Ephemeral per-connection handle — the relay records NO stable device identity (v0.11).
+    let hive_id = next_conn_handle();
+
+    // Send WELCOME (echoes version 3).
     let peers = state.tg_peer_count(&tg_hash_bytes).await;
     let buffer_oldest = state.buffer_oldest(&tg_hash_bytes).await;
-
     let welcome = serde_json::to_string(&ServerMessage::Welcome {
-        version,
+        version: 3,
         peers,
         buffer_oldest,
-    }).unwrap();
-
+    })
+    .unwrap();
     if socket.send(Message::Text(welcome.into())).await.is_err() {
         return None;
     }
 
-    Some((tg_hash_bytes, device_id_hex, hive_id))
-}
-
-/// Generate a single-use 32-byte challenge nonce (lowercase hex) from the
-/// platform CSPRNG (R2-TRANSPORT-RELAY §3.2.1).
-fn issue_nonce(platform: &dyn crate::platform::Platform) -> String {
-    let mut nonce = [0u8; 32];
-    platform.fill_random(&mut nonce);
-    hex_encode(&nonce)
+    Some((tg_hash_bytes, hive_id))
 }
 
 async fn close_with(socket: &mut WebSocket, code: u16, reason: &str) {
@@ -398,73 +318,74 @@ async fn close_with(socket: &mut WebSocket, code: u16, reason: &str) {
         .await;
 }
 
-fn hex_decode(s: &str) -> Option<Vec<u8>> {
-    if s.len() % 2 != 0 {
-        return None;
-    }
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok())
-        .collect()
-}
-
-fn hex_encode(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{:02x}", b)).collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // Canonical `valid_handshake` vector from
+    // Structural vectors from
     // r2-specifications/testing/test-vectors/r2-transport-relay-vectors.json
-    // (R2-TRANSPORT-RELAY v0.2 §3.2). TEST-ONLY key — never used in production.
-    const VEC_NONCE: &str =
-        "0f1e2d3c4b5a69788796a5b4c3d2e1f00112233445566778899aabbccddeeff00";
-    const VEC_TRUST_GROUP: &str = "a1b2c3d4e5f60718";
-    const VEC_DEVICE_ID: &str =
-        "b52557a04646443e40a591f0f5d9ab81b7d66155e72890c75d288d37bebbb49e";
-    const VEC_TIMESTAMP: u64 = 1711900000;
-    const VEC_SIGNATURE: &str = "f51b2ca7825ef7cdbb779b3cbd8d9c22cec326ee4e5f61184f675f7ca04f0c105797340b445dcdd49d55c4f7625468eb9d716821d228b709873e58bd250abd02";
+    // (R2-TRANSPORT-RELAY v0.11, auth-free subscribe). There is NO signing construction to
+    // reproduce — the relay verifies no device key. Conformance is the accepted subscribe
+    // shape + the reject-case close codes.
 
-    fn v2_signing_message() -> String {
-        // Mirrors the relay's construction in `handshake()` for version 2.
-        format!(
-            "{}:{}:{}:{}",
-            VEC_NONCE, VEC_TRUST_GROUP, VEC_DEVICE_ID, VEC_TIMESTAMP
-        )
-    }
-
-    fn verify(sig_hex: &str) -> bool {
-        let pk = hex_decode(VEC_DEVICE_ID).unwrap();
-        let vk = VerifyingKey::from_bytes(pk[..32].try_into().unwrap()).unwrap();
-        let sig_bytes = hex_decode(sig_hex).unwrap();
-        let sig = Signature::from_bytes(sig_bytes[..64].try_into().unwrap());
-        vk.verify(v2_signing_message().as_bytes(), &sig).is_ok()
-    }
-
-    /// The 4-field signing message must match the vector byte-for-byte.
+    /// The canonical `subscribe_example` frame deserializes to a version-3 Subscribe with only
+    /// trust_group + timestamp — no device_id / signature fields exist on the type.
     #[test]
-    fn v2_signing_message_matches_vector() {
-        assert_eq!(
-            v2_signing_message(),
-            "0f1e2d3c4b5a69788796a5b4c3d2e1f00112233445566778899aabbccddeeff00:\
-a1b2c3d4e5f60718:\
-b52557a04646443e40a591f0f5d9ab81b7d66155e72890c75d288d37bebbb49e:\
-1711900000"
-        );
+    fn subscribe_example_deserializes() {
+        let frame = r#"{"type":"subscribe","version":3,"trust_group":"a1b2c3d4e5f60718","timestamp":1711900000}"#;
+        match serde_json::from_str::<ClientMessage>(frame).expect("valid subscribe") {
+            ClientMessage::Subscribe {
+                version,
+                trust_group,
+                timestamp,
+            } => {
+                assert_eq!(version, 3);
+                assert_eq!(trust_group, "a1b2c3d4e5f60718");
+                assert_eq!(timestamp, 1711900000);
+            }
+            other => panic!("expected Subscribe, got {other:?}"),
+        }
     }
 
-    /// A conforming relay MUST accept the canonical signature (`expect: accept`).
+    /// The WELCOME reply serializes to the vector shape (type/version/peers/buffer_oldest).
     #[test]
-    fn v2_valid_signature_accepts() {
-        assert!(verify(VEC_SIGNATURE));
+    fn welcome_reply_matches_vector() {
+        let welcome = serde_json::to_string(&ServerMessage::Welcome {
+            version: 3,
+            peers: 3,
+            buffer_oldest: 1711898000,
+        })
+        .unwrap();
+        let v: serde_json::Value = serde_json::from_str(&welcome).unwrap();
+        assert_eq!(v["type"], "welcome");
+        assert_eq!(v["version"], 3);
+        assert_eq!(v["peers"], 3);
+        assert_eq!(v["buffer_oldest"], 1711898000u64);
     }
 
-    /// `tampered_signature` reject case: last byte 0x02 -> 0x03 MUST fail (4401).
+    /// Reject-case close codes pinned to the v0.11 vectors (§3.5 / §3.2).
     #[test]
-    fn v2_tampered_signature_rejected() {
-        let tampered = "f51b2ca7825ef7cdbb779b3cbd8d9c22cec326ee4e5f61184f675f7ca04f0c105797340b445dcdd49d55c4f7625468eb9d716821d228b709873e58bd250abd03";
-        assert!(!verify(tampered));
+    fn reject_close_codes_match_spec() {
+        assert_eq!(CLOSE_STALE_TIMESTAMP, 4400); // stale_timestamp (§3.2.1)
+        assert_eq!(CLOSE_RETIRED_VERSION, 4401); // retired version 1/2 (§3.2.3)
+        assert_eq!(CLOSE_TOO_MANY, 4429); // connection cap (§3.2.1)
+        assert_eq!(CLOSE_TOKEN_REQUIRED, 4403); // §3.2.2 token-requiring relay (unused: open)
+    }
+
+    /// A retired-version open (version 1 or 2) still parses as a Subscribe — the version-3
+    /// gate is what rejects it (close 4401), not a parse failure. Guards that the wire shape is
+    /// version-agnostic so the relay can emit the correct retired-version close.
+    #[test]
+    fn retired_versions_parse_but_are_not_v3() {
+        for v in [1u32, 2] {
+            let frame = format!(
+                r#"{{"type":"subscribe","version":{v},"trust_group":"a1b2c3d4e5f60718","timestamp":1711900000}}"#
+            );
+            match serde_json::from_str::<ClientMessage>(&frame).expect("parses") {
+                ClientMessage::Subscribe { version, .. } => assert_ne!(version, 3),
+                other => panic!("expected Subscribe, got {other:?}"),
+            }
+        }
     }
 }
+

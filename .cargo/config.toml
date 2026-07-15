@@ -1,0 +1,7 @@
+# Git deps on the private reality2-ai/r2-core remote fetch through the
+# system git (reuses the gh/git credential helper already provisioned on
+# dev boxes and CI) instead of cargo's built-in fetcher — no separate
+# deploy key to mint or rotate. Part of the deliberate-uptake pin; see
+# [workspace.dependencies] in Cargo.toml and scripts/bump-core.sh.
+[net]
+git-fetch-with-cli = true

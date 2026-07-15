@@ -52,7 +52,7 @@ dbus-send --session --print-reply \
 
 This triggers the systemd user unit named in `SystemdService=`. Once
 the daemon is up, the applet talks to it over the management UDS
-at `${XDG_RUNTIME_DIR}/r2-hive.sock` — D-Bus is the activation
+at `${XDG_RUNTIME_DIR}/r2tgd.sock` — D-Bus is the activation
 transport only, not the data path.
 
 Install path:

@@ -1,3 +1,9 @@
+//! DEV-BUILD-ONLY suite (R2-BUILDMODE §5.1): asset fetch rides the dev bypass;
+//! `set_web_dev_mode` does not exist in a prod binary, so this file compiles
+//! only under `--features dev`. Run it via the dev-mode gate
+//! (`cargo test -p r2-hive --features dev`) — both modes run in verification.
+#![cfg(feature = "dev")]
+
 //! End-to-end test for path-based `r2.mgmt.ensemble.load` with a web
 //! plugin: load a score from disk, the daemon mounts the bundle, GETs
 //! return the bundle, then `ensemble.stop` unmounts and GETs return 404.
@@ -72,10 +78,11 @@ async fn ensemble_load_path_mounts_web_plugin_and_stop_unmounts() {
 
     // Daemon + hive + factory.
     let hive = Arc::new(HiveState::new(0xCAFE_BABE, 64, 16));
+    hive.set_web_dev_mode(true);
     hive.ensembles
         .register_factory(Arc::new(NoopFactory(Arc::new(AtomicU32::new(0)))));
 
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let daemon = DaemonState::new();
     daemon.attach_hive_state(hive.clone());
     let _handle = socket::spawn(socket_path.clone(), daemon)

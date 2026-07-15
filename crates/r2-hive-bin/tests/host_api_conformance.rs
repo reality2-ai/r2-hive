@@ -32,9 +32,11 @@ use r2_hive::hive::HiveState;
 use r2_hive::mgmt::api::handle_frame;
 use r2_hive::mgmt::state::DaemonState;
 
-const VECTORS_JSON: &str = include_str!(
-    "../../../../r2-specifications/testing/test-vectors/r2-host-api-vectors.json"
-);
+// VENDORED copy (read-only) of specs' canonical vector — see tests/vectors/_SYNC.md.
+// Was a `../../../../r2-specifications/…` sibling-repo include_str! (compile-time),
+// which made the whole workspace test build non-hermetic and failed hosted CI; now
+// in-tree so the suite builds standalone (fresh clone, CI, open-source consumer).
+const VECTORS_JSON: &str = include_str!("vectors/r2-host-api-vectors.json");
 
 #[derive(Debug, Deserialize)]
 struct VectorFile {

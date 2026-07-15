@@ -38,8 +38,8 @@ cargo run -p r2hive-cli -- daemon status
 By default `r2hive` connects to:
 
 ```text
-${XDG_RUNTIME_DIR}/r2-hive.sock     # Linux
-${TMPDIR}/r2-hive.sock              # macOS
+${XDG_RUNTIME_DIR}/r2tgd.sock     # Linux
+${TMPDIR}/r2tgd.sock              # macOS
 /tmp/r2-hive-<uid>.sock             # fallback
 ```
 

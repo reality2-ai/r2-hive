@@ -2,7 +2,7 @@
 
 Concrete byte-level documentation for every event class the daemon
 recognises on its management surface (Unix-domain socket
-`${XDG_RUNTIME_DIR}/r2-hive.sock` and loopback WebSocket `/r2/mgmt`).
+`${XDG_RUNTIME_DIR}/r2tgd.sock` and loopback WebSocket `/r2/mgmt`).
 
 For the normative spec see
 `r2-specifications/specs/r2-core/R2-HOST-API.md`. This file is a

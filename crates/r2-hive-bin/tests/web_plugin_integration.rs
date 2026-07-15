@@ -1,3 +1,9 @@
+//! DEV-BUILD-ONLY suite (R2-BUILDMODE §5.1): every test serves assets through the dev bypass (spawn_app sets it);
+//! `set_web_dev_mode` does not exist in a prod binary, so this file compiles
+//! only under `--features dev`. Run it via the dev-mode gate
+//! (`cargo test -p r2-hive --features dev`) — both modes run in verification.
+#![cfg(feature = "dev")]
+
 //! End-to-end test for R2-PLUGIN §13 web-plugin mount/serve/unmount.
 //!
 //! Spawns the production axum router on a loopback port, mounts a
@@ -34,6 +40,7 @@ fn manifest(name: &str, mount: Option<&str>, bundle: &str) -> WebPluginManifest 
 }
 
 async fn spawn_app(state: Arc<HiveState>) -> SocketAddr {
+    state.set_web_dev_mode(true);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let app = make_app(state);

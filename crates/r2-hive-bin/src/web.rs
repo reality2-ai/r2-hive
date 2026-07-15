@@ -6,15 +6,26 @@
 //! to [`serve_web_plugin`], which resolves the mount, opens the file
 //! relative to its bundle root, and applies the §13.9 default headers.
 //!
-//! Authentication (§13.5) is **not yet enforced** by this module —
-//! browser device cookies arrive in Phase 3d. v0.1 returns the bundle to
-//! anyone who can reach the listener; deployments concerned about that
-//! should bind to loopback or a trusted interface until Phase 3d lands.
+//! Authentication (§13.5) is enforced by this module. Browser device
+//! cookies are verified against the active device ledger; missing auth
+//! fails closed unless the operator explicitly starts the daemon with the
+//! development bypass.
 //!
 //! WebSocket channels (§13.6) live in a separate module (`web_ws.rs`,
 //! TODO) once auth is in place. For now `mount()` records channel
 //! metadata so a later wiring step can pick it up without a registry
 //! migration.
+//!
+//! ## Interlinks + canon
+//!
+//! Routes mounted in `main.rs` (`/ensemble/{*rest}`, `/plugin/{*rest}`,
+//! `/r2/web/provision`); the registry object lives on
+//! `HiveState.web_plugins` and is mounted/unmounted by
+//! `mgmt/ensemble.rs` on ensemble load/stop (§13.4 atomicity). Every
+//! asset response is gated by `web_auth.rs` cookies unless
+//! `HiveState::web_dev_mode` is explicitly on (fail-closed default).
+//! Canon: R2-PLUGIN §13/§13.4/§13.5 —
+//! `r2-specifications/specs/r2-core/R2-PLUGIN.md`.
 
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
@@ -246,8 +257,8 @@ pub async fn serve_web_plugin(
         return (StatusCode::NOT_FOUND, "no such mount").into_response();
     };
 
-    // R2-PLUGIN §13.5 — gate static GETs on the session cookie unless
-    // the hive is running in dev-mode (no auth registry installed).
+    // R2-PLUGIN §13.5 — gate static GETs on the session cookie. Missing
+    // auth fails closed unless the operator explicitly enabled web-dev-mode.
     let dev_mode = if let Some(auth) = hive.web_auth() {
         let cookie_header = headers
             .get(header::COOKIE)
@@ -257,8 +268,14 @@ pub async fn serve_web_plugin(
             Ok(_device_id) => false,
             Err(_) => return unauthenticated_response(&bundle.ensemble, &headers, uri_path),
         }
-    } else {
+    } else if hive.web_dev_mode() {
         true
+    } else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "web auth not configured",
+        )
+            .into_response();
     };
 
     // Resolve the asset path. Empty rest -> index.html.
@@ -462,7 +479,7 @@ pub async fn web_provision_post(
     let Some(auth) = hive.web_auth() else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
-            "auth not configured (dev-mode hive)",
+            "web auth not configured",
         )
             .into_response();
     };

@@ -15,7 +15,8 @@ set -e
 USER_NAME="$(whoami)"
 USER_HOME="$HOME"
 PORT="${R2_HIVE_PORT:-21042}"
-BIND="${R2_HIVE_BIND:-0.0.0.0}"
+BIND="${R2_HIVE_BIND:-127.0.0.1}"
+ALLOW_PUBLIC_BIND="${R2_HIVE_ALLOW_PUBLIC_BIND:-0}"
 OS="$(uname -s)"
 INSTALL_DIR="/usr/local/bin"
 BINARY="target/release/r2-hive"
@@ -24,6 +25,7 @@ echo "r2-hive installer"
 echo "User: $USER_NAME"
 echo "Platform: $OS"
 echo "Port: $PORT"
+echo "Bind: $BIND"
 echo ""
 
 # ── Remove ──
@@ -97,6 +99,7 @@ if [ "$OS" = "Darwin" ]; then
     <string>$INSTALL_DIR/r2-hive</string>
     <string>--bind</string><string>$BIND</string>
     <string>--port</string><string>$PORT</string>
+$(if [ "$ALLOW_PUBLIC_BIND" = "1" ]; then echo '    <string>--allow-public-bind</string>'; fi)
   </array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
@@ -113,7 +116,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$INSTALL_DIR/r2-hive --bind $BIND --port $PORT --no-usb
+ExecStart=$INSTALL_DIR/r2-hive --bind $BIND --port $PORT --no-usb$(if [ "$ALLOW_PUBLIC_BIND" = "1" ]; then echo ' --allow-public-bind'; fi)
 Restart=always
 RestartSec=5
 Environment=RUST_LOG=info

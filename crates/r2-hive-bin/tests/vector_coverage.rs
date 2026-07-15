@@ -15,7 +15,11 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-const VECTORS_ROOT: &str = "../../../r2-specifications/testing/test-vectors";
+// VENDORED vectors, relative to CARGO_MANIFEST_DIR — see tests/vectors/_SYNC.md.
+// Was "../../../r2-specifications/testing/test-vectors" (a sibling-repo runtime
+// path that hard-failed hosted CI); now in-tree so the coverage floors run
+// everywhere the suite runs, not only on a dev box with the specs sibling.
+const VECTORS_ROOT: &str = "tests/vectors";
 const TEST_SOURCES: &[&str] = &[
     "src/usb.rs",
     "tests/host_api_conformance.rs",

@@ -16,19 +16,22 @@ path = "src/lib.rs"
 
 [dependencies]
 # Platform-agnostic hive core (no_std + alloc) — the shared one-codebase logic.
-r2-hive-core = { path = "../r2-hive-core" }
-r2-wire = { path = "../../../r2-core/crates/r2-wire", default-features = false, features = ["alloc"] }
-r2-cbor = { path = "../../../r2-core/crates/r2-cbor" }
-r2-fnv  = { path = "../../../r2-core/crates/r2-fnv" }
-r2-route = { path = "../../../r2-core/crates/r2-route" }
+r2-hive-core = { workspace = true }
+r2-wire = { workspace = true, features = ["alloc"] }
+r2-cbor = { workspace = true }
+r2-fnv  = { workspace = true }
+r2-route = { workspace = true }
 # §7.5.4 deliver-gate: GroupHmac (HK-keyed HMAC-SHA256) for inbound verify (R2-TRUST §7.5.4).
-r2-trust = { path = "../../../r2-core/crates/r2-trust" }
-r2-transport = { path = "../../../r2-core/crates/r2-transport" }
-r2-discovery = { path = "../../../r2-core/crates/r2-discovery", features = ["websocket", "mdns", "udp-lan"] }
-r2-engine = { path = "../../../r2-core/crates/r2-engine" }
-r2-def = { path = "../../../r2-core/crates/r2-def" }
-r2-ensemble = { path = "../../../r2-core/crates/r2-ensemble" }
-r2-dispatch = { path = "../../../r2-core/crates/r2-dispatch" }
+r2-trust = { workspace = true }
+r2-transport = { workspace = true }
+# transport-internet (WS) stays unconditional (always-on base bearer, see [features] NOTE); mdns always on
+# (discovery, not a bearer); transport-udp (udp-lan) is gated via the `transport-udp` feature (default-on).
+# References r2-discovery's canonical transport-* forwarding aliases (core LEAN B 2cce822); old names valid too.
+r2-discovery = { workspace = true, features = ["transport-internet", "mdns"] }
+r2-engine = { workspace = true, default-features = true }
+r2-def = { workspace = true }
+r2-ensemble = { workspace = true }
+r2-dispatch = { workspace = true }
 
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["full"] }
@@ -37,7 +40,6 @@ clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
-ed25519-dalek = { version = "=2.1.1", default-features = false, features = ["std"] }
 x25519-dalek = { version = "2.0", default-features = false, features = ["static_secrets"] }
 log = "0.4"
 env_logger = "0.11"
@@ -61,13 +63,56 @@ libc = "0.2"
 tempfile = "3"
 tokio = { version = "1", features = ["full", "test-util"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+# gen_plugin_web_vectors example: Ed25519 signing to mint the R2-PLUGIN-WEB §4.2 KAT fixtures
+# (SigningKey::from_bytes — deterministic, no rng). Version pinned to match r2-hive-wasm (=2.1.1).
+ed25519-dalek = "=2.1.1"
 
 [features]
-default = ["cloud"]
+# transport-udp is default-on so the stock Linux hive keeps its UDP-LAN bearer (runtime --lan);
+# --no-default-features drops it (build-time composition). WS/internet is NOT gated here — it is the
+# always-on base bearer (see NOTE below).
+default = ["cloud", "transport-udp"]
+# R2-BUILDMODE §5.1 (specs v0.3, 3f81a54): the DEV build mode for the Linux
+# daemon. PROD (default, feature absent) COMPILES OUT every runtime security
+# bypass — the flags/env below do not exist in a prod binary (structural
+# absence, not default-off): --web-dev-mode, --usb-auto-confirm-unsafe,
+# --usb-allow-any, R2_DELIVER_UNKEYED_OPEN, R2_GROUP_KEYS_BENCH. A prod-built
+# daemon today is therefore UNKEYED + fail-closed (relay-only) until the
+# R2-KEYSTORE §4 sealed-custody path lands — that is the honest §7.5.4
+# posture, not a regression. Bench/FR-2b boxes build --features dev.
+dev = []
 cloud = []
 lan = []
-ble = ["r2-discovery/ble", "dep:bluer"]
-lora = ["r2-discovery/lora"]
+
+# §2.2B build-time transport composition — composer BRIDGE ruling (ae78be3): the device-binary
+# FORWARD-MAPS core's transport-* contract (r2-transport 5f7a0b2) onto PLATFORM-SPECIFIC bearers.
+# On the Linux host tier those bearers are r2-discovery bindings; the ESP board tier maps the same
+# transport-* names onto esp-hal radios (board-side, post-#49). No core rename can unify them
+# (different HALs) — core publishes the transport-*→bearer correspondence table for anti-drift.
+# transport-wifi/mesh/usb are host-tier MARKERS for now (no distinct Linux binding: SoftAP-UDP ≈
+# transport-udp kind=1; ESP-NOW mesh = board-side; R2-USB framer = future).
+# NOTE — RATIFIED §2.2B host-tier EXCEPTION (supervisor decision 2026-07-04): WS/transport-internet is the
+# host's ALWAYS-ON base/observer bearer (not a radio), so it is intentionally NOT compile-gated. The
+# radio-restriction matrix (the goal) gates the RADIO transports (transport-ble/lora/udp — done); WS is
+# always present in the bench (the visualiser's transport) so it is never composed out. `websocket` stays
+# unconditional on the r2-discovery dep; transport-internet documents the transport-internet↔WS
+# correspondence. The 17-non-Option-site WS compile-gating pass is scheduled ONLY IF a host variant later
+# genuinely needs WS composed out (Occam — no big delicate pass without a real need).
+# Forward-map to r2-discovery's CANONICAL transport-* forwarding aliases (core LEAN B, 2cce822 +
+# correspondence table) — a clean 1:1 onto the §2.2B contract names. The old binding names (ble/lora/
+# udp-lan/websocket) remain valid under LEAN B, so this is cosmetic canon-alignment, not a fix.
+transport-internet = ["r2-discovery/transport-internet"]   # §2.2 id 3 — WS/TCP (Linux always-on base bearer)
+transport-udp      = ["r2-discovery/transport-udp"]        # §2.2 id 6 — UDP LAN (runtime --lan)
+transport-ble      = ["r2-discovery/transport-ble", "dep:bluer"] # §2.2 id 0 — BLE L2CAP CoC
+transport-lora     = ["r2-discovery/transport-lora"]       # §2.2 id 2 — LoRa via arduino-router IPC
+transport-wifi     = []                             # marker (SoftAP-UDP ≈ transport-udp kind=1)
+transport-mesh     = []                             # marker (ESP-NOW = board-side esp-hal)
+transport-usb      = []                             # marker (R2-USB framer, future)
+
+# Legacy aliases — keep existing `--features ble/lora` invocations + CI working. Forward to the
+# contract names so the cfg(feature="transport-*") gates fire from either the legacy or new name.
+ble = ["transport-ble"]
+lora = ["transport-lora"]
 # Enable the libsecret/Keychain/wincred identity store via the `keyring`
 # crate. Off by default because Linux libsecret needs a running
 # gnome-keyring-daemon (or KWallet bridge) — operators opt in per

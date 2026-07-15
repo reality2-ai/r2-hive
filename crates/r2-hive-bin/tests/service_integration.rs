@@ -36,7 +36,7 @@ fn extract_uint(payload: &[u8], target: u64) -> Option<u64> {
 #[tokio::test]
 async fn service_advertise_returns_high_bit_id() {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     state.attach_hive_state(Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64)));
     let handle = socket::spawn(socket_path.clone(), state.clone())
@@ -80,7 +80,7 @@ async fn service_advertise_returns_high_bit_id() {
 #[tokio::test]
 async fn service_retract_is_idempotent() {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     state.attach_hive_state(Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64)));
     let handle = socket::spawn(socket_path.clone(), state.clone())
@@ -141,7 +141,7 @@ async fn service_retract_is_idempotent() {
 #[tokio::test]
 async fn advertised_service_receives_matching_event_delivery() {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let hive = Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64));
     state.attach_hive_state(hive.clone());
@@ -215,7 +215,7 @@ async fn advertised_service_receives_matching_event_delivery() {
 #[tokio::test]
 async fn retracted_service_no_longer_receives_deliveries() {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let hive = Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64));
     state.attach_hive_state(hive.clone());

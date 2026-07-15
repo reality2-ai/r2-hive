@@ -8,7 +8,7 @@
 # r2-hive systemd user unit on demand: dbus-send to org.reality2.Hive
 # activates the service, which in turn starts r2-hive.service. The
 # applet then talks to the daemon over its UDS at
-# ${XDG_RUNTIME_DIR}/r2-hive.sock — D-Bus is purely the activation
+# ${XDG_RUNTIME_DIR}/r2tgd.sock — D-Bus is purely the activation
 # transport, not the data path.
 #
 # r2-hive itself does not yet expose D-Bus methods; it's enough that

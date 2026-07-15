@@ -1,15 +1,27 @@
 //! API dispatcher — recognises `r2.mgmt.*` and `r2.api.*` event classes and
 //! produces responses.
 //!
-//! `r2.mgmt.*` is the management vocabulary (R2-HIVE §5.3) used by UIs.
+//! `r2.mgmt.*` is the management vocabulary (R2-HOST-API §4) used by UIs.
 //! `r2.api.*` is the application vocabulary (R2-HOST-API §3) used by R2-guest
 //! apps. Both transit the same socket; this module routes by event hash.
 //!
 //! Unknown event hashes return a `r2.mgmt.event.error` frame with
 //! `code = "unknown_event"`.
 //!
-//! Request/response pairs carry a `correlation_id` per R2-HIVE §5.4. In the
+//! Request/response pairs carry a `correlation_id` per R2-HOST-API §4. In the
 //! CBOR payload map the correlation id is encoded under integer key `0`.
+//!
+//! ## Interlinks + canon
+//!
+//! The single dispatcher both mgmt transports share: `socket.rs` (UDS,
+//! len_be32 framing) and `ws.rs` (loopback WebSocket, WS framing) each
+//! decode a frame and call [`handle_frame_with_subs`] here; responses flow back up the
+//! same connection. Handlers fan out by namespace: `r2.mgmt.ensemble.*` →
+//! `ensemble.rs`, `r2.mgmt.usb.*` → `usb.rs`, transport policy →
+//! `transport_policy.rs`, `r2.api.*` → `primitive.rs`; identity/status
+//! answered here from `state.rs`. Canon: R2-HOST-API §3 (`r2.api.*`), §4
+//! (`r2.mgmt.*` + correlation ids), §6.2 (error frames) —
+//! `r2-specifications/specs/r2-core/R2-HOST-API.md`.
 
 use r2_cbor::{Decoder, Encoder, Item, Value};
 use r2_fnv::r2_hash;
@@ -20,6 +32,7 @@ use r2_wire::{
 use super::ensemble as ens;
 use super::primitive;
 use super::state::DaemonState;
+use super::transport_policy;
 #[cfg(target_os = "linux")]
 use super::usb;
 
@@ -52,6 +65,8 @@ pub const EV_EVENT_SEND: &str = "r2.api.event.send";
 pub const EV_EVENT_SUBSCRIBE: &str = "r2.api.event.subscribe";
 pub const EV_EVENT_UNSUBSCRIBE: &str = "r2.api.event.unsubscribe";
 pub const EV_EVENT_DELIVERY: &str = "r2.api.event.delivery";
+/// §7.5.4 deliver-gate reject as a real, observable notification (R2-HOST-API §3.2.1).
+pub const EV_EVENT_DELIVERY_DENIED: &str = "r2.api.event.delivery.denied";
 pub const EV_PEER_LIST: &str = "r2.api.peer.list";
 pub const EV_PEER_QUERY: &str = "r2.api.peer.query";
 pub const EV_CAP_QUERY: &str = "r2.api.cap.query";
@@ -101,12 +116,30 @@ pub async fn handle_frame_with_subs(
     let correlation_id = extract_correlation_id(msg.payload).unwrap_or(0);
     let h = msg.header.event_hash;
 
-    // r2.mgmt.* — management vocabulary (R2-HIVE §5.3).
+    // r2.mgmt.* — management vocabulary (R2-HOST-API §4).
     if h == r2_hash(EV_DAEMON_STATUS).expect("known-good event name") {
         return build_status_response(correlation_id, state);
     }
     if h == r2_hash(EV_IDENTITY_STATUS).expect("known-good event name") {
         return build_identity_status_response(correlation_id, state);
+    }
+    if h == r2_hash(transport_policy::EV_TRANSPORT_ALLOW_MASK_STATE).expect("known-good event name") {
+        let Some(hive) = state.hive_state() else {
+            return build_error_response(correlation_id, "unsupported");
+        };
+        return transport_policy::handle_state(correlation_id, hive).await;
+    }
+    if h == r2_hash(transport_policy::EV_TRANSPORT_ALLOW_MASK_SET).expect("known-good event name") {
+        let Some(hive) = state.hive_state() else {
+            return build_error_response(correlation_id, "unsupported");
+        };
+        return transport_policy::handle_set(correlation_id, msg.payload, hive).await;
+    }
+    if h == r2_hash(transport_policy::EV_TRANSPORT_ALLOW_MASK_CLEAR).expect("known-good event name") {
+        let Some(hive) = state.hive_state() else {
+            return build_error_response(correlation_id, "unsupported");
+        };
+        return transport_policy::handle_clear(correlation_id, msg.payload, hive).await;
     }
 
     // r2.api.* — application vocabulary (R2-HOST-API §3).
@@ -151,7 +184,17 @@ pub async fn handle_frame_with_subs(
         }
     }
 
-    // r2.mgmt.ensemble.* — ensemble lifecycle (R2-HIVE §5.3, R2-ENSEMBLE).
+    // r2.mgmt.ensemble.{deploy,remove} — recognised CANON (R2-TG-TOOL §5.3) but the handlers are BACKLOG.
+    // §6 (R2-HOST-API): a recognised r2.mgmt.* class MUST route to a handler OR reply a structured error —
+    // NEVER a silent unknown_event. Recognise them here (hive-independent) and reply `unsupported`. (The
+    // implemented ensemble.* lifecycle verbs — load/list/info/stop/reset — are handled below.)
+    for unimpl in [ens::EV_ENSEMBLE_DEPLOY, ens::EV_ENSEMBLE_REMOVE] {
+        if h == r2_hash(unimpl).expect("known-good event name") {
+            return build_error_response(correlation_id, "unsupported");
+        }
+    }
+
+    // r2.mgmt.ensemble.* — ensemble lifecycle (R2-HOST-API §4, R2-ENSEMBLE).
     if let Some(hive) = state.hive_state() {
         let hive = hive.clone();
         if h == r2_hash(ens::EV_ENSEMBLE_LOAD).expect("known-good event name") {

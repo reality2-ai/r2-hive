@@ -13,12 +13,22 @@
 //!
 //! Stores here:
 //! - [`FileStore`] — per-user file at mode 0600 (always available).
-//! - [`KeyringStore`] — platform keyring, behind the `keyring` cargo feature
+//! - `KeyringStore` (behind the `keyring` feature) — platform keyring, behind the `keyring` cargo feature
 //!   (Linux Secret Service / macOS Keychain / Windows Credential Manager).
 //!
 //! Master-secret generation uses the OS CSPRNG (`getrandom`) here, since the
 //! store is itself the platform layer; the core only ever takes the resulting
 //! bytes via [`MasterSecret::from_bytes`].
+//!
+//! ## Interlinks + canon
+//!
+//! `main.rs` resolves the operator's `--identity-backend` into one of these
+//! stores and hands it to `state.rs::DaemonState::with_identity_store`;
+//! `auto_store` implements the keyring-then-file fallback. Custody boundary
+//! canon: R2-TG-TOOL §3 + R2-WIRE §6.2.1 (device master secret); storage
+//! layout mirrors R2-TG-TOOL §9 (informative) —
+//! `r2-specifications/specs/r2-core/{R2-TG-TOOL,R2-WIRE}.md`. The concrete
+//! paths and the keyring service names are daemon-local.
 
 use std::fs;
 use std::io;
@@ -55,7 +65,8 @@ pub struct FileStore {
 }
 
 impl FileStore {
-    /// Default location per the storage layout in R2-HIVE §9.
+    /// Default location mirroring the R2-TG-TOOL §9 storage layout
+    /// (informative); the exact `r2/master.key` path is daemon-local.
     pub fn default_path() -> PathBuf {
         if let Some(base) = dir_xdg_state_home() {
             return base.join("r2").join("master.key");
@@ -68,14 +79,20 @@ impl FileStore {
         ))
     }
 
+    /// File-backed store rooted at `path` (nothing is touched until
+    /// `load`/`save`).
+    ///
+    /// **Used-by:** `main.rs` (explicit `file` backend), [`auto_store`]
+    /// (keyring-unavailable fallback), and the store tests.
+    /// (An unused `path()` accessor was removed here — Occam, zero callers.)
     pub fn new(path: PathBuf) -> Self {
         Self { path }
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
+    /// Whether the backing file currently exists. TEST-ONLY lifecycle probe
+    /// (production reads truth from `load()`'s Option / the daemon's
+    /// `identity_created_this_start`).
+    #[cfg(test)]
     pub fn exists(&self) -> bool {
         self.path.exists()
     }
@@ -260,7 +277,7 @@ impl IdentityStore for KeyringStore {
 // ───────────────────────── Auto-precedence ─────────────────────────
 
 /// Pick the best-available store at runtime. With the `keyring` feature
-/// on, prefer [`KeyringStore`] (probed by attempting to construct a
+/// on, prefer `KeyringStore` (behind the `keyring` feature) (probed by attempting to construct a
 /// keyring entry); on failure, log and fall back to [`FileStore`] at
 /// the given path.
 ///

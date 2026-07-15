@@ -20,6 +20,15 @@
 //! Provision word codes (one-time, 1-hour TTL by default) live in a
 //! ledger separate from the TG-join ledger so a TG-join code can't be
 //! replayed as a browser-provision code and vice versa.
+//!
+//! ## Interlinks + canon
+//!
+//! Keyed from the master secret: `main.rs` installs it via
+//! `DaemonState::derive_web_auth_key` → `HiveState::set_web_auth`.
+//! Consumed by `web.rs` (asset gate + provisioning endpoints),
+//! `mgmt/ws.rs::authorize_upgrade` (mgmt WebSocket + /stats + /routes),
+//! and `mgmt/api.rs` (provision handler). Canon: R2-PLUGIN §13.5 —
+//! `r2-specifications/specs/r2-core/R2-PLUGIN.md`.
 
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -69,6 +78,9 @@ pub enum AuthError {
     /// Cookie's expiry is in the past.
     #[error("cookie expired")]
     Expired,
+    /// Cookie was valid, but the browser device is no longer active.
+    #[error("browser device revoked")]
+    Revoked,
 }
 
 /// Why a provision-code redemption failed.
@@ -178,7 +190,11 @@ impl WebAuth {
     /// it, including any other unrelated cookies.
     pub fn verify_cookie_header(&self, header_value: &str) -> Result<DeviceId, AuthError> {
         let body = extract_cookie(header_value).ok_or(AuthError::NoCookie)?;
-        verify_cookie_body(&self.signing_key, body)
+        let device_id = verify_cookie_body(&self.signing_key, body)?;
+        if !self.is_known_device(&device_id) {
+            return Err(AuthError::Revoked);
+        }
+        Ok(device_id)
     }
 
     /// List currently-active devices (for status / debug surfaces).
@@ -191,9 +207,8 @@ impl WebAuth {
             .collect()
     }
 
-    /// Revoke a device. Subsequent verifies on its cookie still pass
-    /// crypto but the caller can cross-check `is_known_device` to
-    /// reject revoked ids.
+    /// Revoke a device. Subsequent verifies on its cookie fail even
+    /// though the cookie still passes cryptographic verification.
     pub fn revoke_device(&self, device_id: &DeviceId) {
         self.devices
             .write()
@@ -394,5 +409,18 @@ mod tests {
         let a = auth();
         let err = a.verify_cookie_header("other=value").unwrap_err();
         assert!(matches!(err, AuthError::NoCookie));
+    }
+
+    #[test]
+    fn revoked_device_cookie_is_rejected() {
+        let a = auth();
+        let code = a.mint_provision_code_with_ttl(60);
+        let (cred, cookie) = a.redeem_provision_code(&code).expect("redeem");
+        let pair = cookie.split(';').next().unwrap();
+        assert_eq!(a.verify_cookie_header(pair).unwrap(), cred.device_id);
+
+        a.revoke_device(&cred.device_id);
+        let err = a.verify_cookie_header(pair).unwrap_err();
+        assert!(matches!(err, AuthError::Revoked));
     }
 }

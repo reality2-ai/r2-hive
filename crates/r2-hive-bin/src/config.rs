@@ -10,6 +10,13 @@
 //! defaults when their config is wrong.
 //!
 //! See `packaging/defaults/hive.toml` for a fully-commented example.
+//!
+//! ## Interlinks + canon
+//!
+//! Loaded by `main.rs::apply_config_layer` (file under CLI, OR-semantics
+//! for booleans); every field mirrors a CLI flag documented in `main.rs`.
+//! The file format is daemon-local (no canon spec governs the TOML);
+//! paths follow the XDG convention.
 
 use std::path::{Path, PathBuf};
 
@@ -46,7 +53,7 @@ impl Default for DaemonConfig {
     fn default() -> Self {
         Self {
             name: "r2-hive".to_string(),
-            bind: "0.0.0.0".to_string(),
+            bind: "127.0.0.1".to_string(),
             port: 21042,
             buffer_size: 1000,
             max_connections: 10000,
@@ -114,8 +121,8 @@ pub struct ManagementConfig {
     /// equivalent to `--no-mgmt`.
     pub enabled: bool,
     /// Override the management socket path. `None` resolves at
-    /// runtime to `${XDG_RUNTIME_DIR}/r2-hive.sock` (Linux) or
-    /// `${TMPDIR}/r2-hive.sock` (macOS).
+    /// runtime to `${XDG_RUNTIME_DIR}/r2tgd.sock` (Linux) or
+    /// `${TMPDIR}/r2tgd.sock` (macOS).
     pub socket: Option<PathBuf>,
 }
 

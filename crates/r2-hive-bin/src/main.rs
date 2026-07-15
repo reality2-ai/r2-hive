@@ -1,3 +1,65 @@
+//! # r2-hive daemon entry point — bring-up, wiring, and the HTTP/WS front door
+//!
+//! ## Why this file exists
+//!
+//! Everything else in this crate is a subsystem waiting to be composed: the
+//! shared state hub (`hive.rs`), the inbound router (`router.rs`), the
+//! transports, the management API, the web-plugin surface, the USB watcher.
+//! Something has to decide, in one auditable place, *which* of those run on
+//! this particular host, in *what order*, with *what configuration* — and
+//! refuse unsafe combinations (public bind without opt-in, keyring backend
+//! on a build without the feature). This file is that place: CLI parsing,
+//! config-file layering, transport auto-detection, subsystem bring-up, and
+//! the axum HTTP/WebSocket listener that is the daemon's front door.
+//!
+//! Bring-up order matters and is deliberate: state hub → ensemble sink →
+//! optional transports (LAN/BLE/LoRa) → route-engine maintenance → USB
+//! watcher → management API (identity custody first — web-auth derives from
+//! the master secret) → axum router LAST, so the `/r2/mgmt` route can see
+//! whether mgmt actually started.
+//!
+//! ## How it interlinks (grep-verified)
+//!
+//! - Builds the `Arc<HiveState>` (`hive.rs`) that every task shares.
+//! - Each transport bring-up (`start_lan_discovery` / `start_ble` /
+//!   `start_lora`) spawns a receive loop that feeds every inbound frame to
+//!   `router::route_frame` — the daemon's single routing decision point —
+//!   and mirrors bytes to legacy WebSocket peers during the compat era.
+//! - `/r2` upgrades into `compat/handshake.rs` (legacy browser protocol);
+//!   `/r2/mgmt` (loopback only) into `mgmt/ws.rs`; `/health`, `/stats`,
+//!   `/routes` are the ops surface; `/ensemble/*`, `/plugin/*` and
+//!   `/r2/web/provision` are the R2-PLUGIN §13 web surface (`web.rs`).
+//! - `spawn_usb_watcher` wires `usb_hotplug.rs` events into the same
+//!   router, treating a paired dongle's radio as a local transport.
+//! - `apply_config_layer` merges `config.rs` (TOML) under explicit CLI
+//!   flags; `autoconfig.rs` supplies the `--auto` detection report;
+//!   `systemd.rs` handles readiness + watchdog.
+//!
+//! ## Canon (r2-specifications)
+//!
+//! - R2-HOST-API §2.2 (loopback mgmt WebSocket transport) —
+//!   `r2-specifications/specs/r2-core/R2-HOST-API.md`.
+//! - R2-PLUGIN §13, §13.5 (web-plugin assets, browser provisioning) —
+//!   `r2-specifications/specs/r2-core/R2-PLUGIN.md`.
+//! - R2-WIRE §4.3.5 (compact↔extended transcode at the LoRa boundary) —
+//!   `r2-specifications/specs/r2-core/R2-WIRE.md`.
+//! - R2-USB (peripheral protocol; Appendix A transport kinds) —
+//!   `r2-specifications/specs/r2-core/R2-USB.md`.
+//! - R2-PROVISION §5.3.4 (SAS verification — why `--usb-auto-confirm-unsafe`
+//!   is dev-only) — `r2-specifications/specs/r2-core/R2-PROVISION.md`.
+//! - R2-DISCOVERY §3.3 / R2-BEACON §6.1 (rotating RBID advertisement) —
+//!   `r2-specifications/specs/r2-core/R2-DISCOVERY.md`,
+//!   `r2-specifications/specs/r2-core/R2-BEACON.md`.
+//! - R2-FNV (self hive_id derivation from `--name`) —
+//!   `r2-specifications/specs/r2-core/R2-FNV.md`.
+//!
+//! **Citation note (specs-ruled):** no R2-HIVE spec exists (implementation
+//! repo name). Former "R2-HIVE §…" cites here are re-anchored to the real
+//! canon — socket contract R2-TG-TOOL §5.1 (incl. the normative
+//! `r2tgd.sock` filename, specs fa94443), identity custody R2-TG-TOOL §3 +
+//! R2-WIRE §6.2.1, single-active-TG R2-TRUST §13.2 — with genuinely
+//! daemon-local choices (store path, backend selection) marked as such.
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -24,8 +86,14 @@ struct Args {
     port: u16,
 
     /// Bind address.
-    #[arg(long, default_value = "0.0.0.0")]
+    #[arg(long, default_value = "127.0.0.1")]
     bind: String,
+
+    /// Permit binding the HTTP/WebSocket listener to a non-loopback address.
+    /// The management WebSocket remains disabled on non-loopback listeners;
+    /// use the Unix-domain management socket for local control.
+    #[arg(long)]
+    allow_public_bind: bool,
 
     /// Event buffer size per trust group.
     #[arg(long, default_value = "1000")]
@@ -57,18 +125,24 @@ struct Args {
     #[arg(long, default_value = "r2-hive")]
     name: String,
 
-    /// Override the local management-socket path (R2-HIVE §5.1).
-    /// Default: ${XDG_RUNTIME_DIR}/r2-hive.sock on Linux, ${TMPDIR}/r2-hive.sock on macOS.
+    /// Override the local management-socket path. Socket contract per
+    /// R2-TG-TOOL §5.1 (v0.3): per-user path, mode 0600, same-UID, AND the
+    /// `r2tgd.sock` filename — the well-known name is normative (specs
+    /// ruling fa94443; renamed from r2-hive.sock).
+    /// Default: ${XDG_RUNTIME_DIR}/r2tgd.sock on Linux, ${TMPDIR}/r2tgd.sock on macOS.
     #[arg(long)]
     mgmt_socket: Option<PathBuf>,
 
-    /// Override the master-secret store path (R2-HIVE §3.1).
+    /// Override the master-secret store path. Custody boundary per
+    /// R2-TG-TOOL §3 + R2-WIRE §6.2.1; the concrete path is daemon-local
+    /// (layout mirrors R2-TG-TOOL §9, informative).
     /// Default: $XDG_STATE_HOME/r2/master.key. Only honoured when the
     /// resolved identity backend is `file`.
     #[arg(long)]
     identity_store: Option<PathBuf>,
 
-    /// Identity backend selection (R2-HIVE §3.1, R2-HIVE §3.2).
+    /// Identity backend selection (daemon-local choice; the custody
+    /// boundary it serves is R2-TG-TOOL §3 + R2-WIRE §6.2.1).
     /// `auto` picks the platform keyring when the `keyring` cargo
     /// feature is built in and reachable, falling back to the file
     /// store; `file` forces the file store; `keyring` forces the
@@ -80,6 +154,14 @@ struct Args {
     /// Disable the local management API (start only the mesh-side stack).
     #[arg(long)]
     no_mgmt: bool,
+
+    /// **DEV BUILDS ONLY** (R2-BUILDMODE §5.1): serve web-plugin assets
+    /// without browser auth when the web-auth registry is unavailable. The
+    /// flag does not exist in a prod binary — structural absence, not
+    /// default-off.
+    #[cfg(feature = "dev")]
+    #[arg(long)]
+    web_dev_mode: bool,
 
     /// Run transport auto-detection at startup. When set, --lan, --ble,
     /// and --lora that are *not* explicitly passed are filled in from
@@ -107,19 +189,17 @@ struct Args {
     #[arg(long, default_value = "/dev")]
     usb_dir: PathBuf,
 
-    /// **DEV/TEST ONLY.** Auto-confirm any SAS prompt from a freshly
-    /// attached USB peripheral. Equivalent to a UI operator clicking
-    /// "yes, the codes match" with no human in the loop. Production
-    /// deployments MUST NOT set this; it defeats the R2-PROVISION §5.3.4
-    /// (SAS verification).
+    /// **DEV BUILDS ONLY** (R2-BUILDMODE §5.1): auto-confirm any SAS prompt
+    /// from a freshly attached USB peripheral — defeats R2-PROVISION §5.3.4.
+    /// Does not exist in a prod binary.
+    #[cfg(feature = "dev")]
     #[arg(long)]
     usb_auto_confirm_unsafe: bool,
 
-    /// **DEV/TEST ONLY.** Bypass the default-deny USB device filter
-    /// and try to talk R2-USB v0.1 to every CDC-ACM device that
-    /// appears. Production deployments leave this off; the right
-    /// path is `--usb-vid-pid VID:PID` (or `r2hive usb prepare` per
-    /// Phase USB-4) for known peripherals.
+    /// **DEV BUILDS ONLY** (R2-BUILDMODE §5.1): bypass the default-deny USB
+    /// device filter. Does not exist in a prod binary; the prod path is
+    /// `--usb-vid-pid VID:PID` / `r2hive usb prepare`.
+    #[cfg(feature = "dev")]
     #[arg(long)]
     usb_allow_any: bool,
 
@@ -134,7 +214,9 @@ struct Args {
     usb_vid_pid: Vec<(u16, u16)>,
 }
 
-/// Parse a `vid:pid` argument as two lowercase-hex u16s.
+/// Parse a `vid:pid` argument as two hex u16s (`0x` prefixes tolerated).
+///
+/// **Used-by:** clap, as the `value_parser` for `--usb-vid-pid`.
 fn parse_vid_pid(s: &str) -> Result<(u16, u16), String> {
     let (v, p) = s
         .split_once(':')
@@ -146,6 +228,10 @@ fn parse_vid_pid(s: &str) -> Result<(u16, u16), String> {
     Ok((vid, pid))
 }
 
+/// Upgrade `/r2` into the legacy browser-WebSocket protocol
+/// (`compat/handshake.rs` owns the connection from here).
+///
+/// **Used-by:** the axum route table in [`main`].
 async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<HiveState>>,
@@ -153,12 +239,33 @@ async fn ws_handler(
     ws.on_upgrade(move |socket| compat::handshake::handle_connection(socket, state))
 }
 
+/// `/health` liveness probe: static JSON, no auth, no state — safe on any
+/// listener because it reveals nothing about the mesh.
+///
+/// **Used-by:** the axum route table in [`main`]; ops probes / systemd checks.
 async fn health() -> Response {
     ([(header::CONTENT_TYPE, "application/json")],
      r#"{"status":"ok","class":"ai.reality2.wayfinder"}"#).into_response()
 }
 
-async fn routes_json(State(state): State<Arc<HiveState>>) -> Response {
+/// `/routes` topology dump: the route engine's neighbour + path tables as
+/// JSON (per-transport link quality, confidence, ages) for dashboards and
+/// bench instrumentation.
+///
+/// **Dependencies:** the `route_engine` lock (read snapshot);
+/// `mgmt::ws::authorize_upgrade` for the auth gate.
+///
+/// **Used-by:** the axum route table in [`main`]; consumed by the composer
+/// dashboard and bench scripts.
+async fn routes_json(
+    State(state): State<Arc<HiveState>>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    // R2 audit P0: /routes exposed the neighbour/path topology graph UNAUTHENTICATED while publicly
+    // proxied. Gate it behind the same auth as mgmt (same-origin + web-auth cookie), fail-closed.
+    if let Err(resp) = mgmt::ws::authorize_upgrade(&state, &headers) {
+        return resp;
+    }
     use r2_route::transport::Transport;
     let engine = state.route_engine.lock().await;
     let now_secs = std::time::SystemTime::now()
@@ -205,7 +312,21 @@ async fn routes_json(State(state): State<Arc<HiveState>>) -> Response {
     ([(header::CONTENT_TYPE, "application/json")], json).into_response()
 }
 
-async fn stats_json(State(state): State<Arc<HiveState>>) -> Response {
+/// `/stats` counters: connection/frame totals and uptime as JSON.
+///
+/// **Dependencies:** `ws_transport` peer map + the atomic counters on
+/// [`HiveState`]; `mgmt::ws::authorize_upgrade` for the auth gate.
+///
+/// **Used-by:** the axum route table in [`main`]; dashboards/ops.
+async fn stats_json(
+    State(state): State<Arc<HiveState>>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    // R2 audit P0: /stats exposed topology/neighbour stats UNAUTHENTICATED while publicly proxied.
+    // Gate it behind the same auth as mgmt (same-origin + web-auth cookie), fail-closed.
+    if let Err(resp) = mgmt::ws::authorize_upgrade(&state, &headers) {
+        return resp;
+    }
     use r2_discovery::PeerMap;
     let peers = state.ws_transport.peers().peer_count();
     let frames = state.frames_routed.load(Ordering::Relaxed);
@@ -220,6 +341,14 @@ async fn stats_json(State(state): State<Arc<HiveState>>) -> Response {
     ([(header::CONTENT_TYPE, "application/json")], json).into_response()
 }
 
+/// Daemon entry point. Composes the subsystems in dependency order (see the
+/// file head for why the order is what it is) and then serves axum forever.
+///
+/// **Dependencies:** everything in the interlink map above; refuses to start
+/// on a non-loopback bind without `--allow-public-bind`, and exits on an
+/// unknown/unbuilt identity backend rather than falling back silently.
+///
+/// **Used-by:** the binary target (`cargo run -p r2-hive`); systemd units.
 #[tokio::main]
 async fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -233,7 +362,9 @@ async fn main() {
     // Load layered config (file values, then CLI overrides). Phase 4b.
     apply_config_layer(&mut args, &cli_matches);
 
-    let self_hive_id = fnv1a_addr(&args.name);
+    // Self hive_id = raw FNV-1a-32 of --name (R2-FNV; no canonicalisation —
+    // the operator's exact name string is the identity input).
+    let self_hive_id = r2_fnv::fnv1a_32(args.name.as_bytes());
     log::info!("self hive_id: 0x{:08X} (from name '{}')", self_hive_id, args.name);
     let state = Arc::new(HiveState::new(self_hive_id, args.buffer_size, args.max_connections));
 
@@ -252,7 +383,7 @@ async fn main() {
             log::info!("  --auto: enabling LAN (networking present)");
         }
         if !args.ble && report.should_run_ble() {
-            #[cfg(feature = "ble")]
+            #[cfg(feature = "transport-ble")]
             {
                 args.ble = true;
                 if report.ble.qca {
@@ -264,7 +395,7 @@ async fn main() {
                     log::info!("  --auto: enabling BLE (hci0 present, driver {})", report.ble.driver);
                 }
             }
-            #[cfg(not(feature = "ble"))]
+            #[cfg(not(feature = "transport-ble"))]
             {
                 log::warn!(
                     "  --auto: BLE present on host but binary built without `--features ble`"
@@ -272,7 +403,7 @@ async fn main() {
             }
         }
         if !args.lora && report.should_run_lora() {
-            #[cfg(feature = "lora")]
+            #[cfg(feature = "transport-lora")]
             {
                 args.lora = true;
                 log::info!(
@@ -280,7 +411,7 @@ async fn main() {
                     report.lora.socket_path.display()
                 );
             }
-            #[cfg(not(feature = "lora"))]
+            #[cfg(not(feature = "transport-lora"))]
             {
                 log::warn!(
                     "  --auto: LoRa socket present but binary built without `--features lora`"
@@ -307,16 +438,35 @@ async fn main() {
     let addr: SocketAddr = format!("{}:{}", args.bind, args.port)
         .parse()
         .expect("invalid bind address");
+    if !addr.ip().is_loopback() && !args.allow_public_bind {
+        log::error!(
+            "refusing non-loopback bind {} without --allow-public-bind; \
+             default is loopback to keep local control surfaces private",
+            addr
+        );
+        return;
+    }
 
     log::info!("r2-hive listening on {}", addr);
     log::info!("  Dashboard: http://{}:{}/", args.bind, args.port);
     log::info!("  WebSocket: ws://{}:{}/r2", args.bind, args.port);
     log::info!("  Buffer: {} frames/group", args.buffer_size);
     log::info!("  Max connections: {}", args.max_connections);
+    #[cfg(feature = "dev")]
+    if args.web_dev_mode {
+        state.set_web_dev_mode(true);
+        log::warn!(
+            "  Web auth: --web-dev-mode is set — web-plugin assets may be served without auth. DEVELOPMENT USE ONLY."
+        );
+    }
 
+    // `mut` is used by the transport-gated `active_plugins.push(...)` calls below; when all such
+    // transports are composed out, no push remains, so allow the otherwise-unused `mut`.
+    #[allow(unused_mut)]
     let mut active_plugins = vec!["word-codes", "dashboard"];
 
     // LAN discovery: UDP beacon
+    #[cfg(feature = "transport-udp")]
     if args.lan {
         match start_lan_discovery(&args, &state, self_hive_id).await {
             Ok(()) => active_plugins.push("lan-discovery"),
@@ -325,7 +475,7 @@ async fn main() {
     }
 
     // BLE transport
-    #[cfg(feature = "ble")]
+    #[cfg(feature = "transport-ble")]
     if args.ble {
         match start_ble(&args, &state, self_hive_id).await {
             Ok(()) => active_plugins.push("ble"),
@@ -334,7 +484,7 @@ async fn main() {
     }
 
     // LoRa transport via arduino-router IPC
-    #[cfg(feature = "lora")]
+    #[cfg(feature = "transport-lora")]
     if args.lora {
         match start_lora(&args, &state, self_hive_id).await {
             Ok(()) => active_plugins.push("lora"),
@@ -352,15 +502,22 @@ async fn main() {
     // skip it.
     #[cfg(target_os = "linux")]
     if !args.no_usb {
+        // R2-BUILDMODE §5.1: in a prod build the two USB bypasses are
+        // compile-time false — the flags don't exist, so these fold away.
+        #[cfg(feature = "dev")]
+        let (usb_auto_confirm, usb_allow_any) =
+            (args.usb_auto_confirm_unsafe, args.usb_allow_any);
+        #[cfg(not(feature = "dev"))]
+        let (usb_auto_confirm, usb_allow_any) = (false, false);
         let usb_handle = spawn_usb_watcher(
             args.usb_dir.clone(),
-            args.usb_auto_confirm_unsafe,
-            args.usb_allow_any,
+            usb_auto_confirm,
+            usb_allow_any,
             args.usb_vid_pid.clone(),
             state.clone(),
         );
         state.set_usb_handle(usb_handle);
-        if args.usb_allow_any {
+        if usb_allow_any {
             log::warn!(
                 "  USB watcher: --usb-allow-any is set — every CDC-ACM device \
                  will be probed for R2-USB v0.1. DEVELOPMENT USE ONLY."
@@ -385,7 +542,9 @@ async fn main() {
         }
     }
 
-    // Spawn the local management API (R2-HIVE §§3, 5, 6.3) unless opted out.
+    // Spawn the local management API unless opted out (socket discipline
+    // R2-TG-TOOL §5; UDS binding R2-HOST-API §2.2; identity custody
+    // R2-TG-TOOL §3; SAS pairing gate R2-PROVISION §5.3.4).
     let _mgmt_handle = if args.no_mgmt {
         log::info!("  Management API: disabled (--no-mgmt)");
         None
@@ -393,7 +552,8 @@ async fn main() {
         let mgmt_socket_path = args.mgmt_socket.unwrap_or_else(mgmt::default_socket_path);
         let store_path = args.identity_store.unwrap_or_else(FileStore::default_path);
         // Resolve the identity backend per the operator flag
-        // (R2-HIVE §3.2, Phase 4c).
+        // (daemon-local backend policy, Phase 4c; custody boundary
+        // R2-TG-TOOL §3 + R2-WIRE §6.2.1).
         let store: Box<dyn mgmt::identity::IdentityStore> = match args.identity_backend.as_str() {
             "file" => Box::new(FileStore::new(store_path.clone())),
             "auto" => mgmt::identity::auto_store(store_path.clone()),
@@ -419,15 +579,6 @@ async fn main() {
                 return;
             }
         };
-        let existed = match store.backend() {
-            mgmt::identity::StoreBackend::File => store_path.exists(),
-            // Keyring "exists" probe would require an actual read; defer
-            // honest reporting to Phase 4c follow-up. For now, report
-            // false so the daemon log says "generated" or "loaded
-            // existing" based on what `load_or_create` actually did
-            // (created_this_start tracks the truth).
-            _ => false,
-        };
         match DaemonState::with_identity_store(store.as_ref()) {
             Ok(daemon_state) => {
                 // Attach the HiveState so the r2.api.* primitive surface
@@ -435,7 +586,6 @@ async fn main() {
                 // layer. Done after with_identity so existing tests that
                 // construct DaemonState in isolation still pass.
                 daemon_state.attach_hive_state(state.clone());
-                let _ = existed; // remains accurate for File backend; keyring uses the daemon_state flag
                 log::info!(
                     "  Management API: {} (identity {} via {} — fingerprint {})",
                     mgmt_socket_path.display(),
@@ -451,15 +601,17 @@ async fn main() {
                 // surface (R2-HOST-API §2.2) is mounted onto the existing
                 // axum router below, sharing this DaemonState via Extension.
                 // Install browser-auth registry derived from the master
-                // secret (R2-PLUGIN §13.5). Without this, web plugins
-                // serve in dev-mode and stamp X-R2-Web-Auth: dev-mode on
-                // every response.
+                // secret (R2-PLUGIN §13.5). Without this, web-plugin
+                // assets fail closed unless --web-dev-mode was explicitly
+                // requested.
                 if let Some(key) = daemon_state.derive_web_auth_key() {
                     let auth = std::sync::Arc::new(r2_hive::web_auth::WebAuth::new(key));
                     state.set_web_auth(auth);
                     log::info!("  Web auth: enabled (cookie-bound to master secret)");
                 } else {
-                    log::warn!("  Web auth: dev-mode (no identity); web plugins are unauthenticated");
+                    log::warn!(
+                        "  Web auth: unavailable (no identity); web-plugin assets fail closed unless --web-dev-mode is set"
+                    );
                 }
                 ws_mgmt_state = Some(daemon_state.clone());
                 match mgmt::socket::spawn(mgmt_socket_path, daemon_state).await {
@@ -498,18 +650,26 @@ async fn main() {
             get(r2_hive::web::web_provision_get).post(r2_hive::web::web_provision_post),
         )
         .merge(plugins::word_codes::routes())
-        .merge(plugins::dashboard::routes())
-        .layer(CorsLayer::permissive())
-        .with_state(state.clone());
+        .merge(plugins::dashboard::routes());
 
     if let Some(daemon_state) = ws_mgmt_state {
         // /r2/mgmt is the loopback parallel transport for R2-HOST-API §2.2.
         // It carries the same R2-WIRE extended frames as the UDS but as
         // binary WebSocket messages (no length prefix; WS provides framing).
-        app = app.route("/r2/mgmt", get(mgmt::ws::handler))
-                 .layer(axum::Extension(daemon_state));
-        log::info!("  Management WS: ws://{}:{}/r2/mgmt", args.bind, args.port);
+        if addr.ip().is_loopback() {
+            app = app
+                .route("/r2/mgmt", get(mgmt::ws::handler))
+                .layer(axum::Extension(daemon_state));
+            log::info!("  Management WS: ws://{}:{}/r2/mgmt (auth required)", args.bind, args.port);
+        } else {
+            log::warn!(
+                "  Management WS: disabled on non-loopback listener {}; use the management Unix socket",
+                addr
+            );
+        }
     }
+
+    let app = app.layer(CorsLayer::permissive()).with_state(state.clone());
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
@@ -521,6 +681,19 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
+/// Bring up the UDP LAN transport + beacon and spawn its receive loop.
+///
+/// **Purpose:** binds the R2-WIRE UDP port, registers the transport on
+/// [`HiveState`] so egress can use it, then loops every inbound datagram
+/// into `router::route_frame` (plus the legacy word-code `WC:` sideband and
+/// a compat mirror to WebSocket peers). Recv errors back off and continue —
+/// a transient ICMP error must never kill the loop.
+///
+/// **Dependencies:** `r2_discovery` UDP binding + beacon, `router.rs`,
+/// `plugins/word_codes.rs`.
+///
+/// **Used-by:** [`main`] when `--lan` (or `--auto` detection) enables LAN.
+#[cfg(feature = "transport-udp")]
 async fn start_lan_discovery(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> Result<(), String> {
     use r2_discovery::discovery::udp_beacon::UdpBeacon;
     use r2_discovery::bindings::udp_lan::UdpLanTransport;
@@ -617,7 +790,19 @@ async fn start_lan_discovery(args: &Args, state: &Arc<HiveState>, _self_hive_id:
     Ok(())
 }
 
-#[cfg(feature = "ble")]
+/// Bring up the BLE transport (L2CAP CoC + beacon advertise/scan) and spawn
+/// its receive + discovery loops.
+///
+/// **Purpose:** same shape as [`start_lan_discovery`] — register transport,
+/// feed inbound frames to `router::route_frame`, mirror to WS peers — plus a
+/// discovery loop that registers scanned peers and ingests a route-engine
+/// observation per beacon so BLE neighbours become routable.
+///
+/// **Dependencies:** `r2_discovery` BLE binding/scanner/advertiser,
+/// `router.rs`, the route engine lock.
+///
+/// **Used-by:** [`main`] when `--ble` (or `--auto` detection) enables BLE.
+#[cfg(feature = "transport-ble")]
 async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Result<(), String> {
     use r2_discovery::bindings::ble::BleTransport;
     use r2_discovery::discovery::ble_beacon::BleBeaconScanner;
@@ -713,6 +898,16 @@ async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Re
                 rssi: None,
                 mcu_origin: false,
                 mobility: MobilityClass::Mobile,
+                // R2-BUILDMODE §4.4 declaration feed, HOST instance (core 3a835a5
+                // added BeaconObservation.build_class). PRICING (stated per my
+                // v0.8 commitment to specs): this is the WEAKER-attribution
+                // instance — the hive_id here is the §3.3 PROVISIONAL fallback
+                // (transport-address-derived), NOT registry-scoped rbid
+                // resolution, so it rides under the v0.5 honest-limits pricing
+                // and does NOT inherit the fw feed's §3A.2 closed-case status.
+                // Upgrades to the v0.8 bar when host-side PeerRegistry/
+                // session-key resolution lands.
+                build_mode: Some(r2_route::neighbour::BuildMode::from_wire(obs.build_class)),
             };
             state2.route_engine.lock().await.ingest_observation(route_obs);
         }
@@ -721,7 +916,19 @@ async fn start_ble(args: &Args, state: &Arc<HiveState>, self_hive_id: u32) -> Re
     Ok(())
 }
 
-#[cfg(feature = "lora")]
+/// Bring up the LoRa transport (via the arduino-router IPC socket) and
+/// spawn its receive loop.
+///
+/// **Purpose:** LoRa carries COMPACT R2-WIRE frames on the air; this loop
+/// transcodes compact→extended at the transport boundary (R2-WIRE §4.3.5)
+/// before handing frames to `router::route_frame`, mirroring the extended
+/// bytes to WS peers so browser decoders see one consistent format.
+///
+/// **Dependencies:** `r2_discovery` LoRa binding, the r2-wire transcoder,
+/// `router.rs`; requires arduino-router listening on `--lora-socket`.
+///
+/// **Used-by:** [`main`] when `--lora` (or `--auto` detection) enables LoRa.
+#[cfg(feature = "transport-lora")]
 async fn start_lora(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> Result<(), String> {
     use r2_discovery::bindings::lora::LoraTransport;
     use r2_discovery::{AsyncTransport, PeerMap};
@@ -810,7 +1017,6 @@ async fn start_lora(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> 
                 let _ = state_rx.ws_transport.send(hive_id, ws_data).await;
             }
         }
-        log::info!("LoRa receive loop exited");
     });
 
     Ok(())
@@ -826,6 +1032,12 @@ async fn start_lora(args: &Args, state: &Arc<HiveState>, _self_hive_id: u32) -> 
 /// Booleans use OR semantics — a `true` in either CLI or config wins.
 /// To force-off a transport that the config enables, edit the config
 /// (we don't ship `--no-foo` flags yet).
+///
+/// **Dependencies:** `config.rs` (`HiveConfig`); clap's `ValueSource` to
+/// distinguish "user passed this" from "compiled-in default". Exits(2) on
+/// an unreadable/invalid config file rather than running misconfigured.
+///
+/// **Used-by:** [`main`], immediately after CLI parse.
 fn apply_config_layer(args: &mut Args, matches: &clap::ArgMatches) {
     use clap::parser::ValueSource;
 
@@ -911,6 +1123,12 @@ fn apply_config_layer(args: &mut Args, matches: &clap::ArgMatches) {
 /// review, which defeats R2-PROVISION §5.3.4 (SAS verification). Production
 /// deployments leave it false; the eventual Cosmic / KDE applet will
 /// drive `SessionControl::UserConfirms` via the management socket.
+///
+/// **Dependencies:** `usb_hotplug.rs` (watcher + handle), `usb_serial.rs`
+/// (session control), [`handle_session_event`] for per-event handling.
+///
+/// **Used-by:** [`main`] unless `--no-usb`; the returned handle is stashed
+/// on [`HiveState`] for the `r2.mgmt.usb.*` handlers.
 #[cfg(target_os = "linux")]
 fn spawn_usb_watcher(
     scan_dir: PathBuf,
@@ -1012,6 +1230,15 @@ fn spawn_usb_watcher(
     handle
 }
 
+/// React to one USB session event: log the protocol milestones (SYNC/CAPS/
+/// pairing), drive the dev-only auto-confirm, and — the important arm —
+/// feed each `WireFrame` into `router::route_frame` as if it arrived on a
+/// directly-attached radio of the dongle's advertised transport kind.
+///
+/// **Dependencies:** [`kind_for_local_id_via_handle`] (CAPS → route-engine
+/// transport mapping), `router.rs`, the control loopback channel.
+///
+/// **Used-by:** the consumer task inside [`spawn_usb_watcher`] only.
 #[cfg(target_os = "linux")]
 async fn handle_session_event(
     path: &std::path::Path,
@@ -1130,6 +1357,10 @@ async fn handle_session_event(
 /// the device hasn't published CAPS yet, when the kind isn't known
 /// to R2-USB Appendix A, or when the route engine doesn't represent
 /// it (e.g. ZigBee, Thread).
+///
+/// **Used-by:** [`handle_session_event`] (WireFrame arm) only; the inverse
+/// mapping lives in `hive.rs::transport_to_caps_kind` — keep the two tables
+/// in sync with R2-USB Appendix A.
 #[cfg(target_os = "linux")]
 fn kind_for_local_id_via_handle(
     handle: &r2_hive::usb_hotplug::UsbBringupHandle,
@@ -1153,11 +1384,25 @@ fn kind_for_local_id_via_handle(
     }
 }
 
+/// First 4 bytes as hex + "..." — log-line abbreviation for peer hive-id
+/// byte strings (full ids are noise at INFO level).
+///
+/// **Used-by:** [`handle_session_event`] log lines only.
 #[cfg(target_os = "linux")]
 fn hex_short(bytes: &[u8]) -> String {
     bytes.iter().take(4).map(|b| format!("{b:02x}")).collect::<String>() + "..."
 }
 
+/// Time-derived placeholder RBID for beacon advertisement. NOT the real
+/// R2-DISCOVERY §3.3 rotating id — that must derive from the trust-layer
+/// session key via `PeerRegistry::own_rbid(epoch)` once wired (the TODOs at
+/// both call sites track this). Placeholder is acceptable only because
+/// beacon emit is still a scaffold returning Unsupported.
+///
+/// **Used-by:** [`start_lan_discovery`] and [`start_ble`]; unused when those
+/// transports are composed out (e.g. `--no-default-features`), hence the
+/// `allow(dead_code)` rather than threading `cfg(any(...))` through.
+#[allow(dead_code)]
 fn random_rbid() -> [u8; 8] {
     use std::time::{SystemTime, UNIX_EPOCH};
     let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
@@ -1168,11 +1413,3 @@ fn random_rbid() -> [u8; 8] {
     rbid
 }
 
-fn fnv1a_addr(s: &str) -> u32 {
-    let mut hash: u32 = 0x811c_9dc5;
-    for &byte in s.as_bytes() {
-        hash ^= byte as u32;
-        hash = hash.wrapping_mul(0x0100_0193);
-    }
-    hash
-}

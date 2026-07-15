@@ -30,7 +30,7 @@ struct Setup {
 
 async fn setup() -> Setup {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     std::mem::forget(tmp);
 
     let hive = Arc::new(HiveState::new(0xCAFE_BABE, 64, 16));
@@ -232,7 +232,7 @@ async fn list_without_handle_returns_usb_disabled_error() {
     // Build a HiveState with no usb_handle attached, then verify
     // r2.mgmt.usb.list returns the `usb_disabled` error envelope.
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     std::mem::forget(tmp);
 
     let hive = Arc::new(HiveState::new(0xCAFE_BABE, 64, 16));

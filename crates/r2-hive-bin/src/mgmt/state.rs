@@ -4,6 +4,16 @@
 //! per R2-HOST-API can reach the wire / route / transport layer. Tests and
 //! mgmt-only deployments can construct a `DaemonState` without it via
 //! [`DaemonState::new`].
+//!
+//! ## Interlinks + canon
+//!
+//! Constructed in `main.rs` via `with_identity_store` (identity custody
+//! before anything mgmt-facing); cloned into `socket.rs`/`ws.rs`
+//! connections; `attach_hive_state` links it to the mesh half so
+//! `primitive.rs` can route. `derive_web_auth_key` seeds `web_auth.rs`
+//! from the master secret (R2-PLUGIN §13.5). Custody canon: R2-TG-TOOL §3
+//! + R2-WIRE §6.2.1 —
+//! `r2-specifications/specs/r2-core/{R2-TG-TOOL,R2-WIRE}.md`.
 
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
@@ -12,6 +22,15 @@ use std::time::Instant;
 use crate::hive::HiveState;
 
 use super::identity::{FileStore, IdentityStore, MasterSecret, StoreBackend};
+
+/// R2-BUILDMODE §6.3: the version string carries the BUILD MODE so the
+/// artifact and every runtime surface that echoes it (daemon.status, logs)
+/// declare which-code-was-flashed. PROD = bare semver (absence-is-prod,
+/// mirroring the beacon rule); DEV = "+dev" suffix.
+#[cfg(feature = "dev")]
+pub const BUILD_MODE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+dev");
+#[cfg(not(feature = "dev"))]
+pub const BUILD_MODE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Clone)]
 pub struct DaemonState {
@@ -48,7 +67,7 @@ impl DaemonState {
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Inner {
-                version: env!("CARGO_PKG_VERSION"),
+                version: BUILD_MODE_VERSION,
                 build_hash: option_env!("R2TGD_BUILD_HASH").unwrap_or("unversioned"),
                 started_at: Instant::now(),
                 identity: None,
@@ -82,7 +101,7 @@ impl DaemonState {
         };
         Ok(Self {
             inner: Arc::new(Inner {
-                version: env!("CARGO_PKG_VERSION"),
+                version: BUILD_MODE_VERSION,
                 build_hash: option_env!("R2TGD_BUILD_HASH").unwrap_or("unversioned"),
                 started_at: Instant::now(),
                 identity: Some(identity),
@@ -108,14 +127,23 @@ impl DaemonState {
         self.hive_state.get()
     }
 
+    /// Daemon semver (compile-time `CARGO_PKG_VERSION`).
+    ///
+    /// **Used-by:** `api.rs` (`r2.mgmt.hello` / status responses).
     pub fn version(&self) -> &'static str {
         self.inner.version
     }
 
+    /// Build identifier baked in at compile time.
+    ///
+    /// **Used-by:** `api.rs` status responses.
     pub fn build_hash(&self) -> &'static str {
         self.inner.build_hash
     }
 
+    /// Seconds since this DaemonState was constructed (daemon start).
+    ///
+    /// **Used-by:** `api.rs` status responses.
     pub fn uptime_seconds(&self) -> u64 {
         self.inner.started_at.elapsed().as_secs()
     }

@@ -46,19 +46,24 @@ need one.
 
 ### Build
 
-During development the R2 protocol crates are consumed from a sibling
-**r2-core** checkout via path dependencies, so clone both side by side:
+The R2 protocol crates come from **r2-core**, pinned to an exact git
+revision in `Cargo.toml`, so a normal build fetches them automatically —
+you only need read access to the (private) r2-core repository:
 
 ```sh
-git clone https://github.com/reality2-ai/r2-core.git
 git clone https://github.com/reality2-ai/r2-hive.git
 cd r2-hive
 cargo build --release
 ./target/release/r2-hive --auto
 ```
 
+To build against a **local** r2-core instead (offline, or co-editing
+both repos), clone it as a sibling and uncomment the `[patch]` block at
+the bottom of `Cargo.toml` to redirect the git deps at `../r2-core` —
+local only, never commit the patch.
+
 (Releases will pin to published crates.io versions; until then the
-sibling `r2-core` checkout is required to build.)
+git-pinned r2-core revision is the source of the protocol crates.)
 
 ### Deploy to a VPS (automatic HTTPS)
 
@@ -72,8 +77,8 @@ This builds the binary, copies it to your server, installs
 [Caddy](https://caddyserver.com) for automatic Let's Encrypt TLS, and
 sets up a systemd service. Your wayfinder will be reachable at
 `wss://wayfinder.yourdomain.com/r2`. Requirements: a VPS with a public
-IP and a domain pointing to it. Run it from a checkout that has the
-sibling `r2-core` (it builds the binary locally before shipping it).
+IP and a domain pointing to it. Run it from a full r2-hive checkout with
+access to r2-core (it builds the binary locally before shipping it).
 
 ### Run locally without a service
 
@@ -83,22 +88,25 @@ cargo run --release -- --auto
 
 ### Docker
 
-A `Dockerfile` is included. Because of the sibling-crate path
-dependencies, build it from the parent directory containing both
-`r2-hive` and `r2-core` (see comments in the file).
+A `Dockerfile` is included. It builds from a parent directory that holds
+both `r2-hive/` and `r2-core/` side by side; the image build activates the
+Cargo `[patch]` block so it compiles against the COPY-ed local r2-core
+(offline — no r2-core git credentials needed). See the comments in the file.
 
 ### Checking it works
 
-Open `http://<your-ip>:21042` — you'll see the wayfinder dashboard: a
-live view of connections, trust groups, and frames being routed. The
-hexagon pulses each time a frame passes through.
+Open `http://127.0.0.1:21042` on the host — you'll see the wayfinder
+dashboard: a live view of connections, trust groups, and frames being
+routed. Public listeners require `--allow-public-bind`; put TLS in
+front before exposing one.
 
 ## Options
 
 ```
 r2-hive [OPTIONS]
   --port <PORT>           Port for WebSocket + HTTP   [default: 21042]
-  --bind <ADDR>           Bind address                [default: 0.0.0.0]
+  --bind <ADDR>           Bind address                [default: 127.0.0.1]
+  --allow-public-bind     Permit a non-loopback listener
   --buffer-size <N>       Recent frames kept per trust group [default: 1000]
   --max-connections <N>   Max simultaneous connections [default: 10000]
   --auto                  Auto-detect transports at startup
@@ -111,12 +119,23 @@ Run `r2-hive --help` for the full list. Settings can also come from
 [`crates/r2-hive-bin/packaging/defaults/hive.toml`](crates/r2-hive-bin/packaging/defaults/hive.toml).
 CLI flags override the file.
 
+The management WebSocket `/r2/mgmt` is mounted only on loopback listeners
+and requires browser-session auth. On public binds, use the local Unix
+management socket for control.
+
 ## How a wayfinder works
 
-When a device connects, it proves its identity (Ed25519-signed HELLO)
-and names its trust group. The wayfinder places it in a bucket with
-every other device from the same trust group and forwards frames
-between them.
+When a device connects, it names its trust group and nothing else — the
+subscribe is **auth-free**. The wayfinder records no device identity
+(only an ephemeral per-connection handle) and holds no trust-group
+secret, so it authenticates nothing and has nothing to leak. It places
+the connection in a bucket with every other device in the same trust
+group and forwards frames between them. Trust is **end-to-end**: frames
+are sealed and HMAC-signed with the trust-group key and checked at the
+member devices (the deliver-gate), never at the wayfinder. (An earlier
+Ed25519 device-to-relay handshake was removed — it gated nothing the
+end-to-end trust layer doesn't already cover, and a stable device id on
+the wire broke the R2-WIRE device-id-off-air rule.)
 
 - **Multiple trust groups** share one wayfinder without seeing each other.
 - **Your data is encrypted** before it reaches the wayfinder — it can't read it.
@@ -132,6 +151,11 @@ between them.
 | [`crates/r2-hive-bin`](crates/r2-hive-bin/) | The daemon — library + `r2-hive` binary |
 | [`crates/r2hive-cli`](crates/r2hive-cli/) | `r2hive` operator CLI |
 
+The repo also contains `crates/r2-hive-wasm` (browser/wasm platform
+layer) and `crates/r2-wasm-host` (linkable-base wasm host); both are
+**excluded from the default workspace** and built explicitly for their
+own targets — see the comments in `Cargo.toml`.
+
 ## Documentation
 
 - [`crates/r2-hive-bin/README.md`](crates/r2-hive-bin/README.md) — daemon overview
@@ -141,6 +165,34 @@ between them.
 - [`crates/r2-hive-bin/TEST-RIG.md`](crates/r2-hive-bin/TEST-RIG.md) — hardware test rig
 
 The normative protocol specs live in the `r2-specifications` repo.
+
+## Related repositories
+
+Reality2 is one dependency web. r2-hive sits at the application/daemon
+layer of the spine:
+
+**r2-specifications → r2-core → r2-hive** (+ peer apps) **→ devices, clients, docs**
+
+**Upstream** — what r2-hive builds on:
+
+- [r2-specifications](https://github.com/reality2-ai/r2-specifications) *(private)* — the normative protocol specs; the source of truth all R2 code derives from.
+- [r2-core](https://github.com/reality2-ai/r2-core) *(private)* — the Rust implementation of the specs, and r2-hive's direct dependency: the `r2-wire`, `r2-route`, `r2-trust`, `r2-transport`, `r2-discovery`, `r2-engine`, `r2-def`, `r2-ensemble`, `r2-dispatch`, `r2-update`, and `r2-hive-core` crates are consumed git-pinned from here (see `Cargo.toml`).
+
+**Alongside** — peer apps built on the same r2-core:
+
+- [r2-composer](https://github.com/reality2-ai/r2-composer) — visual composer for Reality2 firmware.
+- [r2-workshop](https://github.com/reality2-ai/r2-workshop) — wireless sensor mesh for workshop/lab.
+- [r2-android](https://github.com/reality2-ai/r2-android) *(private)* — native mobile client.
+- [bos](https://github.com/reality2-ai/bos) *(private)* — AI-native business operating system on R2.
+
+**Downstream** — things that connect to a hive / wayfinder:
+
+- [r2-notekeeper](https://github.com/reality2-ai/r2-notekeeper) — notes app that uses a wayfinder as its relay (see [Use the community wayfinder](#use-the-community-wayfinder)).
+- [reality2-ai.github.io](https://github.com/reality2-ai/reality2-ai.github.io) — the Reality2 project site.
+
+Related: [anthill](https://github.com/reality2-ai/anthill) and
+[anthill-r2](https://github.com/reality2-ai/anthill-r2) *(private)* build
+a separate agent colony on the same r2-specifications + r2-core.
 
 ## Status
 

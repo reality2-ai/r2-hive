@@ -1,0 +1,33 @@
+# gitleaks configuration for r2-hive.
+#
+# Purpose: r2-hive VENDORS canonical conformance test vectors under
+# crates/r2-hive-bin/tests/vectors/ (read-only copies of r2-specifications'
+# testing/test-vectors/ — see that dir's _SYNC.md). By construction those files
+# contain key/secret/nonce material, but every byte is SYNTHETIC, DETERMINISTIC,
+# TEST-ONLY data: e.g. secret = 1111…1111, master_secret = aaaa…aaaa, and the
+# high-entropy-looking fields (shared_secret, link_key) are the deterministic
+# cryptographic OUTPUTS of those toy inputs — not real secrets. Each vector file
+# says so in its own `description`.
+#
+# A secret scanner regexing for `"secret": "<64-hex>"` false-positives on these
+# (surfaced 2026-07-06 building r2-hive's first hosted CI, on r2-usb-pair-vectors).
+# This allowlist is the fleet reference pattern specs laid down (r2-specifications
+# .gitleaks.toml @ cce4896); downstream repos that vendor these vectors allowlist
+# their vendored path the same way. Allowlisting NEVER hides a real secret —
+# nothing but synthetic conformance data lives under this path.
+#
+# NOTE: the fleet's LOCAL pre-push bash hook (.git/hooks/pre-push) is a SEPARATE,
+# cruder failsafe that does NOT read this file — a re-vendor still needs
+# `FLEET_SKIP_SECRET_SCAN=1 git push` for the local push (flagged to the fleet as
+# a hook-tooling gap). This .gitleaks.toml governs any gitleaks-based scan.
+
+title = "r2-hive"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Vendored synthetic conformance test vectors — deterministic TEST-ONLY crypto material, not real secrets (see crates/r2-hive-bin/tests/vectors/_SYNC.md)"
+paths = [
+  '''crates/r2-hive-bin/tests/vectors/.*\.json''',
+]

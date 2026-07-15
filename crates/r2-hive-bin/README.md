@@ -23,8 +23,8 @@ and currently the reference host for R2-HOST-API.
 | 2b | `r2.mgmt.ensemble.*` handlers | ✅ shipped |
 | 2c | Service-sentant convention | ✅ shipped |
 | 3 | R2-WEB singleton + GraphQL gateway | planned |
-| 4 | Transport auto-config + keyring backends | planned |
-| 5 | Extract to its own workspace + repo | planned |
+| 4 | Transport auto-config (`--auto`) + keyring backend | ✅ shipped |
+| 5 | Extract to its own workspace + repo | ✅ shipped |
 | 6 | Elixir IPC contract (`HiveClient.ex`) | planned |
 | 7 | Packaging, install one-liners, dev crate suite | planned |
 
@@ -42,7 +42,7 @@ cargo build -p r2-hive --release
 The daemon prints its `self_hive_id` on startup, opens
 - `/r2/wire` — peer-to-peer R2-WIRE WebSocket
 - `/r2/mgmt` — management WebSocket (R2-HOST-API)
-- `${XDG_RUNTIME_DIR}/r2-hive.sock` — Unix-domain management socket
+- `${XDG_RUNTIME_DIR}/r2tgd.sock` — Unix-domain management socket
 
 ### Talk to it with `r2hive`
 
@@ -174,21 +174,25 @@ in-process integration tests cover daemon status, identity custody, every
 ## R2 crates this hive uses
 
 r2-hive is the integration point — it pulls in most of the R2 crate suite.
+These crates live in **[r2-core](https://github.com/reality2-ai/r2-core)**
+*(private)* and are consumed **git-pinned** from there (see the workspace
+`Cargo.toml`); they are not vendored in this repo.
 
 | Crate | Role in r2-hive |
 |---|---|
-| [`r2-wire`](../../crates/r2-wire/) | R2-WIRE extended frame encode/decode for every protocol surface |
-| [`r2-cbor`](../../crates/r2-cbor/) | Compact CBOR codec for management payloads |
-| [`r2-fnv`](../../crates/r2-fnv/) | FNV-1a 32-bit hashing of event class strings |
-| [`r2-route`](../../crates/r2-route/) | RouteEngine — Drop/Directed/Flood/DeliverOnly decisions |
-| [`r2-transport`](../../crates/r2-transport/) | Transport-side framing primitives |
-| [`r2-discovery`](../../crates/r2-discovery/) | mDNS/UDP-LAN/BLE/LoRa transports + neighbour discovery |
-| [`r2-trust`](../../crates/r2-trust/) | L5 trust-group crypto: cert chains, HKDF, X25519 join, revocation, wire HMAC (used through identity custody and future trust flows) |
-| [`r2-engine`](../../crates/r2-engine/) | Sentant trait, ActionBuf, Event types |
-| [`r2-dispatch`](../../crates/r2-dispatch/) | Dispatch contract (DispatchEnvelope, DispatchTarget) used to hand DeliverOnly events to the ensemble registry |
-| [`r2-def`](../../crates/r2-def/) | Ensemble/sentant score parser (YAML/JSON/TOML) |
-| [`r2-ensemble`](../../crates/r2-ensemble/) | Ensemble registry + OTP supervision; r2-hive's DispatchTarget |
-| [`r2-fnv`](../../crates/r2-fnv/) | Event-class hashing |
+| `r2-wire` | R2-WIRE extended frame encode/decode for every protocol surface |
+| `r2-cbor` | Compact CBOR codec for management payloads |
+| `r2-fnv` | FNV-1a 32-bit hashing of event class strings |
+| `r2-route` | RouteEngine — Drop/Directed/Flood/DeliverOnly decisions |
+| `r2-transport` | Transport-side framing primitives (incl. `LinkQuality`) |
+| `r2-discovery` | mDNS/UDP-LAN/BLE/LoRa transports + neighbour discovery |
+| `r2-trust` | L5 trust-group crypto: cert chains, HKDF, X25519 join, revocation, wire HMAC (used through identity custody and trust flows) |
+| `r2-engine` | Sentant trait, ActionBuf, Event types |
+| `r2-dispatch` | Dispatch contract (DispatchEnvelope, DispatchTarget) used to hand DeliverOnly events to the ensemble registry |
+| `r2-def` | Ensemble/sentant score parser (YAML/JSON/TOML) |
+| `r2-ensemble` | Ensemble registry + OTP supervision; r2-hive's DispatchTarget |
+| `r2-update` | OTA update verification (R2-UPDATE) |
+| `r2-hive-core` | Shared route/stack core reused across host + wasm targets |
 
 External dependencies of note: `axum` (HTTP/WS), `tokio`, `ed25519-dalek`,
 `hkdf`, `sha2`, `zeroize`.
@@ -235,19 +239,22 @@ The full byte-level description with CBOR shapes lives in
 | Flag | Meaning |
 |---|---|
 | `--bind <ip>` | HTTP/WS bind address (default `127.0.0.1`) |
-| `--port <u16>` | HTTP/WS port (default `7878`) |
+| `--port <u16>` | HTTP/WS port (default `21042`) |
 | `--name <string>` | Self hive id seed (else derived from hostname) |
-| `--socket <path>` | Override management Unix-socket path |
+| `--mgmt-socket <path>` | Override management Unix-socket path (default `${XDG_RUNTIME_DIR}/r2tgd.sock`) |
 | `--no-mgmt` | Disable mgmt socket (for tests / cloud profiles) |
-| `--identity-store <path>` | Master-secret file (default XDG_DATA_HOME/r2/identity) |
+| `--identity-store <path>` | Master-secret file (default `$XDG_STATE_HOME/r2/master.key`) |
+| `--identity-backend <auto\|file\|keyring>` | Identity store backend (default `auto`; `keyring` needs the `keyring` feature) |
 | `--lan` | Enable UDP-LAN transport |
 | `--ble` | Enable BLE transport (requires `--features ble`) |
 | `--lora` | Enable LoRa transport (requires `--features lora`) |
+| `--auto` | Auto-detect transports at startup; explicit flags win |
 | `--buffer-size N` | TG catch-up ring buffer per TG |
 | `--max-connections N` | Max concurrent UDS / WS clients |
 
-Phase 4 will replace these explicit gates with auto-detected defaults; the
-flags become overrides only.
+`--auto` fills in any transport flag you didn't pass explicitly from a
+startup detection probe; explicit flags always override it. Run
+`r2-hive --help` for the complete, authoritative flag list.
 
 ---
 

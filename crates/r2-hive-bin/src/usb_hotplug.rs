@@ -20,6 +20,25 @@
 //! systems where pairing must complete in <500 ms), the watcher's
 //! `scan_dir` API takes any `Path` so a future udev/inotify-based
 //! variant can drop in as an alternative scanner.
+//!
+//! ## How it interlinks (grep-verified)
+//!
+//! - Spawned once from `main.rs::spawn_usb_watcher` (unless `--no-usb`);
+//!   its `UsbBringupHandle` is stashed on `HiveState` so `mgmt/usb.rs`
+//!   can drive `r2.mgmt.usb.{prepare,confirm,abort,unpair,list}` and
+//!   `hive.rs::try_send_via_dongle` can egress via a paired dongle.
+//! - Wraps `usb_serial::run_session` per device (protocol events from
+//!   `usb.rs::UsbSession`); the default link-key store persists pairings
+//!   under the host-user identity directory.
+//! - The `UsbFilter` (VID:PID allowlist / `--usb-allow-any` / operator
+//!   explicit paths) is the default-deny gate in front of every open.
+//!
+//! ## Canon (r2-specifications)
+//!
+//! - R2-USB (peripheral protocol the sessions speak) —
+//!   `r2-specifications/specs/r2-core/R2-USB.md`.
+//! - R2-PROVISION §5.3.4 (pairing the sessions gate on) —
+//!   `r2-specifications/specs/r2-core/R2-PROVISION.md`.
 
 #![cfg(target_os = "linux")]
 
@@ -698,7 +717,7 @@ pub fn watcher_with_default_store(
 }
 
 /// Enumerate CDC-ACM devices in `dir`. Returns sorted absolute paths
-/// for entries whose file name starts with one of [`ACM_PREFIXES`].
+/// for entries whose file name starts with one of the `ACM_PREFIXES` entries.
 /// Non-existent or non-readable directories yield an empty list — the
 /// watcher logs nothing in that case (a bare-metal rig may not have
 /// `/dev` in the expected place).

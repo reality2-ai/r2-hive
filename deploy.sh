@@ -4,9 +4,10 @@
 # Prerequisites:
 #   - A VPS with a public IP, and a domain pointing to it
 #   - SSH access to the VPS
-#   - This checkout sitting next to a sibling r2-core checkout (the R2
-#     protocol crates are path-dependencies during development), since
-#     the binary is built locally before being shipped.
+#   - The R2 protocol crates are git-pinned to r2-core in Cargo.toml, so the
+#     local build needs EITHER read access to the r2-core repo (git) OR a
+#     sibling ../r2-core checkout with the Cargo [patch] block uncommented
+#     (local only, never committed). The binary is built locally before shipping.
 #
 # Usage:
 #   ./deploy.sh user@your-server wayfinder.yourdomain.com

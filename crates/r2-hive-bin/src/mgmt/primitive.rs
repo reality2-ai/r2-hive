@@ -8,6 +8,15 @@
 //! Phase 1 wires the handlers in. Specific event implementations land
 //! incrementally; events not yet backed by daemon state return an
 //! `unsupported` error frame per R2-HOST-API §6.2.
+//!
+//! ## Interlinks + canon
+//!
+//! Dispatched from `api.rs` (event-hash match on `r2.api.*`); reaches the
+//! mesh through `state.rs::DaemonState::hive_state()` → `HiveState`
+//! (`send_to_hive_via` directed, `broadcast_to_tg` TG-wide, `active_tg`
+//! for `tg.current`). Canon: R2-HOST-API §3 (the `r2.api.*` primitive
+//! vocabulary), §3.2 (event.subscribe/delivery), §5.2 (service-sentant id
+//! namespace) — `r2-specifications/specs/r2-core/R2-HOST-API.md`.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 

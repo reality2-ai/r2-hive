@@ -12,9 +12,9 @@ path = "src/main.rs"
 
 [dependencies]
 r2-hive = { path = "../r2-hive-bin" }
-r2-wire = { path = "../../../r2-core/crates/r2-wire" }
-r2-cbor = { path = "../../../r2-core/crates/r2-cbor" }
-r2-fnv  = { path = "../../../r2-core/crates/r2-fnv" }
+r2-wire = { workspace = true, features = ["alloc"] }
+r2-cbor = { workspace = true }
+r2-fnv  = { workspace = true }
 
 tokio = { version = "1", features = ["rt-multi-thread", "net", "macros", "io-util"] }
 clap  = { version = "4", features = ["derive"] }

@@ -10,7 +10,7 @@ use r2_hive::mgmt::{socket, state::DaemonState};
 #[tokio::test]
 async fn daemon_status_round_trip() {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
 
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone())
@@ -39,7 +39,10 @@ async fn daemon_status_round_trip() {
     let parsed = parse_status_response(&response_frame).expect("parse response");
 
     assert_eq!(parsed.correlation_id, correlation_id, "correlation id");
-    assert_eq!(parsed.version, env!("CARGO_PKG_VERSION"), "version");
+    // R2-BUILDMODE §6.3: the daemon's version string is mode-stamped
+    // (bare semver = prod, "+dev" suffix = dev build) — assert against the
+    // mode-aware const so this test is correct in BOTH build modes.
+    assert_eq!(parsed.version, r2_hive::mgmt::state::BUILD_MODE_VERSION, "version");
     // build_hash is "unversioned" unless R2TGD_BUILD_HASH is set; either is acceptable.
     assert!(
         !parsed.build_hash.is_empty(),
@@ -57,7 +60,7 @@ async fn identity_persists_across_daemon_restart() {
     use r2_hive::mgmt::identity::FileStore;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let store_path = tmp.path().join("master.key");
     let store = FileStore::new(store_path.clone());
 
@@ -151,7 +154,7 @@ async fn peer_list_no_hive_state() {
     use r2_hive::mgmt::primitive::parse_peer_list_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone())
         .await
@@ -192,7 +195,7 @@ async fn peer_list_with_hive_state_includes_self() {
     use r2_hive::mgmt::primitive::parse_peer_list_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     // Attach a HiveState with a known self_hive_id.
     let self_id: u32 = 0xCAFEBEEF;
@@ -231,7 +234,7 @@ async fn peer_query_self_returns_status_self() {
     use r2_hive::mgmt::primitive::parse_peer_query_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let self_id: u32 = 0xCAFEBEEF;
     state.attach_hive_state(Arc::new(HiveState::new(self_id, 1024, 64)));
@@ -265,7 +268,7 @@ async fn peer_query_unknown_returns_status_unknown() {
     use r2_hive::mgmt::primitive::parse_peer_query_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     state.attach_hive_state(Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64)));
 
@@ -301,7 +304,7 @@ async fn peer_query_neighbour_returns_status_and_transports() {
     use r2_route::transport::{QualitySample, Transport};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let self_id: u32 = 0xCAFEBEEF;
     let hive = Arc::new(HiveState::new(self_id, 1024, 64));
@@ -321,6 +324,7 @@ async fn peer_query_neighbour_returns_status_and_transports() {
             quality: QualitySample::Direct(0.8),
             rssi: Some(-60),
             mcu_origin: false,
+            build_mode: None, // v0.7: frame-formed, no declaration
             mobility: MobilityClass::Mobile,
         });
         engine.ingest_observation(Observation {
@@ -330,6 +334,7 @@ async fn peer_query_neighbour_returns_status_and_transports() {
             quality: QualitySample::Direct(0.9),
             rssi: None,
             mcu_origin: false,
+            build_mode: None, // v0.7: frame-formed, no declaration
             mobility: MobilityClass::Mobile,
         });
     }
@@ -365,7 +370,7 @@ async fn peer_query_missing_hive_id_returns_bad_payload() {
     use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -411,7 +416,7 @@ async fn event_send_no_hive_state_returns_unsupported() {
     use r2_hive::mgmt::api::build_event_send_request;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new(); // no hive_state
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -440,7 +445,7 @@ async fn event_send_broadcast_returns_msg_id() {
     use r2_hive::mgmt::primitive::parse_event_send_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     state.attach_hive_state(Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64)));
 
@@ -465,6 +470,126 @@ async fn event_send_broadcast_returns_msg_id() {
 }
 
 #[tokio::test]
+async fn transport_allow_mask_mgmt_state_set_clear_roundtrip() {
+    use std::sync::Arc;
+    use r2_hive::hive::HiveState;
+    use r2_hive::mgmt::transport_policy::{
+        build_clear_request, build_set_request, build_state_request, parse_response,
+        EV_TRANSPORT_ALLOW_MASK_CLEAR, EV_TRANSPORT_ALLOW_MASK_SET,
+        EV_TRANSPORT_ALLOW_MASK_STATE,
+    };
+    use r2_route::transport::{Transport, TransportSet};
+
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let socket_path = tmp.path().join("r2tgd.sock");
+    let state = DaemonState::new();
+    let hive = Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64));
+    state.attach_hive_state(hive.clone());
+
+    let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let mut stream = UnixStream::connect(&socket_path).await.expect("connect");
+    let (mut reader, mut writer) = stream.split();
+
+    write_frame(&mut writer, &build_state_request(1)).await.expect("write state");
+    let frame = read_frame(&mut reader).await.expect("read").expect("state");
+    let parsed = r2_wire::decode_extended(&frame).expect("decode");
+    assert_eq!(
+        parsed.header.event_hash,
+        r2_fnv::r2_hash(EV_TRANSPORT_ALLOW_MASK_STATE).unwrap()
+    );
+    let state_resp = parse_response(parsed.payload).expect("parse state");
+    assert_eq!(state_resp.correlation_id, 1);
+    assert_eq!(state_resp.effective_mask, TransportSet::ALL_BITS);
+    assert_eq!(state_resp.all_mask, TransportSet::ALL_BITS);
+    assert!(!state_resp.active_lease);
+
+    let requested = Transport::Wifi.bit() | 0x80;
+    write_frame(&mut writer, &build_set_request(2, requested, 0xA11CE, "bench-phase2"))
+        .await
+        .expect("write set");
+    let frame = read_frame(&mut reader).await.expect("read").expect("set");
+    let parsed = r2_wire::decode_extended(&frame).expect("decode");
+    assert_eq!(
+        parsed.header.event_hash,
+        r2_fnv::r2_hash(EV_TRANSPORT_ALLOW_MASK_SET).unwrap()
+    );
+    let set_resp = parse_response(parsed.payload).expect("parse set");
+    assert_eq!(set_resp.correlation_id, 2);
+    assert_eq!(set_resp.requested_mask, Some(requested));
+    assert_eq!(set_resp.accepted_mask, Some(Transport::Wifi.bit()));
+    assert_eq!(set_resp.effective_mask, Transport::Wifi.bit());
+    assert_eq!(set_resp.lease_id, Some(0xA11CE));
+    assert_eq!(set_resp.source.as_deref(), Some("bench-phase2"));
+    assert!(set_resp.active_lease);
+    assert_eq!(
+        hive.transport_policy_snapshot().await.effective_mask,
+        Transport::Wifi.bit()
+    );
+
+    write_frame(&mut writer, &build_state_request(3)).await.expect("write state");
+    let frame = read_frame(&mut reader).await.expect("read").expect("state");
+    let parsed = r2_wire::decode_extended(&frame).expect("decode");
+    let state_resp = parse_response(parsed.payload).expect("parse state");
+    assert_eq!(state_resp.correlation_id, 3);
+    assert_eq!(state_resp.requested_mask, Some(requested));
+    assert_eq!(state_resp.accepted_mask, Some(Transport::Wifi.bit()));
+    assert_eq!(state_resp.effective_mask, Transport::Wifi.bit());
+    assert!(state_resp.active_lease);
+
+    write_frame(&mut writer, &build_clear_request(4, Some(0xA11CE)))
+        .await
+        .expect("write clear");
+    let frame = read_frame(&mut reader).await.expect("read").expect("clear");
+    let parsed = r2_wire::decode_extended(&frame).expect("decode");
+    assert_eq!(
+        parsed.header.event_hash,
+        r2_fnv::r2_hash(EV_TRANSPORT_ALLOW_MASK_CLEAR).unwrap()
+    );
+    let clear_resp = parse_response(parsed.payload).expect("parse clear");
+    assert_eq!(clear_resp.correlation_id, 4);
+    assert_eq!(clear_resp.effective_mask, TransportSet::ALL_BITS);
+    assert!(!clear_resp.active_lease);
+    assert!(
+        hive.transport_policy_snapshot()
+            .await
+            .active_lease
+            .is_none()
+    );
+
+    let _ = handle.shutdown.send(());
+    let _ = handle.join.await;
+}
+
+#[tokio::test]
+async fn transport_allow_mask_mgmt_without_hive_state_is_unsupported() {
+    use r2_fnv::r2_hash;
+    use r2_hive::mgmt::transport_policy::build_state_request;
+
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let socket_path = tmp.path().join("r2tgd.sock");
+    let state = DaemonState::new();
+
+    let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let mut stream = UnixStream::connect(&socket_path).await.expect("connect");
+    let (mut reader, mut writer) = stream.split();
+    write_frame(&mut writer, &build_state_request(1)).await.expect("write");
+    let frame = read_frame(&mut reader).await.expect("read").expect("frame");
+    let parsed = r2_wire::decode_extended(&frame).expect("decode");
+    assert_eq!(
+        parsed.header.event_hash,
+        r2_hash("r2.mgmt.event.error").expect("hash"),
+        "recognised local event should fail closed without HiveState"
+    );
+
+    let _ = handle.shutdown.send(());
+    let _ = handle.join.await;
+}
+
+#[tokio::test]
 async fn event_send_targeted_unknown_peer_returns_peer_not_found() {
     use std::sync::Arc;
     use r2_fnv::r2_hash;
@@ -472,7 +597,7 @@ async fn event_send_targeted_unknown_peer_returns_peer_not_found() {
     use r2_hive::mgmt::api::build_event_send_request;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     state.attach_hive_state(Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64)));
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
@@ -501,7 +626,7 @@ async fn tg_current_no_attachment_returns_only_cid() {
     use r2_hive::mgmt::primitive::parse_tg_current_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -528,7 +653,7 @@ async fn tg_current_with_attached_tg_returns_full_payload() {
     use r2_hive::mgmt::primitive::parse_tg_current_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let self_id: u32 = 0xCAFEBEEF;
     let hive = Arc::new(HiveState::new(self_id, 1024, 64));
@@ -571,7 +696,7 @@ async fn cap_query_returns_empty_in_v0_1() {
     use r2_hive::mgmt::primitive::parse_cap_query_response;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -602,7 +727,7 @@ async fn event_subscribe_unsubscribe_roundtrip() {
     };
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new(); // no HiveState — local registry path
     let handle = socket::spawn(socket_path.clone(), state.clone()).await.expect("spawn");
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -666,7 +791,7 @@ async fn delivery_fires_for_matching_subscription() {
     use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let hive = Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64));
     state.attach_hive_state(hive.clone());
@@ -765,7 +890,7 @@ async fn delivery_does_not_fire_for_non_matching_subscription() {
     use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let hive = Arc::new(HiveState::new(0xCAFEBEEF, 1024, 64));
     state.attach_hive_state(hive.clone());
@@ -837,7 +962,7 @@ async fn daemon_rejects_unknown_event() {
     use r2_wire::{encode_extended, ExtendedHeader, ExtendedMessage, Flags, MsgType};
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let socket_path = tmp.path().join("r2-hive.sock");
+    let socket_path = tmp.path().join("r2tgd.sock");
     let state = DaemonState::new();
     let handle = socket::spawn(socket_path.clone(), state.clone())
         .await
@@ -893,3 +1018,37 @@ async fn daemon_rejects_unknown_event() {
     let _ = handle.shutdown.send(());
     let _ = handle.join.await;
 }
+
+/// R2-TG-TOOL §5.1 v0.4 MUST (b) — the squat-guard REFUSAL arm, runtime-
+/// tested WITHOUT root or a user namespace. The guard's path is
+/// exists → stat → foreign-uid → refuse, and it is file-type-agnostic, so
+/// any pre-existing ROOT-owned path exercises it (/proc/version is root-
+/// owned on every Linux). Note for future readers: the
+/// `unshare --map-root-user` route does NOT work here — your own files map
+/// TOGETHER WITH your uid (both read 0 inside the ns), so the mismatch
+/// never occurs; verified empirically before choosing this construction.
+#[tokio::test]
+async fn squat_guard_refuses_foreign_owned_socket_path() {
+    // As root every file is ours and the arm cannot fire — skip honestly.
+    fn uid() -> u32 {
+        extern "C" {
+            fn getuid() -> u32;
+        }
+        unsafe { getuid() }
+    }
+    if uid() == 0 {
+        eprintln!("skipped: running as root — foreign-uid mismatch unobtainable");
+        return;
+    }
+    let state = DaemonState::new();
+    let err = match socket::spawn(std::path::PathBuf::from("/proc/version"), state).await {
+        Err(e) => e,
+        Ok(_) => panic!("foreign-owned path at the socket name MUST refuse to bind"),
+    };
+    assert_eq!(
+        err.kind(),
+        std::io::ErrorKind::PermissionDenied,
+        "squat guard must refuse with PermissionDenied, got: {err}"
+    );
+}
+
