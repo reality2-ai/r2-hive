@@ -274,33 +274,41 @@ hygiene_scan_tree() {
 # locally-administered and non-allowlisted); no real device value appears in this public file.
 if [ "${1:-}" = "--selftest" ]; then
   k=0; p=0
-  kat() { # name, line, want(1=must flag, 0=must pass)
+  kat() { # name, line, want(1=must flag, 0=must pass), [reason], [exact-count]
+    # A bare flag/no-flag assertion lets a WRONG-CLASSIFIER regression stay green (a MAC misread as a
+    # TAIL still "flags"; a 4-group run emits 2 overlapping TAILs so the count is load-bearing). When a
+    # reason ([MAC]/[TAIL]/[TAIL-0x]/[TAIL-COMPACT]) and/or an exact count is given, assert them too.
     k=$((k+1))
-    got=$(printf 'f\0001\000%s\n' "$2" | hygiene_scan | grep -c '^' || true)
-    if { [ "$3" = 1 ] && [ "$got" -gt 0 ]; } || { [ "$3" = 0 ] && [ "$got" -eq 0 ]; }; then
+    out=$(printf 'f\0001\000%s\n' "$2" | hygiene_scan || true)
+    got=$(printf '%s' "$out" | grep -c '\[' || true)
+    ok=1
+    if [ "$3" = 1 ]; then [ "$got" -gt 0 ] || ok=0; else [ "$got" -eq 0 ] || ok=0; fi
+    if [ -n "${4:-}" ]; then printf '%s' "$out" | grep -q "\[$4\]" || ok=0; fi
+    if [ -n "${5:-}" ]; then [ "$got" -eq "$5" ] || ok=0; fi
+    if [ "$ok" = 1 ]; then
       p=$((p+1)); echo "  ok   $1"
-    else echo "  FAIL $1 (matched=$got, want=$3)"; fi
+    else echo "  FAIL $1 (matched=$got want=$3 reason=${4:-any} count=${5:-any})"; fi
   }
-  # --- full-MAC positives: the boundary fail-opens ---
-  kat "underscore-adjacent colon MAC flags"                  'usb_dev_02:11:22:33:44:55-if00'            1
-  kat "underscore+hyphen MAC flags (prefilter fail-open)"    'usb_dev_02-11-22-33-44-55-if00'            1
-  kat "hyphen MAC, hyphen on BOTH sides, flags"              'x-02-11-22-33-44-55-y'                     1
-  kat "bare hyphen MAC flags"                                'mac 02-11-22-33-44-55 seen'                1
-  kat "real + allowlisted on ONE line flags (line-wise bypass)" 'ex 00:00:00:00:00:00 real 02:11:22:33:44:55' 1
-  kat "SUBSTRING allowlist hole closed (02:de:ad:be:ef:03)"  'mac 02:DE:AD:BE:EF:03 here'                1
-  kat "MAC embedded in a longer hex run flags"               'run aa-02-11-22-33-44-55-bb'               1
-  kat "uppercase hyphen MAC flags"                           'MAC 02-AB-CD-EF-11-22'                     1
+  # --- full-MAC positives: the boundary fail-opens (assert reason=MAC so a mis-class can't pass) ---
+  kat "underscore-adjacent colon MAC flags"                  'usb_dev_02:11:22:33:44:55-if00'            1 MAC
+  kat "underscore+hyphen MAC flags (prefilter fail-open)"    'usb_dev_02-11-22-33-44-55-if00'            1 MAC
+  kat "hyphen MAC, hyphen on BOTH sides, flags"              'x-02-11-22-33-44-55-y'                     1 MAC
+  kat "bare hyphen MAC flags"                                'mac 02-11-22-33-44-55 seen'                1 MAC
+  kat "real + allowlisted on ONE line flags (line-wise bypass)" 'ex 00:00:00:00:00:00 real 02:11:22:33:44:55' 1 MAC
+  kat "SUBSTRING allowlist hole closed (02:de:ad:be:ef:03)"  'mac 02:DE:AD:BE:EF:03 here'                1 MAC
+  kat "MAC embedded in a longer hex run flags"               'run aa-02-11-22-33-44-55-bb'               1 MAC
+  kat "uppercase hyphen MAC flags"                           'MAC 02-AB-CD-EF-11-22'                     1 MAC
   # --- full-MAC negatives ---
   kat "allowlisted-only line passes, even in MAC context"     'mac 00:00:00:00:00:00 only'                0
   kat "allowlisted uppercase/hyphen placeholder passes"      'mac AA-BB-CC-DD-EE-FF only'                0
   kat "redacted placeholder passes"                          'mac xx:xx:xx:xx:xx:xx redacted'            0
   kat "mixed separators are not a MAC"                       'frag 02:11-22:33-44:55 here'               0
-  # --- 3-byte tail: contextual ---
-  kat "tail flags WITH mac context"                          'mac_low3 = 02:34:5a'                       1
-  kat "hyphen tail after hex node label flags"               'raw_serial d3-02-34-5a.log'                1
-  kat "tail inside a 4-group run flags with context"         'bssid 11:02:34:5a'                         1
-  kat "bare compact boot-log tail flags"                     'DEV 02345A role=STA'                       1
-  kat "bare compact hive-adjacent tail flags"                'hive 02345A originates'                    1
+  # --- 3-byte tail: contextual (assert reason=TAIL; the 4-group run emits exactly 2 windows) ---
+  kat "tail flags WITH mac context"                          'mac_low3 = 02:34:5a'                       1 TAIL 1
+  kat "hyphen tail after hex node label flags"               'raw_serial d3-02-34-5a.log'                1 TAIL
+  kat "tail inside a 4-group run flags with context (2 windows)" 'bssid 11:02:34:5a'                     1 TAIL 2
+  kat "bare compact boot-log tail flags"                     'DEV 02345A role=STA'                       1 TAIL-COMPACT
+  kat "bare compact hive-adjacent tail flags"                'hive 02345A originates'                    1 TAIL-COMPACT
   kat "bare compact tail passes without device context"      'revision 1a2b3c landed'                   0
   kat "six-digit baud remote from board context passes"      'board boot command with padding padding -b 115200' 0
   kat "protocol prefix before hive field passes"             'HEALTH matches a7011a<hive8>'              0
@@ -309,10 +317,10 @@ if [ "${1:-}" = "--selftest" ]; then
   kat "date passes even near the word macro"                 'macro rework 26-07-04 landed'              0
   kat "public OUI passes in MAC context"                     'oui D8-3B-DA vendor prefix'                0
   kat "compact public OUI passes in context"                 'oui D83BDA vendor prefix'                  0
-  # --- compact 0x tail ---
-  kat "0x compact tail flags without context"                'value 0x02345A'                            1
-  kat "device-context 0x tail ending 000 still flags"         'DEV 0x02A000'                              1
-  kat "device-context exact offset collision still flags"    'DEV 0x1E0000'                              1
+  # --- compact 0x tail (assert reason=TAIL-0x) ---
+  kat "0x compact tail flags without context"                'value 0x02345A'                            1 TAIL-0x
+  kat "device-context 0x tail ending 000 still flags"         'DEV 0x02A000'                              1 TAIL-0x
+  kat "device-context exact offset collision still flags"    'DEV 0x1E0000'                              1 TAIL-0x
   kat "0x flash offset passes"                               'persona @0x12000 and 0x1E0000'             0
   kat "0x placeholder passes"                                'magic 0xC0FFEE and 0xFFFFFF'               0
   kat "0x 8-digit word is not a 3-byte tail"                 'reg 0x02345A99 write'                      0

@@ -114,20 +114,24 @@ jobs:
           hit() { echo "::error::hygiene gate: $1 ($(printf '%s\n' "$2" | wc -l) match(es); values suppressed)"; fail=1; }
           # grep -o emits one token per line; anchor the allowlist to the complete normalised token.
           # A partial/substr allowlist lets a real MAC containing the placeholder ride through.
-          m=$(grep -rhoE "([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}" . 2>/dev/null | grep -vixE "AA:BB:CC:DD:EE:FF|00:00:00:00:00:00|FF:FF:FF:FF:FF:FF|DE:AD:BE:EF:CA:FE" | sort -u)
+          # `|| true` INSIDE each substitution: Actions' default Linux shell is `bash -e -o pipefail`, so
+          # a grep that matches NOTHING (rc 1) — the intended CLEAN case — otherwise aborts the whole step
+          # at the assignment (the line below never runs). This is the grep-under-pipefail trap; the guard
+          # must fail on a real leak, not on the absence of one.
+          m=$(grep -rhoE "([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}" . 2>/dev/null | grep -vixE "AA:BB:CC:DD:EE:FF|00:00:00:00:00:00|FF:FF:FF:FF:FF:FF|DE:AD:BE:EF:CA:FE" | sort -u || true)
           [ -n "$m" ] && hit "real-looking MAC address" "$m"
-          m=$(grep -rhoE "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" . 2>/dev/null | sort -u)
+          m=$(grep -rhoE "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" . 2>/dev/null | sort -u || true)
           [ -n "$m" ] && hit "email address" "$m"
-          m=$(grep -rhoE "/home/[a-z0-9_]+/|/Users/[a-z0-9_]+/" . 2>/dev/null | sort -u)
+          m=$(grep -rhoE "/home/[a-z0-9_]+/|/Users/[a-z0-9_]+/" . 2>/dev/null | sort -u || true)
           [ -n "$m" ] && hit "home path" "$m"
-          m=$(grep -rhoiE "(secret|private[ _-]?key|master[ _-]?key|mesh_sk|seed[ _-]?key)[^<]{0,60}[0-9a-fA-F]{40,}" . 2>/dev/null | sort -u)
+          m=$(grep -rhoiE "(secret|private[ _-]?key|master[ _-]?key|mesh_sk|seed[ _-]?key)[^<]{0,60}[0-9a-fA-F]{40,}" . 2>/dev/null | sort -u || true)
           [ -n "$m" ] && hit "secret-labeled key material" "$m"
           NAMES=""
           if [ -n "$NAMES" ]; then
-            m=$(grep -rhoiE "$NAMES" . 2>/dev/null | sort -u)
+            m=$(grep -rhoiE "$NAMES" . 2>/dev/null | sort -u || true)
             [ -n "$m" ] && hit "denylisted name" "$m"
           fi
-          n=$(grep -rhoE "[0-9a-fA-F]{40,}" . 2>/dev/null | sort -u | wc -l)
+          n=$(grep -rhoE "[0-9a-fA-F]{40,}" . 2>/dev/null | sort -u | wc -l || true)
           echo "::notice::hygiene gate: $n benign long-hex tokens present (git SHAs / public test vectors)"
           if [ "$fail" -ne 0 ]; then echo "HYGIENE GATE FAILED — deploy blocked"; exit 1; fi
           echo "hygiene gate: clean"

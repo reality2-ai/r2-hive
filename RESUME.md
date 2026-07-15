@@ -8,6 +8,22 @@
 > end-to-end KAT paths. Branch/commit: this entry travels in the local handoff commit; use `git log -1` for its
 > immutable SHA. The base remains `b3817dc`; nothing was pushed.
 >
+> **▶ RE-PASS ROUND 2 (2026-07-16) — hive-codex read-only re-pass of the amended commit returned 3 findings; all triaged, NO PUSH.**
+> - **F1 (HIGH, CI blocker) — FIXED + verified.** `.github/workflows/docs.yml` hygiene-gate step: the `m=$(grep … | … | sort)` command substitutions abort the whole step under Actions' default `bash -e -o pipefail` whenever a grep matches NOTHING (the CLEAN case) or all matches are allowlisted — so the guard reddened on absence-of-leak, not presence. Reproduced locally under `-eo pipefail`. Fix = `|| true` inside all six substitutions. Verified end-to-end against a synthetic `target/doc`: clean→exit 0 "clean", planted MAC→exit 1, allowlisted-only→exit 0. Pre-existing latent trap (same structure on `b3817dc`), not introduced by the v2 rewrite, but fixed here since it blocks a green docs deploy.
+> - **F3 (MED, test weakness) — DONE.** `kat()` now accepts optional `reason` ([MAC]/[TAIL]/[TAIL-0x]/[TAIL-COMPACT]) and exact `count`; high-value KATs assert them so a wrong-CLASSIFIER regression (MAC misread as TAIL, or the 4-group run's 2-window count) can no longer stay green on a bare flag/no-flag check. Selftest **41/41** with the stricter asserts.
+> - **F2 (MED, false-positives) — VERIFIED, one sub-claim REFUTED, narrowing DEFERRED as a Roy-canon tradeoff.**
+>   (Examples described abstractly here on purpose — writing the literal token beside a context word would trip
+>   this very gate on RESUME.md; see the self-inflicted-trap note in memory.) Confirmed latent FPs, all currently
+>   ABSENT from the tree: a time-of-day triple or a short two-digit-group date sitting beside a board/device word
+>   classifies as a TAIL; a six-digit baud constant beside a board-id label classifies as a compact tail; a
+>   revision-like six-hex filename segment can too. REFUTED: ISO-date *filenames* with a four-digit year do NOT
+>   flag — the hex negative-lookbehind already blocks them (the year's last digit is hex before the date run).
+>   Decision: the gate is fail-SAFE by design (errs toward flagging, exact-allowlist escape hatch); every F2 fix
+>   narrows CONTEXT = the fail-OPEN direction that burned this workstream twice, and the real tree is currently
+>   clean (exit 0). Not narrowing unilaterally; routed to hive-codex/supervisor as a noise-vs-fail-open tradeoff on
+>   Roy-canon context rules. **Do-not-assume:** narrowing the tail-context set to quiet F2 without KATs proving no
+>   new fail-open is the exact regression class this branch exists to kill.
+>
 > **Verified state:** a value-blind control audit replays the old inventory against the base and reproduces
 > **4/17 live historical tails, 26 files, 41 location/format pairs** (colon 0 / hyphen 4 / compact 37 / 53 token
 > occurrences). The same audit against the working tree is **0/17, 0 files, 0 pairs, 0 tokens**. All 41 known
@@ -24,9 +40,10 @@
 > location/reason/shape, and fails closed on a malformed record stream. Context windows are local for ambiguous bare
 > compact values; exact public partition bounds and placeholders are explicit. Opaque 32-bit hive IDs remain public;
 > only explicit zero-prefix fallback and adjacent JSON hive-to-MAC mappings are classified as derived tails.
-> `.github/workflows/docs.yml` now anchors the rendered-MAC allowlist to full tokens and reports match category/count
-> only, never matched values. Changed scope: scanner + rendered-doc workflow, 27 scrubbed data/docs/log files, this
-> handoff. No core, firmware-worktree, binary, secret, or hardware change.
+> `.github/workflows/docs.yml` now anchors the rendered-MAC allowlist to full tokens, reports match category/count
+> only (never matched values), and guards every grep substitution with `|| true` so a clean/allowlisted tree cannot
+> abort the step under `bash -e -o pipefail` (F1). Changed scope: scanner + rendered-doc workflow, 27 scrubbed
+> data/docs/log files, this handoff. No core, firmware-worktree, binary, secret, or hardware change.
 >
 > **Verification (all exit 0):** `bash -n ci/public-hygiene.sh`; `bash ci/public-hygiene.sh --selftest` **41/41**
 > (includes actual Git extraction, mixed allowed/private line, compact filename, embedded-derivation controls,
