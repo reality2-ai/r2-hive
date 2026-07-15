@@ -5,7 +5,7 @@
   "transport": "wifi-udp",
   "run_id": "hbsync-wifi-metal-0622",
   "timestamp_utc": "2026-06-22T10:53:00Z",
-  "runner": "hive; 3 alfred XIAO ESP32-S3, default (non-ble) WiFi build, X1=SoftAP via AP_MAC_MATCH=0xFBE520, X2/X3=STA, local serial capture",
+  "runner": "hive; 3 alfred XIAO ESP32-S3, default (non-ble) WiFi build, X1=SoftAP via AP_MAC_MATCH=0xXXXXXX, X2/X3=STA, local serial capture",
   "board_map": {
     "X1/SoftAP": "998de7fc @192.168.4.1",
     "X2/STA": "c2106bd5 @192.168.4.68",

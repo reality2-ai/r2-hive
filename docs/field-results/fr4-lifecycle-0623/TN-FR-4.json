@@ -8,7 +8,7 @@
   "payload": "events (wairoa.reading)",
   "run_id": "fr4-rolesim-metal-0623",
   "timestamp_utc": "2026-06-23T01:32:00Z",
-  "runner": "hive; 4 tuxedo DFR1195 — D1=480e900e(50:26:98) SENSOR, D2=2cab5f69(b7:90:10) ROUTER, D3=f91c8911(b6:0a:a0) ROUTER+BRIDGE, D4=06ae082b(52:99:28) RECEIVER; role-by-hive_id; pilot-site prov2 by composer; F2 lifecycle = my raw-serial espflash-monitor capture; step-a/happy-path/E2/E3 = composer /r2 (orch msg.* stream)",
+  "runner": "hive; 4 tuxedo DFR1195 — D1=480e900e(xx:xx:xx) SENSOR, D2=2cab5f69(xx:xx:xx) ROUTER, D3=f91c8911(xx:xx:xx) ROUTER+BRIDGE, D4=06ae082b(xx:xx:xx) RECEIVER; role-by-hive_id; pilot-site prov2 by composer; F2 lifecycle = my raw-serial espflash-monitor capture; step-a/happy-path/E2/E3 = composer /r2 (orch msg.* stream)",
   "hardware": "DFR1195 (ESP32-S3 + SX1262); D3 dual-radio bridge (SX1262 LoRa + onboard ESP-NOW)",
   "config": "fr4 feature (role-sim). LoRa: SF7 916.8 -9dBm + 4B prepend + hive-MASK (D1->[D2] D2->[D1,D3] D3->[D2]); ESP-NOW: ch1 broadcast + MAC-MASK (D3->[D4] D4->[D3]). F2 SCF = buffer-on-dest-unreachable (best_for(dest).is_none && !has_viable(dest, 0.3)) + forward-on-reappearance (has_viable(dest, 0.3) || path conf>0.3) + TTL-bound (SCF_TTL 120 route-s) + dedup-preserved. Outage mechanism = espflash-monitor-attach RESETS D3 -> fresh neighbour table = clean transient D4-outage (no power-cycle/stale-entry).",
   "firmware_commit": "r2-hive 884b866 + 2 metal-found fixes (SCF trigger dest-unreachable; reappearance conf>0.3 anti-churn) — staged ELFs fr4-sensor/router-bridge/receiver",

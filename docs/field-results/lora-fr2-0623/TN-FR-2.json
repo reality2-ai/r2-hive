@@ -8,7 +8,7 @@
   "payload": "events",
   "run_id": "lora-fr2-metal-0623",
   "timestamp_utc": "2026-06-23T09:55:00Z",
-  "runner": "hive; 4 tuxedo DFR1195 — D1=480e900e(50:26:98) origin, D2=2cab5f69(b7:90:10) LoRa-router, D3=f91c8911(b6:0a:a0) BRIDGE(LoRa+ESP-NOW), D4=06ae082b(52:99:28) ESP-NOW receiver; pilot-site TG provisioned by composer (prov2.py); my ssh for flash/run",
+  "runner": "hive; 4 tuxedo DFR1195 — D1=480e900e(xx:xx:xx) origin, D2=2cab5f69(xx:xx:xx) LoRa-router, D3=f91c8911(xx:xx:xx) BRIDGE(LoRa+ESP-NOW), D4=06ae082b(xx:xx:xx) ESP-NOW receiver; pilot-site TG provisioned by composer (prov2.py); my ssh for flash/run",
   "hardware": "DFR1195 (ESP32-S3 + SX1262); D3 dual-radio = SX1262 LoRa + onboard ESP-NOW(2.4GHz)",
   "config": "LoRa: wairoa_as923_nz SF7 916.8 -9dBm + 4B immediate-sender prepend + hive-MASK (D1->[D2] D2->[D1,D3] D3->[D2]) + ALOHA TX-jitter; ESP-NOW: ch1 broadcast + MAC-MASK (D3->[D4] D4->[D3]); per-transport TX channels (DATA_TX_LORA / DATA_TX) + mesh_broadcast (bridge pushes BOTH)",
   "firmware_commit": "r2-hive eed35f9 (bridge feature; this run as-flashed)",
