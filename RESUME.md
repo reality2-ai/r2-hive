@@ -1460,7 +1460,7 @@ local-only v1 lean vs on-mesh TG-gated later) and registers the §4 row FIRST.
   COMPLEX_HIVE_PEER = 1 B component_index + 8 B NUL-padded ASCII role_tag; R2-CAP v0.4 power-state keys 0x04–0x08 (battery reuses
   0x02); R2-COMPLEX-HIVE v0.8 WAKE_REASON_EXT 0x07–0x0B; R2-HW v0.9 CONFIG ids 0x01 TX_POWER_DBM + 0x02 WAKE_INTERVAL_MS,
   CRC-16/CCITT poly 0x1021 init 0xFFFF no-reflect, unknown config_id MUST reject-via-ACK; r2-hw-vectors.json = 4 byte-exact frames;
-  R2-USB v0.7 error payload implementation-defined BY DESIGN. Plus the §4.1 Sentinel bar. Target = B6:0A:A0. **STAGE, do not flash.**
+  R2-USB v0.7 error payload implementation-defined BY DESIGN. Plus the §4.1 Sentinel bar. Target = xx:xx:xx. **STAGE, do not flash.**
 - **Hygiene state:** specs fixed + deployed the public dashboard labels; remaining exposure was structural path text in the generated
   dashboard blob (narrow suppression approved on specs' side). My side: ONLY the narrow gateway-naming guard (e5bc905); broad
   scrubs/guards + historical-ID cleanup + the README marketplace-branding question are ALL HELD as Roy-level policy — do not "fix".
@@ -1469,7 +1469,7 @@ local-only v1 lean vs on-mesh TG-gated later) and registers the §4 row FIRST.
 - **Ground truth (supervisor-codex recorded, refutation accepted):** personas @0x12000 are ALL weave-correct; my earlier key-epoch-on-persona
   framing was wrong at the *storage layer* — the wrong-epoch key lives in the **runtime-PROVISION record @0x14000** (magic R2TG,
   `[magic u32 BE][tg_id u32 BE][key 32B]` = 40 B, own 4 KB sector; `main.rs:2191`), which **OVERRIDES the persona at boot**
-  (`main.rs:265-276`, serial line `PROVISIONED TG restored from NVS`). Dark boards D2 (B7:90:10 / b14b07d8) + D4 (52:99:28 / 495b1b62)
+  (`main.rs:265-276`, serial line `PROVISIONED TG restored from NVS`). Dark boards D2 (xx:xx:xx / b14b07d8) + D4 (xx:xx:xx / 495b1b62)
   carry a stale override with tg_id 04bc57e7 + an OLD-epoch hk → HMAC verify fails → correct fail-closed refusal. Fix = ONE-SECTOR
   clear/overwrite, **NOT** persona rewrite, **NOT** a reflash.
 - **The two operational fixes (Roy chooses intent — NO NVS clearing until then; standing directive):**

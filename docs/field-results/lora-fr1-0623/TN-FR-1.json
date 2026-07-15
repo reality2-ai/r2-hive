@@ -8,7 +8,7 @@
   "payload": "events",
   "run_id": "lora-fr1-metal-0623",
   "timestamp_utc": "2026-06-23T09:13:00Z",
-  "runner": "hive; 3 tuxedo DFR1195 — A=480e900e (mac 50:26:98), B=2cab5f69 (mac b7:90:10), C=f91c8911 (mac b6:0a:a0); features nobt,loraroute,loratcxo,multitg; core's r2-sx1262 + r2-transport LoRaTransport data-plane; via my ssh to tuxedo serial",
+  "runner": "hive; 3 tuxedo DFR1195 — A=480e900e (mac xx:xx:xx), B=2cab5f69 (mac xx:xx:xx), C=f91c8911 (mac xx:xx:xx); features nobt,loraroute,loratcxo,multitg; core's r2-sx1262 + r2-transport LoRaTransport data-plane; via my ssh to tuxedo serial",
   "hardware": "DFR1195 (FireBeetle 2 ESP32-S3) + SX1262; SPI3 SCK7/MISO5/MOSI6, NSS10, RST41, BUSY40, RXEN42, DIO1=4; TCXO DIO3 1.8V",
   "config": "wairoa_as923_nz bench: 916.8MHz/BW125/SF7(bench)/CR45/sync0x21/CRC/explicit/TCXO1.8V/tx_power-9dBm(bench). LoRa-carrier: 4B immediate-sender prepend; hive-MASK A={B} B={A,C} C={B}; ALOHA TX-jitter 0-300ms (loose-liveness de-collision)",
   "firmware_commit": "r2-hive (loraroute; this run = jitter iteration on top of 4042042)",

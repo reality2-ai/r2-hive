@@ -2,7 +2,7 @@
 
 > Closed/superseded arcs rotated out of RESUME.md on 2026-07-06 (file had grown to 607KB — unreadable as a handoff). Newest-first, same format. RESUME.md holds live state only.
 
-## 🚨 LIVE (2026-07-04): ROY FLASHING 29e250cf → D1(ACM2/50:26:98) + D2(ACM5/B7:90:10); #49 board (ACM3/50:23:E4) may follow
+## 🚨 LIVE (2026-07-04): ROY FLASHING 29e250cf → D1(ACM2/xx:xx:xx) + D2(ACM5/xx:xx:xx); #49 board (ACM3/xx:xx:xx) may follow
 - **FIRST-RESPONDER HOT.** I do NOT touch ttys (raw attach = ROM-download reset, task#14; espflash harness-gated Roy-only). Output
   reaches me via supervisor relay or composer's adapter. URGENT flagged to composer: RELEASE ACM2/ACM5(/ACM3) during each flash —
   adapter holding the tty = espflash PORT-BUSY fail; re-attach after for boot-line ingest.
@@ -11,7 +11,7 @@
   TN READY → rt.snap/rt.nbr flowing; hive_id MISMATCH = persona clobber → composer prov2 re-provision (NOT a reflash); stale
   OTA_PENDING self-clears on boot (by design); boot-loop/panic → capture lines → I map to source. 2a-window residual does NOT apply
   to USB flashes (otadata untouched). **PARAMOUNT trigger when ACM3 runs: serial line `OTA(L2CAP) start seq=` → drop everything.**
-- **⚡⚡ FLASH-SET CORRECTED (Roy): FOUR boards — D1✓ D2✓ + #49-board 50:23:E4 + D4 52:99:28. B6:0A:A0 EXCLUDED** (= the
+- **⚡⚡ FLASH-SET CORRECTED (Roy): FOUR boards — D1✓ D2✓ + #49-board xx:xx:xx + D4 xx:xx:xx. xx:xx:xx EXCLUDED** (= the
   Alfred-conjoined MCU half; composer's adapter stays on it; gets radiofrontend later ⇒ **it is task #34's physical target** —
   recorded). My D3 port-busy catch = MOOT; composer told to DISREGARD the release request, keep carrier adapter attached.
   **D4 RESOLVED by Roy at the bench: ALL boards are DFR1195s (physical confirmation) → standard csv everywhere; 8mb staging stays
@@ -20,12 +20,12 @@
   personas 480e900e/2cab5f69 (NO clobber), radios up, mesh forming; heard-list incl 09a07e47 still on its OLD image (banner will
   change post-flash); monitor-only attach done right (participate=False, DTR=0 RTS=0 no-reset) on :21062/:21064; rt.* flow confirm
   next; NOT touching unflashed ACM3/ACM4.**
-- **⚡ MID-FLASH UPDATE (superseded above): D1+D2 DONE; Roy proceeding (D3 B6:0A:A0, #49 50:23:E4, D4 52:99:28).** URGENT answers delivered:
+- **⚡ MID-FLASH UPDATE (superseded above): D1+D2 DONE; Roy proceeding (D3 xx:xx:xx, #49 xx:xx:xx, D4 xx:xx:xx).** URGENT answers delivered:
   (a) **8mb csv STAGED ~/dfr1195-partitions-8mb.csv** (verified vs repo canon) — D4-if-XIAO uses it; (b) safe type-check =
   `espflash board-info` (INTENTIONAL bootloader entry, safe pre-flash; task#14 hazard = accidental console-opens on a running
   board — not applicable seconds before reflash); flash-size line decides csv: 4MB→standard, 8MB→8mb; (c) ELF-on-XIAO CORRECT,
   do NOT skip D4 — one config-activated image, board-profile byte @0x13000 (0x00=no-screen XIAO) + persona both PRESERVED by
-  app-only flash; D4 ran this family as FR-4 receiver. **★ CATCH: composer's adapter+bridge HOLD B6:0A:A0's tty → D3 flash would
+  app-only flash; D4 ran this family as FR-4 receiver. **★ CATCH: composer's adapter+bridge HOLD xx:xx:xx's tty → D3 flash would
   port-busy-fail; urgent release request sent; Roy sequences D3 after composer confirms. D3 boots back into its CURRENT role
   (carrier a1f5ed00 per composer — NOT FR-era f91c8911; persona-preservation = role continuity).** Composer also told: attach
   monitors to D1+D2 NOW (flash done) and start the healthy-boot watch.
@@ -39,7 +39,7 @@
   **★ NESTING DEFINITIVE (part 2): the emit sits INSIDE the oscillator fire gate `if phase >= 1.0` (main.rs:1096 → 1302), the SAME
   branch that pulses the LED each ~2s beat → LED = the instant physical discriminator (sent to Roy via supervisor): LEDs pulsing =
   fw emitting, gap is composer's host ingest; LEDs dark = io_task stuck pre-fire = my dig (init-await hang map). Also flagged: D1
-  (50:26:98) absent from the carrier-heard a200-space while D2 present — second look once serial truth flows. Not flash-blocking.**
+  (xx:xx:xx) absent from the carrier-heard a200-space while D2 present — second look once serial truth flows. Not flash-blocking.**
 - **✅ rt.* MYSTERY SOLVED (part 3; composer's branch = NO r2-dfr1195: lines = host-ingest gap confirmed):** composer's no-reset
   open held **DTR=0** → the S3 USB-Serial-JTAG console gates TX on TERMINAL-READY → firmware saw no-host, suppressed console
   output. **FIX: steady DTR=1, RTS=0 at open, never toggled** (espflash-monitor-equivalent). **PRECISE TRAP RULE (corrects my own
@@ -93,11 +93,11 @@
   clobber yields the UNPROVISIONED fallback (0x00+mac_low3 + '!! UNPROVISIONED' boot line) — D1 fallback would be 0x00502698 vs actual
   0x8900955E, D2 0x00B79010 vs 0xB14B07D8 → personas PRESENT+VALID; (2) app-only flash cannot change ids → these ids predate today's
   flashing; (3) cross-board coherence (same-TG neighbour rows). **NEAR-MISS owned + rule corrected everywhere (triage sheet, bench
-  memory): id-mismatch-vs-records = STALE RECORDS, not clobber; only the fallback pattern = clobber.** New truth table: 50:26:98 =
-  0x8900955E, B7:90:10 = 0xB14B07D8; 480e900e/2cab5f69 RETIRED. Composer reminded to persist the map (board-details policy) + verify
+  memory): id-mismatch-vs-records = STALE RECORDS, not clobber; only the fallback pattern = clobber.** New truth table: xx:xx:xx =
+  0x8900955E, xx:xx:xx = 0xB14B07D8; 480e900e/2cab5f69 RETIRED. Composer reminded to persist the map (board-details policy) + verify
   the #49 board's/D4's console-truth ids on their post-flash boots (09a07e47 may itself be stale-era — do not assume). Wiring SAFE.
 - **📇 ID-MAP FOLLOW-THROUGH:** composer persisted the truth map (its 3c2d955) + recorded the stale-vs-clobber rule verbatim with
-  the D1/D2 worked example; #49-board/D4 console-verifies ARMED for their post-flash boots. **CARRIER B6:0A:A0 id = OPEN (composer
+  the D1/D2 worked example; #49-board/D4 console-verifies ARMED for their post-flash boots. **CARRIER xx:xx:xx id = OPEN (composer
   found f91c8911-vs-655a9e5f discrepancy): my candidate hygiene sent — a1f5ed00 is the BRIDGE'S wasm ROUTER identity (a1f5edxx =
   composer's sim namespace), NOT a board persona — never lock it in a board column; f91c8911 = FR-era presumptively stale;
   655a9e5f = strongest candidate, UNVERIFIED. Verify method: the carrier runs the radio-modem image (likely NO rt.snap — no
@@ -136,7 +136,7 @@
   persona still 09a07e47.** My safe-read tooling: vendored pyserial at crates/r2-hive-wasm/carrier-bridge (PYTHONPATH=that dir,
   `import serial`), stty -hupcl first, dtr=True/rts=False before open.
 - **📡 2026-07-05 lull work:** ACM3 re-read (beats=53843, still OLD image — Roy hasn't flashed yet); hosted CI green on all recent
-  pushes. **USB-CONTRACT DEBT CLOSED (task #34 radiofrontend, target B6:0A:A0):** answered composer's 3 opens — (a) framing =
+  pushes. **USB-CONTRACT DEBT CLOSED (task #34 radiofrontend, target xx:xx:xx):** answered composer's 3 opens — (a) framing =
   existing line-protocol family (R2RX/INJECT verbs for raw relay — no second framing; new records = t-discriminated JSON lines);
   (b) health = NEW r2.bridge.health line (NOT rt.* — different domain/semantics), ~2s beat-aligned + immediate on-change;
   (c) beacon handoff = PUSH-on-rotate CURRENT+NEXT, MCU never polls, **+ MY ADDITION: NEXT-expiry with no push → MCU goes SILENT
@@ -180,7 +180,7 @@
   boards = provisioning gap (if all 4 were meant in-TG → prov2) vs isolation-holding (if not) — intent call, not mine.
 - **🔬 DARK-BOARD DIAGNOSIS REFINED (my ACM4 read PARTIALLY REFUTED composer's wrong-tg hypothesis):** dark origins = 495b1b62 +
   b14b07d8 (NOT 09a07e47 — my earlier old-persona hypothesis was WRONG for ACM3: it DELIVERS; the demo TG *is* its old TG
-  04bc57e7, and D1's re-provision kept that TG). **ACM4 ground truth: D4(52:99:28) = 0x495b1b62 CONFIRMED (id table complete:
+  04bc57e7, and D1's re-provision kept that TG). **ACM4 ground truth: D4(xx:xx:xx) = 0x495b1b62 CONFIRMED (id table complete:
   8900955e=D1, b14b07d8=D2, 09a07e47=#49, 495b1b62=D4) + its HEALTH claims tg_hash 0x04bc57e7 — the SAME TG as the delivering
   pair → the mismatch is at the KEY level, not the TG level: same tg uuid, DIFFERENT HK epoch (nbrs flaps 0↔1 = HMAC HB-verify
   almost never passes; dlv=0 blk=0 @ beats=19138). Fail-closed correct; fix-if-wanted = prov2 re-provision with the CURRENT hk
@@ -191,7 +191,7 @@
   MEMBERS {09a07e47, 8900955e} (Roy saw flashes); {495b1b62, b14b07d8} = correct fail-closed NON-MEMBERS of tg 04bc57e7
   (provisioning gap). composer self-verified group-hmac.bin == weave-hk.bin, deliver=true.** MY DELIVERABLES SENT: (a) the full
   console-verified id→MAC→tty map (member-vs-refused rendering unblocked TODAY for the four bench boards; carrier still open);
-  (b) provisioning side TAKEN = task #42 (regenerate personas for B7:90:10+52:99:28 with CURRENT weave-hk, SAME master_secret to
+  (b) provisioning side TAKEN = task #42 (regenerate personas for xx:xx:xx+xx:xx:xx with CURRENT weave-hk, SAME master_secret to
   preserve ids, delivered via the #14 console PERSONA receiver — no reflash/esptool; composer executes, I verify: nbrs stabilizes
   + dlv increments on next signed inject; GATED on Roy's 4/4 call); (c) task #32 ELEVATED (supervisor-codex: §9.2 conformance fix
   + per-board relay-attribution observability in one; CONTESTED label still respected). Locator note recorded: LCD L2 hive id +
@@ -211,10 +211,10 @@
   AD level); same enum = reply key 5 (the §6.3 build-class MUST) → no drift.** FW-realist note: current fw beacon AD emits no §7.2
   flags byte at all, so either candidate costs one fw addition — the field ships only in dev images. Task #41 updated.
 - **✅ COMPOSER ALL-CLEAR (lsof/fuser verified):** ACM2/ACM5/ACM3 all FREE — its only serial procs sit on the CARRIER (by-id
-  B6:0A:A0, hive a1f5ed00), not the flash targets → no port-busy risk. RELAY CHAIN SET: flash-done signal → I ping composer →
+  xx:xx:xx, hive a1f5ed00), not the flash targets → no port-busy risk. RELAY CHAIN SET: flash-done signal → I ping composer →
   composer attaches carrier-r2-adapters (by-id, sanctioned) to D1+D2 → watches healthy-boot sequence (persona→radios→TN READY→rt.*)
   → INSTANT relay on espflash error / boot loop / persona-fallback / ROM-download drop; on ACM3 it watches for OTA(L2CAP) start seq=.
-  (NB composer names B6:0A:A0 "the carrier, hive a1f5ed00" — FR-era logs had it as D3 f91c8911; board roles have shifted since FR-2,
+  (NB composer names xx:xx:xx "the carrier, hive a1f5ed00" — FR-era logs had it as D3 f91c8911; board roles have shifted since FR-2,
   do-not-assume the old mapping for that board.)
 
 ## 🛰️ 2026-07-04 — PILLAR 2: REAL LINUX HIVES MOVING REAL DATA (supervisor heads-up; AWAIT composer coordination — do NOT start solo)
@@ -1044,7 +1044,7 @@
   69a2d90); built at HEAD 3aae196 ⇒ the coex mesh-TX-gate is in. Worktree clean except the 2 known pre-existing
   non-mine items (docs/dfr1195-firstlight.patch, tools/xbuild.sh — neither compiled into the ELF).
 - **TURNKEY SEQUENCE (all on Alfred; espflash = Roy-only, human gate):**
-  1. APPLY (persona-preserving app-only re-flash of the OTA board; port = 50:23:E4 = board 09a07e47 — CONFIRMED by
+  1. APPLY (persona-preserving app-only re-flash of the OTA board; port = xx:xx:xx = board 09a07e47 — CONFIRMED by
      supervisor: this session's defer-build flash went to exactly this port and booted as 09a07e47's weave persona,
      so the mapping is ESTABLISHED, not a guess. app-only is non-destructive even if a port were wrong; Roy also sees
      the hive_id in the monitor boot banner to reconfirm before the push):
@@ -1654,9 +1654,9 @@
   hk-vs-weave-hk.bin sha compare + derive_hive_id per hkdf.rs; NO secret bytes emitted). RESULT: ALL 5 personas incl BOTH dark
   carry the IDENTICAL weave TG (tg_hash 04bc57e7, tg_id c95649a6-45a9-43ac-9537-838d8d4477f2) + IDENTICAL weave hk (every
   hk==weave-hk.bin sha12 f991956b34d2). CROSS-VALIDATED: my derived hive_ids MATCH composer's observed origins EXACTLY
-  (50:23:E4→09a07e47, 50:26:98→8900955e, 52:99:28→495b1b62, B7:90:10→b14b07d8, B6:0A:A0→655a9e5f=carrier) → derivation
+  (xx:xx:xx→09a07e47, xx:xx:xx→8900955e, xx:xx:xx→495b1b62, xx:xx:xx→b14b07d8, xx:xx:xx→655a9e5f=carrier) → derivation
   correct + dark boards RUN these weave personas (on-air id = persona-derived, NOT demo mac_low3). So at the PERSONA level the
-  2 dark are FULL weave members with the correct key → the joiner/apiary-persona story is REFUTED; re-minted B7:90:10 STILL
+  2 dark are FULL weave members with the correct key → the joiner/apiary-persona story is REFUTED; re-minted xx:xx:xx STILL
   has hk==weave (re-mint did NOT rotate the key → that hypothesis refuted too). RECONCILIATION (preserves the apiary intuition):
   the firmware's RUNTIME NVS @0x14000 multitg override (main.rs:266-273) swaps hk+tg WITHOUT changing hive_id → a dark board
   can run the weave PERSONA but be overridden at runtime to a DIFFERENT TG (Alfred's apiary) → fail-closed on the override key
@@ -1678,8 +1678,8 @@
     stale @0x14000 override (NVS wins). ROBUST per-board cmd handed to supervisor (Roy, download-mode, covers BOTH a stale
     override AND a wrong persona; ELF untouched): (a) espflash erase-region 0x14000 0x1000 [clears NVS override — likely-
     decisive] (b) espflash write-bin 0x12000 ~/r2-weave-tg/persona-<MAC>.bin (c) reset. MAP (verified, hive_ids match
-    composer's origins): 495b1b62(joiner)=MAC xx:xx:xx:xx:xx:xx ; b14b07d8(apiary)=MAC xx:xx:xx:xx:xx:xx ; 09a07e47=50:23:E4
-    ; 8900955e=50:26:98 ; carrier 655a9e5f=B6:0A:A0. Both dark personas ARE correct weave (no re-mint needed). OTA cross-TG =
+    composer's origins): 495b1b62(joiner)=MAC xx:xx:xx:xx:xx:xx ; b14b07d8(apiary)=MAC xx:xx:xx:xx:xx:xx ; 09a07e47=xx:xx:xx
+    ; 8900955e=xx:xx:xx ; carrier 655a9e5f=xx:xx:xx. Both dark personas ARE correct weave (no re-mint needed). OTA cross-TG =
     moot (re-provision is persona-flash/console-PROVISION, not an OTA pkg). Runtime alt (no reflash): console PROVISION line →
     write_provisioned_tg @0x14000 → live GroupHmac swap (verify parse_provision authorization first). NO autonomous join
     handshake. PRE-FLASH CHECK asked of composer: decode 495b/b14b NATIVE frames' target_group — !=04bc57e7 confirms the NVS
@@ -1742,7 +1742,7 @@
   specs answer). Registry closed per my NVS-override finding (composer corrected: all 5 weave; b14b apiary-via-override; 495b joiner).
 - **▶ BUILD DIRECTED (2026-07-03, Roy via supervisor) — pure-transport MCU radio-front-end (task#34), option (i).** SCOPE+BUILD
   spec-first (R2-COMPLEX-HIVE §2.2/§2.6), STAGE for Roy — DO NOT flash (Roy-only + changes the LIVE carrier bridge). Goal:
-  carrier MCU B6:0A:A0 DROPS its independent hive (655a9e5f — no own beacon/signing/TG-membership/ensemble) → TRANSPARENT
+  carrier MCU xx:xx:xx DROPS its independent hive (655a9e5f — no own beacon/signing/TG-membership/ensemble) → TRANSPARENT
   radio front-end for the Linux hive a1f5ed00 = ONE R2 device (fwd-aligned w/ the single-device Uno-Q). CONJECTURE: Linux
   hive + pure-transport MCU = ONE R2 device. FALSIFIER: two identities/beacons leak, two TG memberships, MCU signs
   independently, or MCU can't be pure-transport. ✅ ASKED specs (§2.2/§2.6 conformance criteria) + composer (USB frame
@@ -2517,7 +2517,7 @@ carrier with the nodes' hk (serial PROVISION cmd @0x14000 needs `multitg` in the
 need alternating-hmac-off for full participation (re-flash) — confirm acceptable. VISIBILITY (R2RX) works now.
 **2026-07-01 NEXT-STEP DISPATCHED:** Roy picked 'have hive check'. Gave supervisor the non-destructive read cmd
 (relay→Roy): `espflash read-flash 0x12000 0x200 node-persona.bin --port <NODE …xx:xx:xx:xx:xx:xx-if00>` (NOT the
-B6:0A:A0 carrier — composer holds it). 0x200 = EXACTLY the firmware's read window (read_persona reads 512B @0x12000,
+xx:xx:xx carrier — composer holds it). 0x200 = EXACTLY the firmware's read window (read_persona reads 512B @0x12000,
 main.rs:1923/1943; persona CBOR ~336B + trailing 0xFF). read-flash is READ-ONLY (resets node→ROM briefly, rejoins).
 INTERPRET: all-0xFF/00 ⇒ demo-unprovisioned [0x5C;32]; CBOR map byte + ascii tg_id ⇒ REAL persona (= hk source /
 or STALE if hk≠nodes'). AWAITING the `xxd` dump → then I give the exact ONE-command alignment (provision-carrier-to-
@@ -2583,7 +2583,7 @@ hive_id (hive_id=FNV(master_secret,tg_id); shared master_secret=identical hive_i
 **ALFRED BUILD CAPABILITY (new):** rsync worktree → alfred:~/dfr1195-fw-build/ ; `source ~/Development/homelab/
 export-esp.sh && cd platforms/dfr1195 && cargo +esp build --release --no-default-features --features <set>`. esp
 toolchain + espflash + 4 boards on alfred. Can now build-verify firmware combos remotely (not just static analysis).
-4 board ports: 50:23:E4, 50:26:98, 52:99:28, B6:0A:A0(carrier). See [[dfr1195-firmware-bench-workflow]].
+4 board ports: xx:xx:xx, xx:xx:xx, xx:xx:xx, xx:xx:xx(carrier). See [[dfr1195-firmware-bench-workflow]].
 
 ## ✅ 2026-07-01 — WEAVE Qs answered + #26 r2-trust portion found DONE
 Composer's carrier-as-bridge weave Qs (via supervisor), both verified in r2-hive-wasm src + 6 host tests green:
@@ -2816,7 +2816,7 @@ the same bench view = real-HW carrier tier + wasm-sim rendering together.
 DTR hazard "impossible to get wrong"; + confirm the running boards already ESP-NOW-mesh+HB (→ carrier flash alone
 = heartbeat-visibility).
 **(i) DONE:** `r2-dfr1195-carrier.elf` scp'd → `Alfred:~/` (verified). Alfred has espflash+node+python3, and 4
-Espressif USB-JTAG boards (50:23:E4 / 50:26:98 / 52:99:28 / B6:0A:A0) + 1 Arduino Leonardo.
+Espressif USB-JTAG boards (xx:xx:xx / xx:xx:xx / xx:xx:xx / xx:xx:xx) + 1 Arduino Leonardo.
 **MINIMAL-PATH = YES:** deployed firmware DOES ESP-NOW-mesh + emit lub-dub HBs (`espnow_task`+`io_task`). So ONE
 Roy cmd gives real-HW heartbeat-VISIBILITY, no node reflash: `espflash flash --monitor --chip esp32s3
 ~/r2-dfr1195-carrier.elf` streams `R2RX`+`ESP-NOW peer MAPPED` live. (Assumes running boards = default ch1 mesh,
@@ -3112,7 +3112,7 @@ DEFERRED: in-INERT REMOTE provisioning (console-store on a fresh board) — re-a
 context) + desk-validate. Fresh boards provision via download-mode meanwhile.
 
 ### 2026-06-30 — D3/.1659 METAL READ (supervisor): blank-INERT is EXPECTED, NOT a fault + NEW DEFECT found
-Supervisor flashed D3 (B6:0A:A0) with .1659 --flash-only (unprovisioned): enumerates on USB (CPU stage running),
+Supervisor flashed D3 (xx:xx:xx) with .1659 --flash-only (unprovisioned): enumerates on USB (CPU stage running),
 but BLANK LCD + NO LED + console SILENT (0 bytes/35s incl. RST taps), and — crucially — STABLE on USB / NOT
 boot-looping (unlike .1408). My read (verified vs source + the artifact's compiled `field` strings):
 - **BLANK LCD + NO LED = EXPECTED for field-INERT, not a red flag.** INERT halts at main.rs:187-223; LCD init
@@ -3637,7 +3637,7 @@ CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE in the composer-staged bootloader (deploym
 First REAL sensor. Build+flash a Modbus-RTU PROBE firmware to the radar XIAO to discover the radar protocol
 empirically (baud + slave-addr + register map), → then build the real radar driver + sentant on the sensor ensemble.
 - **RADAR XIAO IDENTITY-VERIFIED (safety gate):** MAC **xx:xx:xx:xx:xx:xx**, esp32s3 rev v0.2, 8MB, **ttyACM12**
-  (by-id `usb-Espressif_USB_JTAG_serial_debug_unit_1C:DB:D4:5B:8A:60-if00`), port FREE. It is the ONLY
+  (by-id `usb-Espressif_USB_JTAG_serial_debug_unit_xx:xx:xx:xx:xx:xx-if00`), port FREE. It is the ONLY
   Espressif NOT in {triplet 14:C1:9F../E8:3D..E5:20/D8:3B.. + spare E8:3D..DB:44 + 5 DFR F4:12:FA:*}. FLASH
   ONLY this by-id path (ttyACMn remaps — verified the trap; Alfred has 11 Espressif boards now).
 - **PROBE LOGIC:** Modbus-RTU master over XIAO UART→RS-485 transceiver; sweep baud {4800,9600,19200,38400,
@@ -4381,8 +4381,8 @@ window opens. **Two follow-ups queued (both no-rush, both confirmed to core):**
   WITHOUT a pipe (piping source = subshell = PATH lost → "linker xtensa-esp32s3-elf-gcc not found").
 - **BENCH IS LIVE — not a hardware gap.** The `tuxedo` ssh alias is a DEAD tailnet node (7d offline) =
   my timeout. Rig moved to **`tuxedo-os`** (100.90.50.112). All 5 DFR1195 enumerate; TN-FR-1 rig present
-  + provisioned Jun22: D1 50:26:98=ttyACM0 (480e900e orig), D2 b7:90:10=ttyACM1 (2cab5f69),
-  D3 b6:0a:a0=ttyACM4 (f91c8911), D4 52:99:28=ttyACM3 (06ae082b), D5 50:23:E4=ttyACM2 (0dcadbf8).
+  + provisioned Jun22: D1 xx:xx:xx=ttyACM0 (480e900e orig), D2 xx:xx:xx=ttyACM1 (2cab5f69),
+  D3 xx:xx:xx=ttyACM4 (f91c8911), D4 xx:xx:xx=ttyACM3 (06ae082b), D5 xx:xx:xx=ttyACM2 (0dcadbf8).
 - **FLASH PAYLOAD PRE-STAGED** to `tuxedo-os:~/phase0/` = {espflash 4.4.0 (tuxedo-os has none), ELF
   `r2-dfr1195-loraroute`, `dfr1195-partitions.csv`}. espflash runs natively there.
 - **GATE = port-release (REFINED ~02:1x NZ).** Orchestrator RESTARTED → PID 3197; now holds
@@ -4548,7 +4548,7 @@ current, don't wait per-conjecture.
   (dlv=2), directed_via B (next_hop=C for A->C, next_hop=A for the replies), exactly_once (B DROP-Duplicate
   x4), reply retraced C->B->A and DELIVERED at A, LED fires on receipt.** Baseline (2-TG demo) restored
   (reattach-5, health 200). KEY METAL LESSONS: (1) the released D1/D2/D3 originator is **480e900e** (MAC
-  50:26:98), NOT 0dcadbf8 (that board, MAC 50:23:E4, stays in the demo) — re-keyed the MASK + auto-origin.
+  xx:xx:xx), NOT 0dcadbf8 (that board, MAC xx:xx:xx, stays in the demo) — re-keyed the MASK + auto-origin.
   (2) build needs **multitg** so all 3 use the NVS-provisioned TG-A key (else C can't HMAC-verify A's Event).
   (3) **synchronized-fire collisions** on the half-duplex air dropped most frames (B's TX reached A/C ~1/100s
   under lockstep); an **ALOHA TX-jitter (0-300ms) in lora_route_task** decorrelated TX starts enough to prove
@@ -4699,7 +4699,7 @@ current, don't wait per-conjecture.
   (has_screen=false, led_active_low=false). Per board: ttyACM1 xx:xx:xx:xx:xx:xx→af1464f4 · ttyACM2
   xx:xx:xx:xx:xx:xx · ttyACM3 xx:xx:xx:xx:xx:xx→2c81b4a3 · ttyACM4 xx:xx:xx:xx:xx:xx→998de7fc.
   RESULT: all 4 XIAO `synced=true nbrs=8` — each hears the other 8; peer maps include ALL 5 tuxedo DFR
-  hive_ids (50:23:E4=0dcadbf8, 52:99:28=06ae082b, B6:0A:A0=f91c8911, B7:90:10=2cab5f69, 50:26:98=480e900e).
+  hive_ids (xx:xx:xx=0dcadbf8, xx:xx:xx=06ae082b, xx:xx:xx=f91c8911, xx:xx:xx=2cab5f69, xx:xx:xx=480e900e).
   spread 749ms→0-3ms cross-host (alfred+tuxedo, SAME ROOM) + cross-arch (XIAO+DFR1195) — RF is board-to-board,
   host-agnostic, exactly as Roy predicted. **XIAO LED = NO code change:** GPIO21 is hardcoded for BOTH
   carriers + polarity DEFAULTS active-HIGH (read_board_profile) = exactly what the XIAO external LEDs need;

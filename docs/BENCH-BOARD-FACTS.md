@@ -51,7 +51,7 @@ provisioning facts (hive_id / TG) are read from each board.
   doesn't exist yet; scope a fw inject-harness feature if the bench needs it.)
 - **Identity is in the BOOT BANNER** (`DEV … hive={my_hive:08x} TG={tg_label} persona={bool} role`), catchable
   on the next reset. Defaults if UNPROVISIONED: TG = `r2tg-demo-0000-0000-0000-000000000001`, hive_id =
-  mac_low3 fallback from `75:C3:3C`. persona.bin@0x12000 (if present) overrides with hk/tg_hash/hive_id/label.
+  mac_low3 fallback from `xx:xx:xx`. persona.bin@0x12000 (if present) overrides with hk/tg_hash/hive_id/label.
 
 ## Golden decode reference (for android's offline decode-proof, 2026-07-12)
 android's live `dd bs=1` capture byte-DROPS the USB egress (measured 27–30B vs the true fixed 31B), so a

@@ -45,50 +45,115 @@ if [ -n "$gwhits" ]; then
   fail=1
 fi
 
-# Placeholder/example MAC allowlist — legit example MACs a doc/test may show. Add specific legit examples here.
-# (Roy-canon; extend only via Roy.)
-MAC_ALLOW='00:00:00:00:00:00|([fF]{2}:){5}[fF]{2}|[dD][eE]:[aA][dD]:[bB][eE]:[eE][fF]|00:11:22:33:44:55|[aA]{2}:[bB]{2}:[cC]{2}:[dD]{2}:[eE]{2}:[fF]{2}|12:34:56:78:9[aA]:[bB][cC]'
+# ── Device-fingerprint hygiene (Roy-approved 2026-07-15; MAC=hard-fail, hostname=advisory) ──────────
+# BOUNDARIES: '\b' FAILS OPEN — '_' is a word char, so \b never fires in usb_..._AA:BB:CC:DD:EE:FF-if00
+# (a real leak this gate previously missed; hive-codex finding 1). Use explicit non-hex/non-separator
+# boundaries, and keep colon- and hyphen-separated MACs as SEPARATE patterns: '-' is both a separator
+# AND a common adjacent char (-if00), so one shared boundary class breaks one of the two forms.
+MAC_COLON='(^|[^0-9a-fA-F:])[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}([^0-9a-fA-F:]|$)'
+MAC_HYPH='(^|[^0-9a-fA-F-])[0-9a-fA-F]{2}(-[0-9a-fA-F]{2}){5}([^0-9a-fA-F-]|$)'
+MAC_TOKEN='[0-9a-fA-F]{2}([:-][0-9a-fA-F]{2}){5}'
+# Placeholder/example MACs a doc/test may legitimately show (Roy-canon; extend only via Roy).
+MAC_ALLOW='00:00:00:00:00:00|([fF]{2}[:-]){5}[fF]{2}|[dD][eE][:-][aA][dD][:-][bB][eE][:-][eE][fF]|00:11:22:33:44:55|[aA]{2}:[bB]{2}:[cC]{2}:[dD]{2}:[eE]{2}:[fF]{2}|12:34:56:78:9[aA]:[bB][cC]'
+# Known device MAC TAILS (mac_low3 fingerprint) as SHA-256 prefixes — NOT the values: a plaintext
+# denylist in a PUBLIC guard would leak the very fingerprints it protects (hive-codex finding 3).
+MAC_TAIL_HASHES='0d0bf834fc785321|446177abe3e8fc38|4fe57239facd4454|59513c20bf1fee5e|5fcc26a59b3ec2b5|650178f913071d92|6a441741ef83f98e|91dd915a81d31460|97d81e50d3f467fa|a0b5b055b26ec8d2|a7bea959a70050a8|ab9b11d9157b4bb2|bbe81775916a4613|c849917d62bb967e|e6446d074152f486|edadb4e01e4c2f39|f755c9eb83115ca7'
 
-# (4) Real MAC addresses in CONTENT (HARD-FAIL, default-on) — device/infra fingerprints must not reach the
-# public tree (r2-composer 2026-07-15: full board-MAC inventory leaked to public main). General
-# xx:xx:xx:xx:xx:xx catch minus the placeholder allowlist.
-machits=$(git grep -inE '\b[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}\b' -- . "${PATHSPEC[@]}" | grep -viE "$MAC_ALLOW" || true)
+# TOKEN-WISE allowlist: a line-wise 'grep -v' drops the WHOLE line when it also carries an allowed
+# placeholder, letting a real MAC ride along (hive-codex finding 2). Filter each TOKEN instead.
+mac_bad_lines() {
+  while IFS= read -r l; do
+    toks=$(printf '%s\n' "$l" | grep -oE "$MAC_TOKEN" || true)
+    if [ -z "$toks" ]; then continue; fi
+    bad=$(printf '%s\n' "$toks" | grep -viE "$MAC_ALLOW" || true)
+    if [ -n "$bad" ]; then printf '%s\n' "$l"; fi
+  done
+  return 0
+}
+tail_bad_lines() {
+  while IFS= read -r l; do
+    toks=$(printf '%s\n' "$l" | grep -oE '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){2}' || true)
+    if [ -z "$toks" ]; then continue; fi
+    while IFS= read -r t; do
+      if [ -z "$t" ]; then continue; fi
+      h=$(printf '%s' "$t" | tr 'A-F' 'a-f' | sha256sum | cut -c1-16)
+      if printf '%s' "$h" | grep -qE "^($MAC_TAIL_HASHES)$"; then printf '%s\n' "$l"; break; fi
+    done <<< "$toks"
+  done
+  return 0
+}
+
+# ── KAT self-test: `ci/public-hygiene.sh --selftest` (hive-codex regression fixtures) ───────────────
+# Locks the three fail-open bugs this gate previously had. Uses only SYNTHETIC MACs (02:… is locally-
+# administered and non-allowlisted); the tail positive hashes a synthetic tail at RUNTIME so no real
+# device fingerprint is embedded in this public guard.
+if [ "${1:-}" = "--selftest" ]; then
+  k=0; p=0
+  kat() { # name, line, want(1=must flag, 0=must pass), fn
+    k=$((k+1))
+    got=$(printf '%s\n' "f:1:$2" | "$4" | wc -l)
+    if { [ "$3" = 1 ] && [ "$got" -gt 0 ]; } || { [ "$3" = 0 ] && [ "$got" -eq 0 ]; }; then
+      p=$((p+1)); echo "  ok   $1"
+    else echo "  FAIL $1 (matched=$got, want=$3)"; fi
+  }
+  kat "underscore-adjacent full MAC flags (\\b fail-open regression)" 'usb_dev_02:11:22:33:44:55-if00' 1 mac_bad_lines
+  kat "hyphen-separated full MAC flags"                              'mac 02-11-22-33-44-55 seen'      1 mac_bad_lines
+  kat "real + allowlisted on ONE line flags (line-wise bypass)"      'ex 00:00:00:00:00:00 real 02:11:22:33:44:55' 1 mac_bad_lines
+  kat "allowlisted-only line passes"                                 'example 00:00:00:00:00:00 only'  0 mac_bad_lines
+  kat "redacted placeholder passes"                                  'mac xx:xx:xx:xx:xx:xx redacted'  0 mac_bad_lines
+  kat "non-tail 3-pair passes (no time/version false-positive)"      'at 12:34:56 today'               0 tail_bad_lines
+  # tail POSITIVE: synthesise a tail, hash it, prove the matcher fires — without embedding a real tail.
+  _t='ab:cd:ef'; _h=$(printf '%s' "$_t" | sha256sum | cut -c1-16)
+  k=$((k+1))
+  if [ "$(MAC_TAIL_HASHES="$_h"; printf 'f:1:x %s y\n' "$_t" | tail_bad_lines | wc -l)" -gt 0 ]; then
+    p=$((p+1)); echo "  ok   hashed tail denylist flags a listed tail"
+  else echo "  FAIL hashed tail denylist did not flag a listed tail"; fi
+  echo "selftest: $p/$k passed"
+  [ "$p" -eq "$k" ] || exit 1
+  exit 0
+fi
+
+# (4) Real MAC addresses in CONTENT — HARD-FAIL, default-on (r2-composer 2026-07-15 board-MAC leak).
+machits=$( { git grep -inE "$MAC_COLON" -- . "${PATHSPEC[@]}" 2>/dev/null || true; \
+              git grep -inE "$MAC_HYPH"  -- . "${PATHSPEC[@]}" 2>/dev/null || true; } | sort -u | mac_bad_lines )
 if [ -n "$machits" ]; then
-  echo "::error::real MAC address(es) in the tree — bench/board MACs are Publish:Private (r2-composer MAC-leak)."
-  echo "::error::Redact, move to gitignored .r2-local/, or use an allowlisted placeholder; add legit examples to MAC_ALLOW."
+  echo "::error::real MAC address(es) in the tree — bench/board MACs are Publish:Private."
+  echo "::error::Redact to xx:xx:xx:xx:xx:xx, move to gitignored .r2-local/, or add a legit example to MAC_ALLOW."
   echo "$machits"
   fail=1
 fi
 
-# (5) Bench/infra hostnames — private dev-box names shouldn't identify the bench in public docs.
-# SEVERITY is Roy-canon and PENDING his Alfred/Tuxedo ruling: set HOSTNAME_SEVERITY=hardfail to enforce,
-# or 'advisory' (default) to warn-only without failing the build. BENCH_HOSTS = the Roy-canon list.
-HOSTNAME_SEVERITY='advisory'   # ⏳ PENDING ROY: 'hardfail' | 'advisory'
-BENCH_HOSTS='Alfred'           # ⏳ PENDING ROY: add Tuxedo?
-HOST_ALLOW=''                  # per-line legit exceptions (e.g. Alfred in a non-bench prose context)
-hosthits=$(git grep -inwE "$BENCH_HOSTS" -- . "${PATHSPEC[@]}" | { [ -n "$HOST_ALLOW" ] && grep -viE "$HOST_ALLOW" || cat; } || true)
+# (4b) Known device MAC TAILS (mac_low3) — HARD-FAIL. Exact (hashed) match: no false-positives on
+# times/versions, and no value leak in this public guard.
+tailhits=$(git grep -inE '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){2}' -- . "${PATHSPEC[@]}" 2>/dev/null | tail_bad_lines || true)
+if [ -n "$tailhits" ]; then
+  echo "::error::known device MAC tail(s) (mac_low3 fingerprint) present — redact to xx:xx:xx:"
+  echo "$tailhits"
+  fail=1
+fi
+
+# (5) Bench/infra hostnames — ADVISORY by Roy ruling 2026-07-15: Alfred/Tuxedo are ACCEPTED dev-box
+# names and are NOT scrubbed. Kept as a warn-only signal; set HOSTNAME_SEVERITY=hardfail only on a
+# further Roy ruling. (Roy-canon: extend BENCH_HOSTS via Roy.)
+HOSTNAME_SEVERITY='advisory'
+BENCH_HOSTS='Alfred|Tuxedo'
+hosthits=$(git grep -inwE "$BENCH_HOSTS" -- . "${PATHSPEC[@]}" 2>/dev/null || true)
 if [ -n "$hosthits" ]; then
   if [ "$HOSTNAME_SEVERITY" = "hardfail" ]; then
-    echo "::error::bench/infra hostname(s) ($BENCH_HOSTS) — keep private bench box names out of the public tree:"
-    echo "$hosthits"
-    fail=1
+    echo "::error::bench hostname(s) ($BENCH_HOSTS):"; echo "$hosthits"; fail=1
   else
-    echo "::warning::[ADVISORY — severity pending Roy] bench hostname(s) ($BENCH_HOSTS) present in $(echo "$hosthits" | wc -l) line(s); not failing the build yet."
+    echo "::warning::[ADVISORY — Roy: Alfred/Tuxedo accepted as dev-box names] $(printf '%s\n' "$hosthits" | wc -l) line(s); not failing."
   fi
 fi
 
-# (6) MAC fragments in tracked FILENAMES (git grep checks CONTENT only) — heuristic: 3+ hex pairs
-# separated by ':' or '-' in a path (e.g. a leaked bench log named by its board's OUI tail). HARD-FAIL:
-# rename the file (device fingerprint). Tune if a legit path trips it.
-macfiles=$(git ls-files | grep -iE '([0-9a-fA-F]{2}[:-]){2,}[0-9a-fA-F]{2}' | grep -viE "$MAC_ALLOW" || true)
+# (6) MAC fragments in tracked FILENAMES (git grep is content-only) — HARD-FAIL; rename the file.
+macfiles=$(git ls-files | grep -iE '([0-9a-fA-F]{2}[:-]){2,}[0-9a-fA-F]{2}' || true)
 if [ -n "$macfiles" ]; then
-  echo "::error::tracked FILENAME(s) embed a MAC fragment — rename them (device fingerprints, Publish:Private):"
-  echo "$macfiles"
-  fail=1
+  echo "::error::tracked FILENAME(s) embed a MAC fragment — rename them:"; echo "$macfiles"; fail=1
 fi
 
 if [ "$fail" -ne 0 ]; then
   echo "public-content-hygiene: FAIL"
   exit 1
 fi
-echo "public-content-hygiene: OK (no scrubbed terms outside the allowlist; no macrons; no private gateway naming; no real MACs; no MAC-in-filenames)"
+echo "public-content-hygiene: OK (terms/macrons/gateway clean; no real MACs; no device tails; no MAC-in-filenames)"

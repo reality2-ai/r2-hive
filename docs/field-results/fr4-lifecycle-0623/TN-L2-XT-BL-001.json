@@ -8,7 +8,7 @@
   "payload": "events (wairoa.reading)",
   "run_id": "fr4-ttl-negctl-metal-0623",
   "timestamp_utc": "2026-06-23T02:10:00Z",
-  "runner": "hive; D3=f91c8911(b6:0a:a0) the buffering ROUTER (fr4-rb-scf30 SCF_TTL=30s test build), D4=06ae082b(52:99:28) the dest (app-erased=absent for leg a, fr4-receiver-restored for leg b); D1/D2 live senders; my raw-serial espflash-monitor capture",
+  "runner": "hive; D3=f91c8911(xx:xx:xx) the buffering ROUTER (fr4-rb-scf30 SCF_TTL=30s test build), D4=06ae082b(xx:xx:xx) the dest (app-erased=absent for leg a, fr4-receiver-restored for leg b); D1/D2 live senders; my raw-serial espflash-monitor capture",
   "config": "fr4-rb-scf30 = bridge+fr4 with SCF_TTL=30 route-s (FAST test build; canonical deploy = 120s, which specs ruled deployment-tuning not canon — canon = 'bounded by TTL + bounded size'). D4-silence mechanism = espflash erase-region 0x20000/0x4000 (app header invalidated -> bootloader won't boot -> silent; NVS@0x9000 pilot-site PRESERVED -> reflash restores provisioned). D3 restored to canonical 120s after.",
   "firmware_commit": "r2-hive (fr4 feature, SCF_TTL temp=30 for the test ELF; canonical source 120s, reverted)",
   "expectations": [
