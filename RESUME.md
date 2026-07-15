@@ -9,7 +9,12 @@
 > immutable SHA. The base remains `b3817dc`; nothing was pushed.
 >
 > **▶ RE-PASS ROUND 2 (2026-07-16) — hive-codex read-only re-pass of the amended commit returned 3 findings; all triaged, NO PUSH.**
-> - **F1 (HIGH, CI blocker) — FIXED + verified.** `.github/workflows/docs.yml` hygiene-gate step: the `m=$(grep … | … | sort)` command substitutions abort the whole step under Actions' default `bash -e -o pipefail` whenever a grep matches NOTHING (the CLEAN case) or all matches are allowlisted — so the guard reddened on absence-of-leak, not presence. Reproduced locally under `-eo pipefail`. Fix = `|| true` inside all six substitutions. Verified end-to-end against a synthetic `target/doc`: clean→exit 0 "clean", planted MAC→exit 1, allowlisted-only→exit 0. Pre-existing latent trap (same structure on `b3817dc`), not introduced by the v2 rewrite, but fixed here since it blocks a green docs deploy.
+> - **F1 (HIGH, CI blocker) — first fix was itself fail-OPEN; SUPERSEDED by round 4 (see below).** The
+>   `m=$(grep … | … | sort)` substitutions abort the docs step under Actions' `bash -e -o pipefail` when a
+>   grep matches NOTHING (clean) or all matches are allowlisted. My round-2 fix wrapped the WHOLE pipeline in
+>   `|| true` — which ALSO swallowed a scanner CRASH (rc>1: bad pattern, missing grep) and mapped it to a clean
+>   result. hive-codex round-4 caught that as a NEW fail-open. Correct fix is in round 4: a `scan()` helper that
+>   treats grep rc 0/1 as success but PROPAGATES rc>1 (fail-closed), with `|| true` on ONLY the allowlist filter.
 > - **F3 (MED, test weakness) — DONE.** `kat()` now accepts optional `reason` ([MAC]/[TAIL]/[TAIL-0x]/[TAIL-COMPACT]) and exact `count`; high-value KATs assert them so a wrong-CLASSIFIER regression (MAC misread as TAIL, or the 4-group run's 2-window count) can no longer stay green on a bare flag/no-flag check. Selftest **41/41** with the stricter asserts.
 > - **F2 (MED, false-positives) — VERIFIED, one sub-claim REFUTED, narrowing DEFERRED as a Roy-canon tradeoff.**
 >   (Examples described abstractly here on purpose — writing the literal token beside a context word would trip
@@ -43,6 +48,22 @@
 >   `refs/heads/main` per the recorded Roy public-main ruling. **Do-not-assume:** flipping the Pages deploy branch
 >   is publication policy, not a hygiene fix; needs the ownership/main-merge ruling first.
 >
+> **▶ RE-PASS ROUND 4 (2026-07-16) — hive-codex refuted my OWN round-2/3 fixes; both were real. FIXED. NO PUSH.**
+> - **docs F1 fail-OPEN (HIGH) — properly FIXED.** The round-2 blanket `|| true` mapped a scanner CRASH (grep
+>   rc>1: missing binary, invalid pattern, unreadable tree) to the same empty/clean result as a legit no-match —
+>   fail-open. Replaced with a `scan()` helper: grep rc 0/1 = success (emit matches, empty on no-match), rc>1
+>   PROPAGATES so `set -e` aborts = fail-CLOSED; `|| true` now wraps ONLY the allowlist filter (its rc1 = all
+>   placeholders, never a tool failure). Verified end-to-end incl. the decisive case: a broken grep (rc2) now
+>   makes the step EXIT 2 (fail-closed), not exit-0-clean. Clean→0, planted MAC→1, allowlisted-only→0 all hold.
+> - **kat() crash-suppression (MED) — FIXED.** `kat()` used `hygiene_scan || true`, so a scanner crash on a
+>   VALID must-pass fixture false-passed. Now captures the scanner status (`&& src=0 || src=$?`) and FAILs the
+>   KAT on any non-zero on valid input; the malformed-stream crash path is checked separately. Proved with an
+>   injected `hygiene_scan(){ return 3; }` — kat() reports FAIL (old code printed ok). Selftest **43/43**.
+> - **merge-legitimate-fragments precision (noise, NOT fail-open) — documented tradeoff.** A timestamp+segment
+>   like a time triple joined by a separator to another triple normalises to six pairs and flags [MAC]; spaced
+>   fragments pass. Inherently ambiguous; under the fail-SAFE policy this is a noise tradeoff, not a hole. Policy:
+>   keep flagging (fail-safe); if a real doc trips it, use a `T`/space separator or an exact allowlist entry.
+>
 > **Verified state:** a value-blind control audit replays the old inventory against the base and reproduces
 > **4/17 live historical tails, 26 files, 41 location/format pairs** (colon 0 / hyphen 4 / compact 37 / 53 token
 > occurrences). The same audit against the working tree is **0/17, 0 files, 0 pairs, 0 tokens**. All 41 known
@@ -64,7 +85,7 @@
 > abort the step under `bash -e -o pipefail` (F1). Changed scope: scanner + rendered-doc workflow, 27 scrubbed
 > data/docs/log files, this handoff. No core, firmware-worktree, binary, secret, or hardware change.
 >
-> **Verification (all exit 0):** `bash -n ci/public-hygiene.sh`; `bash ci/public-hygiene.sh --selftest` **41/41**
+> **Verification (all exit 0):** `bash -n ci/public-hygiene.sh`; `bash ci/public-hygiene.sh --selftest` **43/43**
 > (includes actual Git extraction, mixed allowed/private line, compact filename, embedded-derivation controls,
 > filename-only and empty-index controls, output-redaction, and malformed-input fail-closed controls); full
 > `bash ci/public-hygiene.sh` **OK in ~1.0 s**;

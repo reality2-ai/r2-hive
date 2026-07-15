@@ -281,7 +281,12 @@ if [ "${1:-}" = "--selftest" ]; then
     # TAIL still "flags"; a 4-group run emits 2 overlapping TAILs so the count is load-bearing). When a
     # reason ([MAC]/[TAIL]/[TAIL-0x]/[TAIL-COMPACT]) and/or an exact count is given, assert them too.
     k=$((k+1))
-    out=$(printf 'f\0001\000%s\n' "$2" | hygiene_scan || true)
+    # Capture the scanner's EXIT STATUS, don't `|| true` it: a `|| true` maps a scanner CRASH on VALID
+    # input to empty output, so a `want=0` (must-pass) fixture would false-pass on a broken scanner
+    # (hive-codex round-4). A crash on a normal fixture is always a KAT failure; only the dedicated
+    # malformed-stream KAT expects a non-zero scanner status, and it checks that directly, not via kat().
+    out=$(printf 'f\0001\000%s\n' "$2" | hygiene_scan) && src=0 || src=$?
+    if [ "$src" -ne 0 ]; then echo "  FAIL $1 (scanner crashed on valid input, rc=$src)"; return; fi
     got=$(printf '%s' "$out" | grep -c '\[' || true)
     ok=1
     if [ "$3" = 1 ]; then [ "$got" -gt 0 ] || ok=0; else [ "$got" -eq 0 ] || ok=0; fi
