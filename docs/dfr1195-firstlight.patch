@@ -2822,7 +2822,7 @@ index 8c49f1c..4367a1a 100644
 +//! **PHASE 1a — WiFi-up smoke (field.lab bring-up).** Migrates from the bare-metal
 +//! first-light to the esp-rtos/embassy async runtime and brings WiFi up via esp-radio
 +//! (the renamed esp-wifi for the esp-hal 1.1.x line). One image, role auto-selected
-+//! by MAC: device 0x502698 = soft-AP `r2-fieldlab` (192.168.4.1), else STA that joins
++//! by MAC: device 0xXXXXXX = soft-AP `r2-fieldlab` (192.168.4.1), else STA that joins
 +//! it (192.168.4.2). STATIC IPs both sides (embassy-net 0.9 has no DHCP *server*) — a
 +//! deterministic 2-node IP network for the board↔board TN test. A non-blocking LED
 +//! heartbeat keeps the board visibly alive. The LCD proof surface (with WiFi role/IP)

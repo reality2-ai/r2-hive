@@ -20,6 +20,6 @@
     { "type": "bidirectional_cross_transport", "observed": "D4's replies (reply_msg_id 32771+) retrace ESP-NOW -> D3 -> D2(LoRa) -> D1: D1 reply-DELIVERED x12. Full bidirectional cross-transport routing.", "pass": true }
   ],
   "verdict": "PASS",
-  "raw_serial": "docs/field-results/lora-fr2-0623/{50-26-98,B7-90-10,B6-0A-A0,52-99-28}.log",
+  "raw_serial": "docs/field-results/lora-fr2-0623/{xx-xx-xx,xx-xx-xx,xx-xx-xx,xx-xx-xx}.log",
   "notes": "TN-FR-2 = the site LoRa<->WiFi gateway (DG-2 #16), ESP-NOW-minimal variant (proves the cross-transport core fastest). The ENGINE AUTO-BRIDGES (core): D3's transport-aware neighbour table (D2 on LoRa, D4 on ESP-NOW) -> plan_forward picks egress per hop -> directed_via D4 over ESP-NOW, NO bridge routing code. Firmware = per-transport TX channels (DATA_TX_LORA vs DATA_TX) + mesh_broadcast (the bridge pushes BOTH carriers); dedup transport-agnostic on frame-carried origin. Delivery ~63% (vs FR-1's 11%) — the fast ESP-NOW leg avoids the LoRa half-duplex contention. NEXT: FR-2b = the TRUE LoRa<->WiFi/UDP gateway with PI5 (Linux r2-hive RECEIVER over real WiFi); FR-4 = role-based sensor/router/receiver pilot-site sim + the TN-FR-1-REL loose-jittered-HB two-arm. Baseline restored after (composer reattach-5)."
 }

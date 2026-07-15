@@ -90,7 +90,7 @@ fresh, on the test pairing, before touching the live mesh.
   versions/coex), not a marathon-tail rush.
 
 ## BLE bring-up STATUS (2026-06-21) — 4 metal milestones DONE; SCAN is next (fully researched)
-DONE on b79010 (--features ble), all metal-verified + externally scan-confirmed:
+DONE on XXXXXX (--features ble), all metal-verified + externally scan-confirmed:
 1. deps resolve+compile (esp-radio ble+coex + bt-hci 0.8.1 + **trouble-host 0.6.0** = the bt-hci-0.8 pin;
    0.2=bt-hci0.3 / 0.7=bt-hci0.9 mismatch). Feature-gated `ble` OFF by default; live fleet still builds.
 2. BLE controller inits + WiFi+BLE **COEX holds** (mesh stays synced).

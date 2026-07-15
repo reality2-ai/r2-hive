@@ -78,7 +78,7 @@ first so it `verifyFrame()`s on the real boards — then `RX` it for repeater re
 With `--json`, **stdout is pure JSON-lines** (human diagnostics → stderr), one
 object per event:
 ```
-{"t":<epoch>,"kind":"peer_mapped","hive":"502698aa","mac":"xx:xx:xx:xx:xx:xx"}
+{"t":<epoch>,"kind":"peer_mapped","hive":"XXXXXXaa","mac":"xx:xx:xx:xx:xx:xx"}
 {"t":<epoch>,"kind":"frame","bytes":10,"hex":"045300001000aabbccdd"}
 {"t":<epoch>,"kind":"route","outcome":"Flooded","sends":1}
 {"t":<epoch>,"kind":"inject","hex":"0441…","sent":false}
