@@ -183,12 +183,14 @@ hygiene_scan() {
       # three-byte runs, 0x compact tails, and context-bearing bare compact tails all reach verdicts.
       next unless $content =~ /(?:[0-9a-f]{2}[:-]){2}[0-9a-f]{2}|(?<![0-9a-z_])(?:0x)?[0-9a-f]{6,8}(?![0-9a-z_])/i;
 
-      # Extract the maximal pair run, then reject mixed separators as one malformed fragment. Boundary
+      # Extract the maximal pair run and NORMALISE both separators to ':' before classifying. Boundary
       # checks exclude only hex, not the separator: x-02-...-y and usb_02:...-if00 must both reach here.
+      # MIXED separators are NOT skipped (hive-codex round-3, fail-open): a real MAC written 02:11-22:33-
+      # 44:55 (sloppy edit or deliberate obfuscation) must still flag. The old `next if mixed` was the
+      # fail-OPEN direction — a leak gate errs toward flagging. Colon, hyphen, and mixed now all normalise.
       while ($content =~ /(?<![0-9a-f])([0-9a-f]{2}(?:[:-][0-9a-f]{2}){2,})(?![0-9a-f])/ig) {
         my $token = $1;
         my $has_ctx = nearby($content, $-[1], $+[1], 96) =~ $tail_ctx;
-        next if $token =~ /:/ && $token =~ /-/;
         (my $normal = lc $token) =~ tr/-/:/;
         my @groups = split /:/, $normal;
         if (@groups >= 6) {
@@ -302,7 +304,8 @@ if [ "${1:-}" = "--selftest" ]; then
   kat "allowlisted-only line passes, even in MAC context"     'mac 00:00:00:00:00:00 only'                0
   kat "allowlisted uppercase/hyphen placeholder passes"      'mac AA-BB-CC-DD-EE-FF only'                0
   kat "redacted placeholder passes"                          'mac xx:xx:xx:xx:xx:xx redacted'            0
-  kat "mixed separators are not a MAC"                       'frag 02:11-22:33-44:55 here'               0
+  kat "MIXED-separator MAC now flags (was fail-open skip)"   'frag 02:11-22:33-44:55 here'               1 MAC
+  kat "MIXED-separator MAC, other order, flags"              'id 02-11:22-33:44-55 seen'                 1 MAC
   # --- 3-byte tail: contextual (assert reason=TAIL; the 4-group run emits exactly 2 windows) ---
   kat "tail flags WITH mac context"                          'mac_low3 = 02:34:5a'                       1 TAIL 1
   kat "hyphen tail after hex node label flags"               'raw_serial d3-02-34-5a.log'                1 TAIL
@@ -357,6 +360,16 @@ if [ "${1:-}" = "--selftest" ]; then
     p=$((p+1)); echo "  ok   production extraction rejects compact tail in filename"
   else echo "  FAIL production extraction bypassed compact tail in filename"; fi
   rm "$tmp/board-02345A.log"
+  git -C "$tmp" add -u
+  # End-to-end: a MIXED-separator MAC must flag through the real git-grep extraction, not just the
+  # direct classifier (hive-codex round-3: the old skip made this a production fail-open).
+  printf '%s\n' 'note 02:11-22:33-44:55 seen' > "$tmp/mixed.txt"
+  git -C "$tmp" add mixed.txt
+  k=$((k+1))
+  if [ -n "$(hygiene_scan_tree "$tmp")" ]; then
+    p=$((p+1)); echo "  ok   production extraction rejects mixed-separator MAC"
+  else echo "  FAIL production extraction bypassed mixed-separator MAC"; fi
+  rm "$tmp/mixed.txt"
   git -C "$tmp" add -u
   k=$((k+1))
   if [ -z "$(hygiene_scan_tree "$tmp")" ]; then

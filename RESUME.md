@@ -24,6 +24,25 @@
 >   Roy-canon context rules. **Do-not-assume:** narrowing the tail-context set to quiet F2 without KATs proving no
 >   new fail-open is the exact regression class this branch exists to kill.
 >
+> **▶ RE-PASS ROUND 3 (2026-07-16) — hive-codex found a real fail-open I had wrongly claimed closed; FIXED + F4 routed. NO PUSH.**
+> - **MIXED-SEPARATOR bypass (HIGH, fail-open) — FIXED.** The classifier SKIPPED any pair-run containing both
+>   separator characters (`next if token has both ':' and '-'`), so a 6-pair MAC written with mixed separators
+>   emitted NOTHING. My round-2 re-pass message CLAIMED "colon+hyphen+mixed all normalize" — that was FALSE; the
+>   code skipped mixed. hive-codex caught the overclaim. Fix = drop the skip, normalise both separators to one
+>   before classifying, so colon/hyphen/mixed now genuinely all normalise. Flipped the KAT that encoded the old
+>   skip (was must-PASS → now must-FLAG) and added mixed-separator positives incl. an end-to-end production-
+>   extraction case. Selftest **43/43**; full gate over the real tree still clean (exit 0) → flagging mixed adds
+>   NO false positive. **Do-not-assume:** don't re-introduce a "malformed = skip" arm; a leak gate errs toward flagging.
+> - **F4 (HIGH, docs publication) — CONFIRMED, ROUTED not fixed.** `.github/workflows/docs.yml:139-170` gates all
+>   four Pages steps (Upload/Deploy/retry) to `refs/heads/platform-trait` with a comment calling `main` a stale
+>   diverged tip. Ground truth: `origin/main=b3817dc` already carries the merge, so merging to main runs docs CI
+>   but never PUBLISHES, and a later platform-trait push could publish a divergent tree. The comment itself marks
+>   the flip-to-main as an item on the Roy-gated main-merge checklist. Because this is OUTWARD-FACING publication
+>   policy AND writer authority is currently CONTESTED (ownership deconfliction pending with the supervisor pair),
+>   I did NOT change it unilaterally — routed to supervisor with the recommendation to gate all four Pages steps to
+>   `refs/heads/main` per the recorded Roy public-main ruling. **Do-not-assume:** flipping the Pages deploy branch
+>   is publication policy, not a hygiene fix; needs the ownership/main-merge ruling first.
+>
 > **Verified state:** a value-blind control audit replays the old inventory against the base and reproduces
 > **4/17 live historical tails, 26 files, 41 location/format pairs** (colon 0 / hyphen 4 / compact 37 / 53 token
 > occurrences). The same audit against the working tree is **0/17, 0 files, 0 pairs, 0 tokens**. All 41 known
