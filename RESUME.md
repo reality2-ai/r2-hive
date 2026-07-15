@@ -79,6 +79,18 @@
 >   allowlisted placeholder passes). F4/Pages branch stays HELD (supervisor-codex: publication policy, not a hygiene
 >   fix). Writer ownership RESOLVED: resident hive lane is sole r2-hive writer (Roy/supervisor final).
 >
+> **▶ RE-PASS ROUND 6 (2026-07-16) — round-5 delta PASSED; hive-codex broadened the sweep to PRE-EXISTING checks. FIXED. NO PUSH.**
+> - **hard-gate checks 1–3 fail-OPEN (HIGH, pre-existing on base) — FIXED.** The scrubbed-term (`… | grep -viE …
+>   || true`), macron (`if macrons=$(git grep -P …)`), and gateway (`… || true`) checks all swallowed a `git grep`/
+>   filter tool failure (rc>1: invalid pattern, bad pathspec, git built without PCRE) as a clean result — a broken
+>   scanner would silently pass the hard gate. These were carried from base `b3817dc`, not my regression, but same
+>   fail-open class as the docs gate. Fixed with rc-aware `gg`/`gg_filter` helpers (rc 0/1 = success, rc>1
+>   propagates = fail-CLOSED); macron check now captures status and exits closed on rc>1. Roy-canon term-list and
+>   allowlist CONTENT unchanged — only the rc-plumbing. Decisive falsifier: a `git grep`→rc2 shim makes the gate
+>   EXIT 2 (was: exit-0 clean). docs.yml stale `|| true` comment (round-4 leftover) corrected.
+> - **Lesson:** in a multi-check gate, audit EVERY check for the fail-open, not just the one being edited — a
+>   sibling check's `|| true` / bare `if assignment` is the identical hole. Fail-CLOSED must hold gate-wide.
+>
 > **Verified state:** a value-blind control audit replays the old inventory against the base and reproduces
 > **4/17 live historical tails, 26 files, 41 location/format pairs** (colon 0 / hyphen 4 / compact 37 / 53 token
 > occurrences). The same audit against the working tree is **0/17, 0 files, 0 pairs, 0 tokens**. All 41 known

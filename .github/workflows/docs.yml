@@ -117,8 +117,8 @@ jobs:
           # tool failure — grep missing, invalid pattern, unreadable tree) PROPAGATES so `set -e` aborts
           # the step = fail CLOSED. A blanket `|| true` on the whole pipeline (an earlier fix) was WRONG:
           # it mapped a scanner CRASH to a clean result, indistinguishable from no-match (hive-codex
-          # round-4 fail-open). Only the allowlist filter below may use `|| true` — its rc 1 means "every
-          # match was an allowed placeholder", never a tool failure (the allowlist is a fixed literal).
+          # round-4 fail-open). The allowlist step uses the SAME rc discipline (allow_filter below), NOT a
+          # blanket `|| true` — round-5 showed a bare `|| true` there also swallowed a filter tool failure.
           scan() { local out rc; out=$(grep "$@" . 2>/dev/null); rc=$?; [ "$rc" -le 1 ] || return "$rc"; printf '%s' "$out"; }
           # allow_filter is the SAME rc discipline for the allowlist step: `grep -v` rc0 (some survive) and
           # rc1 (all were allowed placeholders) are BOTH success; rc>1 (invalid pattern, missing grep)

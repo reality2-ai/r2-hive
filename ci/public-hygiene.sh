@@ -44,8 +44,17 @@ redact_stream() {
   '
 }
 
+# rc-aware git grep and line filter for the hard-gate term checks below. Same discipline as the docs
+# gate (hive-codex round-6): git grep / grep rc 0 (match) and rc 1 (no match) are BOTH success and emit
+# output; rc >1 (a real failure — invalid pattern, bad pathspec, or -P with no PCRE support) PROPAGATES
+# so `set -e` aborts = fail CLOSED. The prior `… || true` / bare `if assignment` mapped a scanner TOOL
+# failure to a clean result, so a broken term/macron/gateway pattern would silently pass the hard gate.
+gg()        { local out rc; out=$(git grep "$@" 2>/dev/null); rc=$?; [ "$rc" -le 1 ] || return "$rc"; printf '%s' "$out"; }
+gg_filter() { local out rc; out=$(grep "$@");               rc=$?; [ "$rc" -le 1 ] || return "$rc"; printf '%s' "$out"; }
+
 # (1) Scrubbed location + cultural terms (case-insensitive), minus the allowlisted identifiers.
-hits=$(git grep -inE 'wairoa|kaitiaki|marae' -- . "${PATHSPEC[@]}" | grep -viE "$ALLOW" || true)
+# rc>1 in EITHER the term grep or the allowlist filter now fails closed (pipefail propagates gg's rc).
+hits=$(gg -inE 'wairoa|kaitiaki|marae' -- . "${PATHSPEC[@]}" | gg_filter -viE "$ALLOW")
 if [ -n "$hits" ]; then
   echo "::error::scrubbed term(s) reintroduced (Wairoa / kaitiaki / marae). Restoration is gated on the"
   echo "::error::Māori-reviewer review — do not re-add in a normal commit. Offending lines:"
@@ -54,19 +63,24 @@ if [ -n "$hits" ]; then
 fi
 
 # (2) Te-reo macron signal (ā ē ī ō ū, upper/lower) — a strong indicator of unreviewed te-reo prose.
-if macrons=$(git grep -inP '[\x{0101}\x{0113}\x{012B}\x{014D}\x{016B}\x{0100}\x{0112}\x{012A}\x{014C}\x{016A}]' -- . "${PATHSPEC[@]}" 2>/dev/null); then
-  if [ -n "$macrons" ]; then
-    echo "::error::macron character(s) found (te-reo signal). Route te-reo content through the reviewer gate:"
-    printf '%s\n' "$macrons" | redact_stream
-    fail=1
-  fi
+# The old `if macrons=$(git grep -P …)` treated rc>1 (e.g. git built without PCRE) as "no macrons" =
+# fail-open. Capture the status: rc 0/1 proceed, rc>1 fails the gate CLOSED.
+macrons=$(gg -inP '[\x{0101}\x{0113}\x{012B}\x{014D}\x{016B}\x{0100}\x{0112}\x{012A}\x{014C}\x{016A}]' -- . "${PATHSPEC[@]}") && mrc=0 || mrc=$?
+if [ "$mrc" -gt 1 ]; then
+  echo "::error::macron scan (git grep -P) failed rc=$mrc — failing closed (fix the PCRE/tooling, do not ignore)."
+  exit "$mrc"
+fi
+if [ -n "$macrons" ]; then
+  echo "::error::macron character(s) found (te-reo signal). Route te-reo content through the reviewer gate:"
+  printf '%s\n' "$macrons" | redact_stream
+  fail=1
 fi
 
 # (3) Private gateway-product naming (Roy-gated private spec, authorized by supervisor). NARROW: the
 # resident-premises gateway product + its private spec name MUST NOT appear in the public tree (provenance
 # lives in gitignored .r2-local/). The broad historical Mariko/Earthgrid ID scrub is a SEPARATE Roy decision
 # and is deliberately NOT guarded here (some are functional/commit identifiers with real rename cost).
-gwhits=$(git grep -inE 'mk-?homehub|home-?hub' -- . "${PATHSPEC[@]}" || true)
+gwhits=$(gg -inE 'mk-?homehub|home-?hub' -- . "${PATHSPEC[@]}")
 if [ -n "$gwhits" ]; then
   echo "::error::private gateway-product term(s) found (Home-Hub / MK-HOMEHUB). This naming is Publish:Private —"
   echo "::error::keep it out of the public tree (provenance belongs in gitignored .r2-local/). Offending lines:"
