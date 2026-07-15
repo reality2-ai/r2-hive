@@ -89,8 +89,9 @@ cargo run --release -- --auto
 ### Docker
 
 A `Dockerfile` is included. It builds from a parent directory that holds
-both `r2-hive/` and `r2-core/` side by side (see the comments in the
-file).
+both `r2-hive/` and `r2-core/` side by side; the image build activates the
+Cargo `[patch]` block so it compiles against the COPY-ed local r2-core
+(offline — no r2-core git credentials needed). See the comments in the file.
 
 ### Checking it works
 
