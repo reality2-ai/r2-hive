@@ -4097,7 +4097,7 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    ALREADY does STA connect_async + reconnect-on-disconnect; `stack.config_v4()` yields the DHCP IP for health
    key3. composer's DHCP-join-lab model is buildable with creds injected AT FLASH (never hardcoded).
    PROPOSED SHAPE = opt-in feature **staota** (proposed to supervisor/composer 2026-06-30): WiFi = STA-join-(lab
-   SSID from env) + DHCP, NO self-AP (retire the 0x502698-AP island under staota), OTA receiver on that netif,
+   SSID from env) + DHCP, NO self-AP (retire the 0xXXXXXX-AP island under staota), OTA receiver on that netif,
    mesh data-plane (ESP-NOW/LoRa) UNCHANGED, + mask-independence guard. Opt-in = ZERO risk to existing builds.
    IMPLEMENTATION PLAN (all `#[cfg(feature="staota")]`-gated; non-staota byte-identical):
      1. dp_ssid/dp_pass = (env!("R2_WIFI_SSID"), env!("R2_WIFI_PASS")) — main.rs ~369-371.
@@ -4138,7 +4138,7 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    via SCF/dedup).
    PER-BOARD FLASH COMBOS — BOTH build-verified GREEN 2026-06-30: D1-D5 DFR1195 = `field,loraroute,multitg,staota`;
    X1-X4 XIAO+Wio-SX1262 (tri-radio, HAVE LoRa) = `xiao,field,loraroute,loratcxo,multitg,staota`. The unregistered
-   1C:DB:D4 = the RADAR XIAO (MAC xx:xx:xx:xx:xx:xx, esp32s3) → XIAO combo; radar/sensor role is PERSONA-only
+   xx:xx:xx = the RADAR XIAO (MAC xx:xx:xx:xx:xx:xx, esp32s3) → XIAO combo; radar/sensor role is PERSONA-only
    (composer persona-update later), firmware = the XIAO staota combo. CREDS: build on Alfred with
    `set -a; . /home/roycdavies/.config/r2-composer/wifi.env; set +a` before cargo (exports R2_WIFI_SSID/PASS;
    chmod600 but roycdavies-owned = readable; never on argv/commit). HANDOFF: I build+flash by-id (MAC
@@ -4807,12 +4807,12 @@ current, don't wait per-conjecture.
     board A originates → board B receives+relays (dedup/TTL/spray). network-OTA receiver rides the same tier.
   - **🎯🎯 FIELD.LAB DONE — first routed R2-WIRE frame board↔board on REAL HARDWARE** (`a99313b`). WiFi-up
     smoke PASSED (soft-AP r2-fieldlab 192.168.4.1 ↔ STA .2, role auto-by-MAC), then the routed frame: board A
-    (hive 502698) originates an R2-WIRE *extended* Event over real WiFi radio → board B (b79010) decodes +
+    (hive XXXXXX) originates an R2-WIRE *extended* Event over real WiFi radio → board B (XXXXXX) decodes +
     `r2_route::RouteEngine::plan_forward` + **DELIVERED msg_id=7..13 ttl=4 'hello-TN'** + **DEDUP** the
     duplicate. Stack: esp-radio 0.18/esp-rtos 0.3/embassy-0.9, one combined recv/send UDP socket task (port
     21042), static IPs. **HW finding (confirms core's B1):** RELAY ≠ DELIVERY — first cut let plan_forward's
     relay verdict (Drop NoViableNeighbour on a 2-board leaf) mask delivery; separated → delivers. Boards: my
-    field.lab pair = ttyACM0(AP 502698)/ttyACM1(STA b79010), by MAC via /dev/serial/by-id; workshop's 3
+    field.lab pair = ttyACM0(AP XXXXXX)/ttyACM1(STA XXXXXX), by MAC via /dev/serial/by-id; workshop's 3
     DFR1195s = ACM9/10/11.
   - **🎯 THE FLEET WORKS — synced LED heartbeats over TN** (`cb8fa14`). Both boards run a leaderless
     Mirollo-Strogatz pulse-coupled oscillator: fire = LED beat + broadcast R2-WIRE `Heartbeat` frame;
@@ -4850,7 +4850,7 @@ current, don't wait per-conjecture.
     BLOCKED bad on the real hk ✅. Hand-rolled derive_hive_id (HKDF→v4-UUID-string→FNV; r2_trust::derive_hive_id
     not in pinned r2-trust). **KS1-CANONICAL derive_hive_id** — re-synced r2-trust to **abde165** (the no-v4-forcing
     fix; 256489b + my hand-roll BOTH v4-forced = matched each other but DIVERGED from KS1). ids now byte-exact to
-    composer: **502698→480e900e, b79010→2cab5f69** (were the wrong v4-forced 3e0d688f/cce44b60). Conductor re-elects
+    composer: **XXXXXX→480e900e, XXXXXX→2cab5f69** (were the wrong v4-forced 3e0d688f/cce44b60). Conductor re-elects
     to lowest (STA 2cab5f69); AP follows+locks (STA→AP broadcast direction also confirmed). r2-trust pinned abde165 ✅. **OTA test (b) PASS** —
     wrote valid image to ota_1, firmware activate_next_partition() + reboot, ESP-IDF BL booted ota_1 @0x200000;
     both OTA prereqs CLOSED; converted to report-only (production-safe). Op-note: espflash flash does NOT reset
@@ -4862,7 +4862,7 @@ current, don't wait per-conjecture.
     init+render gated on board-profile byte @0x13000 (0x00=XIAO no-screen, else=DFR1195); ONE binary runs on
     screenless XIAO-S3 (9-board) ✅ · **perfect sync** — 2nd-order PLL now locks to e=-0.000 (zero offset) ✅.
     r2-trust pinned 1b93108. 9-board = 5 DFR1195 + 4 XIAO-S3 (all-S3, true PLL, GPIO21 LED); role-by-MAC →
-    only 502698=AP, XIAO=STA; composer flashes my binary + provisions XIAO (persona@0x12000 + 0x00@0x13000).
+    only XXXXXX=AP, XIAO=STA; composer flashes my binary + provisions XIAO (persona@0x12000 + 0x00@0x13000).
   - **9-BOARD MESH CONFIRMED (metal) 🎉** — composer flashed all 4 XIAO + 3 DFR1195; ALL on tuxedo USB
     (my ACM0=AP/ACM1=STA, XIAO ACM2-5, DFR1195 ACM9-11). Verified synced=true + dlv climbing (trust delivering)
     across composer's DFR1195 (ACM9/10/11 dlv~1692) AND a XIAO (ACM2) = cross-arch (S3 DFR1195 + XIAO)
@@ -4878,8 +4878,8 @@ current, don't wait per-conjecture.
     profile byte1 @0x13001 (0x01=active-low; erased→active-low iff no-screen, so XIAO byte0=0x00 already works);
     LEDC idle + lub-DUB envelope polarity-mapped ✅. **#23a conductor-timeout re-elect** — forget a SILENT
     conductor after 4 beats → re-elect next-lowest; healthy conductor = no churn (replaced the churny every-3
-    forget) ✅. **AP-SPOF live (#23b):** the soft-AP (502698) went dark (my live re-flash wedged it) → STAs
-    stranded (no network → no app-layer election can help; my STA came up alone/CONDUCTOR). FIX = revive 502698
+    forget) ✅. **AP-SPOF live (#23b):** the soft-AP (XXXXXX) went dark (my live re-flash wedged it) → STAs
+    stranded (no network → no app-layer election can help; my STA came up alone/CONDUCTOR). FIX = revive XXXXXX
     (Roy physical RST; port held by composer's health reader so no remote reset). **#23b AP-FAILOVER = the real
     fix, NOT YET built:** pre-designated backup (lowest AP-capable hive from the heartbeat roster) detects
     esp-radio disassociation + promotes STA→AP at runtime @192.168.4.1; others re-scan/associate. Substantial +
@@ -4888,13 +4888,13 @@ current, don't wait per-conjecture.
     VERSION MISMATCH — 3 DFR1195 (ACM9/10/11) were on a STALE pre-KS1 build (0621.0858) computing WRONG hive_ids
     (a0dce700/63f798ea/b658276e) → SPLIT-BRAIN conductor election (boards disagreed on the lowest id). XIAO were
     on 0621.1148 (pre-LED-polarity → dark). FIX: re-flashed all 7 accessible boards to 0621.1227 (KS1 ids + LED
-    polarity + conductor-timeout). RESULT (direct serial): 8/9 lock to cond=06ae082b (=529928/ACM10), e≈0.000,
-    synced=true, cross-arch (DFR1195 + XIAO). 9th = AP 502698/ACM0 still dark on old build (port held by
+    polarity + conductor-timeout). RESULT (direct serial): 8/9 lock to cond=06ae082b (=XXXXXX/ACM10), e≈0.000,
+    synced=true, cross-arch (DFR1195 + XIAO). 9th = AP XXXXXX/ACM0 still dark on old build (port held by
     composer's health reader) → revive via Roy RST (beats+follows) or composer port-release + re-flash to canon.
     LESSON: a mixed-build fleet WILL split — keep ALL nodes on one build; verify by SERIAL not telemetry.
   - **9/9 CONVERGED + UNIFIED + AP REVIVED (0621.1244, serial-verified) 🎉** — all 9 on ONE build/span;
-    single conductor = ACM10 (529928→06ae082b); all 8 others (incl the AP) lock cond=6ae082b synced=true
-    e≈0.000 cross-arch (5 DFR1195 + 4 XIAO). AP 502698 revived via composer port-release re-flash → canon id
+    single conductor = ACM10 (XXXXXX→06ae082b); all 8 others (incl the AP) lock cond=6ae082b synced=true
+    e≈0.000 cross-arch (5 DFR1195 + 4 XIAO). AP XXXXXX revived via composer port-release re-flash → canon id
     480e900e, role=AP, beats as follower. **AP later re-wedged → composer un-wedged it (espflash-reset,
     firmware intact) → all 9 back to sync_state=1; composer fixed the dashboard feed (their plugin poll bug,
     NOT my HEALTH format — parsed all 9 byte-exact). Health dashboard LIVE.**
@@ -4943,13 +4943,13 @@ current, don't wait per-conjecture.
   - **IDENTIFY (Roy locate-a-board) — DONE + VALIDATED.** Device-side: r2.hb.identify Directed frame →
     target LED SOLID ~5s override (polarity-aware), refresh/clear. INJECT-BRIDGE (uart_rx_task): reads
     "IDENTIFY <wire_hex> <1|0>" off the USB-Serial-JTAG RX half + broadcasts the frame; runs on every board,
-    composer points --identify-port at b79010. VALIDATED on b79010: RX-sharing OK (esp-println TX intact)
+    composer points --identify-port at XXXXXX. VALIDATED on XXXXXX: RX-sharing OK (esp-println TX intact)
     + inject works. composer flipping --identify-port now (composer-side done, 7ec3706). NOTE: the device-
-    side override needs the IDENTIFY build on each TARGET board (only b79010 has it now → rides the next
+    side override needs the IDENTIFY build on each TARGET board (only XXXXXX has it now → rides the next
     fleet re-flash). sync_state→0/1/2 (composer dashboard now treats 1=locked; resolved). LED byte DROPPED
     by composer (byte1 reserved; polarity = my active-high default + a Cargo feature) — fragility gone for good.
   - **#24 BLE→WiFi — ACTIVE, 3 METAL MILESTONES HIT (Roy: push now, not parked).** Off-by-default `ble`
-    Cargo feature (live fleet still builds). On b79010 (--features ble), all metal-verified:
+    Cargo feature (live fleet still builds). On XXXXXX (--features ble), all metal-verified:
     (1) **deps resolve+compile** — esp-radio ble+coex + bt-hci 0.8.1 + trouble-host 0.6.0;
     (2) **BLE controller inits + WiFi+BLE COEX holds** (BleConnector + WiFi mesh stays synced);
     (3) **trouble-host ADVERTISE up + EXTERNALLY SCAN-CONFIRMED** — bluetoothctl on tuxedo sees

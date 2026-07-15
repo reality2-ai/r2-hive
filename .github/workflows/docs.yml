@@ -110,8 +110,11 @@ jobs:
         run: |
           cd target/doc
           fail=0
-          hit() { echo "::error::hygiene gate: $1"; echo "  --- offending matches ---"; echo "$2" | head; fail=1; }
-          m=$(grep -rhoE "([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}" . 2>/dev/null | grep -viE "AA:BB:CC:DD:EE:FF|00:00:00:00:00:00|FF:FF:FF:FF:FF:FF|DE:AD:BE:EF" | sort -u)
+          # Rendered values may be private; report category + count, never publish a match in CI logs.
+          hit() { echo "::error::hygiene gate: $1 ($(printf '%s\n' "$2" | wc -l) match(es); values suppressed)"; fail=1; }
+          # grep -o emits one token per line; anchor the allowlist to the complete normalised token.
+          # A partial/substr allowlist lets a real MAC containing the placeholder ride through.
+          m=$(grep -rhoE "([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}" . 2>/dev/null | grep -vixE "AA:BB:CC:DD:EE:FF|00:00:00:00:00:00|FF:FF:FF:FF:FF:FF|DE:AD:BE:EF:CA:FE" | sort -u)
           [ -n "$m" ] && hit "real-looking MAC address" "$m"
           m=$(grep -rhoE "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" . 2>/dev/null | sort -u)
           [ -n "$m" ] && hit "email address" "$m"

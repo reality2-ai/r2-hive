@@ -39,7 +39,7 @@ r2-dfr1195: OTA slot=ota_0 (otadata slot-switch verified — test b PASS)
 r2-dfr1195: PROVISIONED TG restored from NVS — tg_id=177560432 (overrides persona/demo)
 r2-dfr1195: MASK restored from NVS — 2 allowed neighbours
 r2-dfr1195: PHASE 1a — esp-rtos/embassy + esp-radio (build 0623.0913)
-r2-dfr1195: DEV b79010 hive=2cab5f69 TG=4b3df45d-5fbb-44b8-9613-7a6423927761 (persona=true) role=STA
+r2-dfr1195: DEV XXXXXX hive=2cab5f69 TG=4b3df45d-5fbb-44b8-9613-7a6423927761 (persona=true) role=STA
 r2-dfr1195: carrier has_screen=true led_active_low=false
 r2-dfr1195: net — STA 192.168.4.16 (peer 192.168.4.1)
 r2-dfr1195: BLE+WiFi-join OFF (nobt) — pure ESP-NOW ch1, no coex contention

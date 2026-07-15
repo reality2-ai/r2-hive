@@ -4,7 +4,7 @@
 (core's 5 answers + workshop's interop spec). All trouble-host APIs gathered. This doc = the
 instant-resume build plan. Build env: r2-discovery @1496916 (engine + beacon + reform-hardening).
 Firmware: `dfr1195-fw-wt/platforms/dfr1195/src/main.rs`, `ble_task`, behind `#[cfg(feature="ble")]`.
-Build: `cargo build --release --features ble`. 2-board test on ACM1 (b79010=2cab5f69) + ACM11 (0dcadbf8).
+Build: `cargo build --release --features ble`. 2-board test on ACM1 (XXXXXX=2cab5f69) + ACM11 (0dcadbf8).
 
 ## Design (CLOSED — core + workshop)
 - **PROVIDER-STAR.** Engine elects ONE provider (lowest eligible hive_id). Joiners each open ONE control
@@ -164,11 +164,11 @@ ROOT (structural): the WiFi-AP role is decided at BOOT, DECOUPLED from the engin
   the mesh) — not the engine's elected provider (lowest-PRESENT provider_capable). The stack interface
   (AP vs STA) is BOUND at stack-creation (boot) → can't change to match the election without a refactor. So
   the board that serves the AP can be one the engine did NOT elect.
-- (2) **is_ap[boot-MAC] != serve_ap** (role mismatch — FIXED 434a972): io_task used is_ap (boot-MAC=502698) for
+- (2) **is_ap[boot-MAC] != serve_ap** (role mismatch — FIXED 434a972): io_task used is_ap (boot-MAC=XXXXXX) for
   AP-relay/IP/health, diverging from serve_ap (WiFi role) → a board acting AP in heartbeat logic while STA in
   WiFi (or vice versa) = a second AP identity. Fixed: for ble, is_ap = serve_ap (exactly the AP board acts AP).
 - (3) **Trigger candidates for the actual two-AP/same-IP** (need Roy's specifics): (a) a MIX of builds — a
-  default board (is_ap=502698 → r2-fieldlab @192.168.4.1) + a ble board (serve_ap → r2-tn-form @192.168.4.1) =
+  default board (is_ap=XXXXXX → r2-fieldlab @192.168.4.1) + a ble board (serve_ap → r2-tn-form @192.168.4.1) =
   two APs same IP, different SSID; (b) the serve_ap test-const not matching the fleet's true lowest → engine
   elects X but the const board serves → divergence; (c) >2 boards / the ACM-renumbering scrambling roles.
 
