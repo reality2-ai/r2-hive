@@ -352,48 +352,37 @@ if [ "${1:-}" = "--selftest" ]; then
   printf '%s\n' 'example 00:00:00:00:00:00 real 02:11:22:33:44:55' > "$tmp/reject.txt"
   printf '%s\n' 'mac 00:00:00:00:00:00 only' > "$tmp/allow.txt"
   git -C "$tmp" add reject.txt allow.txt
-  k=$((k+1))
-  if [ -n "$(hygiene_scan_tree "$tmp")" ]; then
-    p=$((p+1)); echo "  ok   production extraction rejects mixed allowed/private line"
-  else echo "  FAIL production extraction bypassed mixed allowed/private line"; fi
-  rm "$tmp/reject.txt"
-  git -C "$tmp" add -u
-  printf '%s\n' 'safe content' > "$tmp/board-02345A.log"
-  git -C "$tmp" add board-02345A.log
-  k=$((k+1))
-  if [ -n "$(hygiene_scan_tree "$tmp")" ]; then
-    p=$((p+1)); echo "  ok   production extraction rejects compact tail in filename"
-  else echo "  FAIL production extraction bypassed compact tail in filename"; fi
-  rm "$tmp/board-02345A.log"
-  git -C "$tmp" add -u
-  # End-to-end: a MIXED-separator MAC must flag through the real git-grep extraction, not just the
-  # direct classifier (hive-codex round-3: the old skip made this a production fail-open).
-  printf '%s\n' 'note 02:11-22:33-44:55 seen' > "$tmp/mixed.txt"
-  git -C "$tmp" add mixed.txt
-  k=$((k+1))
-  if [ -n "$(hygiene_scan_tree "$tmp")" ]; then
-    p=$((p+1)); echo "  ok   production extraction rejects mixed-separator MAC"
-  else echo "  FAIL production extraction bypassed mixed-separator MAC"; fi
-  rm "$tmp/mixed.txt"
-  git -C "$tmp" add -u
-  k=$((k+1))
-  if [ -z "$(hygiene_scan_tree "$tmp")" ]; then
-    p=$((p+1)); echo "  ok   production extraction accepts allowlisted negative control"
-  else echo "  FAIL production extraction rejected allowlisted negative control"; fi
-  rm "$tmp/allow.txt"
-  git -C "$tmp" add -u
-  touch "$tmp/board-02345A.log"
-  git -C "$tmp" add board-02345A.log
-  k=$((k+1))
-  if [ -n "$(hygiene_scan_tree "$tmp")" ]; then
-    p=$((p+1)); echo "  ok   production extraction scans filename-only tree"
-  else echo "  FAIL production extraction skipped filename-only tree"; fi
-  rm "$tmp/board-02345A.log"
-  git -C "$tmp" add -u
-  k=$((k+1))
-  if hygiene_scan_tree "$tmp" >/dev/null 2>&1; then
-    echo "  FAIL empty tracked tree passed open"
-  else p=$((p+1)); echo "  ok   empty tracked tree fails closed"; fi
+  # e2e MODE NAME: run the REAL extraction and capture BOTH output and exit status. A bare
+  # `[ -n "$(hygiene_scan_tree ...)" ]` DISCARDS the status, so a scanner CRASH that happens to emit a
+  # finding false-passes a positive case, and a crash that emits nothing false-passes a negative case
+  # (hive-codex round-5). flag = findings AND rc0; clean = empty AND rc0; failclosed = rc != 0.
+  e2e() {
+    local out st ok=0; out=$(hygiene_scan_tree "$tmp") && st=0 || st=$?
+    k=$((k+1))
+    case "$1" in
+      flag)       { [ "$st" -eq 0 ] && [ -n "$out" ]; } && ok=1 || : ;;
+      clean)      { [ "$st" -eq 0 ] && [ -z "$out" ]; } && ok=1 || : ;;
+      failclosed) [ "$st" -ne 0 ] && ok=1 || : ;;
+    esac
+    if [ "$ok" -eq 1 ]; then p=$((p+1)); echo "  ok   $2"
+    else echo "  FAIL $2 (mode=$1 rc=$st out=$([ -n "$out" ] && echo nonempty || echo empty))"; fi
+  }
+  e2e flag "production extraction rejects mixed allowed/private line"
+  rm "$tmp/reject.txt"; git -C "$tmp" add -u
+  printf '%s\n' 'safe content' > "$tmp/board-02345A.log"; git -C "$tmp" add board-02345A.log
+  e2e flag "production extraction rejects compact tail in filename"
+  rm "$tmp/board-02345A.log"; git -C "$tmp" add -u
+  # A MIXED-separator MAC must flag through the real git-grep extraction, not just the direct
+  # classifier (hive-codex round-3: the old skip made this a production fail-open).
+  printf '%s\n' 'note 02:11-22:33-44:55 seen' > "$tmp/mixed.txt"; git -C "$tmp" add mixed.txt
+  e2e flag "production extraction rejects mixed-separator MAC"
+  rm "$tmp/mixed.txt"; git -C "$tmp" add -u
+  e2e clean "production extraction accepts allowlisted negative control"
+  rm "$tmp/allow.txt"; git -C "$tmp" add -u
+  touch "$tmp/board-02345A.log"; git -C "$tmp" add board-02345A.log
+  e2e flag "production extraction scans filename-only tree"
+  rm "$tmp/board-02345A.log"; git -C "$tmp" add -u
+  e2e failclosed "empty tracked tree fails closed"
   rm -rf "$tmp"
   trap - EXIT
 

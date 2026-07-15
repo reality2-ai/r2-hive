@@ -64,6 +64,21 @@
 >   fragments pass. Inherently ambiguous; under the fail-SAFE policy this is a noise tradeoff, not a hole. Policy:
 >   keep flagging (fail-safe); if a real doc trips it, use a `T`/space separator or an exact allowlist entry.
 >
+> **▶ RE-PASS ROUND 5 (2026-07-16) — hive-codex found my round-4 fix STILL had two fail-opens. FIXED. NO PUSH.**
+> - **docs allowlist filter fail-OPEN (HIGH) — FIXED.** Round 4 fixed the primary `scan()` grep but left the
+>   allowlist step as `{ grep -vixE … || true; }`. That `|| true` ALSO swallowed a filter tool failure (rc>1): if
+>   the allowlist grep errored while upstream emitted a REAL MAC, the leak was erased and the pipeline read clean.
+>   Reproduced. Fixed with an `allow_filter` helper (same rc discipline as `scan`): rc0/1 = success, rc>1 propagates
+>   = fail-CLOSED. Verified: allowlist-grep rc2 + upstream real MAC now EXITS NONZERO, not clean.
+> - **end-to-end KATs discarded exit status (MED) — FIXED.** The `hygiene_scan_tree` KATs used `[ -n "$(…)" ]` /
+>   `[ -z … ]`, which drop the command-substitution status, so a scanner crash that emitted a finding (or emitted
+>   nothing) false-passed. Replaced with an `e2e MODE NAME` helper that captures output AND status separately:
+>   flag = findings+rc0, clean = empty+rc0, failclosed = rc≠0. The empty-tree KAT is the one explicit rc≠0 case.
+> - RESUME durable line corrected (no longer claims blanket `|| true`); strongest temp-repo mixed-EUI/mixed-separator
+>   replay recorded PASS (both mixed orders + mixed EUI-64 + underscore/-if00 path form all flag [MAC] end-to-end;
+>   allowlisted placeholder passes). F4/Pages branch stays HELD (supervisor-codex: publication policy, not a hygiene
+>   fix). Writer ownership RESOLVED: resident hive lane is sole r2-hive writer (Roy/supervisor final).
+>
 > **Verified state:** a value-blind control audit replays the old inventory against the base and reproduces
 > **4/17 live historical tails, 26 files, 41 location/format pairs** (colon 0 / hyphen 4 / compact 37 / 53 token
 > occurrences). The same audit against the working tree is **0/17, 0 files, 0 pairs, 0 tokens**. All 41 known
@@ -81,9 +96,11 @@
 > compact values; exact public partition bounds and placeholders are explicit. Opaque 32-bit hive IDs remain public;
 > only explicit zero-prefix fallback and adjacent JSON hive-to-MAC mappings are classified as derived tails.
 > `.github/workflows/docs.yml` now anchors the rendered-MAC allowlist to full tokens, reports match category/count
-> only (never matched values), and guards every grep substitution with `|| true` so a clean/allowlisted tree cannot
-> abort the step under `bash -e -o pipefail` (F1). Changed scope: scanner + rendered-doc workflow, 27 scrubbed
-> data/docs/log files, this handoff. No core, firmware-worktree, binary, secret, or hardware change.
+> only (never matched values), and uses rc-aware helpers (`scan` for the tree grep, `allow_filter` for the allowlist
+> grep) that map grep rc 0/1 to success but PROPAGATE rc>1 → the step fails CLOSED on a scanner tool failure while a
+> clean/allowlisted tree passes (F1, round 4+5 — NO blanket `|| true` on any scanner/filter). Changed scope: scanner
+> + rendered-doc workflow, 27 scrubbed data/docs/log files, this handoff. No core, firmware-worktree, binary, secret,
+> or hardware change.
 >
 > **Verification (all exit 0):** `bash -n ci/public-hygiene.sh`; `bash ci/public-hygiene.sh --selftest` **43/43**
 > (includes actual Git extraction, mixed allowed/private line, compact filename, embedded-derivation controls,

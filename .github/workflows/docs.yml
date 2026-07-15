@@ -120,9 +120,15 @@ jobs:
           # round-4 fail-open). Only the allowlist filter below may use `|| true` — its rc 1 means "every
           # match was an allowed placeholder", never a tool failure (the allowlist is a fixed literal).
           scan() { local out rc; out=$(grep "$@" . 2>/dev/null); rc=$?; [ "$rc" -le 1 ] || return "$rc"; printf '%s' "$out"; }
+          # allow_filter is the SAME rc discipline for the allowlist step: `grep -v` rc0 (some survive) and
+          # rc1 (all were allowed placeholders) are BOTH success; rc>1 (invalid pattern, missing grep)
+          # PROPAGATES = fail-CLOSED. A bare `|| true` here was still fail-OPEN (hive-codex round-5): if the
+          # allowlist grep itself failed while upstream emitted a REAL MAC, `|| true` erased the leak and the
+          # pipeline read clean. "The pattern is a fixed literal" is not proof against a future edit/runtime fault.
+          allow_filter() { local out rc; out=$(grep -vixE "$1"); rc=$?; [ "$rc" -le 1 ] || return "$rc"; printf '%s' "$out"; }
           # grep -o emits one token per line; anchor the allowlist to the complete normalised token.
           # A partial/substr allowlist lets a real MAC containing the placeholder ride through.
-          m=$(scan -rhoE "([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}" | { grep -vixE "AA:BB:CC:DD:EE:FF|00:00:00:00:00:00|FF:FF:FF:FF:FF:FF|DE:AD:BE:EF:CA:FE" || true; } | sort -u)
+          m=$(scan -rhoE "([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}" | allow_filter "AA:BB:CC:DD:EE:FF|00:00:00:00:00:00|FF:FF:FF:FF:FF:FF|DE:AD:BE:EF:CA:FE" | sort -u)
           [ -n "$m" ] && hit "real-looking MAC address" "$m"
           m=$(scan -rhoE "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" | sort -u)
           [ -n "$m" ] && hit "email address" "$m"
