@@ -11,11 +11,11 @@ worktree HEAD `0f87bd3`. Image = `xiao,field,loraroute,loratcxo,multitg` (1.32 M
 
 | Role | by-id MAC | banner hive | composer mint | role-activation | persona |
 |------|-----------|-------------|---------------|-----------------|---------|
-| sensor   | 14:C1:9F:C4:FC:8C | `c01cee4d` | `c01cee4d` ✓ | `sensor` duty=2 §3.2.2-provisioned | true |
-| repeater | E8:3D:C1:FB:E5:20 | `296f308b` | `296f308b` ✓ | `repeater` duty=1 | true |
-| bridge   | D8:3B:DA:75:C3:3C | `bd72902e` | `bd72902e` ✓ | `bridge` duty=1 | true |
+| sensor   | xx:xx:xx:xx:xx:xx | `c01cee4d` | `c01cee4d` ✓ | `sensor` duty=2 §3.2.2-provisioned | true |
+| repeater | xx:xx:xx:xx:xx:xx | `296f308b` | `296f308b` ✓ | `repeater` duty=1 | true |
+| bridge   | xx:xx:xx:xx:xx:xx | `bd72902e` | `bd72902e` ✓ | `bridge` duty=1 | true |
 
-(4th XIAO E8:3D:C1:FB:DB:44 = spare. The 5 DFR1195 `F4:12:FA:*` also on Alfred = untouched.)
+(4th XIAO xx:xx:xx:xx:xx:xx = spare. The 5 DFR1195 `F4:12:FA:*` also on Alfred = untouched.)
 
 ## Validations
 

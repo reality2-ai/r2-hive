@@ -45,7 +45,7 @@ r2-dfr1195: net — STA 192.168.4.40 (peer 192.168.4.1)
 r2-dfr1195: BLE+WiFi-join OFF (nobt) — pure ESP-NOW ch1, no coex contention
 r2-dfr1195: ESP-NOW mesh up (hive 06ae082b) ch1 — heartbeat over ESP-NOW broadcast
 r2-dfr1195: FIRE seq=2 beat (leaderless)
-r2-dfr1195: ESP-NOW peer MAPPED hive=f91c8911 mac=f4:12:fa:b6:0a:a0
+r2-dfr1195: ESP-NOW peer MAPPED hive=f91c8911 mac=xx:xx:xx:xx:xx:xx
 r2-dfr1195: HB<-esp-now from=f91c8911 e=-0.075 spread=149ms (leaderless)
 r2-dfr1195: status beats=2 dlv=0 blk=0 synced=false nbrs=0 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
 r2-dfr1195: HB<-esp-now from=f91c8911 e=0.006 spread=12ms (leaderless)

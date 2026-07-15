@@ -45,8 +45,50 @@ if [ -n "$gwhits" ]; then
   fail=1
 fi
 
+# Placeholder/example MAC allowlist — legit example MACs a doc/test may show. Add specific legit examples here.
+# (Roy-canon; extend only via Roy.)
+MAC_ALLOW='00:00:00:00:00:00|([fF]{2}:){5}[fF]{2}|[dD][eE]:[aA][dD]:[bB][eE]:[eE][fF]|00:11:22:33:44:55|[aA]{2}:[bB]{2}:[cC]{2}:[dD]{2}:[eE]{2}:[fF]{2}|12:34:56:78:9[aA]:[bB][cC]'
+
+# (4) Real MAC addresses in CONTENT (HARD-FAIL, default-on) — device/infra fingerprints must not reach the
+# public tree (r2-composer 2026-07-15: full board-MAC inventory leaked to public main). General
+# xx:xx:xx:xx:xx:xx catch minus the placeholder allowlist.
+machits=$(git grep -inE '\b[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}\b' -- . "${PATHSPEC[@]}" | grep -viE "$MAC_ALLOW" || true)
+if [ -n "$machits" ]; then
+  echo "::error::real MAC address(es) in the tree — bench/board MACs are Publish:Private (r2-composer MAC-leak)."
+  echo "::error::Redact, move to gitignored .r2-local/, or use an allowlisted placeholder; add legit examples to MAC_ALLOW."
+  echo "$machits"
+  fail=1
+fi
+
+# (5) Bench/infra hostnames — private dev-box names shouldn't identify the bench in public docs.
+# SEVERITY is Roy-canon and PENDING his Alfred/Tuxedo ruling: set HOSTNAME_SEVERITY=hardfail to enforce,
+# or 'advisory' (default) to warn-only without failing the build. BENCH_HOSTS = the Roy-canon list.
+HOSTNAME_SEVERITY='advisory'   # ⏳ PENDING ROY: 'hardfail' | 'advisory'
+BENCH_HOSTS='Alfred'           # ⏳ PENDING ROY: add Tuxedo?
+HOST_ALLOW=''                  # per-line legit exceptions (e.g. Alfred in a non-bench prose context)
+hosthits=$(git grep -inwE "$BENCH_HOSTS" -- . "${PATHSPEC[@]}" | { [ -n "$HOST_ALLOW" ] && grep -viE "$HOST_ALLOW" || cat; } || true)
+if [ -n "$hosthits" ]; then
+  if [ "$HOSTNAME_SEVERITY" = "hardfail" ]; then
+    echo "::error::bench/infra hostname(s) ($BENCH_HOSTS) — keep private bench box names out of the public tree:"
+    echo "$hosthits"
+    fail=1
+  else
+    echo "::warning::[ADVISORY — severity pending Roy] bench hostname(s) ($BENCH_HOSTS) present in $(echo "$hosthits" | wc -l) line(s); not failing the build yet."
+  fi
+fi
+
+# (6) MAC fragments in tracked FILENAMES (git grep checks CONTENT only) — heuristic: 3+ hex pairs
+# separated by ':' or '-' in a path (e.g. a leaked bench log named by its board's OUI tail). HARD-FAIL:
+# rename the file (device fingerprint). Tune if a legit path trips it.
+macfiles=$(git ls-files | grep -iE '([0-9a-fA-F]{2}[:-]){2,}[0-9a-fA-F]{2}' | grep -viE "$MAC_ALLOW" || true)
+if [ -n "$macfiles" ]; then
+  echo "::error::tracked FILENAME(s) embed a MAC fragment — rename them (device fingerprints, Publish:Private):"
+  echo "$macfiles"
+  fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "public-content-hygiene: FAIL"
   exit 1
 fi
-echo "public-content-hygiene: OK (no scrubbed terms outside the allowlist; no macrons; no private gateway naming)"
+echo "public-content-hygiene: OK (no scrubbed terms outside the allowlist; no macrons; no private gateway naming; no real MACs; no MAC-in-filenames)"

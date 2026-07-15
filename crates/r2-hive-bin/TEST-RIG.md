@@ -9,10 +9,10 @@ incrementally extendable.
 
 | Role | Device | OS / arch | BLE adapter | Network access |
 |------|--------|-----------|-------------|----------------|
-| **laptop** | x86_64 dev box | Linux (Manjaro) | built-in `hci0` (`FC:B3:AA:27:B9:3C`) | WiFi `192.168.1.x`, Tailscale |
-| **alfred** | x86_64 SBC reachable via `ssh alfred` | Linux | `hci0` (`54:8D:5A:CE:24:BB`) — BLE asymmetric (weak receive) | WiFi `192.168.1.54`, Tailscale, USB to UNO Q's |
-| **reality2-3** | Arduino UNO Q | Debian aarch64 (Linux MPU + MCU) | QCA WCN3990 `hci0` (`14:B5:CD:E7:5A:3B`) — fragile, see below | WiFi `192.168.1.20` |
-| **reality2-1** | Arduino UNO Q | Debian aarch64 | QCA WCN3990 `hci0` (`14:B5:CD:10:70:A1`) | WiFi `192.168.1.22` |
+| **laptop** | x86_64 dev box | Linux (Manjaro) | built-in `hci0` (`xx:xx:xx:xx:xx:xx`) | WiFi `192.168.1.x`, Tailscale |
+| **alfred** | x86_64 SBC reachable via `ssh alfred` | Linux | `hci0` (`xx:xx:xx:xx:xx:xx`) — BLE asymmetric (weak receive) | WiFi `192.168.1.54`, Tailscale, USB to UNO Q's |
+| **reality2-3** | Arduino UNO Q | Debian aarch64 (Linux MPU + MCU) | QCA WCN3990 `hci0` (`xx:xx:xx:xx:xx:xx`) — fragile, see below | WiFi `192.168.1.20` |
+| **reality2-1** | Arduino UNO Q | Debian aarch64 | QCA WCN3990 `hci0` (`xx:xx:xx:xx:xx:xx`) | WiFi `192.168.1.22` |
 | **royspi5** | Raspberry Pi 5 | Ubuntu 24.04 aarch64 | — | Tailscale `100.96.237.112` (build host, no test role) |
 
 The UNO Q's reach the network only via WiFi (`The_Metaverse` SSID, WPA2-PSK).

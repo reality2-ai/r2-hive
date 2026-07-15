@@ -94,7 +94,7 @@ DONE on b79010 (--features ble), all metal-verified + externally scan-confirmed:
 1. deps resolve+compile (esp-radio ble+coex + bt-hci 0.8.1 + **trouble-host 0.6.0** = the bt-hci-0.8 pin;
    0.2=bt-hci0.3 / 0.7=bt-hci0.9 mismatch). Feature-gated `ble` OFF by default; live fleet still builds.
 2. BLE controller inits + WiFi+BLE **COEX holds** (mesh stays synced).
-3. trouble-host **ADVERTISE** up + external bluetoothctl confirms `C0:52:2C:AB:5F:69`.
+3. trouble-host **ADVERTISE** up + external bluetoothctl confirms `xx:xx:xx:xx:xx:xx`.
 4. **REAL R2-BEACON codec** — `ble_task` uses r2_discovery::beacon::{compute_rbid, encode_advert,
    LegacyBeacon, BeaconFlags, PowerState}; 24-byte canonical payload in 0xFF mfg AD; external scan
    confirms `ManufacturerData 0x01b2` (the encode_advert output). Built vs core's r2-discovery @7b4666e.

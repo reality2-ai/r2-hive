@@ -430,16 +430,16 @@
 
 ## 🖱️ 2026-07-04 — DRAG-DEMO SUPPORT STAGED (Roy's next theatre ask: bench boards draggable in the same canvas)
 - **BOARDS ON TUXEDO USB NOW (verified via /dev/serial/by-id + udev; identities from field-results records):**
-  ttyACM0 = Arduino Leonardo (arduino-router, NOT a flash target); **ttyACM1** = F4:12:FA:B6:0A:A0 = D3 f91c8911 (router+bridge
-  LoRa+ESP-NOW); **ttyACM2** = F4:12:FA:50:26:98 = D1 480e900e (DFR1195 SX1262, 4MB confirmed first-light); **ttyACM3** =
-  F4:12:FA:50:23:E4 = **09a07e47 = THE #49 OTA BOARD (moved from Alfred — now local!)**; **ttyACM4** = F4:12:FA:52:99:28 = D4 06ae082b
-  (ESP-NOW receiver; board TYPE unconfirmed — if XIAO-S3/8MB use the 8mb csv); **ttyACM5** = F4:12:FA:B7:90:10 = D2 2cab5f69
+  ttyACM0 = Arduino Leonardo (arduino-router, NOT a flash target); **ttyACM1** = xx:xx:xx:xx:xx:xx = D3 f91c8911 (router+bridge
+  LoRa+ESP-NOW); **ttyACM2** = xx:xx:xx:xx:xx:xx = D1 480e900e (DFR1195 SX1262, 4MB confirmed first-light); **ttyACM3** =
+  xx:xx:xx:xx:xx:xx = **09a07e47 = THE #49 OTA BOARD (moved from Alfred — now local!)**; **ttyACM4** = xx:xx:xx:xx:xx:xx = D4 06ae082b
+  (ESP-NOW receiver; board TYPE unconfirmed — if XIAO-S3/8MB use the 8mb csv); **ttyACM5** = xx:xx:xx:xx:xx:xx = D2 2cab5f69
   (DFR1195 SX1262). "Both DFR1195s" (supervisor phrasing) most plausibly = D1(ACM2)+D2(ACM5), the SX1262-verified pair — Roy picks.
 - **FLASH STAGING VERIFIED (artifacts were already on tuxedo ~, checked not clobbered):** `~/r2-dfr1195-weave-coex.elf` sha-verified
   **29e250cf** (bit-exact vs Alfred copy + local build) + `~/dfr1195-partitions.csv` diff-identical to docs/dfr1195-partitions.csv.
   **COPY-PASTE COMMAND (per board, differs only in --port; persona-preserving app-only, persona@0x12000 raw untouched):**
   `espflash flash --chip esp32s3 --partition-table ~/dfr1195-partitions.csv --port /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_<SERIAL>-if00 ~/r2-dfr1195-weave-coex.elf`
-  (D1: SERIAL=F4:12:FA:50:26:98; D2: SERIAL=F4:12:FA:B7:90:10; OTA board #49: F4:12:FA:50:23:E4.) **FLASHING=Roy-only — the harness
+  (D1: SERIAL=xx:xx:xx:xx:xx:xx; D2: SERIAL=xx:xx:xx:xx:xx:xx; OTA board #49: xx:xx:xx:xx:xx:xx.) **FLASHING=Roy-only — the harness
   gate BLOCKS espflash for agents (verified live: even espflash --version is refused). ⚠️ task#14: opening a USB-Serial-JTAG console
   RESETS a running board into ROM download mode — nobody cats/opens ttys casually; monitor = Roy's espflash monitor or composer's
   adapter only.**
@@ -1048,7 +1048,7 @@
      supervisor: this session's defer-build flash went to exactly this port and booted as 09a07e47's weave persona,
      so the mapping is ESTABLISHED, not a guess. app-only is non-destructive even if a port were wrong; Roy also sees
      the hive_id in the monitor boot banner to reconfirm before the push):
-     `espflash flash --chip esp32s3 --partition-table ~/dfr1195-partitions.csv --port /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_F4:12:FA:50:23:E4-if00 ~/r2-dfr1195-weave-coex.elf`
+     `espflash flash --chip esp32s3 --partition-table ~/dfr1195-partitions.csv --port /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_xx:xx:xx:xx:xx:xx-if00 ~/r2-dfr1195-weave-coex.elf`
      (NO --erase-flash, NO persona write ⇒ persona@0x12000 + anti-rollback PRESERVED. app@0x20000.)
   2. RE-RUN composer's client bounded-retry push.
   3. MONITOR board serial: `espflash monitor --port <same port>` → expect 'receiver up' → **'OTA(L2CAP) start seq='**
@@ -1129,7 +1129,7 @@
 
 ## ⚠ 2026-07-03 — #49 ATTEMPT 3b: DEFER FLASHED, BRANCH 1 confirmed (OST never reached board) → NOT board-side
 - **METAL RESULT (supervisor):** defer build (296017c4/7a40bed) flashed + running (beats reset ~17, weave intact).
-  Client: scanner-stop RAN ('scan stopped; radio freed') → resolved 09a07e47 (RPA rotated AGAIN → D0:A8:C5:DC:50:C5)
+  Client: scanner-stop RAN ('scan stopped; radio freed') → resolved 09a07e47 (RPA rotated AGAIN → xx:xx:xx:xx:xx:xx)
   → CoC 'phase up' → OST write → ENOTCONN (os 107). BOARD serial: 'CoC up' + 'receiver up' then NOTHING — NO
   'OTA(L2CAP) start seq=' line (count 0). = my DISCRIMINATOR BRANCH 1: OST never reached the board. My defer-refutation
   HELD (defer did not fix it; not OtaUpdater setup starvation — defer moved new() off that window + there is NO flash
@@ -1250,9 +1250,9 @@
   output = `platforms/dfr1195/target/xtensa-esp32s3-none-elf/release/r2-dfr1195` (crate-local target, NOT
   workspace root). `cargo +esp check` works on TUXEDO too (esp toolchain present; only the linker is Alfred-only).
   `cargo build` does NOT trip the harness gate (only espflash/esptool do).
-- **PERSONA-PRESERVING FLASH for Roy** (09a07e47 = MAC F4:12:FA:50:23:E4), app-only, mirrors flash-weave.sh's
+- **PERSONA-PRESERVING FLASH for Roy** (09a07e47 = MAC xx:xx:xx:xx:xx:xx), app-only, mirrors flash-weave.sh's
   app step but SKIPS the persona write: `espflash flash --chip esp32s3 --partition-table ~/dfr1195-partitions.csv
-  --port /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_F4:12:FA:50:23:E4-if00
+  --port /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_xx:xx:xx:xx:xx:xx-if00
   ~/r2-dfr1195-weave-fixed.elf` — do NOT `write-bin 0x12000 persona`, no `--erase-flash`. persona@0x12000 +
   NVS@0x14000 sit in the unflashed 0x11000-0x20000 gap → weave identity intact.
 - **All three legs READY:** board fix built+staged (ab1f1cb6), composer client on the [len u16 LE] wire
@@ -1293,7 +1293,7 @@
   confirmed fix, not a guess. Reported to supervisor + composer.
 
 ## ⚠ 2026-07-03 — #49 FIRST METAL OTA reached the receiver but STALLED (0 bytes) — board-side diagnosed
-- **Event (supervisor):** first metal OTA push to 09a07e47 (C4:C9:E0:71:BB:30) — BLE L2CAP link UP on 0x00D3
+- **Event (supervisor):** first metal OTA push to 09a07e47 (xx:xx:xx:xx:xx:xx) — BLE L2CAP link UP on 0x00D3
   (RBID identity-verified), but 0 bytes then STALLED; OST→RESP_OK didn't proceed on metal though it PASSED
   composer's mock of the b5e7abb receiver = MOCK-VS-METAL gap. Board fail-safe (nothing written).
 - **DIAGNOSIS (dfr1195-fw source, weave/otal2cap build 8ec1a6f):**
@@ -1678,7 +1678,7 @@
     stale @0x14000 override (NVS wins). ROBUST per-board cmd handed to supervisor (Roy, download-mode, covers BOTH a stale
     override AND a wrong persona; ELF untouched): (a) espflash erase-region 0x14000 0x1000 [clears NVS override — likely-
     decisive] (b) espflash write-bin 0x12000 ~/r2-weave-tg/persona-<MAC>.bin (c) reset. MAP (verified, hive_ids match
-    composer's origins): 495b1b62(joiner)=MAC F4:12:FA:52:99:28 ; b14b07d8(apiary)=MAC F4:12:FA:B7:90:10 ; 09a07e47=50:23:E4
+    composer's origins): 495b1b62(joiner)=MAC xx:xx:xx:xx:xx:xx ; b14b07d8(apiary)=MAC xx:xx:xx:xx:xx:xx ; 09a07e47=50:23:E4
     ; 8900955e=50:26:98 ; carrier 655a9e5f=B6:0A:A0. Both dark personas ARE correct weave (no re-mint needed). OTA cross-TG =
     moot (re-provision is persona-flash/console-PROVISION, not an OTA pkg). Runtime alt (no reflash): console PROVISION line →
     write_provisioned_tg @0x14000 → live GroupHmac swap (verify parse_provision authorization first). NO autonomous join
@@ -1696,8 +1696,8 @@
     CLEAR/deprovision console verb (non-urgent, needs a flash) for a download-mode-free clear — flag if wanted. Clean positive:
     L5 trust boundary held on metal; mechanism = runtime NVS override; fix = one-sector erase. Composer seeded catalogue/
     devices origin↔MAC (its repo). Roy runs the erase (Roy-only). Tool: scratchpad/persona_map.py.
-  ✅ SUPERVISOR DECISION (Roy-facing): unify JOINER 495b1b62 ONLY (MAC F4:12:FA:52:99:28) = erase-region 0x14000 0x1000 +
-    write-bin 0x12000 persona-F4:12:FA:52:99:28.bin + reset. HOLD b14b07d8 (apiary, MAC F4:12:FA:B7:90:10): its @0x14000
+  ✅ SUPERVISOR DECISION (Roy-facing): unify JOINER 495b1b62 ONLY (MAC xx:xx:xx:xx:xx:xx) = erase-region 0x14000 0x1000 +
+    write-bin 0x12000 persona-xx:xx:xx:xx:xx:xx.bin + reset. HOLD b14b07d8 (apiary, MAC xx:xx:xx:xx:xx:xx): its @0x14000
     override to Alfred's apiary is INTENTIONAL — membership/bridging defined by the apiary ensemble (#46), NOT a manual clear.
     ★ FALSIFIABLE METAL TEST of my NVS-override diagnosis: after Roy clears 495b's @0x14000, it should VERIFY+DELIVER+FLASH on
     composer's next LED-watch + its native frames should carry target_group 04bc57e7. FLASHES ⟹ NVS-override CONFIRMED on
@@ -2516,7 +2516,7 @@ PROVISIONED (persona)? → either erase 0x12000 on all (shared demo [0x5C;32]) O
 carrier with the nodes' hk (serial PROVISION cmd @0x14000 needs `multitg` in the carrier build). Nodes likely also
 need alternating-hmac-off for full participation (re-flash) — confirm acceptable. VISIBILITY (R2RX) works now.
 **2026-07-01 NEXT-STEP DISPATCHED:** Roy picked 'have hive check'. Gave supervisor the non-destructive read cmd
-(relay→Roy): `espflash read-flash 0x12000 0x200 node-persona.bin --port <NODE …F4:12:FA:52:99:28-if00>` (NOT the
+(relay→Roy): `espflash read-flash 0x12000 0x200 node-persona.bin --port <NODE …xx:xx:xx:xx:xx:xx-if00>` (NOT the
 B6:0A:A0 carrier — composer holds it). 0x200 = EXACTLY the firmware's read window (read_persona reads 512B @0x12000,
 main.rs:1923/1943; persona CBOR ~336B + trailing 0xFF). read-flash is READ-ONLY (resets node→ROM briefly, rejoins).
 INTERPRET: all-0xFF/00 ⇒ demo-unprovisioned [0x5C;32]; CBOR map byte + ascii tg_id ⇒ REAL persona (= hk source /
@@ -3062,7 +3062,7 @@ signed image TCP :21043 → #wifi_done teardown. Small <1KB on L2CAP CoC 0x00D2;
   role flag `cocbench_provider`=RECEIVER (advertise@BENCH_ADDR+drain) vs plain `cocbench`=PUSHER (connect@BENCH_ADDR
   +push); fixed BENCH_ADDR (no provisioning); LCD L1 shows 'COCBENCH N KB/s' (read off-screen, no console-reset).
   STAGED: ~/r2-staota-artifacts/r2-dfr1195-cocbench-{RECEIVER,PUSHER}.elf (distinct). Sent supervisor per-board
-  espflash (D1=RECEIVER F4:12:FA:50:26:98 / D3=PUSHER F4:12:FA:B6:0A:A0). Conformance bundle UNAFFECTED (joiner
+  espflash (D1=RECEIVER xx:xx:xx:xx:xx:xx / D3=PUSHER xx:xx:xx:xx:xx:xx). Conformance bundle UNAFFECTED (joiner
   path unreachable there under the un-gate). PENDING: Roy flashes both → metal KB/s → I analyze vs §3.1.3 (C/R).
   ~~`cocbench` feature~~ (superseded by the corrected build above):
   (xtensa-green: minimal `cocbench` + `staota,cocbench`): reuses the ble connect plumbing, cfg-swaps served fn
@@ -3636,7 +3636,7 @@ CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE in the composer-staged bootloader (deploym
 ## ► CURRENT 2026-06-27 — RADAR BRING-UP (Modbus-RTU PROBE, Roy chose PROBE-to-discover; ULTRACODE on)
 First REAL sensor. Build+flash a Modbus-RTU PROBE firmware to the radar XIAO to discover the radar protocol
 empirically (baud + slave-addr + register map), → then build the real radar driver + sentant on the sensor ensemble.
-- **RADAR XIAO IDENTITY-VERIFIED (safety gate):** MAC **1c:db:d4:5b:8a:60**, esp32s3 rev v0.2, 8MB, **ttyACM12**
+- **RADAR XIAO IDENTITY-VERIFIED (safety gate):** MAC **xx:xx:xx:xx:xx:xx**, esp32s3 rev v0.2, 8MB, **ttyACM12**
   (by-id `usb-Espressif_USB_JTAG_serial_debug_unit_1C:DB:D4:5B:8A:60-if00`), port FREE. It is the ONLY
   Espressif NOT in {triplet 14:C1:9F../E8:3D..E5:20/D8:3B.. + spare E8:3D..DB:44 + 5 DFR F4:12:FA:*}. FLASH
   ONLY this by-id path (ttyACMn remaps — verified the trap; Alfred has 11 Espressif boards now).
@@ -3940,9 +3940,9 @@ ttyACMn would hit a wrong board; ALWAYS use /dev/serial/by-id/usb-Espressif..._<
 `xiao,field,loraroute,loratcxo,multitg` (1.32MB), 4MB parttable, app→flash + persona→0x12000 + RPF1→0x17000
 + board-profile(00 01)→0x13000. composer's mint out-dir = /home/roycdavies/r2-bench/mariko-triplet/, TG
 1494e803.
-- SENSOR   14:C1:9F:C4:FC:8C → hive=c01cee4d MATCH, role=sensor duty=2 §3.2.2-provisioned, persona=true ✓
-- REPEATER E8:3D:C1:FB:E5:20 → hive=296f308b MATCH, role=repeater duty=1, persona=true ✓
-- BRIDGE   D8:3B:DA:75:C3:3C → hive=bd72902e MATCH, role=bridge duty=1, persona=true ✓ (4th XIAO E8:..DB:44 spare)
+- SENSOR   xx:xx:xx:xx:xx:xx → hive=c01cee4d MATCH, role=sensor duty=2 §3.2.2-provisioned, persona=true ✓
+- REPEATER xx:xx:xx:xx:xx:xx → hive=296f308b MATCH, role=repeater duty=1, persona=true ✓
+- BRIDGE   xx:xx:xx:xx:xx:xx → hive=bd72902e MATCH, role=bridge duty=1, persona=true ✓ (4th XIAO E8:..DB:44 spare)
 VALIDATED: (1) ROLE-ACTIVATION ✓ — all 3 config-activate role from ONE image via RPF1 (§3.2 keystone, METAL).
 (2) §8.1 LoRa-BEACON RX ✓ — bridge logged `LORA-BEACON rbid=6acdd5.. class=991db9af rssi=-54`. (3) LoRa
 data-plane ✓ — triplet mutual RX (c01cee4d/296f308b/bd72902e masked=false) + hears DFR mesh; XIAO+Wio
@@ -4138,7 +4138,7 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    via SCF/dedup).
    PER-BOARD FLASH COMBOS — BOTH build-verified GREEN 2026-06-30: D1-D5 DFR1195 = `field,loraroute,multitg,staota`;
    X1-X4 XIAO+Wio-SX1262 (tri-radio, HAVE LoRa) = `xiao,field,loraroute,loratcxo,multitg,staota`. The unregistered
-   1C:DB:D4 = the RADAR XIAO (MAC 1c:db:d4:5b:8a:60, esp32s3) → XIAO combo; radar/sensor role is PERSONA-only
+   1C:DB:D4 = the RADAR XIAO (MAC xx:xx:xx:xx:xx:xx, esp32s3) → XIAO combo; radar/sensor role is PERSONA-only
    (composer persona-update later), firmware = the XIAO staota combo. CREDS: build on Alfred with
    `set -a; . /home/roycdavies/.config/r2-composer/wifi.env; set +a` before cargo (exports R2_WIFI_SSID/PASS;
    chmod600 but roycdavies-owned = readable; never on argv/commit). HANDOFF: I build+flash by-id (MAC
@@ -4696,8 +4696,8 @@ current, don't wait per-conjecture.
   `nobt` leaderless-0.4 firmware ON alfred (esp toolchain; `source ~/Development/homelab/export-esp.sh`
   for the xtensa-esp-elf gcc — NOT `~/export-esp.sh`), flashed all 4 XIAO via espflash + the 4MB OTA
   partition table (`r2-hive/docs/dfr1195-partitions.csv`) + board-profile `0x00 0x00 @0x13000`
-  (has_screen=false, led_active_low=false). Per board: ttyACM1 14:C1:9F:C4:FC:8C→af1464f4 · ttyACM2
-  E8:3D:C1:FB:DB:44 · ttyACM3 D8:3B:DA:75:C3:3C→2c81b4a3 · ttyACM4 E8:3D:C1:FB:E5:20→998de7fc.
+  (has_screen=false, led_active_low=false). Per board: ttyACM1 xx:xx:xx:xx:xx:xx→af1464f4 · ttyACM2
+  xx:xx:xx:xx:xx:xx · ttyACM3 xx:xx:xx:xx:xx:xx→2c81b4a3 · ttyACM4 xx:xx:xx:xx:xx:xx→998de7fc.
   RESULT: all 4 XIAO `synced=true nbrs=8` — each hears the other 8; peer maps include ALL 5 tuxedo DFR
   hive_ids (50:23:E4=0dcadbf8, 52:99:28=06ae082b, B6:0A:A0=f91c8911, B7:90:10=2cab5f69, 50:26:98=480e900e).
   spread 749ms→0-3ms cross-host (alfred+tuxedo, SAME ROOM) + cross-arch (XIAO+DFR1195) — RF is board-to-board,
@@ -4953,7 +4953,7 @@ current, don't wait per-conjecture.
     (1) **deps resolve+compile** — esp-radio ble+coex + bt-hci 0.8.1 + trouble-host 0.6.0;
     (2) **BLE controller inits + WiFi+BLE COEX holds** (BleConnector + WiFi mesh stays synced);
     (3) **trouble-host ADVERTISE up + EXTERNALLY SCAN-CONFIRMED** — bluetoothctl on tuxedo sees
-    `Device C0:52:2C:AB:5F:69` (= my random addr, hive 2cab5f69), while the board stays WiFi-synced.
+    `Device xx:xx:xx:xx:xx:xx` (= my random addr, hive 2cab5f69), while the board stays WiFi-synced.
     (4) **REAL R2-BEACON codec wired + advertising** — `ble_task` uses `r2_discovery::beacon::{compute_rbid,
     encode_advert, LegacyBeacon, BeaconFlags, PowerState}` (core, byte-exact) → 24-byte canonical payload in
     the 0xFF manufacturer AD; metal: `BLE advertising R2-BEACON rbid=471a93a8.. (24 B)`; external scan
@@ -5015,7 +5015,7 @@ current, don't wait per-conjecture.
     (SoftAP-star) is KEPT as mode-1b (fixed/workshop). ESP-NOW verdict: docs/r2-espnow-mesh-verdict.md (feasible
     + favored; esp-radio has esp-now; reuses S0-M9+route+heartbeat; kills AP-role/two-IP bug). QUEUED for hive
     (after specs+core): platform Transport impls (ESP-NOW hive_id↔MAC + UDP) + mesh-mode + M10 runtime-elected-
-    single-AP (infra). Rig: use /dev/serial/by-id MAC paths (provider F4:12:FA:50:23:E4, joiner F4:12:FA:B7:90:10).
+    single-AP (infra). Rig: use /dev/serial/by-id MAC paths (provider xx:xx:xx:xx:xx:xx, joiner xx:xx:xx:xx:xx:xx).
   - **Per-carrier Cargo features** (composer board.toml mapping): `display` (DFR1195 LCD) + `psram` (XIAO
     octal-PSRAM@80MHz baked via PsramConfig in code — esp-hal has no psram Cargo feature); next deliverable.
   - **PRECISE NEXT STEPS:** (1) composer re-flashes its 3 with the persona-reader (personas survive app-flash)

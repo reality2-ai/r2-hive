@@ -70,7 +70,7 @@ r2-dfr1195: HEALTH af001af91c8911011aea6c5a9d0204036d3139322e3136382e342e3136300
 r2-dfr1195: LORA-RX sender=2cab5f69 len=66 rssi=-50dBm masked=false
 r2-dfr1195: HB<-esp-now from=2cab5f69 e=-0.175 spread=349ms (leaderless)
 r2-dfr1195: status beats=6 dlv=0 blk=0 synced=false nbrs=0 cond=000000 spread_ms=0 fw=leaderless-0.4 role=STA
-r2-dfr1195: ESP-NOW peer MAPPED hive=06ae082b mac=f4:12:fa:52:99:28
+r2-dfr1195: ESP-NOW peer MAPPED hive=06ae082b mac=xx:xx:xx:xx:xx:xx
 r2-dfr1195: HB<-esp-now from=6ae082b e=0.060 spread=119ms (leaderless)
 r2-dfr1195: msg.scffwd a4001873011af91c8911021a06ae082b031a480e900e
 r2-dfr1195: SCF-FWD msg_id=115 dest=06ae082b (reappeared)
