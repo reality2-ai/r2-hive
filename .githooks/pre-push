@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# pre-push: vendored-conformance-vector drift guard (supervisor ruling 2026-07-18).
+#
+# WHY: tests/vectors/ are READ-ONLY pinned copies of r2-specifications' canonical
+# test-vectors (see crates/r2-hive-bin/tests/vectors/_SYNC.md). A drift guard that
+# is never INVOKED is the SAME false-green class as a silent exit-0 — so this
+# INVOKES ci/check-vendored-vectors.sh on every push and BLOCKS if the vendored
+# copy has drifted (or canon is unreachable — fail-closed).
+#
+# INTEGRATION (do NOT use core.hooksPath — it would disable the FLEET secret-scan
+# hook at .git/hooks/pre-push). This file is installed as .git/hooks/pre-push.local,
+# the extension point the fleet secret-scan hook `exec`s after its own scan passes.
+# `scripts/setup-hooks.sh` wires it up (symlink → this tracked source) so edits here
+# take effect without re-installing.
+#
+# BYPASS (rare, deliberate — e.g. a siblingless push):  git push --no-verify
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && git rev-parse --show-toplevel 2>/dev/null)"
+# When run as .git/hooks/pre-push.local the BASH_SOURCE dir is .git/hooks; resolve
+# the repo root robustly via git.
+[ -z "$ROOT" ] && ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+GUARD="$ROOT/ci/check-vendored-vectors.sh"
+
+if [ ! -x "$GUARD" ]; then
+  echo "pre-push: vendored-vector guard missing ($GUARD) — cannot verify; failing closed." >&2
+  echo "  bypass (deliberate): git push --no-verify" >&2
+  exit 1
+fi
+
+echo "pre-push: verifying vendored conformance vectors vs canon…"
+if ! "$GUARD" --strict; then
+  echo "" >&2
+  echo "✗ PUSH BLOCKED — vendored conformance vectors have DRIFTED from canon (or canon is unreachable)." >&2
+  echo "  Re-vendor per crates/r2-hive-bin/tests/vectors/_SYNC.md, then re-run the suite." >&2
+  echo "  Deliberate bypass (e.g. no r2-specifications sibling on this host): git push --no-verify" >&2
+  exit 1
+fi
+echo "pre-push: vendored vectors match canon — OK."
+exit 0

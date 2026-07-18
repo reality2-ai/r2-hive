@@ -60,9 +60,19 @@ hermetic-safe: where the r2-specifications sibling is absent (CI, a clean
 clone) it exits 0 with a note. Run it where canon is on disk:
 
 ```
-./ci/check-vendored-vectors.sh            # alert-only
-./ci/check-vendored-vectors.sh --strict   # exit 1 on drift
+./ci/check-vendored-vectors.sh            # verify; exit 1 on drift OR can't-verify (fail-closed)
+./ci/check-vendored-vectors.sh --strict   # same, non-zero on any drift signal
+./ci/check-vendored-vectors.sh --hermetic-skip   # explicit no-op where canon absent
 ```
+
+**Enforced on push (run once per clone):** `./scripts/setup-hooks.sh` installs a
+pre-push guard (tracked at `.githooks/pre-push`) that runs the drift check and
+BLOCKS a push carrying drifted vectors. It installs at `.git/hooks/pre-push.local`
+— the extension point the fleet secret-scan hook `exec`s — so BOTH run; it does
+NOT set `core.hooksPath` (that would disable the secret-scan). Deliberate bypass:
+`git push --no-verify`. (A guard that isn't invoked is the same false-green as a
+silent exit-0 — the hook is what makes the check load-bearing. Fleet-wide
+enforcement independent of per-clone install is a scheduled fleet-infra job.)
 
 ## Secret-scanner note
 
