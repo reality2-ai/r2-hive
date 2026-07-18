@@ -42,6 +42,19 @@ for f in "$VENDORED"/*.json; do
     missing=1
     continue
   fi
+  # Version-gap check (specs-requested 2026-07-18): compare the `version`
+  # field mechanically, not just bytes. A byte-identity check is a
+  # point-in-time snapshot a later canon push can RACE (a vendored copy can
+  # be byte-identical to canon at the instant you check, then canon moves);
+  # the version field surfaces the gap as a plain "vX vs vY" a race can't
+  # hide. Complements the byte-diff below (which catches same-version drift).
+  ver_re='"version"[[:space:]]*:[[:space:]]*"[^"]*"'
+  vv="$(grep -m1 -oE "$ver_re" "$f" 2>/dev/null | grep -oE '"[^"]*"$' | tr -d '"')"
+  cv="$(grep -m1 -oE "$ver_re" "$src" 2>/dev/null | grep -oE '"[^"]*"$' | tr -d '"')"
+  if [ -n "$vv" ] && [ -n "$cv" ] && [ "$vv" != "$cv" ]; then
+    echo "⚠ VERSION GAP: $name vendored v$vv vs canon v$cv — re-vendor + bump _SYNC.md @ specs sha."
+    drift=1
+  fi
   if ! diff -q "$f" "$src" >/dev/null 2>&1; then
     echo "⚠ DRIFT: $name differs from canon — re-vendor (copy $src → tests/vectors/, bump _SYNC.md @ specs sha)."
     drift=1

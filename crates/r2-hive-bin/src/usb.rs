@@ -367,6 +367,13 @@ pub struct UsbSession {
     pairing: Option<PairingFlow>,
     /// In-flight reconnect flow (Strict mode).
     reconnecting: Option<ReconnectFlow>,
+    /// R2-USB §3.3 (v0.27) anti-storm state: true when we have sent a
+    /// SYNC and not yet seen one back. Gates the re-SYNC response so a
+    /// SYNC exchange is one round-trip, never a ping-pong — a peer SYNC
+    /// received while this is set is the COMPLETION of ours (clear, no
+    /// reply); a peer SYNC received while it is clear gets exactly one
+    /// terminal reply (which does not itself set this).
+    pending_sync: bool,
     /// Test-injected ephemeral keypair seed (None ⇒ getrandom).
     test_eph_sk_host: Option<SecretKey32>,
     test_nonce_host: Option<Nonce32>,
@@ -400,6 +407,7 @@ impl UsbSession {
             link_keys: store,
             pairing: None,
             reconnecting: None,
+            pending_sync: false,
             test_eph_sk_host: None,
             test_nonce_host: None,
             test_nonce_rc: None,
@@ -431,6 +439,14 @@ impl UsbSession {
         self.test_nonce_rc = Some(nonce_rc);
     }
 
+    /// Test-only: simulate having an outstanding SYNC on an established
+    /// link (the §3.3 recovery re-SYNC / simultaneous-cross case), which
+    /// no production code path currently initiates from `Active`.
+    #[cfg(test)]
+    pub fn mark_sync_pending_for_test(&mut self) {
+        self.pending_sync = true;
+    }
+
     /// Enqueue our outbound SYNC frame. Idempotent: subsequent calls
     /// after the first are no-ops.
     pub fn send_sync(&mut self) {
@@ -441,6 +457,7 @@ impl UsbSession {
         let frame = encode_length_prefixed(&payload);
         self.outbox.extend(frame);
         self.state = SessionState::SyncSent;
+        self.pending_sync = true; // §3.3: our SYNC is now outstanding
     }
 
     /// Drain any pending outbound bytes.
@@ -522,7 +539,50 @@ impl UsbSession {
         Some(payload)
     }
 
+    /// A link is "established" once SYNC has negotiated a version — every
+    /// state past the initial handshake, where a re-SYNC must preserve
+    /// (never reset) session state per R2-USB §3.3.
+    fn is_established(&self) -> bool {
+        matches!(
+            self.state,
+            SessionState::AwaitingCaps
+                | SessionState::Active
+                | SessionState::Reconnecting
+                | SessionState::PairingHelloSent
+                | SessionState::PairingCommitReceived
+                | SessionState::PairingAwaitingUser
+                | SessionState::PairingConfirmSent
+        )
+    }
+
     fn dispatch_payload(&mut self, payload: &[u8], events: &mut Vec<UsbEvent>) {
+        // R2-USB §3.3 (v0.27) anti-storm re-SYNC handling. A SYNC frame is
+        // valid at any time; on an ESTABLISHED link a re-SYNC MUST preserve
+        // all session state (session, negotiated CAPS/activation, tier,
+        // generation) and MUST NOT reset it — the old reset-and-respond
+        // behaviour flapped healthy links on every keepalive. The response
+        // is gated on our own outstanding-SYNC state (no wire marker; flags
+        // bits 1-7 stay reserved MUST-be-0), which makes the exchange one
+        // storm-free round-trip:
+        //   - pending (our SYNC outstanding) → the peer's SYNC is its
+        //     completion: clear pending, preserve, DO NOT reply (this also
+        //     resolves a simultaneous cross — both clear, neither re-answers);
+        //   - not pending → reply with EXACTLY ONE SYNC and do NOT set
+        //     pending, so the response is terminal and never itself answered.
+        // (SyncSent is the initial handshake, handled by dispatch_sync;
+        // routine idle liveness is the §3.4 zero-length keepalive, NOT a SYNC.)
+        if self.is_established() && decode_sync_payload(payload).is_ok() {
+            if self.pending_sync {
+                self.pending_sync = false;
+            } else {
+                // Terminal reply; flags 0 preserves the (compact) negotiated
+                // tier — when extended-tier negotiation lands this MUST echo
+                // the negotiated advertise-flags so a re-SYNC never re-tiers.
+                let reply = encode_length_prefixed(&encode_sync_payload(self.version, 0));
+                self.outbox.extend(reply);
+            }
+            return; // preserve all state; never mis-route the SYNC as a WireFrame
+        }
         match self.state {
             SessionState::SyncSent => self.dispatch_sync(payload, events),
             // Once SYNC negotiates, every subsequent frame is typed
@@ -555,6 +615,9 @@ impl UsbSession {
                     return;
                 }
                 self.version = negotiated;
+                // The peer's SYNC completes the handshake exchange we
+                // opened in `send_sync` — our SYNC is no longer outstanding.
+                self.pending_sync = false;
                 events.push(UsbEvent::SyncNegotiated {
                     version: negotiated,
                     flags,
@@ -1409,30 +1472,60 @@ mod tests {
         assert_eq!(s.state(), SessionState::Active);
     }
 
-    /// TV8 anti-flap guard (R2-USB §3.3/§3.5, vector corrected v0.24/25):
-    /// a re-SYNC on an ESTABLISHED link MUST NOT reset the session or
-    /// tear it down — the old `reset_and_respond` behaviour flapped
-    /// healthy links on every keepalive (the live flap Roy saw). This
-    /// asserts ONLY the verified-conformant property: the session stays
-    /// Active (no reset, no Close) across a re-SYNC. NOTE: hive-bin does
-    /// not yet *respond-and-preserve* (it currently mis-routes the
-    /// re-SYNC as a short WireFrame and sends no SYNC back) — the respond
-    /// half is an open item with specs (anti-storm semantics unresolved),
-    /// deliberately NOT asserted here so this guard cannot lock in a gap.
-    #[test]
-    fn resync_on_established_link_does_not_reset() {
+    /// Drive a fresh AutoPairUnsafe session to Active, discarding the
+    /// handshake outbound. Shared setup for the §3.3 re-SYNC tests.
+    fn active_session() -> UsbSession {
         let mut s = UsbSession::new_auto_pair_unsafe();
         s.send_sync();
         let _ = s.take_outbound();
         let _ = s.ingest_bytes(&hex("040032520200")); // SYNC v2
         let _ = s.ingest_bytes(&hex(TV31_CAPS_FRAME));
         assert_eq!(s.state(), SessionState::Active, "precondition: established");
-        // A re-SYNC arrives on the established link.
-        let _ = s.ingest_bytes(&hex("040032520200"));
+        let _ = s.take_outbound(); // clear any CAPS-driven output
+        s
+    }
+
+    /// Canonical **TV33** (R2-USB §3.3 anti-storm, v0.28): a re-SYNC on
+    /// an established link with `outstanding_sync=false` →
+    /// `reply_exactly_one_sync_no_pending_set_preserve_state`. MUST
+    /// preserve the session (stay Active — never the old reset-and-respond
+    /// flap Roy saw live), reply with EXACTLY ONE SYNC, NOT set pending
+    /// (the response is terminal, never itself answered → no storm), and
+    /// never mis-route the SYNC as a WireFrame.
+    #[test]
+    fn resync_no_pending_replies_once_and_preserves() {
+        let mut s = active_session();
+        let evs = s.ingest_bytes(&hex("040032520200")); // re-SYNC
         assert_eq!(
             s.state(),
             SessionState::Active,
-            "TV8: a re-SYNC MUST NOT reset/tear down an established link"
+            "§3.3: a re-SYNC MUST NOT reset an established link"
+        );
+        assert!(
+            evs.is_empty(),
+            "the re-SYNC must not surface as a WireFrame/event: {evs:?}"
+        );
+        // Exactly one terminal SYNC reply (4-byte payload, length-prefixed).
+        let out = s.take_outbound();
+        assert_eq!(out, hex("040032520200"), "exactly one SYNC echoed");
+    }
+
+    /// Canonical **TV32** (R2-USB §3.3 anti-storm, v0.28): a re-SYNC with
+    /// `outstanding_sync=true` → `consume_clear_pending_no_reply_preserve_state`.
+    /// A SYNC arriving WHILE our own is outstanding is the COMPLETION of
+    /// ours: clear pending, preserve, and DO NOT reply (the branch that
+    /// stops a ping-pong; also resolves a simultaneous cross — both ends
+    /// clear, neither re-answers).
+    #[test]
+    fn resync_with_pending_completes_without_reply() {
+        let mut s = active_session();
+        s.mark_sync_pending_for_test(); // our SYNC is outstanding
+        let evs = s.ingest_bytes(&hex("040032520200")); // peer SYNC = completion
+        assert_eq!(s.state(), SessionState::Active, "§3.3: preserve on completion");
+        assert!(evs.is_empty(), "no event on completion: {evs:?}");
+        assert!(
+            s.take_outbound().is_empty(),
+            "§3.3 anti-storm: a completing SYNC MUST NOT be answered"
         );
     }
 

@@ -1,6 +1,6 @@
 {
   "spec": "R2-USB",
-  "version": "0.26",
+  "version": "0.28",
   "description": "Conformance vectors for the R2-USB serial transport framing and properties (R2-USB §3 Framing, §4 Transport Properties). USB carries compact R2-WIRE frames length-prefixed on the serial byte stream. All multi-byte integers on the USB framing layer are LITTLE-ENDIAN (§3.2). Hex is lowercase. Vector ids follow the TV<n> scheme cited by consuming impls.",
   "notes": [
     "Frame encoding (§3.2): [payload_length: uint16 LE][R2-WIRE compact message: payload_length bytes]. Max payload 255 (compact). payload_length == 0 is a no-op/keepalive that MUST be silently ignored.",
@@ -9,24 +9,36 @@
   ],
   "re_verify": {
     "date": "2026-07-18",
-    "against": "R2-USB v0.26",
-    "method": "BYTE CHANGE + NEW VECTOR. (1) TV21 usb_frame_hex CORRECTED kind 1->2 (last byte 01->02): the v0.8 R2-TRANSPORT §2.2 enum unification updated caps_body_cbor_hex to kind=2 but MISSED usb_frame_hex, which stayed at the RETIRED Appendix-A kind=1 — the two fields were inconsistent, and a decoder conforming against usb_frame_hex (the actual on-wire frame) would decode LoRa as kind=1, re-introducing the exact transport-kind inversion the v0.8 ruling fixed (found while authoring TV31; confirmed by decode, not eyeball). Now consistent: both fields decode {local_id:0, kind:2=LoRa}; frame length unchanged (41); verified byte-exact by encode/decode round-trip. (2) NEW TV31 (caps): §3.6 descriptor region (key2 tstr 'au915') + properties (key3 map {chip:'sx1262'}) coverage — the OPTIONAL-descriptor-field parse path TV21 minimal {local_id,kind} never exercised (the coverage gap hive flagged); byte-exact round-trip verified. All OTHER vectors byte-identical. Provenance note: the prior re_verify below is against v0.9; the intervening v0.10-0.25 bumps were label/prose-only co-bumps not separately chained here (pre-existing gap, not introduced by this entry).",
-    "verdict": "TV21 usb_frame_hex byte-corrected (kind 1->2, completing the v0.8 half-fix); TV31 added (region/properties coverage). All other vectors byte-identical.",
+    "against": "R2-USB v0.28",
+    "method": "CONTENT ADD (2 behavioural vectors, no byte-layout change). Added TV32/TV33 (category anti_storm) — the EXECUTABLE form of the v0.27 §3.3 anti-storm MUST (outstanding-SYNC-gated single response). TV32 = pending -> no reply (incl. simultaneous cross); TV33 = no-pending -> exactly one reply, terminal. State/behaviour vectors (like the TV28-30 tier_negotiation set), no SYNC frame byte change (TV5 still encodes the frame). All 31 prior vectors byte-identical.",
+    "verdict": "TV32/TV33 anti-storm behavioural vectors added; all 31 prior vectors byte-identical.",
     "prior": {
-      "date": "2026-07-11",
-      "against": "R2-USB v0.9",
-      "method": "v0.9: prose/notes only — TV27 notes corrected to the R2-BEACON 8.1.1 accepted LoRa length set {15,16,17} (15 core/16 tx_power/17 dev); no vector bytes changed. v0.8: (1) UNIFIED the CAPS descriptor `kind` enum to R2-TRANSPORT §2.2 (was a separate Appendix-A enum: LoRa=1/BLE=2; android caught the two-enums-in-one-protocol inconsistency) -> TV21 `kind` 1->2 (LoRa), TV22 invalid-example likewise; CAPS wire change, pre-release, hive usb.rs re-emits. (2) NEW §3.7.1 observation subtype (msg_type=12) + TV27 (real DEV LoRa observation). Other 26 vectors are §3.2/§3.4/framing tests untouched.",
-      "verdict": "TV21/TV22 re-issued for the §2.2 enum unification; TV27 added. All other vectors byte-identical.",
+      "date": "2026-07-18",
+      "against": "R2-USB v0.27",
+      "method": "LABEL co-bump only (bytes identical). v0.27 adds the §3.3 ANTI-STORM rule for re-SYNC (outstanding-SYNC-gated single response; no wire change — flags bits 1-7 stay reserved MUST be 0). Behavioural/prose MUST; no SYNC frame byte-layout change. TV5 (the SYNC frame vector) encodes a single SYNC frame, not the exchange dynamics the anti-storm rule governs, so its bytes are unaffected; all 31 vectors byte-identical to v0.26.",
+      "verdict": "All 31 vectors byte-identical to v0.26. No vector value changed (label co-bump for the §3.3 anti-storm prose MUST).",
       "prior": {
-        "date": "2026-07-03",
-        "against": "R2-USB v0.7",
-        "method": "v0.7 (proactive cross-repo interop sweep) marks §3.7's Error report (msg_type 1) as explicitly deliberate implementation-defined content, not an accidental gap -- a documentation clarification adding a MUST that receivers treat it as opaque, with no byte-layout or wire-format change. Confirmed: none of this file's 26 vectors exercise msg_type 1 / control frames at all (all are §3.2/§4 framing/length-prefix/transport-property tests per the earlier re_verify), so the change cannot have touched any of them.",
-        "verdict": "All 26 vectors HOLD vs R2-USB v0.7. No vector value changed. (Prior re_verify for the 0.3->0.6 catch-up preserved below for history.)",
+        "date": "2026-07-18",
+        "against": "R2-USB v0.26",
+        "method": "BYTE CHANGE + NEW VECTOR. (1) TV21 usb_frame_hex CORRECTED kind 1->2 (last byte 01->02): the v0.8 R2-TRANSPORT §2.2 enum unification updated caps_body_cbor_hex to kind=2 but MISSED usb_frame_hex, which stayed at the RETIRED Appendix-A kind=1 — the two fields were inconsistent, and a decoder conforming against usb_frame_hex (the actual on-wire frame) would decode LoRa as kind=1, re-introducing the exact transport-kind inversion the v0.8 ruling fixed (found while authoring TV31; confirmed by decode, not eyeball). Now consistent: both fields decode {local_id:0, kind:2=LoRa}; frame length unchanged (41); verified byte-exact by encode/decode round-trip. (2) NEW TV31 (caps): §3.6 descriptor region (key2 tstr 'au915') + properties (key3 map {chip:'sx1262'}) coverage — the OPTIONAL-descriptor-field parse path TV21 minimal {local_id,kind} never exercised (the coverage gap hive flagged); byte-exact round-trip verified. All OTHER vectors byte-identical. Provenance note: the prior re_verify below is against v0.9; the intervening v0.10-0.25 bumps were label/prose-only co-bumps not separately chained here (pre-existing gap, not introduced by this entry).",
+        "verdict": "TV21 usb_frame_hex byte-corrected (kind 1->2, completing the v0.8 half-fix); TV31 added (region/properties coverage). All other vectors byte-identical.",
         "prior": {
-          "date": "2026-07-02",
-          "against": "R2-USB v0.6",
-          "method": "First re-verify since v0.3 (no prior re_verify block existed). 3 intervening changes, none touching §3/§4 framing: v0.4 added a §3.6 'relation to device_id' cross-ref note (explicitly 'vectors unchanged'); v0.5 dropped a retired DEV_PK token from that same §3.6 cross-ref note (terminology cleanup only); v0.6 added §1 NEW normative host-radio-delegation text (no-BlueZ/all-radio-via-MCU model, explicitly 'No wire/format change'). Confirmed independently: grepped this file for DEV_PK/DEV_SK/device_id -- zero hits; all 26 TV vectors are framing/length-prefix/transport-property byte tests (category: framing etc.), nothing here represents device identity or radio topology, so none of the 3 changes could have touched it either way.",
-          "verdict": "All 26 vectors HOLD vs R2-USB v0.6 (label-lag catch-up 0.3->0.6, byte-identical). No vector value changed."
+          "date": "2026-07-11",
+          "against": "R2-USB v0.9",
+          "method": "v0.9: prose/notes only — TV27 notes corrected to the R2-BEACON 8.1.1 accepted LoRa length set {15,16,17} (15 core/16 tx_power/17 dev); no vector bytes changed. v0.8: (1) UNIFIED the CAPS descriptor `kind` enum to R2-TRANSPORT §2.2 (was a separate Appendix-A enum: LoRa=1/BLE=2; android caught the two-enums-in-one-protocol inconsistency) -> TV21 `kind` 1->2 (LoRa), TV22 invalid-example likewise; CAPS wire change, pre-release, hive usb.rs re-emits. (2) NEW §3.7.1 observation subtype (msg_type=12) + TV27 (real DEV LoRa observation). Other 26 vectors are §3.2/§3.4/framing tests untouched.",
+          "verdict": "TV21/TV22 re-issued for the §2.2 enum unification; TV27 added. All other vectors byte-identical.",
+          "prior": {
+            "date": "2026-07-03",
+            "against": "R2-USB v0.7",
+            "method": "v0.7 (proactive cross-repo interop sweep) marks §3.7's Error report (msg_type 1) as explicitly deliberate implementation-defined content, not an accidental gap -- a documentation clarification adding a MUST that receivers treat it as opaque, with no byte-layout or wire-format change. Confirmed: none of this file's 26 vectors exercise msg_type 1 / control frames at all (all are §3.2/§4 framing/length-prefix/transport-property tests per the earlier re_verify), so the change cannot have touched any of them.",
+            "verdict": "All 26 vectors HOLD vs R2-USB v0.7. No vector value changed. (Prior re_verify for the 0.3->0.6 catch-up preserved below for history.)",
+            "prior": {
+              "date": "2026-07-02",
+              "against": "R2-USB v0.6",
+              "method": "First re-verify since v0.3 (no prior re_verify block existed). 3 intervening changes, none touching §3/§4 framing: v0.4 added a §3.6 'relation to device_id' cross-ref note (explicitly 'vectors unchanged'); v0.5 dropped a retired DEV_PK token from that same §3.6 cross-ref note (terminology cleanup only); v0.6 added §1 NEW normative host-radio-delegation text (no-BlueZ/all-radio-via-MCU model, explicitly 'No wire/format change'). Confirmed independently: grepped this file for DEV_PK/DEV_SK/device_id -- zero hits; all 26 TV vectors are framing/length-prefix/transport-property byte tests (category: framing etc.), nothing here represents device identity or radio topology, so none of the 3 changes could have touched it either way.",
+              "verdict": "All 26 vectors HOLD vs R2-USB v0.6 (label-lag catch-up 0.3->0.6, byte-identical). No vector value changed."
+            }
+          }
         }
       }
     }
@@ -393,6 +405,26 @@
       "usb_frame_hex": "2000ffa2000c01a40051b201007fce111165325a9abafe8ac1140201020238420307",
       "usb_frame_length": 34,
       "notes": "beacon 17B DEV = magic b2 · ver 01 · flags 00 · rbid 7fce111165325a9a · class bafe8ac1 (HIVE class 0xBAFE8AC1: DFR1195 is a full-service node running AP/services, R2-BEACON §4 v0.47 -- NOT a repeater) · txpwr 14 · build_class 02. PROD LoRa = 15B core (magic ver flags rbid class) OR 16B with optional tx_power; DEV = 17B (+build_class). Accepted set exactly {15,16,17} per R2-BEACON 8.1.1 — a length-gating decoder MUST accept all three. BLE (future producer) forwards the >=18B/24B manufacturer value from 0xB2 (different structure: +anti-collision+reserved), bearer=0, snr omitted."
+    },
+    {
+      "id": "TV32",
+      "category": "anti_storm",
+      "description": "§3.3 anti-storm (v0.27): a SYNC received on an established link WHILE this endpoint has an OUTSTANDING SYNC of its own (it sent a SYNC and awaits the response) is the COMPLETION of that exchange. The endpoint clears its pending state, PRESERVES link state (session/CAPS/tier/generation/reset_seq), and MUST NOT send a SYNC in reply. Also covers the SIMULTANEOUS CROSS: if both ends sent a SYNC at once, both are in this state, both clear, and NEITHER re-answers.",
+      "link_state": "established",
+      "outstanding_sync": true,
+      "received": "sync",
+      "expect": "consume_clear_pending_no_reply_preserve_state",
+      "notes": "State-gated, NOT wire-gated: the 4-byte SYNC (magic·version·flags) has no request/response marker and a re-SYNC MUST NOT consume one (flags bits 1-7 reserved MUST be 0). The discriminator is local pending state. A conformance harness drives this from the endpoint side: set outstanding_sync=true, feed a SYNC, assert zero SYNC frames emitted AND link generation/reset_seq unchanged. Pairs with TV33 (the reply case)."
+    },
+    {
+      "id": "TV33",
+      "category": "anti_storm",
+      "description": "§3.3 anti-storm (v0.27): a SYNC received on an established link with NO outstanding SYNC of ones own MUST be answered with EXACTLY ONE SYNC (the response), preserving link state. The responder does NOT set a pending state — a response is TERMINAL and is never itself answered, so the exchange is a single round-trip and cannot storm.",
+      "link_state": "established",
+      "outstanding_sync": false,
+      "received": "sync",
+      "expect": "reply_exactly_one_sync_no_pending_set_preserve_state",
+      "notes": "The recursion terminates because the peer, on receiving this one response, is in the TV32 state (it had an outstanding SYNC) and does NOT re-answer. Harness: set outstanding_sync=false, feed a SYNC, assert exactly ONE SYNC emitted, no pending flag set, link generation/reset_seq unchanged. A lost SYNC/response is recovered by the §3.3 step-4 retry; routine idle-liveness is the §3.4 zero-length keepalive, NOT a SYNC."
     }
   ]
 }
