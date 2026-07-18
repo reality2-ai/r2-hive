@@ -1371,11 +1371,15 @@ mod tests {
         assert_eq!(s.state(), SessionState::Closed);
     }
 
-    /// TV3 from r2-usb-vectors.json — minimal CAPS for a LoRa-only
-    /// peripheral (region=AU915, properties.chip=sx1262). Transport
-    /// kind = 2 (LoRa) per R2-TRANSPORT §2.2 == R2-USB Appendix A
-    /// (unified since R2-USB v0.8; was 1 under the retired table).
-    const TV3_CAPS_FRAME: &str =
+    /// Hive-LOCAL CAPS fixture (NOT a canonical vector id — canonical
+    /// TV3 is a payload-length reject test; the canonical CAPS-frame
+    /// vector is TV21). A minimal CAPS for a LoRa-only peripheral,
+    /// modeled on TV21 but extended with the optional region (AU915)
+    /// and properties (chip=sx1262) fields so this test exercises the
+    /// full descriptor parse path. Transport kind = 2 (LoRa) per
+    /// R2-TRANSPORT §2.2 == R2-USB Appendix A (unified since R2-USB
+    /// v0.8; was 1 under the retired table).
+    const CAPS_FIXTURE_LORA: &str =
         "3300FEA40050000102030405060708090A0B0C0D0E0F016372327002010381A4000001020265415539313503A10066737831323632";
 
     #[test]
@@ -1387,7 +1391,7 @@ mod tests {
         s.send_sync();
         let _ = s.take_outbound();
         let _ = s.ingest_bytes(&hex("040032520200"));
-        let evs = s.ingest_bytes(&hex(TV3_CAPS_FRAME));
+        let evs = s.ingest_bytes(&hex(CAPS_FIXTURE_LORA));
         let caps = match evs.into_iter().next() {
             Some(UsbEvent::Caps(c)) => c,
             other => panic!("expected Caps, got {other:?}"),
@@ -1415,7 +1419,7 @@ mod tests {
         s.send_sync();
         let _ = s.take_outbound();
         let _ = s.ingest_bytes(&hex("040032520200"));
-        let _ = s.ingest_bytes(&hex(TV3_CAPS_FRAME));
+        let _ = s.ingest_bytes(&hex(CAPS_FIXTURE_LORA));
         // TV5 from r2-usb-vectors.json (wire_hex pinned).
         let evs = s.ingest_bytes(&hex("1100000053A1B2424D3E4C1A2B3C4DA10018EA"));
         let ev = evs.into_iter().last().expect("frame emitted");
@@ -1449,7 +1453,7 @@ mod tests {
         s.send_sync();
         let _ = s.take_outbound();
         let _ = s.ingest_bytes(&hex("040032520200"));
-        let _ = s.ingest_bytes(&hex(TV3_CAPS_FRAME));
+        let _ = s.ingest_bytes(&hex(CAPS_FIXTURE_LORA));
         let evs = s.ingest_bytes(&hex("1500FFA2000101A200190101016974656D706F72617279"));
         let ctrl = evs
             .into_iter()
