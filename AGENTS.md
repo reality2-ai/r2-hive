@@ -109,3 +109,30 @@ the exemption ate the rule. V1 text is kept above for provenance; **this block w
 - **Test before sending: would the recipient act identically on half the length? Send the half.**
 
 Applies to agent-to-agent fleet messages, not only human-facing output.
+
+### ⚠ V2 OVERRIDE (cont.) — RFC 2119 NORMATIVE LANGUAGE (Roy, 2026-07-19, relayed by supervisor)
+
+Agent-to-agent comms MUST use RFC 2119 keywords: MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT,
+SHOULD, SHOULD NOT, RECOMMENDED, MAY, OPTIONAL. Reference: https://www.rfc-editor.org/info/rfc2119/
+
+**RFC 8174 rule — the load-bearing one: ONLY UPPERCASE IS NORMATIVE.** Lowercase "must" is prose
+and carries no obligation. If it is not capitalised, the recipient is NOT bound by it.
+
+This REPLACES hedged prose rather than adding to it, so it composes with the compression targets
+above — shorter AND unambiguous:
+- "I think you should probably consider reverting the consts" → "You SHOULD revert the consts."
+- "it would be good if this were verified before freeze" → "This MUST be verified before freeze."
+
+- Every instruction sent MUST carry a keyword. An instruction with no keyword is INFORMATIONAL,
+  not a directive — the recipient MUST treat it as such and say so.
+- A refutation MUST state what the recipient MUST NOT do, or MUST verify, on a line distinct from
+  the evidence chain.
+- SHOULD means the recipient MAY deviate WITH a stated reason. MUST means they MAY NOT deviate —
+  if they cannot comply they MUST STOP and report, never work around.
+- Do NOT capitalise for emphasis. An uppercase keyword is a contract, not a shout. Emphasis MUST
+  use other means.
+- Requirements being RELAYED from another lane MUST name the source lane, so obligation and
+  provenance stay separable.
+
+Applies to: fleet messages, AGENTS.md rules, commit messages that carry obligations, RESUME.md
+handoff conditions, spec text.
