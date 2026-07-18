@@ -1354,9 +1354,9 @@ async fn handle_session_event(
 /// Look up the route-engine `Transport` variant associated with this
 /// dongle's `local_id`, by consulting the watcher's status snapshot
 /// for the device's CAPS-advertised transports. Returns `None` when
-/// the device hasn't published CAPS yet, when the kind isn't known
-/// to R2-USB Appendix A, or when the route engine doesn't represent
-/// it (e.g. ZigBee, Thread).
+/// the device hasn't published CAPS yet, or when the kind falls in the
+/// R2-TRANSPORT §2.2 reserved/experimental range (7..) that the route
+/// engine does not model.
 ///
 /// **Used-by:** [`handle_session_event`] (WireFrame arm) only; the inverse
 /// mapping lives in `hive.rs::transport_to_caps_kind` — keep the two tables
@@ -1372,14 +1372,18 @@ fn kind_for_local_id_via_handle(
     let snap = handle.status().into_iter().find(|s| s.path == path)?;
     let transports = snap.advertised_transports.as_ref()?;
     let descriptor = transports.iter().find(|t| t.local_id == local_id)?;
-    // R2-USB Appendix A enumeration → route-engine Transport.
+    // R2-USB Appendix A enumeration (== R2-TRANSPORT §2.2, the single
+    // unified transport-kind table since R2-USB v0.8, 2026-07-11) →
+    // route-engine Transport. Mirrors r2-hive-wasm::kind_from_u8.
     match &descriptor.kind {
-        TransportKind::Enumerated(1) => Some(Transport::Lora),
-        TransportKind::Enumerated(2) => Some(Transport::Ble),
-        TransportKind::Enumerated(3) => Some(Transport::Wifi),
-        TransportKind::Enumerated(4) => Some(Transport::Internet),
-        // 5..=8 = zigbee / 802154 / nrf24 / thread — not modelled
-        // by R2-ROUTE today. 9..=99 reserved. 100+ experimental.
+        TransportKind::Enumerated(0) => Some(Transport::Ble),
+        TransportKind::Enumerated(1) => Some(Transport::Wifi),
+        TransportKind::Enumerated(2) => Some(Transport::Lora),
+        TransportKind::Enumerated(3) => Some(Transport::Internet),
+        TransportKind::Enumerated(4) => Some(Transport::Usb),
+        TransportKind::Enumerated(5) => Some(Transport::WifiMesh),
+        TransportKind::Enumerated(6) => Some(Transport::Udp),
+        // 7..=99 reserved, 100+ experimental — not modelled by R2-ROUTE.
         _ => None,
     }
 }

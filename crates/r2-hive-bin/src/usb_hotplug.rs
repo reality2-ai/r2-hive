@@ -946,13 +946,13 @@ mod tests {
             transports: vec![
                 TransportDescriptor {
                     local_id: 0,
-                    kind: TransportKind::Enumerated(1), // 1 = lora
+                    kind: TransportKind::Enumerated(2), // 2 = lora (§2.2)
                     region: Some("US915".into()),
                     properties_cbor: Vec::new(),
                 },
                 TransportDescriptor {
                     local_id: 2,
-                    kind: TransportKind::Enumerated(2), // 2 = ble
+                    kind: TransportKind::Enumerated(0), // 0 = ble (§2.2)
                     region: None,
                     properties_cbor: Vec::new(),
                 },
@@ -977,16 +977,16 @@ mod tests {
             .unwrap();
         assert_eq!(snap.session_state, Some(SessionState::Active));
 
-        // LoRa lookup → returns the dongle's local_id 0.
-        let lora = handle.find_dongle_for_kind(&TransportKind::Enumerated(1));
+        // LoRa (§2.2 kind 2) lookup → returns the dongle's local_id 0.
+        let lora = handle.find_dongle_for_kind(&TransportKind::Enumerated(2));
         assert_eq!(lora, Some((path.clone(), 0)));
 
-        // BLE lookup → returns local_id 2.
-        let ble = handle.find_dongle_for_kind(&TransportKind::Enumerated(2));
+        // BLE (§2.2 kind 0) lookup → returns local_id 2.
+        let ble = handle.find_dongle_for_kind(&TransportKind::Enumerated(0));
         assert_eq!(ble, Some((path.clone(), 2)));
 
-        // WiFi lookup → no match (this dongle doesn't advertise it).
-        let wifi = handle.find_dongle_for_kind(&TransportKind::Enumerated(3));
+        // WiFi (§2.2 kind 1) lookup → no match (this dongle doesn't advertise it).
+        let wifi = handle.find_dongle_for_kind(&TransportKind::Enumerated(1));
         assert_eq!(wifi, None);
     }
 

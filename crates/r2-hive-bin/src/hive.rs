@@ -1551,9 +1551,12 @@ fn build_backpressure_error(sub_id: u32) -> Vec<u8> {
 }
 
 /// Map a route-engine [`r2_route::transport::Transport`] back to the
-/// CAPS-side enumerated kind from R2-USB Appendix A. Used by
+/// CAPS-side enumerated kind from R2-USB Appendix A (== R2-TRANSPORT
+/// §2.2, the single unified table since R2-USB v0.8). Used by
 /// [`HiveState::try_send_via_dongle`] (Phase USB-5) to look up which
-/// dongle (if any) advertises a transport of the requested kind.
+/// dongle (if any) advertises a transport of the requested kind. Exact
+/// inverse of `main.rs::kind_for_local_id_via_handle` and mirrors
+/// `r2-hive-wasm::kind_from_u8`.
 #[cfg(target_os = "linux")]
 fn transport_to_caps_kind(
     transport: r2_route::transport::Transport,
@@ -1561,13 +1564,13 @@ fn transport_to_caps_kind(
     use crate::usb::TransportKind;
     use r2_route::transport::Transport;
     let id = match transport {
-        Transport::Lora => 1,
-        Transport::Ble => 2,
-        Transport::Wifi => 3,
-        Transport::Internet => 4,
-        Transport::Usb => 5,
-        Transport::WifiMesh => 6,
-        Transport::Udp => 7,
+        Transport::Ble => 0,
+        Transport::Wifi => 1,
+        Transport::Lora => 2,
+        Transport::Internet => 3,
+        Transport::Usb => 4,
+        Transport::WifiMesh => 5,
+        Transport::Udp => 6,
     };
     TransportKind::Enumerated(id)
 }
@@ -1591,5 +1594,37 @@ mod tests {
             .send_to_hive_via(0x0000_0002, None, b"frame")
             .await
             .is_none());
+    }
+
+    /// Pins the CAPS transport-kind wire numbers to the single unified
+    /// R2-TRANSPORT §2.2 == R2-USB Appendix A table (0=ble, 1=wifi,
+    /// 2=lora, 3=internet, 4=usb, 5=wifi-mesh, 6=udp; unified at R2-USB
+    /// v0.8). This is the regression guard for the retired inverted
+    /// table (lora=1/ble=2/wifi=3) that made hive-bin decode a real
+    /// §2.2 LoRa frame (kind 2) as BLE. Must byte-agree with
+    /// `main.rs::kind_for_local_id_via_handle` (its exact inverse) and
+    /// `r2-hive-wasm::kind_from_u8`.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn transport_to_caps_kind_matches_s22_table() {
+        use crate::usb::TransportKind::Enumerated;
+        use r2_route::transport::Transport;
+        for (transport, want) in [
+            (Transport::Ble, 0u64),
+            (Transport::Wifi, 1),
+            (Transport::Lora, 2),
+            (Transport::Internet, 3),
+            (Transport::Usb, 4),
+            (Transport::WifiMesh, 5),
+            (Transport::Udp, 6),
+        ] {
+            match transport_to_caps_kind(transport) {
+                Enumerated(id) => assert_eq!(
+                    id, want,
+                    "§2.2 wire id drift for {transport:?}: got {id}, want {want}"
+                ),
+                other => panic!("expected Enumerated, got {other:?}"),
+            }
+        }
     }
 }

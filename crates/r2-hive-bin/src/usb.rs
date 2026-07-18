@@ -205,8 +205,9 @@ pub struct TransportDescriptor {
 /// Transport kind from CAPS field 1.
 #[derive(Debug, Clone)]
 pub enum TransportKind {
-    /// Integer enum per R2-USB Appendix A (1..8 = lora/ble/wifi/eth/
-    /// zigbee/802154/nrf24/thread; 9..99 reserved; 100+ experimental).
+    /// Integer enum per R2-USB Appendix A == R2-TRANSPORT §2.2 (the
+    /// single unified table since R2-USB v0.8): 0..6 = ble/wifi/lora/
+    /// internet/usb/wifi-mesh/udp; 7..99 reserved; 100+ experimental.
     Enumerated(u64),
     /// Text kind name for experimental / vendor transports.
     Named(String),
@@ -1371,9 +1372,11 @@ mod tests {
     }
 
     /// TV3 from r2-usb-vectors.json — minimal CAPS for a LoRa-only
-    /// peripheral (region=AU915, properties.chip=sx1262).
+    /// peripheral (region=AU915, properties.chip=sx1262). Transport
+    /// kind = 2 (LoRa) per R2-TRANSPORT §2.2 == R2-USB Appendix A
+    /// (unified since R2-USB v0.8; was 1 under the retired table).
     const TV3_CAPS_FRAME: &str =
-        "3300FEA40050000102030405060708090A0B0C0D0E0F016372327002010381A4000001010265415539313503A10066737831323632";
+        "3300FEA40050000102030405060708090A0B0C0D0E0F016372327002010381A4000001020265415539313503A10066737831323632";
 
     #[test]
     fn parses_minimal_caps() {
@@ -1397,7 +1400,7 @@ mod tests {
         assert_eq!(caps.transports.len(), 1);
         let t = &caps.transports[0];
         assert_eq!(t.local_id, 0);
-        assert!(matches!(t.kind, TransportKind::Enumerated(1))); // 1 = lora
+        assert!(matches!(t.kind, TransportKind::Enumerated(2))); // 2 = lora (§2.2)
         assert_eq!(t.region.as_deref(), Some("AU915"));
         assert_eq!(s.state(), SessionState::Active);
     }
