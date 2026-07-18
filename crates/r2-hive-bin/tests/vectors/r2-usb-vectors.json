@@ -1,6 +1,6 @@
 {
   "spec": "R2-USB",
-  "version": "0.25",
+  "version": "0.26",
   "description": "Conformance vectors for the R2-USB serial transport framing and properties (R2-USB §3 Framing, §4 Transport Properties). USB carries compact R2-WIRE frames length-prefixed on the serial byte stream. All multi-byte integers on the USB framing layer are LITTLE-ENDIAN (§3.2). Hex is lowercase. Vector ids follow the TV<n> scheme cited by consuming impls.",
   "notes": [
     "Frame encoding (§3.2): [payload_length: uint16 LE][R2-WIRE compact message: payload_length bytes]. Max payload 255 (compact). payload_length == 0 is a no-op/keepalive that MUST be silently ignored.",
@@ -8,20 +8,26 @@
     "Behavioural vectors describe a required behaviour rather than a single byte string."
   ],
   "re_verify": {
-    "date": "2026-07-11",
-    "against": "R2-USB v0.9",
-    "method": "v0.9: prose/notes only — TV27 notes corrected to the R2-BEACON 8.1.1 accepted LoRa length set {15,16,17} (15 core/16 tx_power/17 dev); no vector bytes changed. v0.8: (1) UNIFIED the CAPS descriptor `kind` enum to R2-TRANSPORT §2.2 (was a separate Appendix-A enum: LoRa=1/BLE=2; android caught the two-enums-in-one-protocol inconsistency) -> TV21 `kind` 1->2 (LoRa), TV22 invalid-example likewise; CAPS wire change, pre-release, hive usb.rs re-emits. (2) NEW §3.7.1 observation subtype (msg_type=12) + TV27 (real DEV LoRa observation). Other 26 vectors are §3.2/§3.4/framing tests untouched.",
-    "verdict": "TV21/TV22 re-issued for the §2.2 enum unification; TV27 added. All other vectors byte-identical.",
+    "date": "2026-07-18",
+    "against": "R2-USB v0.26",
+    "method": "BYTE CHANGE + NEW VECTOR. (1) TV21 usb_frame_hex CORRECTED kind 1->2 (last byte 01->02): the v0.8 R2-TRANSPORT §2.2 enum unification updated caps_body_cbor_hex to kind=2 but MISSED usb_frame_hex, which stayed at the RETIRED Appendix-A kind=1 — the two fields were inconsistent, and a decoder conforming against usb_frame_hex (the actual on-wire frame) would decode LoRa as kind=1, re-introducing the exact transport-kind inversion the v0.8 ruling fixed (found while authoring TV31; confirmed by decode, not eyeball). Now consistent: both fields decode {local_id:0, kind:2=LoRa}; frame length unchanged (41); verified byte-exact by encode/decode round-trip. (2) NEW TV31 (caps): §3.6 descriptor region (key2 tstr 'au915') + properties (key3 map {chip:'sx1262'}) coverage — the OPTIONAL-descriptor-field parse path TV21 minimal {local_id,kind} never exercised (the coverage gap hive flagged); byte-exact round-trip verified. All OTHER vectors byte-identical. Provenance note: the prior re_verify below is against v0.9; the intervening v0.10-0.25 bumps were label/prose-only co-bumps not separately chained here (pre-existing gap, not introduced by this entry).",
+    "verdict": "TV21 usb_frame_hex byte-corrected (kind 1->2, completing the v0.8 half-fix); TV31 added (region/properties coverage). All other vectors byte-identical.",
     "prior": {
-      "date": "2026-07-03",
-      "against": "R2-USB v0.7",
-      "method": "v0.7 (proactive cross-repo interop sweep) marks §3.7's Error report (msg_type 1) as explicitly deliberate implementation-defined content, not an accidental gap -- a documentation clarification adding a MUST that receivers treat it as opaque, with no byte-layout or wire-format change. Confirmed: none of this file's 26 vectors exercise msg_type 1 / control frames at all (all are §3.2/§4 framing/length-prefix/transport-property tests per the earlier re_verify), so the change cannot have touched any of them.",
-      "verdict": "All 26 vectors HOLD vs R2-USB v0.7. No vector value changed. (Prior re_verify for the 0.3->0.6 catch-up preserved below for history.)",
+      "date": "2026-07-11",
+      "against": "R2-USB v0.9",
+      "method": "v0.9: prose/notes only — TV27 notes corrected to the R2-BEACON 8.1.1 accepted LoRa length set {15,16,17} (15 core/16 tx_power/17 dev); no vector bytes changed. v0.8: (1) UNIFIED the CAPS descriptor `kind` enum to R2-TRANSPORT §2.2 (was a separate Appendix-A enum: LoRa=1/BLE=2; android caught the two-enums-in-one-protocol inconsistency) -> TV21 `kind` 1->2 (LoRa), TV22 invalid-example likewise; CAPS wire change, pre-release, hive usb.rs re-emits. (2) NEW §3.7.1 observation subtype (msg_type=12) + TV27 (real DEV LoRa observation). Other 26 vectors are §3.2/§3.4/framing tests untouched.",
+      "verdict": "TV21/TV22 re-issued for the §2.2 enum unification; TV27 added. All other vectors byte-identical.",
       "prior": {
-        "date": "2026-07-02",
-        "against": "R2-USB v0.6",
-        "method": "First re-verify since v0.3 (no prior re_verify block existed). 3 intervening changes, none touching §3/§4 framing: v0.4 added a §3.6 'relation to device_id' cross-ref note (explicitly 'vectors unchanged'); v0.5 dropped a retired DEV_PK token from that same §3.6 cross-ref note (terminology cleanup only); v0.6 added §1 NEW normative host-radio-delegation text (no-BlueZ/all-radio-via-MCU model, explicitly 'No wire/format change'). Confirmed independently: grepped this file for DEV_PK/DEV_SK/device_id -- zero hits; all 26 TV vectors are framing/length-prefix/transport-property byte tests (category: framing etc.), nothing here represents device identity or radio topology, so none of the 3 changes could have touched it either way.",
-        "verdict": "All 26 vectors HOLD vs R2-USB v0.6 (label-lag catch-up 0.3->0.6, byte-identical). No vector value changed."
+        "date": "2026-07-03",
+        "against": "R2-USB v0.7",
+        "method": "v0.7 (proactive cross-repo interop sweep) marks §3.7's Error report (msg_type 1) as explicitly deliberate implementation-defined content, not an accidental gap -- a documentation clarification adding a MUST that receivers treat it as opaque, with no byte-layout or wire-format change. Confirmed: none of this file's 26 vectors exercise msg_type 1 / control frames at all (all are §3.2/§4 framing/length-prefix/transport-property tests per the earlier re_verify), so the change cannot have touched any of them.",
+        "verdict": "All 26 vectors HOLD vs R2-USB v0.7. No vector value changed. (Prior re_verify for the 0.3->0.6 catch-up preserved below for history.)",
+        "prior": {
+          "date": "2026-07-02",
+          "against": "R2-USB v0.6",
+          "method": "First re-verify since v0.3 (no prior re_verify block existed). 3 intervening changes, none touching §3/§4 framing: v0.4 added a §3.6 'relation to device_id' cross-ref note (explicitly 'vectors unchanged'); v0.5 dropped a retired DEV_PK token from that same §3.6 cross-ref note (terminology cleanup only); v0.6 added §1 NEW normative host-radio-delegation text (no-BlueZ/all-radio-via-MCU model, explicitly 'No wire/format change'). Confirmed independently: grepped this file for DEV_PK/DEV_SK/device_id -- zero hits; all 26 TV vectors are framing/length-prefix/transport-property byte tests (category: framing etc.), nothing here represents device identity or radio topology, so none of the 3 changes could have touched it either way.",
+          "verdict": "All 26 vectors HOLD vs R2-USB v0.6 (label-lag catch-up 0.3->0.6, byte-identical). No vector value changed."
+        }
       }
     }
   },
@@ -284,10 +290,10 @@
         ]
       },
       "caps_body_cbor_hex": "a40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a200000102",
-      "usb_frame_hex": "2700fea40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a200000101",
+      "usb_frame_hex": "2700fea40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a200000102",
       "usb_frame_length": 41,
       "expect": "accept",
-      "notes": "hive_id_bytes == usb_link_id (UP13) is intentional: CAPS keys the host link-key store for pairing/reconnect (R2-PROVISION §5.3.4). Receipt of CAPS is the gate into pairing/reconnect."
+      "notes": "hive_id_bytes == usb_link_id (UP13) is intentional: CAPS keys the host link-key store for pairing/reconnect (R2-PROVISION §5.3.4). Receipt of CAPS is the gate into pairing/reconnect. BYTE FIX v0.26: usb_frame_hex previously ended ...000101 (kind=1, the RETIRED pre-v0.8 Appendix-A value) while caps_body_cbor_hex correctly read kind=2 — the v0.8 §2.2 unification updated caps_body_cbor_hex but MISSED this usb_frame_hex, leaving the two fields inconsistent. A decoder conforming against usb_frame_hex would have decoded LoRa as kind=1, re-introducing the exact inversion the transport-kind ruling fixed. Corrected 01->02 (last byte only; length unchanged 41). Verified byte-exact: both fields now decode {local_id:0, kind:2=LoRa}."
     },
     {
       "id": "TV22",
@@ -305,6 +311,31 @@
       ],
       "expect": "reject",
       "reason": "duplicate local_id in CAPS transports array"
+    },
+    {
+      "id": "TV31",
+      "category": "caps",
+      "description": "CAPS descriptor region+properties coverage (§3.6 descriptor keys 2 + 3): one LoRa transport {local_id 0, kind 2, region 'au915', properties {chip:'sx1262'}}. Exercises the OPTIONAL region (tstr, key 2) + properties (map, key 3) parse path that TV21 (minimal {local_id, kind}) does not — the vector-coverage gap for §3.6's open descriptor fields (hive flagged its host fixture was the only thing exercising it). The region value and properties CONTENT are ILLUSTRATIVE of the open kind-specific fields (§3.6: 'properties ... Receivers MAY retain it undecoded'); the CONFORMANCE targets are (a) a receiver MUST accept the frame and skip/retain the optional keys (forward compatibility, §3.6) and (b) kind = 2 (LoRa, R2-TRANSPORT §2.2) byte-exact. NOT a firmware capture (unlike TV27) — a synthetic parse-coverage vector modelling hive's host CAPS_FIXTURE_LORA.",
+      "fields": {
+        "hive_id_bytes": "851fdee3082ad30e4f981b08e8e303a3",
+        "firmware_id": "r2-relay",
+        "firmware_version": 1,
+        "transports": [
+          {
+            "local_id": 0,
+            "kind": 2,
+            "region": "au915",
+            "properties": {
+              "chip": "sx1262"
+            }
+          }
+        ]
+      },
+      "caps_body_cbor_hex": "a40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a4000001020265617539313503a1646368697066737831323632",
+      "usb_frame_hex": "3c00fea40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a4000001020265617539313503a1646368697066737831323632",
+      "usb_frame_length": 62,
+      "expect": "accept",
+      "notes": "Byte-exact, round-trip verified (encode->decode->compare). Delta from TV21: descriptor grows {0:0,1:2} -> {0:0,1:2,2:'au915',3:{chip:'sx1262'}}; envelope (hive_id_bytes/firmware_id/firmware_version) reused from TV21. region 'au915' is lowercase per the §3.6 examples (us915/eu868). properties is an OPEN kind-specific map (§3.6) — a receiver MAY retain it undecoded; the map {chip:'sx1262'} is illustrative, NOT a normative properties schema. hive re-anchors its host CAPS_FIXTURE_LORA byte-exact to this."
     },
     {
       "id": "TV23",

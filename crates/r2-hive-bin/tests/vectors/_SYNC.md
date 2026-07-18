@@ -16,10 +16,11 @@ r2-specifications/testing/test-vectors/
     r2-plugin-web-vectors.json    → vector_coverage.rs (web plugin conformance)
 ```
 
-Vendored 2026-07-18 from r2-specifications @ e03df92 (was 6bebcd1 / 2026-07-06).
-Re-sync scope: r2-usb-vectors.json v0.7→v0.25 (§2.2 kind-unify TV21/22, TV8
+Vendored 2026-07-18 from r2-specifications @ 7b13594 (R2-USB v0.26; superseded e03df92).
+Re-sync scope: r2-usb-vectors.json v0.7→v0.26 (§2.2 kind-unify TV21/22, TV8
 behavioural correction reset→preserve, new TV27 observation + TV28-30 tier
-vectors, duplicate-ID fix) and r2-usb-pair-vectors.json →v0.16 (SIMPLE SECURE
+vectors, duplicate-ID fix, TV31 region+properties CAPS vector, TV21
+usb_frame_hex kind 1→2 completing the v0.8 unification) and r2-usb-pair-vectors.json →v0.16 (SIMPLE SECURE
 pairing: UP1-8/13/14/18 active, UP9-12/15-17 retired to active:false). Only
 r2-usb-vectors.json + r2-usb-pair-vectors.json moved; the other two vendored
 files were already at canon. specs-confirmed pin (specs owns these vectors).

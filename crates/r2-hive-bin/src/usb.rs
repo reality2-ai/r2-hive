@@ -1371,16 +1371,16 @@ mod tests {
         assert_eq!(s.state(), SessionState::Closed);
     }
 
-    /// Hive-LOCAL CAPS fixture (NOT a canonical vector id — canonical
-    /// TV3 is a payload-length reject test; the canonical CAPS-frame
-    /// vector is TV21). A minimal CAPS for a LoRa-only peripheral,
-    /// modeled on TV21 but extended with the optional region (AU915)
-    /// and properties (chip=sx1262) fields so this test exercises the
-    /// full descriptor parse path. Transport kind = 2 (LoRa) per
-    /// R2-TRANSPORT §2.2 == R2-USB Appendix A (unified since R2-USB
-    /// v0.8; was 1 under the retired table).
-    const CAPS_FIXTURE_LORA: &str =
-        "3300FEA40050000102030405060708090A0B0C0D0E0F016372327002010381A4000001020265415539313503A10066737831323632";
+    /// Canonical **TV31** from r2-usb-vectors.json (R2-USB v0.26) — the
+    /// region+properties CAPS vector specs authored to close the §3.6
+    /// descriptor coverage gap (no prior vector exercised region or the
+    /// kind-specific properties map). Byte-exact `usb_frame_hex`: CAPS
+    /// frame (type 0xFE) for a LoRa peripheral, transport {local_id 0,
+    /// kind 2 = LoRa (§2.2), region "au915", properties {chip:"sx1262"}}.
+    /// The host MUST accept + skip the optional properties key (§3.6).
+    /// hive_id_bytes = the canonical usb_link_id 851fdee3….
+    const TV31_CAPS_FRAME: &str =
+        "3c00fea40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a4000001020265617539313503a1646368697066737831323632";
 
     #[test]
     fn parses_minimal_caps() {
@@ -1391,21 +1391,21 @@ mod tests {
         s.send_sync();
         let _ = s.take_outbound();
         let _ = s.ingest_bytes(&hex("040032520200"));
-        let evs = s.ingest_bytes(&hex(CAPS_FIXTURE_LORA));
+        let evs = s.ingest_bytes(&hex(TV31_CAPS_FRAME));
         let caps = match evs.into_iter().next() {
             Some(UsbEvent::Caps(c)) => c,
             other => panic!("expected Caps, got {other:?}"),
         };
         assert_eq!(
             caps.hive_id_bytes,
-            hex("000102030405060708090A0B0C0D0E0F").as_slice()
+            hex("851fdee3082ad30e4f981b08e8e303a3").as_slice()
         );
         assert_eq!(caps.firmware_version, 1);
         assert_eq!(caps.transports.len(), 1);
         let t = &caps.transports[0];
         assert_eq!(t.local_id, 0);
         assert!(matches!(t.kind, TransportKind::Enumerated(2))); // 2 = lora (§2.2)
-        assert_eq!(t.region.as_deref(), Some("AU915"));
+        assert_eq!(t.region.as_deref(), Some("au915"));
         assert_eq!(s.state(), SessionState::Active);
     }
 
@@ -1425,7 +1425,7 @@ mod tests {
         s.send_sync();
         let _ = s.take_outbound();
         let _ = s.ingest_bytes(&hex("040032520200")); // SYNC v2
-        let _ = s.ingest_bytes(&hex(CAPS_FIXTURE_LORA));
+        let _ = s.ingest_bytes(&hex(TV31_CAPS_FRAME));
         assert_eq!(s.state(), SessionState::Active, "precondition: established");
         // A re-SYNC arrives on the established link.
         let _ = s.ingest_bytes(&hex("040032520200"));
@@ -1446,7 +1446,7 @@ mod tests {
         s.send_sync();
         let _ = s.take_outbound();
         let _ = s.ingest_bytes(&hex("040032520200"));
-        let _ = s.ingest_bytes(&hex(CAPS_FIXTURE_LORA));
+        let _ = s.ingest_bytes(&hex(TV31_CAPS_FRAME));
         // TV5 from r2-usb-vectors.json (wire_hex pinned).
         let evs = s.ingest_bytes(&hex("1100000053A1B2424D3E4C1A2B3C4DA10018EA"));
         let ev = evs.into_iter().last().expect("frame emitted");
@@ -1480,7 +1480,7 @@ mod tests {
         s.send_sync();
         let _ = s.take_outbound();
         let _ = s.ingest_bytes(&hex("040032520200"));
-        let _ = s.ingest_bytes(&hex(CAPS_FIXTURE_LORA));
+        let _ = s.ingest_bytes(&hex(TV31_CAPS_FRAME));
         let evs = s.ingest_bytes(&hex("1500FFA2000101A200190101016974656D706F72617279"));
         let ctrl = evs
             .into_iter()
