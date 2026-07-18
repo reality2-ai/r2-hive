@@ -10,26 +10,42 @@
 # shouts if they diverge. It never edits, never auto-syncs — re-vendoring stays a
 # deliberate human/agent step (copy + bump _SYNC.md + FLEET_SKIP_SECRET_SCAN=1).
 #
-# HERMETIC-SAFE: if the r2-specifications sibling is absent (a clean clone, a CI
-# runner — exactly where the hermetic build must still work), this exits 0 with an
-# informational note. The pin is authoritative there; drift can only be checked
-# where canon is on disk (dev boxes, a scheduled fleet job with the sibling).
+# FAIL-CLOSED (supervisor hardening 2026-07-18): if canon is UNREACHABLE the
+# check can't verify — and a silent exit-0 is exactly how the vendored copy drifted
+# 18 versions unnoticed. So can't-verify is a FAILURE (exit 1) by DEFAULT. A genuine
+# hermetic context (a clean clone / CI runner with no sibling, where the test build
+# must still run) opts out EXPLICITLY with --hermetic-skip — visible, never silent.
 #
-# USAGE:  ./ci/check-vendored-vectors.sh          # alert-only (exit 0 always where checkable-clean)
-#         ./ci/check-vendored-vectors.sh --strict # exit 1 on drift (for a gated context)
+# USAGE:  ./ci/check-vendored-vectors.sh                 # verify; exit 1 if drift OR can't-verify
+#         ./ci/check-vendored-vectors.sh --strict        # same, and non-zero on ANY drift signal
+#         ./ci/check-vendored-vectors.sh --hermetic-skip # explicit no-op where canon is absent
+#         R2_SPECS_VECTORS=/path ./ci/check-vendored-vectors.sh   # override canon location
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VENDORED="$ROOT/crates/r2-hive-bin/tests/vectors"
-# Canonical source: r2-specifications as a sibling of the r2-hive checkout.
-CANON="$ROOT/../r2-specifications/testing/test-vectors"
+# Canonical source: r2-specifications as a sibling of the r2-hive checkout
+# (overridable for a fleet job that checks canon out elsewhere / for testing).
+CANON="${R2_SPECS_VECTORS:-$ROOT/../r2-specifications/testing/test-vectors}"
 STRICT=0
-[ "${1:-}" = "--strict" ] && STRICT=1
+HERMETIC_SKIP=0
+for a in "$@"; do
+  case "$a" in
+    --strict) STRICT=1 ;;
+    --hermetic-skip) HERMETIC_SKIP=1 ;;
+  esac
+done
 
 if [ ! -d "$CANON" ]; then
-  echo "check-vendored-vectors: canon sibling not present ($CANON) — cannot check drift here."
-  echo "  (the pin is authoritative on this host; run where r2-specifications is checked out.)"
-  exit 0
+  if [ "$HERMETIC_SKIP" -eq 1 ]; then
+    echo "check-vendored-vectors: canon absent + --hermetic-skip → explicit no-op (drift UNVERIFIED here)."
+    exit 0
+  fi
+  echo "✖ check-vendored-vectors: CANNOT VERIFY — canon absent ($CANON)."
+  echo "  Fail-closed: can't-verify == FAIL (a silent pass is how the vendored copy drifted 18 versions)."
+  echo "  Run where r2-specifications is checked out (or set R2_SPECS_VECTORS), or pass"
+  echo "  --hermetic-skip to explicitly no-op in a genuine sibling-less context."
+  exit 1
 fi
 
 drift=0
