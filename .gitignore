@@ -20,3 +20,8 @@ __pycache__/
 
 # local scrub provenance (never public)
 .r2-local/
+.cursor/
+.windsurf/
+.clinerules/
+.opencode/
+.github/copilot-instructions.md
