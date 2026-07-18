@@ -91,3 +91,21 @@ Stop: "stop caveman" or "normal mode"
 Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
 
 Boundaries: code/commits/PRs written normal.
+
+### ⚠ V2 OVERRIDE — supersedes the stock Auto-Clarity line above (Roy, 2026-07-19)
+
+The stock rule ships a WIDE carve-out ("drop caveman for security warnings, irreversible
+actions"). Roy narrowed it the same day because nearly every fleet message is one of those, so
+the exemption ate the rule. V1 text is kept above for provenance; **this block wins.**
+
+- **Target: 400-600 chars routine, under 1500 for a full refutation.** Over 1500 ⇒ narrating.
+- A refutation keeps its **evidence chain only**: claim, falsifier, `file:line`, consequence.
+  It does NOT keep framing, credit, restating the recipient, or narrating the error shape.
+- Security finding: the finding, the proof, the fix. Not the narrative.
+- Order-sensitive: numbered steps, no prose between them.
+- Irreversible action: the action, the risk, the condition. Three lines.
+- **Never cut:** code, `file:line`, commit SHAs, exact error strings, config values + units,
+  spec section numbers, API/CLI names, the falsifier itself.
+- **Test before sending: would the recipient act identically on half the length? Send the half.**
+
+Applies to agent-to-agent fleet messages, not only human-facing output.
