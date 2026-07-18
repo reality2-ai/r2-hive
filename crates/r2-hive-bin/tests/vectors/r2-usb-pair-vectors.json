@@ -1,5 +1,5 @@
 {
-  "description": "USB pairing crypto conformance vectors (X25519 / SHA-256 / HKDF-SHA256 / HMAC-SHA256) for R2-PROVISION §5.3.4 (USB Pairing, Wired, MITM-Protected). GENERATED from r2-hive's canonical usb_pair helpers via examples/gen_usb_pair_vectors.rs — do not hand-edit. Canonical home is R2-PROVISION §5.3.4 (was mis-cited as R2-HIVE §6.4, which specs ruled is not a spec). All 12 vectors independently verified byte-exact by specs (2026-06-09). Inputs are deterministic test values; keys are TEST-ONLY.",
+  "description": "USB pairing crypto conformance vectors (X25519 / SHA-256 / HKDF-SHA256 / HMAC-SHA256) for R2-PROVISION §5.3.4 (USB Pairing, Wired, MITM-Protected). Canonical home is R2-PROVISION §5.3.4. Inputs are deterministic test values; keys are TEST-ONLY. ACTIVE SET (SIMPLE SECURE PAIRING — R2-PROVISION §5.3.4 v0.47, Roy explicit 2026-07-12): §5.3.4 is now a single simple-secure spec (first-pair MITM security kept byte-exact; the generation/rotation/durable-journal/crash-recovery machinery REMOVED — full durability is a parked field track). The REQUIRED (active) vectors are UP1-UP8 (X25519/commitment/SAS/link_key), UP13 (usb_link_id), UP14 (non-contributory-Z reject + choreography + the three terminal key-confirmation MACs confirm/done/ack), and UP18 (the SIMPLE same-key reconnect tag = HMAC-SHA256(link_key,'r2-usb-reconnect-v1'||nonce_rc||usb_link_id)[..16] = 2f62edaa...; usb_link_id = the CAPS hive_id_bytes, stable/TG-independent per R2-USB §3.6). UP1-UP8/UP13 were GENERATED from r2-hive's canonical usb_pair helpers + independently verified byte-exact by specs (2026-06-09); UP14 terminal MACs are hive-CONFIRMED + byte-exact; UP18 is Python-reverified byte-exact and reproduces the r2-hive original gen-free reconnect helper. NON-ACTIVE / HISTORICAL (active:false — the retired generation design, kept for the parked full-durability field track only, NOT required): UP9-UP12 (generation-BOUND reconnect tag), UP15 (two-generation grace + accept_mac), UP16 (host_gens-tamper reject), UP17 (compromised-K0 activation-reject). A conforming implementation reproduces every ACTIVE vector exactly and does NOT need the active:false ones. Do not hand-edit the r2-hive-generated base entries.",
   "spec": "R2-PROVISION",
   "vectors": [
     {
@@ -76,42 +76,146 @@
     },
     {
       "category": "reconnect",
-      "description": "reconnect tag HMAC-SHA256(link_key, label||nonce_rc||hive_id)[..16]",
+      "provisional": true,
+      "status_note": "v0.40 GENERATION-BOUND reconnect tag (supersedes the pre-v0.39 gen-free construction, old value 2f62edaa... REMOVED). tag = HMAC-SHA256(K[gen], 'r2-usb-reconnect-v1' || nonce_rc[16] || hive_id[16] || u32be(gen) || genlist(host_gens))[..16]; genlist = concat(u32be(g) for g in sorted-unique host_gens). PROVISIONAL pending hive usb_pair.rs impl of the gen-based reconnect.",
+      "description": "reconnect tag, first-pair single generation (gen=1, host_gens=[1])",
       "hive_id_bytes": "55555555555555555555555555555555",
       "id": "UP9",
+      "active": false,
       "link_key": "386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
       "nonce_rc": "66666666666666666666666666666666",
-      "reconnect_tag": "2f62edaaa469424d5a5da5630b06967b"
+      "gen": 1,
+      "host_gens": [
+        1
+      ],
+      "reconnect_tag": "7fe2e32f42fd13835c1043353346e1d5"
     },
     {
       "category": "reconnect",
-      "description": "verify_reconnect_tag accepts correct tag",
+      "provisional": true,
+      "description": "verify_reconnect_tag accepts correct tag (gen=1, host_gens=[1])",
       "expect": true,
       "hive_id_bytes": "55555555555555555555555555555555",
       "id": "UP10",
+      "active": false,
       "link_key": "386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
       "nonce_rc": "66666666666666666666666666666666",
-      "reconnect_tag": "2f62edaaa469424d5a5da5630b06967b"
+      "gen": 1,
+      "host_gens": [
+        1
+      ],
+      "reconnect_tag": "7fe2e32f42fd13835c1043353346e1d5"
     },
     {
       "category": "reconnect",
-      "description": "verify_reconnect_tag rejects wrong link key",
+      "provisional": true,
+      "description": "verify_reconnect_tag rejects wrong link key (gen=1, host_gens=[1])",
       "expect": false,
       "hive_id_bytes": "55555555555555555555555555555555",
       "id": "UP11",
+      "active": false,
       "link_key": "396667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
       "nonce_rc": "66666666666666666666666666666666",
-      "reconnect_tag": "2f62edaaa469424d5a5da5630b06967b"
+      "gen": 1,
+      "host_gens": [
+        1
+      ],
+      "reconnect_tag": "7fe2e32f42fd13835c1043353346e1d5"
     },
     {
       "category": "reconnect",
-      "description": "verify_reconnect_tag rejects wrong nonce",
+      "provisional": true,
+      "description": "verify_reconnect_tag rejects wrong nonce (gen=1, host_gens=[1])",
       "expect": false,
       "hive_id_bytes": "55555555555555555555555555555555",
       "id": "UP12",
+      "active": false,
       "link_key": "386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
       "nonce_rc": "67666666666666666666666666666666",
-      "reconnect_tag": "2f62edaaa469424d5a5da5630b06967b"
+      "gen": 1,
+      "host_gens": [
+        1
+      ],
+      "reconnect_tag": "7fe2e32f42fd13835c1043353346e1d5"
+    },
+    {
+      "category": "reconnect",
+      "provisional": true,
+      "description": "two-generation grace: gen=1 chosen from host_gens=[0,1] (K1-preferring); tag + accept_mac both bind genlist([0,1]). accept_mac = HMAC-SHA256(K[1], 'r2-usb-reconnect-accept-v1' || nonce_rc || hive_id || u32be(1) || genlist([0,1]))[..16].",
+      "id": "UP15",
+      "active": false,
+      "hive_id_bytes": "55555555555555555555555555555555",
+      "link_key": "386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
+      "nonce_rc": "66666666666666666666666666666666",
+      "gen": 1,
+      "host_gens": [
+        0,
+        1
+      ],
+      "reconnect_tag": "3008b5dca378ed3a8c1968f213034845",
+      "accept_mac": "ef9a112ce7b3cc2eea0393e0a9f8b0f1"
+    },
+    {
+      "category": "reconnect_downgrade_reject",
+      "provisional": true,
+      "description": "host_gens-TAMPER negative KAT (anti-downgrade, android-codex HIGH; v0.41 CORRECTED to isolate the binding). The host SENDS host_gens=[0,1]. A MITM strips gen 1, so the peripheral RECEIVES [0], legitimately selects gen=0, and answers tag over genlist([0]) at gen=0 = f93e3a82704532cc8f9d8457784094de. The host then verifies the response at the SAME gen=0 and SAME key K[0], but over the EXACT list it SENT [0,1] = deb8dcb28f837f16f14afc3499229ca4. They differ ONLY because of the host_gens binding (gen and key are identical) => host MUST reject (reconnect_failed). This cleanly isolates the offered-list authentication (the earlier draft changed gen+key+list at once and did not test the binding).",
+      "id": "UP16",
+      "active": false,
+      "expect": false,
+      "hive_id_bytes": "55555555555555555555555555555555",
+      "link_key": "386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
+      "host_sent_host_gens": [
+        0,
+        1
+      ],
+      "peripheral_received_host_gens": [
+        0
+      ],
+      "selected_gen": 0,
+      "nonce_rc": "66666666666666666666666666666666",
+      "peripheral_tag_over_received_list_0": "f93e3a82704532cc8f9d8457784094de",
+      "host_recompute_over_sent_list_01_same_gen0": "deb8dcb28f837f16f14afc3499229ca4",
+      "note": "same gen=0, same key K[0]; tags differ solely due to genlist([0]) vs genlist([0,1]) => downgrade detected"
+    },
+    {
+      "category": "reconnect_activation_gating",
+      "provisional": true,
+      "description": "compromised-K0 activation-reject KAT (net generation invariant, supervisor+android-codex). Host is PROMOTED (holds K1=gen 1). A holder of ONLY K0 (gen 0) presents a VALID gen-0 reconnect tag. The tag verifies cryptographically, but because gen 0 < promoted gen 1, the host MUST NOT bring up a live data session: RECOVERY-ONLY (re-rotation with fresh operator SAS). A compromised K0 therefore cannot obtain a live K1 session (it cannot pass the operator SAS). Asserts activation is generation-gated, not just retirement.",
+      "id": "UP17",
+      "active": false,
+      "host_state": "PROMOTED (K1=gen1)",
+      "peripheral_presents_gen": 0,
+      "gen0_tag_verifies": true,
+      "expect_live_session": false,
+      "expect": "recovery_only_no_live_session"
+    },
+    {
+      "category": "reconnect_simple_required",
+      "active": true,
+      "status_note": "ACTIVE / REQUIRED (R2-PROVISION §5.3.4 v0.47 — SIMPLE SECURE PAIRING, Roy explicit 2026-07-12). This gen-free same-key reconnect tag is the single REQUIRED reconnect construction; it reproduces the original r2-hive gen-free reconnect helper and is Python-reverified byte-exact. The generation-bound reconnect (UP9-UP12/UP15-UP17) is retired to the parked full-durability field track (active:false).",
+      "description": "REQUIRED simple same-key reconnect tag = HMAC-SHA256(link_key, 'r2-usb-reconnect-v1' || nonce_rc[16] || usb_link_id[16])[..16] (usb_link_id = the CAPS hive_id_bytes; the test placeholder value is unchanged, byte-exact). The single reconnect construction of the simple-secure spec (R2-PROVISION §5.3.4 v0.47); reproduces the r2-hive original helper.",
+      "id": "UP18",
+      "hive_id_bytes": "55555555555555555555555555555555",
+      "link_key": "386667c282a123f2847ef829386561bbebe5d02f2132ffe96a9f40d2c31c43cb",
+      "nonce_rc": "66666666666666666666666666666666",
+      "reconnect_tag": "2f62edaaa469424d5a5da5630b06967b",
+      "usb_link_id_note": "The bound identity is the CAPS hive_id_bytes = usb_link_id (stable, TG-independent, R2-USB §3.6) — NOT the mesh hive_id. The field name 'hive_id_bytes' here is the CAPS field name; its value is a test placeholder for usb_link_id. R2-PROVISION §5.3.4 v0.46 names the KDF input usb_link_id.",
+      "frame_challenge_9": {
+        "msg_type": 9,
+        "name": "RECONNECT_CHALLENGE",
+        "dir": "host->peripheral",
+        "fields": "{1: nonce_rc bstr(16)}",
+        "nonce_rc": "66666666666666666666666666666666",
+        "frame_hex": "ffa2000901a1015066666666666666666666666666666666"
+      },
+      "frame_response_10": {
+        "msg_type": 10,
+        "name": "RECONNECT_RESPONSE",
+        "dir": "peripheral->host",
+        "fields": "{1: tag bstr(16)}",
+        "tag": "2f62edaaa469424d5a5da5630b06967b",
+        "frame_hex": "ffa2000a01a101502f62edaaa469424d5a5da5630b06967b"
+      }
     },
     {
       "category": "usb_link_id",
@@ -121,7 +225,129 @@
       "salt_ascii": "r2-usb-link-v1",
       "info": "",
       "usb_link_id": "851fdee3082ad30e4f981b08e8e303a3"
+    },
+    {
+      "category": "pairing_sequence_and_noncontributory_reject",
+      "id": "UP14",
+      "description": "R2-PROVISION §5.3.4 v0.47 SIMPLE SECURE host-opens pairing + THREE-MESSAGE key-confirmation terminal (CONFIRM->DONE->PAIR_ACK, link_key-authenticated mutual key-confirmation — no journal/generations). Choreography frames HELLO/COMMIT/HOST_REVEAL/REVEAL byte-locked; the three terminal MACs (confirm/done/ack) byte-exact + hive-confirmed. Order: PAIR_HELLO_HOST(4,empty) -> PAIR_COMMIT(5) -> PAIR_HOST_REVEAL(13) -> PAIR_REVEAL(6) -> PAIR_CONFIRM(7) -> PAIR_DONE(8) -> PAIR_ACK(14). Simple reconnect tag = UP18.",
+      "host_secret": "1111111111111111111111111111111111111111111111111111111111111111",
+      "peer_public": "0000000000000000000000000000000000000000000000000000000000000000",
+      "shared_secret": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expect": "reject_non_contributory",
+      "frame_format": "0xFF ｜ CBOR({0: msg_type, 1: fields})",
+      "sequence": [
+        {
+          "step": 1,
+          "msg_type": 4,
+          "name": "PAIR_HELLO_HOST",
+          "dir": "host->peripheral",
+          "fields": "{}",
+          "frame_hex": "ffa2000401a0"
+        },
+        {
+          "step": 2,
+          "msg_type": 5,
+          "name": "PAIR_COMMIT",
+          "dir": "peripheral->host",
+          "fields": "{1: commitment}",
+          "commitment_ref": "UP4.commitment",
+          "frame_hex": "ffa2000501a101582063036b4d1ce9e73c19dfbcdd3238cada9ae44f3186a2139b7ecf47aa0f41625e"
+        },
+        {
+          "step": 3,
+          "msg_type": 13,
+          "name": "PAIR_HOST_REVEAL",
+          "dir": "host->peripheral",
+          "fields": "{1: eph_pk_host, 2: nonce_host}",
+          "fields_ref": "UP7.eph_pk_host, UP7.nonce_host",
+          "frame_hex": "ffa2000d01a20158207b4e909bbe7ffe44c465a220037d608ee35897d31ef972f07f74892cb0f73f130258203333333333333333333333333333333333333333333333333333333333333333"
+        },
+        {
+          "step": 4,
+          "msg_type": 6,
+          "name": "PAIR_REVEAL",
+          "dir": "peripheral->host",
+          "fields": "{1: eph_pk_peripheral, 2: nonce_peripheral}",
+          "fields_ref": "UP7.eph_pk_peripheral, UP7.nonce_peripheral",
+          "frame_hex": "ffa2000601a20158200faa684ed28867b97f4a6a2dee5df8ce974e76b7018e3f22a1c4cf2678570f200258204444444444444444444444444444444444444444444444444444444444444444"
+        },
+        {
+          "step": 5,
+          "msg_type": 7,
+          "name": "PAIR_CONFIRM",
+          "dir": "host->peripheral",
+          "fields": "{1: confirm_mac}",
+          "frame_hex": "ffa2000701a101504e4c5ff286e30e55bd71c2efdc869f4e",
+          "hive_confirmed": true
+        },
+        {
+          "step": 6,
+          "msg_type": 8,
+          "name": "PAIR_DONE",
+          "dir": "peripheral->host",
+          "fields": "{1: done_mac}",
+          "frame_hex": "ffa2000801a1015008ba274f802d982844df255fe5a68be8",
+          "hive_confirmed": true
+        },
+        {
+          "step": 7,
+          "msg_type": 14,
+          "name": "PAIR_ACK",
+          "dir": "host->peripheral",
+          "fields": "{1: ack_mac}",
+          "note": "key-confirmation finalizer; peripheral persists the link_key on verify",
+          "frame_hex": "ffa2000e01a101501ec03c3d79e1f6f19b6a797d24142d72",
+          "hive_confirmed": true
+        }
+      ],
+      "abort_bad_key": {
+        "msg_type": 11,
+        "name": "PAIR_ABORT",
+        "reason": "bad_key",
+        "fields": "{1: \"bad_key\"}",
+        "frame_hex": "ffa2000b01a101676261645f6b6579",
+        "note": "sent when Z is non-contributory (all-zero); SAS MUST NOT be displayed"
+      },
+      "confirm_mac": "4e4c5ff286e30e55bd71c2efdc869f4e",
+      "confirm_mac_construction": "HMAC-SHA256(link_key, \"r2-usb-pair-confirm-host-v1\"||transcript)[0..16], transcript=eph_pk_host||eph_pk_peripheral||nonce_host||nonce_peripheral (128B). Byte-exact, hive-confirmed.",
+      "done_mac": "08ba274f802d982844df255fe5a68be8",
+      "done_mac_construction": "HMAC-SHA256(link_key, \"r2-usb-pair-confirm-peripheral-v1\"||transcript)[0..16]. Byte-exact, hive-confirmed.",
+      "abort_frames": {
+        "bad_key": {
+          "reason": "bad_key",
+          "when": "non-contributory Z (all-zero)",
+          "frame_hex": "ffa2000b01a101676261645f6b6579"
+        },
+        "protocol_error_premature_host_reveal": {
+          "reason": "protocol_error",
+          "when": "PAIR_HOST_REVEAL(13) or host eph_pk/nonce before PAIR_COMMIT",
+          "frame_hex": "ffa2000b01a1016e70726f746f636f6c5f6572726f72"
+        }
+      },
+      "non_contributory_cases": [
+        {
+          "peer_public": "0000000000000000000000000000000000000000000000000000000000000000",
+          "shared_secret": "0000000000000000000000000000000000000000000000000000000000000000",
+          "note": "u=0 all-zero point",
+          "expect": "reject_non_contributory"
+        },
+        {
+          "peer_public": "0100000000000000000000000000000000000000000000000000000000000000",
+          "note": "u=1 low-order point (RFC 7748 §6.1) — X25519 yields all-zero; expect reject",
+          "expect": "reject_non_contributory"
+        }
+      ],
+      "transcript": "eph_pk_host||eph_pk_peripheral||nonce_host||nonce_peripheral (128B, UP7)",
+      "status_note": "v0.47 SIMPLE SECURE PAIRING: all THREE terminal key-confirmation MACs (confirm/done/ack) byte-exact + hive-confirmed. transcript = eph_pk_host||eph_pk_peripheral||nonce_host||nonce_peripheral (128B under the link_key K), labels confirm-host-v1/confirm-peripheral-v1/ack-host-v1, 16B trunc: confirm=4e4c5ff2..., done=08ba274f..., ack=1ec03c3d... These three form a plain mutual key-confirmation (no journal/generations/phases). The reconnect is the simple same-key tag UP18. NO crash-durability/journal/rotation KATs are owed (that machinery is parked). NOTE (v0.47): the host persists K at PAIR_DONE-verify (before PAIR_ACK), so a lost PAIR_ACK / peripheral-crash-pre-persist yields a durable ONE-SIDED-key state (H=new, P=old) — POSSIBLE — recoverable, no key compromise, but an availability/ceremony DoS an attacker CAN force (no deadlock, no reconciliation; the next reconnect fails then operator re-pair; operator re-pair overrides the known-key reconnect path). This is a behavioral outcome, not a byte-KAT.",
+      "ack_mac": "1ec03c3d79e1f6f19b6a797d24142d72",
+      "negative_premature_host_reveal": {
+        "description": "PAIR_HOST_REVEAL(13) arriving BEFORE PAIR_COMMIT(5) MUST be rejected with protocol_error (enforces commit-before-reveal). Also a host eph_pk/nonce before COMMIT.",
+        "abort_frame_hex": "ffa2000b01a1016e70726f746f636f6c5f6572726f72",
+        "expect": "reject_protocol_error"
+      },
+      "owed_state_crash_vectors": "NONE (byte-KATs). Crash/journal/rotation KATs are OUT of scope for the simple-secure spec (R2-PROVISION §5.3.4 v0.47). Recovery = re-pair on any doubt. There is no durable pending key or generation grace, so no split-brain RECONCILIATION protocol exists — BUT a durable one-sided-key state (H=new/P=old) IS possible after a lost PAIR_ACK (host persists K before ACK); it is recoverable (no key compromise) + operator-recoverable via re-pair (behavioral trace, not a byte-KAT). Crash-durability KATs belong to the parked full-durability field track only.",
+      "ack_mac_construction": "HMAC-SHA256(link_key, \"r2-usb-pair-ack-host-v1\"||transcript)[0..16]. Byte-exact, hive-confirmed."
     }
   ],
-  "version": "0.1"
+  "version": "0.16"
 }

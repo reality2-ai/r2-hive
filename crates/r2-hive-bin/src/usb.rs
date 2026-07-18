@@ -1409,6 +1409,33 @@ mod tests {
         assert_eq!(s.state(), SessionState::Active);
     }
 
+    /// TV8 anti-flap guard (R2-USB §3.3/§3.5, vector corrected v0.24/25):
+    /// a re-SYNC on an ESTABLISHED link MUST NOT reset the session or
+    /// tear it down — the old `reset_and_respond` behaviour flapped
+    /// healthy links on every keepalive (the live flap Roy saw). This
+    /// asserts ONLY the verified-conformant property: the session stays
+    /// Active (no reset, no Close) across a re-SYNC. NOTE: hive-bin does
+    /// not yet *respond-and-preserve* (it currently mis-routes the
+    /// re-SYNC as a short WireFrame and sends no SYNC back) — the respond
+    /// half is an open item with specs (anti-storm semantics unresolved),
+    /// deliberately NOT asserted here so this guard cannot lock in a gap.
+    #[test]
+    fn resync_on_established_link_does_not_reset() {
+        let mut s = UsbSession::new_auto_pair_unsafe();
+        s.send_sync();
+        let _ = s.take_outbound();
+        let _ = s.ingest_bytes(&hex("040032520200")); // SYNC v2
+        let _ = s.ingest_bytes(&hex(CAPS_FIXTURE_LORA));
+        assert_eq!(s.state(), SessionState::Active, "precondition: established");
+        // A re-SYNC arrives on the established link.
+        let _ = s.ingest_bytes(&hex("040032520200"));
+        assert_eq!(
+            s.state(),
+            SessionState::Active,
+            "TV8: a re-SYNC MUST NOT reset/tear down an established link"
+        );
+    }
+
     /// TV5 — tagged data frame on local_id=0 wraps an R2-WIRE evt.
     /// wire_hex: 1100 00 53A1B2424D3E4C1A2B3C4DA10018EA  (length=0x11=17 bytes)
     /// payload after type byte: 53A1B2424D3E4C1A2B3C4DA10018EA  (16 bytes)

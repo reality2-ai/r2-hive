@@ -1,6 +1,6 @@
 {
   "spec": "R2-USB",
-  "version": "0.7",
+  "version": "0.25",
   "description": "Conformance vectors for the R2-USB serial transport framing and properties (R2-USB §3 Framing, §4 Transport Properties). USB carries compact R2-WIRE frames length-prefixed on the serial byte stream. All multi-byte integers on the USB framing layer are LITTLE-ENDIAN (§3.2). Hex is lowercase. Vector ids follow the TV<n> scheme cited by consuming impls.",
   "notes": [
     "Frame encoding (§3.2): [payload_length: uint16 LE][R2-WIRE compact message: payload_length bytes]. Max payload 255 (compact). payload_length == 0 is a no-op/keepalive that MUST be silently ignored.",
@@ -8,15 +8,21 @@
     "Behavioural vectors describe a required behaviour rather than a single byte string."
   ],
   "re_verify": {
-    "date": "2026-07-03",
-    "against": "R2-USB v0.7",
-    "method": "v0.7 (proactive cross-repo interop sweep) marks §3.7's Error report (msg_type 1) as explicitly deliberate implementation-defined content, not an accidental gap -- a documentation clarification adding a MUST that receivers treat it as opaque, with no byte-layout or wire-format change. Confirmed: none of this file's 26 vectors exercise msg_type 1 / control frames at all (all are §3.2/§4 framing/length-prefix/transport-property tests per the earlier re_verify), so the change cannot have touched any of them.",
-    "verdict": "All 26 vectors HOLD vs R2-USB v0.7. No vector value changed. (Prior re_verify for the 0.3->0.6 catch-up preserved below for history.)",
+    "date": "2026-07-11",
+    "against": "R2-USB v0.9",
+    "method": "v0.9: prose/notes only — TV27 notes corrected to the R2-BEACON 8.1.1 accepted LoRa length set {15,16,17} (15 core/16 tx_power/17 dev); no vector bytes changed. v0.8: (1) UNIFIED the CAPS descriptor `kind` enum to R2-TRANSPORT §2.2 (was a separate Appendix-A enum: LoRa=1/BLE=2; android caught the two-enums-in-one-protocol inconsistency) -> TV21 `kind` 1->2 (LoRa), TV22 invalid-example likewise; CAPS wire change, pre-release, hive usb.rs re-emits. (2) NEW §3.7.1 observation subtype (msg_type=12) + TV27 (real DEV LoRa observation). Other 26 vectors are §3.2/§3.4/framing tests untouched.",
+    "verdict": "TV21/TV22 re-issued for the §2.2 enum unification; TV27 added. All other vectors byte-identical.",
     "prior": {
-      "date": "2026-07-02",
-      "against": "R2-USB v0.6",
-      "method": "First re-verify since v0.3 (no prior re_verify block existed). 3 intervening changes, none touching §3/§4 framing: v0.4 added a §3.6 'relation to device_id' cross-ref note (explicitly 'vectors unchanged'); v0.5 dropped a retired DEV_PK token from that same §3.6 cross-ref note (terminology cleanup only); v0.6 added §1 NEW normative host-radio-delegation text (no-BlueZ/all-radio-via-MCU model, explicitly 'No wire/format change'). Confirmed independently: grepped this file for DEV_PK/DEV_SK/device_id -- zero hits; all 26 TV vectors are framing/length-prefix/transport-property byte tests (category: framing etc.), nothing here represents device identity or radio topology, so none of the 3 changes could have touched it either way.",
-      "verdict": "All 26 vectors HOLD vs R2-USB v0.6 (label-lag catch-up 0.3->0.6, byte-identical). No vector value changed."
+      "date": "2026-07-03",
+      "against": "R2-USB v0.7",
+      "method": "v0.7 (proactive cross-repo interop sweep) marks §3.7's Error report (msg_type 1) as explicitly deliberate implementation-defined content, not an accidental gap -- a documentation clarification adding a MUST that receivers treat it as opaque, with no byte-layout or wire-format change. Confirmed: none of this file's 26 vectors exercise msg_type 1 / control frames at all (all are §3.2/§4 framing/length-prefix/transport-property tests per the earlier re_verify), so the change cannot have touched any of them.",
+      "verdict": "All 26 vectors HOLD vs R2-USB v0.7. No vector value changed. (Prior re_verify for the 0.3->0.6 catch-up preserved below for history.)",
+      "prior": {
+        "date": "2026-07-02",
+        "against": "R2-USB v0.6",
+        "method": "First re-verify since v0.3 (no prior re_verify block existed). 3 intervening changes, none touching §3/§4 framing: v0.4 added a §3.6 'relation to device_id' cross-ref note (explicitly 'vectors unchanged'); v0.5 dropped a retired DEV_PK token from that same §3.6 cross-ref note (terminology cleanup only); v0.6 added §1 NEW normative host-radio-delegation text (no-BlueZ/all-radio-via-MCU model, explicitly 'No wire/format change'). Confirmed independently: grepped this file for DEV_PK/DEV_SK/device_id -- zero hits; all 26 TV vectors are framing/length-prefix/transport-property byte tests (category: framing etc.), nothing here represents device identity or radio topology, so none of the 3 changes could have touched it either way.",
+        "verdict": "All 26 vectors HOLD vs R2-USB v0.6 (label-lag catch-up 0.3->0.6, byte-identical). No vector value changed."
+      }
     }
   },
   "vectors": [
@@ -59,7 +65,12 @@
       "id": "TV5",
       "category": "sync",
       "description": "SYNC frame, compact-only (flags = 0x00) (§3.3).",
-      "fields": { "payload_length": 4, "magic": "0x5232", "version": "0x01", "flags": "0x00" },
+      "fields": {
+        "payload_length": 4,
+        "magic": "0x5232",
+        "version": "0x01",
+        "flags": "0x00"
+      },
       "usb_frame_hex": "040032520100",
       "usb_frame_length": 6,
       "expect": "accept"
@@ -68,7 +79,12 @@
       "id": "TV6",
       "category": "sync",
       "description": "SYNC frame advertising extended-format support (flags bit0 = 1) (§3.3).",
-      "fields": { "payload_length": 4, "magic": "0x5232", "version": "0x01", "flags": "0x01" },
+      "fields": {
+        "payload_length": 4,
+        "magic": "0x5232",
+        "version": "0x01",
+        "flags": "0x01"
+      },
       "usb_frame_hex": "040032520101",
       "usb_frame_length": 6,
       "expect": "accept"
@@ -77,7 +93,12 @@
       "id": "TV7",
       "category": "sync",
       "description": "SYNC with a reserved flag bit set (flags = 0x02, bit1) is invalid — bits 1-7 MUST be 0 (§3.3).",
-      "fields": { "payload_length": 4, "magic": "0x5232", "version": "0x01", "flags": "0x02" },
+      "fields": {
+        "payload_length": 4,
+        "magic": "0x5232",
+        "version": "0x01",
+        "flags": "0x02"
+      },
       "usb_frame_hex": "040032520102",
       "expect": "reject",
       "reason": "reserved flag bits (1-7) must be zero"
@@ -85,8 +106,9 @@
     {
       "id": "TV8",
       "category": "sync_behaviour",
-      "description": "Receiving a SYNC on an established link MUST reset the link state and respond with a SYNC (§3.3). Both ends MUST accept a SYNC at any time.",
-      "expect": "reset_and_respond"
+      "description": "Receiving a SYNC on an ESTABLISHED link is idempotently RE-ANSWERED, not a reset: the endpoint responds with a SYNC and PRESERVES existing link state (session, negotiated CAPS/activation, negotiated tier, and the link generation (the epoch) + reset_seq). A bare re-SYNC is a liveness signal, NOT a teardown — it MUST NOT by itself reset the link or bump generation/reset_seq (resetting a healthy link on every keepalive is a defect). The link state is reset ONLY by a changed link identity — a CAPS with a different usb_link_id -> LINK RESET (§3.6), which alone bumps generation/reset_seq. Both ends MUST accept a SYNC at any time.",
+      "expect": "respond_and_preserve",
+      "notes": "CORRECTED at v0.25. This vector previously read 'MUST reset the link state and respond' / expect=reset_and_respond — the exact MUST that R2-USB v0.24 reversed as demonstrably wrong (it tore down healthy links on every keepalive: the flap Roy observed live). The v0.24 fold landed the spec correction but left this vector asserting the reversed rule, and its 'label co-bump only, bytes identical' claim was FALSE — TV8 encodes the behaviour v0.24 changed. An implementer conforming to the old TV8 would reproduce the flap. No known consumer pinned TV8 (r2-android core-ffi pins TV5/TV18 byte-exact only)."
     },
     {
       "id": "TV9",
@@ -138,7 +160,12 @@
       "id": "TV14",
       "category": "sync",
       "description": "SYNC frame advertising v2 (type-byte mode), compact-only (§3.3). version = 0x02.",
-      "fields": { "payload_length": 4, "magic": "0x5232", "version": "0x02", "flags": "0x00" },
+      "fields": {
+        "payload_length": 4,
+        "magic": "0x5232",
+        "version": "0x02",
+        "flags": "0x00"
+      },
       "usb_frame_hex": "040032520200",
       "usb_frame_length": 6,
       "expect": "accept"
@@ -172,10 +199,49 @@
       "reason": "type-byte frames forbidden on a v1-negotiated link"
     },
     {
+      "id": "TV28",
+      "category": "tier_negotiation",
+      "description": "Extended is enabled ONLY by explicit BILATERAL assent (§3.3, v0.25). Both ends advertised flags bit0=1 -> extended permitted on this link establishment.",
+      "host_flags": "0x01",
+      "peripheral_flags": "0x01",
+      "peer_flags_observed": true,
+      "attempted_send_tier": "extended",
+      "negotiated_tier": "extended",
+      "expect": "extended_permitted"
+    },
+    {
+      "id": "TV29",
+      "category": "tier_negotiation",
+      "description": "Either end advertising flags bit0=0 -> COMPACT ONLY. An endpoint MUST NOT send extended unless BOTH ends advertised bit0=1 (§3.3, v0.25). Fail-closed: compact is the default, not a fallback either side may override.",
+      "host_flags": "0x01",
+      "peripheral_flags": "0x00",
+      "peer_flags_observed": true,
+      "attempted_send_tier": "extended",
+      "negotiated_tier": "compact",
+      "expect": "sender_refuses_extended_emits_compact"
+    },
+    {
+      "id": "TV30",
+      "category": "tier_negotiation",
+      "description": "NEGOTIATION-IGNORING (§3.3, v0.25) — the third state, and the one that ships. An endpoint that sends a valid SYNC but never READS the peer's flags byte MUST behave as compact-only: it MUST NOT send extended. Ignoring a negotiation is NOT refusing one — it is declining to decide, and it is NOT a licence to skip the rule. Sending extended without having observed the peer's assent is NON-CONFORMANT.",
+      "host_flags": "0x00",
+      "peripheral_flags": "0x00",
+      "peer_flags_observed": false,
+      "attempted_send_tier": "extended",
+      "negotiated_tier": "compact",
+      "expect": "sender_refuses_extended_emits_compact",
+      "reason": "silence is not refusal; with the peer's assent unobserved the fail-closed default is compact",
+      "notes": "SENDER-DRIVEN, NOT RECEIVER-CHECKABLE BY CONSTRUCTION. The falsifiable condition is peer_flags_observed=false AND attempted_send_tier=extended -> a conformant SENDER MUST refuse and emit compact; the SAME wire bytes as a negotiated-compact link cannot be used to detect ignoring from the receive side (M2, specs-codex 0abefb2). There is deliberately no matching receiver-side MUST, because none is implementable: flags bit0 is the only tier signal on a USB link and it is OUT-OF-BAND (in the §3.3 SYNC handshake, not in any frame). Compact and extended share an identical byte 0 (ver(2)|type(3)|flags(3), R2-WIRE 4.2.2 / 4.3.2; ver is the WIRE version, NOT the tier — both tiers are version 0 today), and the v2 type byte does not carry the tier (its 0x00-0xFB space is entirely local_id) -> there is NO in-frame/in-band R2-WIRE discriminator. An extended frame on a compact-negotiated link is therefore MIS-PARSED as compact, not rejected: a violating sender produces garbage that decodes, never a clean error. A conformance harness must drive this from the SENDER side."
+    },
+    {
       "id": "TV18",
       "category": "type_byte",
       "description": "v2 local_id-tagged R2-WIRE frame (§3.5, type byte 0x00-0xFB). type byte 0x00 = the transport with local_id 0; body is one R2-WIRE compact message (here the TV1 16-byte frame). usb_frame = [len LE][type][wire].",
-      "fields": { "payload_length": 17, "type_byte": "0x00", "wire_frame_hex": "0053a1b2424d3e4c1a2b3c4da10018ea" },
+      "fields": {
+        "payload_length": 17,
+        "type_byte": "0x00",
+        "wire_frame_hex": "0053a1b2424d3e4c1a2b3c4da10018ea"
+      },
       "usb_frame_hex": "1100000053a1b2424d3e4c1a2b3c4da10018ea",
       "usb_frame_length": 19,
       "expect": "accept"
@@ -194,15 +260,30 @@
       "description": "Discriminator collision-freedom (§3.5): an untagged R2-WIRE header's first byte is <= 0x3F (compact, version 0) or <= 0xBF (extended, version < 3), so it can never collide with the type-byte discriminators 0xFC-0xFF (reserved/CAPS/control). The type byte is unambiguous.",
       "wire_first_byte_max_compact": "0x3F",
       "wire_first_byte_max_extended": "0xBF",
-      "discriminators": ["0xFC", "0xFD", "0xFE", "0xFF"],
+      "discriminators": [
+        "0xFC",
+        "0xFD",
+        "0xFE",
+        "0xFF"
+      ],
       "expect": "no_collision"
     },
     {
       "id": "TV21",
       "category": "caps",
-      "description": "CAPS frame (§3.6, type byte 0xFE): CBOR map {0: hive_id_bytes bstr16, 1: firmware_id tstr, 2: firmware_version uint, 3: transports[ {0: local_id, 1: kind} ]}. Here: hive_id_bytes = the canonical usb_link_id (R2-USB §3.6 / cross-checks r2-usb-pair UP13 851fdee3...), firmware_id 'r2-relay', version 1, one transport {local_id 0, kind 1 = LoRa (Appendix A)}.",
-      "fields": { "hive_id_bytes": "851fdee3082ad30e4f981b08e8e303a3", "firmware_id": "r2-relay", "firmware_version": 1, "transports": [ { "local_id": 0, "kind": 1 } ] },
-      "caps_body_cbor_hex": "a40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a200000101",
+      "description": "CAPS frame (§3.6, type byte 0xFE): CBOR map {0: hive_id_bytes bstr16, 1: firmware_id tstr, 2: firmware_version uint, 3: transports[ {0: local_id, 1: kind} ]}. Here: hive_id_bytes = the canonical usb_link_id (R2-USB §3.6 / cross-checks r2-usb-pair UP13 851fdee3...), firmware_id 'r2-relay', version 1, one transport {local_id 0, kind 2 = LoRa (R2-TRANSPORT §2.2 canonical enum; v0.8 unified — was 1 under the retired Appendix-A enum)}.",
+      "fields": {
+        "hive_id_bytes": "851fdee3082ad30e4f981b08e8e303a3",
+        "firmware_id": "r2-relay",
+        "firmware_version": 1,
+        "transports": [
+          {
+            "local_id": 0,
+            "kind": 2
+          }
+        ]
+      },
+      "caps_body_cbor_hex": "a40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a200000102",
       "usb_frame_hex": "2700fea40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a200000101",
       "usb_frame_length": 41,
       "expect": "accept",
@@ -212,7 +293,16 @@
       "id": "TV22",
       "category": "caps",
       "description": "CAPS validation (§3.6): the transports array MUST contain 1-16 descriptors, every local_id MUST be <= 0xFB, and local_id values MUST be unique. A CAPS frame violating any of these is malformed and MUST be rejected. Example: two descriptors sharing local_id 0.",
-      "invalid_transports": [ { "local_id": 0, "kind": 1 }, { "local_id": 0, "kind": 2 } ],
+      "invalid_transports": [
+        {
+          "local_id": 0,
+          "kind": 2
+        },
+        {
+          "local_id": 0,
+          "kind": 2
+        }
+      ],
       "expect": "reject",
       "reason": "duplicate local_id in CAPS transports array"
     },
@@ -220,7 +310,11 @@
       "id": "TV23",
       "category": "control",
       "description": "Control frame (§3.7, type byte 0xFF): CBOR {0: msg_type, 1: body}. Here msg_type 2 = log line, body tstr 'hello'.",
-      "fields": { "type_byte": "0xFF", "msg_type": 2, "body": "hello" },
+      "fields": {
+        "type_byte": "0xFF",
+        "msg_type": 2,
+        "body": "hello"
+      },
       "control_body_cbor_hex": "a20002016568656c6c6f",
       "usb_frame_hex": "0b00ffa20002016568656c6c6f",
       "usb_frame_length": 13,
@@ -236,7 +330,12 @@
       "id": "TV25",
       "category": "control",
       "description": "Control msg_type values 4-11 are the USB pairing flow, defined normatively in R2-PROVISION §5.3.4 (message vocabulary PAIR_HELLO_HOST(4) .. PAIR_ABORT(11)); msg_type 1 = error report, 2 = log line, 3 = transport state change; other msg_types are reserved and MUST be ignored (skipped) by receivers.",
-      "msg_types": { "1": "error", "2": "log", "3": "transport_state", "4-11": "USB pairing (R2-PROVISION §5.3.4)" },
+      "msg_types": {
+        "1": "error",
+        "2": "log",
+        "3": "transport_state",
+        "4-11, 13, 14 (15 reserved/retired)": "USB pairing (R2-PROVISION §5.3.4). 13 = PAIR_HOST_REVEAL, 14 = PAIR_ACK. 15 = RESERVED (was RECONNECT_ACCEPT; retired when §5.3.4 became the SIMPLE SECURE pairing spec v0.45 — reconnect is now the two-frame same-key 9/10; 15 kept allocated, not reused)."
+      },
       "expect": "msg_type_vocabulary"
     },
     {
@@ -245,6 +344,24 @@
       "description": "v2 payload_length bound (§3.5): a host SHOULD bound the accepted payload_length (RECOMMENDED 4096, covering the R2-WIRE compact max + type-byte + CAPS overhead) and treat larger frames as malformed. NOTE: v2 type-byte frames (CAPS/control) MAY exceed the 255-byte compact limit (TV2/TV3) — that limit applies to the R2-WIRE compact MESSAGE, not to a CAPS/control payload.",
       "recommended_max_payload_length": 4096,
       "expect": "bound_payload_length"
+    },
+    {
+      "id": "TV27",
+      "category": "control",
+      "description": "Observation/sighting control frame (§3.7.1, v2 type byte 0xFF, msg_type=12): link-local peripheral->host presence telemetry, MUST-NOT-relay by frame class. Body {0:12, 1:{0:beacon, 1:bearer, 2:rssi, 3:snr}}. Here a REAL DEV LoRa beacon (17B, magic-first from 0xB2, Company-ID stripped; hive dfr1195 producer) on bearer=2 (LoRa, R2-TRANSPORT §2.2). rssi/snr are runtime-measured EXAMPLES (-67 dBm / +7 dB whole-dB) — the byte-exact conformance target is the framing + beacon bytes + enum, not the live rssi/snr.",
+      "fields": {
+        "msg_type": 12,
+        "beacon_hex": "b201007fce111165325a9abafe8ac11402",
+        "beacon_len": 17,
+        "bearer": 2,
+        "rssi": -67,
+        "snr": 7
+      },
+      "control_body_cbor_hex": "a2000c01a40051b201007fce111165325a9abafe8ac1140201020238420307",
+      "control_payload_hex": "ffa2000c01a40051b201007fce111165325a9abafe8ac1140201020238420307",
+      "usb_frame_hex": "2000ffa2000c01a40051b201007fce111165325a9abafe8ac1140201020238420307",
+      "usb_frame_length": 34,
+      "notes": "beacon 17B DEV = magic b2 · ver 01 · flags 00 · rbid 7fce111165325a9a · class bafe8ac1 (HIVE class 0xBAFE8AC1: DFR1195 is a full-service node running AP/services, R2-BEACON §4 v0.47 -- NOT a repeater) · txpwr 14 · build_class 02. PROD LoRa = 15B core (magic ver flags rbid class) OR 16B with optional tx_power; DEV = 17B (+build_class). Accepted set exactly {15,16,17} per R2-BEACON 8.1.1 — a length-gating decoder MUST accept all three. BLE (future producer) forwards the >=18B/24B manufacturer value from 0xB2 (different structure: +anti-collision+reserved), bearer=0, snr omitted."
     }
   ]
 }
