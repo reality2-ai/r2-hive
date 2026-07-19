@@ -4,7 +4,15 @@
 
 > ## 🔧 READ THIS BEFORE YOU TOUCH A BOARD — TWO PINNED IMAGES, READY TO FLASH
 >
-> Both built at `r2-core@50c719dd` on `dfr1195-fw`, in `platforms/dfr1195/staged-overnight/`:
+> Both built at `r2-core@50c719dd` on `dfr1195-fw`, in `platforms/dfr1195/staged-overnight/`.
+>
+> **⛔ THAT PATH IS LOCAL-ONLY. THE IMAGES ARE NOT IN THE REPO.** Measured 2026-07-20:
+> `git ls-tree origin/dfr1195-fw platforms/dfr1195/staged-overnight/` returns **0 entries** (positive
+> control: `partitions.csv` returns 1). They are untracked — **not** gitignored, just never committed —
+> and exist **only in the `dfr1195-fw-wt` worktree on this host**. A fresh clone of `dfr1195-fw` gets
+> `partitions.csv` and **no images**. If you are flashing from any other checkout or box, these two files
+> are not there and the shas below cannot be matched against anything. Copy them from this worktree, or
+> rebuild at `50c719dd` (assert `git rev-parse HEAD` **first**, sha **second**).
 >
 > | role | features | ELF sha256 | bytes |
 > |---|---|---|---|
