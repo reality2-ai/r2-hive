@@ -55,6 +55,29 @@
 > reasonably conclude it was field-ready. One echo line; no build step, flash step, path or emitted recipe
 > changed. **The filename still says `field` and that is unfixed** — renaming moves a path other things may
 > call, so it was deliberately left for a scoped change.
+>
+> **⛔ THE RAK FLASH HOLD STANDS. Nothing on 2026-07-20 cleared it.** composer struck reason (1) of its
+> three-reason hold (`r2-composer@6e87972`) because Roy reversed the singleton-repeater-TG ruling on
+> 2026-07-18 — an operator was being handed a *retired design* as a current reason not to flash. It did
+> **not** lift the hold. My part, measured at `r2-core@d39900d8`:
+>
+> - **Reason (2), stale dataplane, is stale AT SOURCE.** `r2-dataplane/src/lib.rs:819` dispatches on
+>   `WireFormat`; `:869` is `WireFormat::Compact => decode_compact(frame)`; `platforms/rak4630/src/main.rs:834`
+>   sets `WireFormat::Compact`. Landed `6c8c0d44` (task #71). **Caller-traced, not presence-grepped** — the
+>   raw count was 12 hits and most were tests, so the count alone would have been a false green.
+> - **That is NOT a clearance.** `r2-dataplane/src/lib.rs:4272` scopes the extended-only claim to the
+>   flashed `850b` image and **remains true of that image**. Whether the board relays depends on which
+>   image is on it, not on what this tree contains. Current flashable artifact is **NONE**.
+> - **Reason (3) open scope: not mine, not assessed.**
+> - **A fourth, unlisted by composer: task #72 is still open — the RAK persona path FAILS OPEN into
+>   radiation.** If anyone reads the (1) reversal as thawing the hold, #72 is a standing reason it should not.
+>
+> **`crates/_VERSIONS.toml` VOIDed at `r2-core@7011934e`.** It carried a live present-tense block —
+> *"the vendored dataplane decodes EXTENDED ONLY … this repeater relays nothing"* — with the fix listed as
+> pending. The file was last touched `8a66d9c2` (2026-07-17); the re-vendor landed `6c8c0d44` (2026-07-18).
+> **The provenance manifest never saw the change it predicted.** Struck, reasoning retained. The
+> base/date/digest rows are **deliberately not recomputed** — marked unverified and tracked as **#96**,
+> because inventing digests would make the record-of-record *confidently* wrong.
 
 > ## ☀️ FOR ROY, MORNING OF 2026-07-20 — WHAT HAPPENED OVERNIGHT, WHAT DID NOT, AND WHY
 >
