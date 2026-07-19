@@ -156,8 +156,17 @@
 > ```
 > cd /home/roycdavies/Development/R2/dfr1195-fw-wt/platforms/dfr1195
 > <flasher> flash --monitor --chip esp32s3 --partition-table partitions.csv \
+>   --port /dev/ttyACM3 \
 >   staged-overnight/r2-dfr1195-SENSOR-fakesensor-ble.elf
 > ```
+> **`/dev/ttyACM3` is where label `9057ab45` sat when supervisor re-derived the map this morning — re-run
+> the label→port loop above immediately before flashing and substitute what it reports.** The port is not
+> the identity. Getting this wrong targets `a200a586`, the *previously-flashed* board, which is explicitly
+> out of scope.
+> **No manual BOOT/RST dance is needed:** `reset_strategy = "usb_serial_jtag"` in composer's
+> `catalogue/boards/esp32-s3-dfr1195/board.toml`, so the flasher drives the reset itself. *(That is
+> composer's datum, relayed by supervisor — I have not verified it, and it is a convenience claim, not a
+> safety one.)*
 > *(`<flasher>` is the ESP32 flash tool named in `.cargo/config.toml:15`; spelled out there. The fleet gate
 > blocks that token in agent messages, which is why it is not written literally here.)*
 >
@@ -176,6 +185,28 @@
 > `env::var("R2_BUILD_ID").unwrap_or("dev")` — a build-environment string with a `dev` fallback, not a
 > commit. Whether it was set for this build **cannot be determined from the artifact and I did not guess**.
 > A banner reading `build dev` confirms nothing about provenance; **step 1 is the only provenance link.**
+>
+> **✅ THE PRIMARY L0 ACCEPTANCE TEST IS THE SCREEN, AND IT NEEDS NO CONSOLE** (supervisor's construction on
+> the render analysis). The fresh board `9057ab45` **has no R2 on it** — Roy, direct. Whatever it shows now
+> is vendor/factory firmware.
+>
+> | | expect |
+> |---|---|
+> | **BEFORE** | **no** R2 layout. No `hive {my_hive:08x}` line, no `BLE± LoRa± TG±` line. |
+> | **AFTER** | both lines present. `TG-` (unprovisioned by design), `BLE±`/`LoRa±` per radio state. |
+>
+> **"The R2 five-line layout appears where there was none" is the pass condition** — falsifiable, and if it
+> does not appear the flash did not take *whatever the flasher printed*. Strictly better than the serial
+> banner expectations because it needs no tty at all. **The sha assertion is still mandatory: the screen
+> proves SOMETHING R2 landed, only the sha proves WHICH.**
+>
+> **⚠ AN INTERLOCK THIS TEST SILENTLY DEPENDS ON.** The LCD is driven only when `has_screen` is true, and
+> `has_screen` comes from `read_board_profile` at `0x13000`. On a freshly-flashed board that region is
+> **erased**, reads `0xFF`, and `b[0] != 0x00` ⇒ **true** — so the screen comes up *because* the config
+> plane is blank. **The same erased-flash default that produces the banner expectation is what makes this
+> acceptance test valid.** Had it defaulted false, a perfectly successful flash would leave a dark screen
+> and the test would false-negative. Anything that later writes a board profile with `b[0] == 0x00` breaks
+> this test, not the firmware.
 >
 > **L0 PASS = boots · carrier line as above · unprovisioned bench arm · PHASE 1a reached · no panic.**
 > Radio *init* is implied by reaching later banners; this does **not** claim LoRa TX/RX. Persona install is
