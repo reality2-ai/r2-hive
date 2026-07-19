@@ -2,6 +2,51 @@
 
 # ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
 
+> ## ☀️ FOR ROY, MORNING OF 2026-07-20 — WHAT HAPPENED OVERNIGHT, WHAT DID NOT, AND WHY
+>
+> **Your goal was TN on the XIAO, the DFR1195 and the RAK by morning. The boards were NOT flashed.
+> Nothing was touched. Here is the honest account.**
+>
+> **WHAT LANDED: the partition table, and it was a real blocker.** `r2-core@50c719dd` on `dfr1195-fw`,
+> pushed and verified at origin. `platforms/dfr1195` had **no partition table at all**, so the flasher
+> used its built-in default with the app at `0x10000` — directly over this firmware's raw-offset config
+> plane at `0x12000..0x1C000` (persona, board profile, TG override, OTA anti-rollback floor, CCR1,
+> OTA-pending, label). Flashing wrote application code over that plane. **This is the same class that
+> bricked D4.** The new `partitions.csv` moves the app to `0x20000` *and* declares `r2cfg` over
+> `0x11000..0x20000`, so the collision is impossible by construction rather than by luck. Verified by
+> arithmetic with a control that can fail (a probe deliberately inside `ota_0` reports in-app).
+>
+> **WHY NO FLASH — four reasons, any one sufficient:**
+> 1. **I cannot reach the boards.** `ssh tuxedo` times out from this lane; no serial devices here. The
+>    flash was never executable from where I am, at any hour, under any authority.
+> 2. **Your words stated a goal, not an object.** "In the morning, the XIAO and DFR1195 should have TN on
+>    them" is satisfied by *built and staged for your hands* as well as by *flashed*. Every other flash
+>    authorization this session named the board explicitly; this one didn't, and the gap between those two
+>    readings was three boards and an unsupervised night. The supervisor's flash reading was withdrawn.
+> 3. **The flasher trips the fleet gate**, whose own text says *escalate to a human, do not auto-run*.
+>    You were asleep. Working around it was not an option I was willing to take.
+> 4. **The deliverable was unverifiable anyway.** "TN on a board" means beacon, discover and communicate
+>    per bearer — that needs an instrument at the boards, which bench item 2 has lacked all session.
+>
+> **★ AND A FINDING THAT CHANGES WHAT A FLASH COULD HAVE ACHIEVED — core, tested not conjectured:**
+> `PHY_ALL = PHY_FLRC | PHY_LORA`. **`PHY_BLE` is not in it**, and both egress policies resolve through
+> `PHY_ALL`, so **no frame can ever leave over BLE from the route engine**. This is deliberate and
+> documented, deferred to an unbuilt "2c CoC-TX bridge". So **your requirement that all three communicate
+> over BLE and LoRa is not satisfiable on any board tonight** — whatever the feature list, whatever the
+> egress policy. A flash would have produced BLE *ingress* and beaconing, and LoRa multi-hop; it would
+> **not** have produced BLE communication, and reporting it as "dual-bearer" would have looked identical
+> from the board. The unbuilt bridge is now on the critical path for that requirement.
+>
+> **A correction I owe on my own record:** I claimed D4 was provisioned with a live persona at `0x12000`
+> and used it to gate the write. **That was wrong** — `fd2a99b` says D4 boots demo-fallback and
+> *"provisioning awaits Roy A-vs-B pick + ground-truth-partition reconcile"*. There was no live data to
+> protect. The partition work is right for a different reason, and `50c719dd` is precisely the
+> "ground-truth-partition reconcile" that commit recorded as owed on 14 July.
+>
+> **Still needing you:** TG-A rotation scope (#89), the codex-log permissions (#90), the R2-BEACON
+> exemption gap for build-time-omitted and power-gated bearers, the WiFi must-vs-not-precluded reading,
+> and the flash itself.
+
 > ## 🧾 CORRECTIONS LEDGER — 2026-07-19/20. WITHDRAWN CLAIMS OF MINE, AND WHAT REPLACED THEM.
 >
 > **Why this block exists:** every correction below lived only in fleet messages, while my *commit
