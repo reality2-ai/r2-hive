@@ -93,6 +93,43 @@
 > **⚠ "Symbol absent from ELF" is sound in the ABSENT direction only.** Absent proves unbuilt; present
 > proves nothing.
 >
+> ## 🔨 nbrs=0 ROOT CAUSE FOUND + ROY RULED — CODE CHANGE IS CORE'S, I BUILD ON THEIR SHA (2026-07-20)
+>
+> **ROOT CAUSE (mine, measured at `50c719dd`):** `mesh_broadcast`'s LoRa arm is
+> `let _ = DATA_TX_LORA.try_send((f, n));` (`main.rs:4328`) into a **depth-4** channel (`:4304`), and the
+> `APIARY … -> LoRa TN` print sits **after** that call (`:6316`) so it prints regardless of success.
+> SF12 confirmed from `as923_nz()` itself (spreading_factor 12, BW 125k, CR4/5; `benchsf7` **not** in the
+> `fakesensor,ble` closure). 29 B @ SF12 = **1647 ms** airtime ⇒ ~1 frame per 16.5 s.
+>
+> ```
+> enqueue 1.00/s · drain 0.061/s · 16.4x oversubscribed
+> depth 4 fills in ~4.3s, then every try_send Errs and `let _` discards it — silently
+> ```
+> **The keepalive shares that queue**, so it never reaches air, `seen.push` never fires, and **nbrs=0 on
+> both boards, symmetrically, forever.** The observed 1/s is an **enqueue** rate, not a TX rate — it is not
+> evidence about SF. Candidate "shared origin hash" died by arithmetic:
+> `fnv1a_32("nz.r2.apiary.reading")` = `64cedb11`, the event **class** hash, identical by design.
+>
+> **ROY'S RULING (option 1):** keep **SF12 canonical** · **discovery preempts data** · throttle sensor emit
+> to bearer capacity · replace the `let _` drop with a **visible counter on the status line AND the
+> screen**. **No SF change, no `benchsf7`, XIAO and RAK not reflashed.**
+>
+> **⚠ DESIGN NOTE FOR CORE — "discovery preempts data" IS NOT EXPRESSIBLE IN THE CURRENT STRUCTURE.**
+> `DATA_TX_LORA` is a **single FIFO** shared by beacons and sensor frames, so preemption cannot be added by
+> throttling alone: a throttled sensor stream still occupies slots ahead of a beacon that arrives later.
+> Priority needs either a **second channel drained first**, or a **priority-aware send**. Throttling alone
+> reduces the drop rate without restoring beacon precedence — it would make `nbrs` recover *by luck of
+> timing* rather than by construction, which is the weaker fix and would look identical when it worked.
+>
+> **OWNERSHIP:** `platforms/dfr1195/src/main.rs` is **r2-core's** — supervisor dispatched the change there
+> with my diagnosis, airtime arithmetic and denominator-7 self-correction attached. **I build when core
+> reports a sha; supervisor takes the flash to Roy.** Not building yet. #63 closed by ruling.
+>
+> **SEPARATE MUST FOR CORE:** `FW_VERSION` is a hardcoded literal (`main.rs:234`), identical across the June
+> stale build and `50c719dd`, so **it cannot discriminate firmware**. L3 renders `fw_short` from `BUILD_ID`,
+> which falls back to `"dev"` — **two non-discriminating identifiers, not one.** My L3-changes acceptance
+> test is dead until a short commit sha lands on the screen.
+>
 > ## ✅ L0 CLOSED, 2026-07-20 — ALL THREE AXES POSITIVE, INDEPENDENTLY SOURCED
 >
 > | axis | evidence |
