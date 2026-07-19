@@ -14,9 +14,15 @@
 > ```
 > If that command does not print `398cf31`, the manifest moved after this line was written and **the command wins, not this file.** The ARTIFACT sha `d4c65886…` is the invariant; a manifest commit is not.**
 > - **ITEM 1 (board still advertises) — RUNNABLE** under the existing Roy flash gate.
-> - **ITEM 2 (observer sights a peer) — HELD / NO INSTRUMENT. Records neither PASS nor FAIL.** No available
->   tool can distinguish a fresh advertisement from cached BlueZ state, and `scan-beacons.py`'s `found` map
->   never expires (`:181`, `:202`, `--expect` = `any(found)` at `:250-253`).
+> - **ITEM 2 (observer sights a peer) — HELD. Records neither PASS nor FAIL.** ✅ **The instrument now EXISTS
+>   (composer rewrote `scan-beacons.py`, `r2-composer` `b1a9345`; verified in its tree, not taken on report:
+>   event-stamped `PropertiesChanged` `:320`, the load-bearing `"ManufacturerData" not in changed → skip`
+>   guard `:303`, `RemoveDevice` purge `:225`, `InterfacesRemoved` withdrawal `:324`, `found` now per-phase
+>   and never persisted `:261` — which closes the old write-only/no-expiry defect).**
+>   **WHAT IS STILL MISSING IS THE ONE TEST THAT WOULD PROVE IT: with board B powered OFF and the BlueZ cache
+>   warm, `scan-beacons.py 12 --expect <B_wire_id>` MUST exit 3. Before the rewrite it exited 0.** The
+>   `--freshness-kat` prints that procedure, exits 9, and REFUSES to self-certify because it cannot power a
+>   board down. Everything runnable off-metal exercises only the direction that already worked.
 > - **ON phase: the run MUST receive a fresh target event** after a purge/session reset. **OFF phase: the run
 >   MUST receive no target event across a full bounded window.** They are NOT symmetric; an OFF phase can never be
 >   proven by requiring an event.
