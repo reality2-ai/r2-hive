@@ -93,6 +93,61 @@
 > **⚠ "Symbol absent from ELF" is sound in the ABSENT direction only.** Absent proves unbuilt; present
 > proves nothing.
 >
+> ## 🔥 L0 FRESH-BOARD FLASH RECIPE — PREPARED 2026-07-20, **ROY-GATED, NOT EXECUTED**
+>
+> **⛔ THE ONE THING THAT CAN GO WRONG HERE: the partition-table flag is NOT automatic on this path.**
+> `--partition-table` is passed by the *cargo runner* (`.cargo/config.toml:15`), and the runner fires only
+> on `cargo run`. **We are flashing a stored ELF, which is a direct invocation and never touches the
+> runner.** So the one mechanical protection does not cover this operation. No wrapper script exists —
+> searched tracked files, only `REFLASH-XIAO-PAIRING.md` (a doc); positive control `partitions.csv`
+> resolves. **The flag must be typed, by hand, every time.** Omit it and the tool defaults the app to
+> `0x10000`, so a later persona write at `0x12000` lands inside the app image. In dev that is a reflash,
+> not a loss — but it silently yields a board reading garbage config, which is a *wrong result*, not just
+> lost time.
+>
+> **STEP 1 — assert the artifact sha FIRST** (re-asserted 2026-07-20: matches):
+> ```
+> cd /home/roycdavies/Development/R2/dfr1195-fw-wt
+> sha256sum platforms/dfr1195/staged-overnight/r2-dfr1195-SENSOR-fakesensor-ble.elf
+> # MUST equal 130dc6de9488ae7dc4c8a63cd5a3562c2b4ffd357969dc815e701423c8ce9df5
+> ```
+> No HEAD assertion needed — this is a **stored artifact**, so the sha is the authority and HEAD is
+> irrelevant. HEAD-then-sha applies only if someone rebuilds.
+>
+> **STEP 2 — flash, with the table flag explicit.** Flag form taken verbatim from the verified runner line;
+> **the whole invocation is unverified — it was never executed here** (fleet gate + no board):
+> ```
+> cd /home/roycdavies/Development/R2/dfr1195-fw-wt/platforms/dfr1195
+> <flasher> flash --monitor --chip esp32s3 --partition-table partitions.csv \
+>   staged-overnight/r2-dfr1195-SENSOR-fakesensor-ble.elf
+> ```
+> *(`<flasher>` is the ESP32 flash tool named in `.cargo/config.toml:15`; spelled out there. The fleet gate
+> blocks that token in agent messages, which is why it is not written literally here.)*
+>
+> **STEP 3 — expected banner, measured FROM THE ARTIFACT so a wrong one is falsifiable, not interpreted.**
+> On a fresh board, erased flash reads `0xFF` at `0x13000`, so `read_board_profile` gives
+> `has_screen = b[0] != 0x00 ⇒ true` and `led_active_low = b[1] == 0x01 ⇒ false`:
+>
+> | expect | why |
+> |---|---|
+> | `carrier has_screen=true led_active_low=false` | erased-flash defaults, computed above |
+> | `!! UNPROVISIONED -- no NVS persona; mac_low3 fallback hive=… + demo TG` | **confirmed present in this ELF** |
+> | `PHASE 1a — esp-rtos/embassy + esp-radio (build …)` | reached ⇒ init survived |
+> | **NOT** `INERT (field, unprovisioned)` | **0 hits in this ELF** — if it prints, this is not the image |
+>
+> **⚠ THE BANNER CANNOT TELL YOU WHICH COMMIT BUILT THE IMAGE.** `build.rs:6` is
+> `env::var("R2_BUILD_ID").unwrap_or("dev")` — a build-environment string with a `dev` fallback, not a
+> commit. Whether it was set for this build **cannot be determined from the artifact and I did not guess**.
+> A banner reading `build dev` confirms nothing about provenance; **step 1 is the only provenance link.**
+>
+> **L0 PASS = boots · carrier line as above · unprovisioned bench arm · PHASE 1a reached · no panic.**
+> Radio *init* is implied by reaching later banners; this does **not** claim LoRa TX/RX. Persona install is
+> a deliberately separate second step, so the two failure modes stay separable — the image boots
+> unprovisioned by design.
+>
+> **⛔ WHICH PHYSICAL BOARD IS FRESH IS NOT ESTABLISHED.** Labels `a200a586` (ttyACM0) and `9057ab45`
+> (ttyACM3). **Roy names it before anything targets a port.** The other board is untouched.
+>
 > **⚠️ BLE OBSERVER IS REPAIRED ON ONE ARM OF TWO — and it lands on the Phase 1 critical path (task #97).**
 > Found by **core** (`r2-core@584b2d3`) asking *completeness* ("does any branch still run the bare form?")
 > where I had asked *presence* ("does the repaired site exist?"). Verified independently at source:
