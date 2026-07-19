@@ -402,6 +402,23 @@
 > and the test would false-negative. Anything that later writes a board profile with `b[0] == 0x00` breaks
 > this test, not the firmware.
 >
+> **⏱⛔ ANY POST-FLASH DISCOVERY OBSERVATION TAKEN INSIDE THE FIRST ~70 SECONDS IS WORTHLESS.**
+> The LoRa `AirtimeBucket` is a **token bucket that starts FULL** (`lora_airtime.rs:81` `MAX_TOKENS_MS =
+> 3600`, `:87`), and at the current sensor rate the net drain is 51.8 ms/s, so **the reservoir empties
+> ~70 s after reset**. For that first ~70 s the beacon **is** admitted — beacons go out, `nbrs` briefly
+> rises — and **after it drains the beacon starves permanently**.
+>
+> **⇒ A SHORT POST-FLASH CHECK PASSES ON BROKEN FIRMWARE.** Anyone watching only that window concludes
+> discovery works. **A false green with a 70-second fuse.** It is why the bench observation we have is
+> honest: those boards had run for *hours*, so `nbrs=0` is the post-drain steady state, not a cold-start
+> artefact.
+>
+> **MUST, for any admission or discovery result:** run **> 70 s of sustained load from a full bucket**, and
+> report **uptime-at-measurement** alongside utilisation and admission count. **A 60-second run proves
+> nothing and MUST NOT be recorded as a pass.** This binds the L0 post-flash check as much as the later
+> acceptance runs — *boots and renders* is safe to read immediately; *anything about neighbours or beacons
+> is not.*
+>
 > **L0 PASS = boots · carrier line as above · unprovisioned bench arm · PHASE 1a reached · no panic.**
 > Radio *init* is implied by reaching later banners; this does **not** claim LoRa TX/RX. Persona install is
 > a deliberately separate second step, so the two failure modes stay separable — the image boots
