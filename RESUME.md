@@ -2,6 +2,52 @@
 
 # ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
 
+> ## 🛑 PRE-FLASH HAZARD — task #92. THE FLASH IS BLOCKED BY A HAZARD, NOT BY LOGISTICS.
+>
+> **Settled first, so the rest reads correctly:** Roy's "flash XIAO" names
+> `r2-core@fec0b56 platforms/dfr1195 --features xiaobridge,ble` — my staged artifact. core withdrew its
+> own `platforms/esp32-s3` / `main_wio.rs` candidate in my favour with the decisive fact that the two are
+> **mutually exclusive by ref**: `main_wio.rs` is absent on `dfr1195-fw`, `xiaobridge` is absent on `main`.
+> One repo, two branches, two targets — the "two repos" framing was wrong and was refuted independently
+> by core and by me. I declined to judge my own candidate and did not have to.
+>
+> **Do not flash. Two defects compound, and together there is no path where a XIAO comes up screenless.**
+>
+> **(1) The board profile lands inside the app.** `BOARD_PROFILE_OFFSET = 0x13000` (`main.rs:2571`), there
+> is no `partitions*.csv` anywhere under `platforms/dfr1195`, and `.cargo/config.toml` runs
+> `espflash flash --monitor --chip esp32s3` with **no `--partition-table`** — so espflash falls back to its
+> built-in default and the factory app starts at `0x10000`. `0x13000 - 0x10000 = 0x3000 = 12288 B`, so the
+> profile is inside the app **for any app larger than 12 KiB**, which is every real build of this platform.
+> Flashing therefore does not merely fail to erase the profile — it **writes app code over it**, and
+> `read_board_profile` reads two bytes of program text.
+>
+> *Arithmetic correction, banked:* I first computed the span from the 1133660 B figure. **That is the ELF
+> size, not the flashed binary** — espflash converts ELF to bin and the artifact is "not stripped". The
+> specific end-of-app address I derived from it is withdrawn as unmeasured; the >12 KiB bound above replaces it and is
+> strictly stronger. I cannot measure the flashed bin without invoking espflash, which trips the fleet
+> firmware gate on the keyword alone, so this is **a bound, stated as such, not a measurement**.
+>
+> **(2) Every read path defaults to screen-present.** `main.rs:2582` sets `has_screen = b[0] != 0x00`, so
+> any nonzero byte reads as a screen; and the read-*error* path at `:2580` also returns `(true, false)`.
+> A XIAO therefore drives the ST7735s path on GPIO48 — exactly what `main.rs:710` says the gate exists to
+> prevent: *"no driving non-existent hardware / GPIO conflict."* LED polarity rides the same record, so a
+> wrong profile also inverts the status LED during bring-up.
+>
+> **(3) The fix-by-procedure is unavailable.** `BOARDPROF` is handled by `uart_rx_task` (`:5890`, handler
+> `:6062`), and `main.rs:670` spawns it under `#[cfg(not(feature = "xiaobridge"))]` — the comment at `:652`
+> explains that the XIAO bridge owns both USB halves and the pipe must stay pure-binary. **The one image
+> whose purpose is the XIAO is the one image that cannot be told it is a XIAO.** Adding a BOARDPROF step
+> to the flash procedure cannot work.
+>
+> **This is the third appearance of no-partition-table-so-raw-offset-config-lands-in-the-app.** The twin
+> already in my notes bricked a D4 through the persona region at `0x12000`. Treat every raw-offset config
+> on this platform as suspect until a partition table exists — and fix both regions together, or the next
+> one resurfaces.
+>
+> **Agreed with supervisor: write it up, do not touch it tonight.** The flash is blocked regardless, and a
+> rushed partition change is how a board gets bricked. Candidate fixes and the one open unverified
+> question are recorded in task #92.
+
 > ## ⛔ RETRACTED — THE BLOCK BELOW CONTAINS A REFUTED FINDING. READ THIS FIRST.
 >
 > **My "the staged artifact is a DFR1195 image, so no XIAO image exists" finding is REFUTED at source.**
