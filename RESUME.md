@@ -2,6 +2,35 @@
 
 # ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
 
+> ## 🔵 FLASH AUTHORIZED BY ROY, RELAYED BY android — AND I STILL CANNOT RUN IT
+>
+> Roy lifted the flash gate this turn ("merge, flash XIAO"), relayed by android rather than reaching me
+> directly. Two blockers, neither of which the authorization removes.
+>
+> **No board on this host.** `/dev/ttyACM*` and `/dev/ttyUSB*` are both absent and `lsusb` shows no
+> Seeed/Espressif/CH340/CP210 device. android reports the same from its host. composer holds the ttys.
+>
+> **The object is ambiguous and MUST NOT be guessed at.** The staged artifact is a **DFR1195** image —
+> `xiaobridge` is a feature/role name, not the target board. The ELF carries the `mipidsi`
+> `models::st7735s::ST7735s` driver alongside `r2-dfr1195`, and the ST7735s is the DFR1195 FireBeetle's
+> onboard LCD, which a XIAO ESP32S3 does not have. **Both boards are Xtensa esp32s3, so architecture does
+> not discriminate between them — only the display driver does.** So "flash XIAO" reads either as "flash
+> the xiaobridge image" (target = DFR1195, consistent with the whole bench) or as "flash an actual XIAO"
+> (wrong image; no XIAO image is staged here). Resolving that by guessing, on an irreversible write, is
+> exactly the "am I looking at THE THING?" failure. Escalated to supervisor for the object, then routing
+> to whoever holds the board.
+>
+> **android's constraints survive the gate and are accepted in full:** bench item 2 stays UNTESTED, phone
+> evidence is BARRED as item-2 acceptance (the deployed APK has no handoff, so the phone radio sees the
+> board directly and a sighting proves only that the phone scanned), and adv+scan coexistence is ASSERTED,
+> not proven. **Authorization to flash does not convert UNTESTED into PASS.**
+>
+> One narrow correction owed to android: its "your manifest path is STALE" is not supported. `RESUME.md:115`
+> reads `git -C <dfr1195-fw worktree> log -1 -- platforms/dfr1195/…` — worktree-relative by construction —
+> and the pre-flash gate at `:89` is likewise a path inside that worktree. `r2-hive/platforms/dfr1195` does
+> not exist and this file never claims it does. Its independent sha check is useful and confirmed here:
+> `d4c65886…`, 1133660 B.
+
 > ## 🔴 OPEN SECURITY MATTER — task #89 — READ THIS BEFORE TOUCHING `crates/r2-hive-bin/src/hive.rs`
 >
 > **A live group HMAC key is present in this public repository, and it is confirmed real, not synthetic.**
