@@ -112,10 +112,23 @@
 > **AXIS B IS ASYMMETRIC:** symbol-absent is sound; **symbol-present proves LINKAGE, never our call path** —
 > `nm` gives 17 *defined* `esp_now` symbols against **0** R2-side callers. Only axis A can say "ours".
 >
-> Current entries: **BLE ingress** A+ · B+ (linkage) · C **not measured** — live producer, consumer is
-> `cfg(xiaobridge)`, `Deque<_, 8>` fills and drop-oldests forever. **`R2ScanHandler`** A+ @`dba34b25` · B−
-> across 152/156 (nm, 18 nm-failed) · C not measured. **`espnow_task`** A− (gate false) · B− · C not
-> measured.
+> **SPLIT PRODUCER FROM CONSUMER — their axis-A values differ, and collapsing them is what hid an error**
+> (core's fix, adopted). Current entries:
+>
+> | thing | A | B | C |
+> |---|---|---|---|
+> | BLE sighting **producer** | **+** observer live, `:3775 run_with_handler` | **+** linkage | **not measured** |
+> | BLE sighting **consumer** | **−** only caller is `cfg(xiaobridge)` | — | **not measured** |
+> | `R2ScanHandler` | **+** @`dba34b25` | **−** across 152/156 (nm, 18 failed) | **not measured** |
+> | `espnow_task` | **−** gate `any(not(loraroute), bridge)` false | **−** | **not measured** |
+> | `esp_now` vendor syms | **−** 0 R2 callers | **+** 17 defined | **not measured** | 
+>
+> **"Fills and drop-oldests forever" is an axis-A INFERENCE, not an observation** — but it is now a
+> *checked* one, and the check nearly went the other way. Both core and I repeated the phrase unverified;
+> `heapless::Deque::push_back` returns `Err` on full, so the **default would be drop-NEWEST** — the queue
+> freezing on its eight oldest sightings. The push site guards it explicitly with
+> `if q.is_full() { let _ = q.pop_front(); }`, which inverts it to drop-oldest deliberately. **The claim
+> holds; the mechanism is not the one a reader would assume.**
 >
 > ## 🔥 L0 FRESH-BOARD FLASH RECIPE — PREPARED 2026-07-20, **ROY-GATED, NOT EXECUTED**
 >
