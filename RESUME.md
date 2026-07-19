@@ -2,6 +2,51 @@
 
 # ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
 
+> ## 🔧 READ THIS BEFORE YOU TOUCH A BOARD — TWO PINNED IMAGES, READY TO FLASH
+>
+> Both built at `r2-core@50c719dd` on `dfr1195-fw`, in `platforms/dfr1195/staged-overnight/`:
+>
+> | role | features | ELF sha256 | bytes |
+> |---|---|---|---|
+> | **SENSOR** (DFR1195) | `fakesensor,ble` | `130dc6de9488ae7dc4c8a63cd5a3562c2b4ffd357969dc815e701423c8ce9df5` | 1358172 |
+> | **BRIDGE** (XIAO) | `xiaobridge,ble` | `d4c65886e6f9a85fe5b6858017bc354dd8fa7384434661441bd45346ef5dea57` | 1133660 |
+>
+> **The ELF is the artefact to flash, not a stand-in.** The runner takes an ELF path and converts at
+> flash time, so these shas are the flashable things.
+>
+> **⚠ The sensor image is NOT new, and this file elsewhere calls it rejected.** `130dc6de…` is the
+> **companion advertiser** already staged earlier, and my own bench notes say it was "rejected as a
+> confound". **That rejection was about bench methodology for item 2 — two advertisers would have muddied
+> the observer test — not about the image.** It is the correct image for the sensor role. Without this
+> note you would be flashing something your own record calls rejected, with no idea why.
+>
+> **✅ The bridge image reproduced byte-for-byte from a different commit.** `d4c65886…` was built at
+> `4f17efa` earlier and rebuilt identically at `50c719dd`. The build-provenance question — "would a
+> rebuild give the same bytes?" — is now **measured rather than argued**, and the staged bench artefact is
+> validated rather than merely excused.
+>
+> **⛔ EGRESS POLICY: NOT APPLICABLE, deliberately unset.** SameCarrier was dispatched for these builds,
+> and I did not apply it. `Cargo.toml:19` depends on `r2-dataplane`, but `main.rs:105` imports exactly
+> four codec helpers and there are **zero references to `handle_rx_frame`, `relay_on` or `PhyMask`.** The
+> relay-policy path is not wired — that is task **#32**, still pending. This firmware relays through its
+> own `mesh_broadcast`. Setting the flag would have been a **silent no-op** reported as "configured".
+> When #32 lands, the policy becomes settable and core's tested result is what will make it safe.
+>
+> **OUTCOME WORDING — please use this one.** These images give: BLE up and beaconing, **BLE ingress**,
+> LoRa route and **LoRa multi-hop**, OTA in the ensemble on both. They do **not** give BLE egress —
+> `PHY_ALL = PHY_FLRC | PHY_LORA` and `PHY_BLE` is not in it, so no frame can leave over BLE whatever the
+> feature list says. So: **"LoRa multi-hop preserved + BLE ingress live"**, never "dual-bearer
+> communication". Your requirement that all three *communicate* on both bearers stays unreachable until
+> the 2c CoC-TX bridge is built.
+>
+> **🛑 GATE 3 IS STILL OPEN FOR THE TWO TUXEDO BOARDS.** Their provisioning state is **unknown** to me and
+> they are identified only by MAC prefix — and by your own near-miss rule **identity comes from the boot
+> banner, not a map**. Check the banner before flashing either. D4 is separately known to be
+> **unprovisioned** (`fd2a99b`: boots demo-fallback, provisioning awaits your A-vs-B pick).
+>
+> **The RAK is not in this at all** — exempt from OTA on your bootloader ground, and its BLE is
+> advertise-only today; making it carry BLE data is real work, not done.
+
 > ## ☀️ FOR ROY, MORNING OF 2026-07-20 — WHAT HAPPENED OVERNIGHT, WHAT DID NOT, AND WHY
 >
 > **Your goal was TN on the XIAO, the DFR1195 and the RAK by morning. The boards were NOT flashed.
