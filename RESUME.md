@@ -12,14 +12,14 @@
 > - **ITEM 2 (observer sights a peer) — HELD / NO INSTRUMENT. Records neither PASS nor FAIL.** No available
 >   tool can distinguish a fresh advertisement from cached BlueZ state, and `scan-beacons.py`'s `found` map
 >   never expires (`:181`, `:202`, `--expect` = `any(found)` at `:250-253`).
-> - **ON phase = REQUIRE a FRESH target event** after a purge/session reset. **OFF phase = REQUIRE ABSENCE
->   of any target event across a FULL BOUNDED WINDOW.** They are NOT symmetric; an OFF phase can never be
+> - **ON phase: the run MUST receive a fresh target event** after a purge/session reset. **OFF phase: the run
+>   MUST receive no target event across a full bounded window.** They are NOT symmetric; an OFF phase can never be
 >   proven by requiring an event.
 > - **Purge (or reset the scanner session) before EACH phase — one pre-run purge is insufficient.**
 > - **No-new-RBID is UNTESTED / SETUP-AMBIGUOUS, never FAIL**, unless distinct-B-rbid was proven first
 >   (a persona in NVS overrides the `mac_low3` fallback, main.rs:294-296, so one image ≠ distinct identities).
 > - **A fresh scanner's own negative test MUST acquire B, power B OFF, wait past the freshness window, and
->   REJECT B.** A poll-time freshness stamp is REFUTED — re-reading cached state refreshes the stamp with no
+>   then reject B.** A poll-time freshness stamp is REFUTED — re-reading cached state refreshes the stamp with no
 >   air behind it.
 > - **Flash stays Roy-gated. Nothing pushed. No flasher invoked.**
 >
