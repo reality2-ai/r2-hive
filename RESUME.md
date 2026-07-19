@@ -182,8 +182,25 @@
 > a deliberately separate second step, so the two failure modes stay separable — the image boots
 > unprovisioned by design.
 >
-> **⛔ WHICH PHYSICAL BOARD IS FRESH IS NOT ESTABLISHED.** Labels `a200a586` (ttyACM0) and `9057ab45`
-> (ttyACM3). **Roy names it before anything targets a port.** The other board is untouched.
+> **🎯 TARGET = LABEL `9057ab45`** — the fresh, never-flashed DFR1195. Identified 2026-07-20 by Roy
+> unplugging it and confirming it vanished from the enumeration. Never ran `reboot_to_download`, no persona,
+> nothing at `0x14000`, no R2 banner to read.
+> **⛔ `a200a586` is the previously-flashed board and HAS been in download mode. NOT the target, do not
+> touch it.** `5cf3854b` = XIAO, `161514c7` = RAK4631 — neither in scope.
+>
+> **⚠ THE PORT IS NOT THE IDENTITY.** `9057ab45` was on `ttyACM3` before the unplug and **may come back on
+> a different port**. Re-derive the map **at the moment of flashing**:
+> ```
+> for p in /dev/ttyACM*; do
+>   printf '%s  %s\n' "$p" \
+>     "$(udevadm info -q property -n "$p" | sed -n 's/^ID_SERIAL_SHORT=//p' | tr -d '\n' | sha256sum | cut -c1-8)"
+> done
+> ```
+> That prints **port + label only** — the raw `ID_SERIAL_SHORT` never reaches the terminal, which matters
+> because **on ESP32 it is the MAC address** and `/dev/serial/by-id/*` paths embed it.
+> **I have deliberately NOT run this.** A map derived now is stale by the next replug — which is precisely
+> the error the re-derive instruction exists to prevent. Running it early would manufacture the stale
+> pointer I would then be trusting.
 >
 > **⚠️ BLE OBSERVER IS REPAIRED ON ONE ARM OF TWO — and it lands on the Phase 1 critical path (task #97).**
 > Found by **core** (`r2-core@584b2d3`) asking *completeness* ("does any branch still run the bare form?")
