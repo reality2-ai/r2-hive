@@ -2,6 +2,32 @@
 
 # ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
 
+> ## 🧾 CORRECTIONS LEDGER — 2026-07-19/20. WITHDRAWN CLAIMS OF MINE, AND WHAT REPLACED THEM.
+>
+> **Why this block exists:** every correction below lived only in fleet messages, while my *commit
+> messages* carry the originals. **A commit message outlives a fleet message** (supervisor, and the
+> reason it matters: a wrong reason attached to a right fix becomes canon later). I am not rewriting
+> history to fix that — rewriting is the stale-pointer-that-resolves class. The ledger is the right home.
+>
+> | Claim I made | Status | What is true |
+> |---|---|---|
+> | The staged ELF is a DFR1195 image, so no XIAO image exists | **REFUTED** | The LCD is runtime-gated (`main.rs:716`), so the driver links into every build. `platforms/dfr1195` is a multi-board crate; the XIAO target is `--features xiaobridge`, and the staged artifact **is** the XIAO image. |
+> | `platforms/` untouched since the build commit | **MIS-SCOPED** | True from `3a539cf`, which is a *later* base than the manifest's `4f17efa`. Silent on `4f17efa..3a539cf`, which is where main.rs moved. |
+> | An app end-address derived from the 1133660 B figure | **WITHDRAWN** | That is the **ELF** size, not the flashed binary. Replaced by a bound: the profile is inside the app for **any app > 12 KiB**, which is structural and stronger. |
+> | 35 reflog-only anchors | **WITHDRAWN → 10** | My check used `branch -a --contains`, which does not walk `refs/stash`. 25 were false positives; one was a live parked stash. |
+> | 206 cross-repo anchors my census missed | **WITHDRAWN → 30** | Counted by *directory*, but `r2-core`, `dfr1195-fw-wt` and `composer-p1` share one upstream. Dedupe by origin URL — a directory is not a repository. |
+> | Silent pin classes outnumber covered ones in my file | **WITHDRAWN** | I never counted the silent side. I have four silent classes, unmeasured; whether they outnumber 274 covered anchors is **unknown**. |
+> | `xiaobridge` is a feature meaning the DFR1195 bridges *to* the XIAO | **REFUTED** | android's record: the greenlit design puts the BLE observer on the XIAO as composer's piece 1. |
+> | My BLE bearer finding shows the XIAO meets "communicate" | **NARROWED** | It shows BLE comes **up**. Scan is real but **passive**, and L2CAP only **accepts**. Nothing in the triplet currently *initiates* BLE data. |
+>
+> **Still open and NOT withdrawn:** the #92 hazard itself (the espflash default-app-base premise is
+> convention plus one observed D4 bricking, still not derived from espflash's source — confirm before
+> acting), and #91's divergence (strengthened by R2-RUNTIME v0.12, with v0.9's interim AOT allowance as
+> the live counter-argument).
+>
+> **Deferred, by ruling:** the file:line drift sweep (resolve each cite in the ref AND repo it names),
+> the anchor labelling, the reflog repair.
+
 > ## 📋 SESSION CLOSE 2026-07-20T00:50+12:00 — what is open, what is blocked, what is mine
 >
 > **Both trees clean. r2-hive main is 56 commits ahead of origin and DELIBERATELY UNPUSHED** pending Roy's
