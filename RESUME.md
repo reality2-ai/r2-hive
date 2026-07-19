@@ -93,6 +93,30 @@
 > **⚠ "Symbol absent from ELF" is sound in the ABSENT direction only.** Absent proves unbuilt; present
 > proves nothing.
 >
+> ## 📐 HOW CAPABILITY IS REPORTED NOW — THREE AXES, RULED BY SPECS 2026-07-20
+>
+> `working / unknown / unbuilt` is retired, and so is my proposed fourth state. **The source/artifact plane
+> is a 2×2 whose fourth cell was already occupied** — a fourth *ordinal* state patches one cell and leaves
+> the opposite one collapsing into "present", fixing the understatement while keeping the false green.
+>
+> | | artifact PRESENT | artifact ABSENT |
+> |---|---|---|
+> | **source reachable** | could run (never "does") | `espnow_task` · `ota_receive_over_coc` · `R2ScanHandler` |
+> | **source ABSENT** | **the vendor blob** — my 17 `esp_now` symbols | genuinely unbuilt |
+>
+> **A** source reachability (caller-grep + enclosing-read) · **B** artifact presence (symbol table, *by
+> stated method*) · **C** runtime observation (on metal, with a falsifier). Report all three separately.
+>
+> **UNKNOWN IS NOT A STATE — it is the absence of a measurement**, and must be a per-axis field. Putting it
+> beside working/unbuilt conflates *measured and found nothing* with *did not measure*.
+> **AXIS B IS ASYMMETRIC:** symbol-absent is sound; **symbol-present proves LINKAGE, never our call path** —
+> `nm` gives 17 *defined* `esp_now` symbols against **0** R2-side callers. Only axis A can say "ours".
+>
+> Current entries: **BLE ingress** A+ · B+ (linkage) · C **not measured** — live producer, consumer is
+> `cfg(xiaobridge)`, `Deque<_, 8>` fills and drop-oldests forever. **`R2ScanHandler`** A+ @`dba34b25` · B−
+> across 152/156 (nm, 18 nm-failed) · C not measured. **`espnow_task`** A− (gate false) · B− · C not
+> measured.
+>
 > ## 🔥 L0 FRESH-BOARD FLASH RECIPE — PREPARED 2026-07-20, **ROY-GATED, NOT EXECUTED**
 >
 > **⛔ THE ONE THING THAT CAN GO WRONG HERE: the partition-table flag is NOT automatic on this path.**
