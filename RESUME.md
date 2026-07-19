@@ -2,6 +2,51 @@
 
 # ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
 
+> ## 🔴 OPEN SECURITY MATTER — task #89 — READ THIS BEFORE TOUCHING `crates/r2-hive-bin/src/hive.rs`
+>
+> **A live group HMAC key is present in this public repository, and it is confirmed real, not synthetic.**
+>
+> The 64-hex literal bound to `hk_hex` at `crates/r2-hive-bin/src/hive.rs:1387` is byte-identical to the
+> live custody key for target group `177560432` (TG-A) held in `~/.r2/group-keys.json` (mode `0600`, 857 B,
+> four target groups, dated 5 July). The comparison was made by equality inside a Python process; the value
+> itself was never printed to a terminal, written to any file, or transmitted in any fleet message, and it
+> MUST continue to be handled that way. `docs/espnow-mesh-interop.md:52` names TG-A as a live target group,
+> and three field logs under `docs/field-results/lora-fr1-0623/` show real boards provisioned with it.
+>
+> **Blast radius, measured across all 21 fleet repositories on all refs.** Only TG-A's key is exposed, and
+> only in this one file. The other three custody keys (`1584099016`, `3932969629`, `79452135`) return no hit
+> anywhere. The exposed key is present on seven refs including `refs/heads/main` and `refs/remotes/origin/main`.
+>
+> **What the exposure grants, confirmed independently at both ends of the pipe.** core measured the
+> derivation side in `r2-trust`; I measured the consuming side here. `parse_bench_group_hmacs`
+> (`hive.rs:1240`) maps the hex into a `GroupHmac` and nothing else, and the field it populates is
+> `group_hmacs: HashMap<u32, GroupHmac>` (`hive.rs:255`). The data encryption key never travels this path.
+> So this is a **mesh integrity compromise for TG-A** — an attacker in radio range can forge frames that
+> verify as authentic TG-A traffic — and it is **not** a confidentiality break and **not** an identity
+> break, because `GroupHmac` was never attributive. Bound it that way in any writeup: reading it as worse
+> than it is carries its own cost.
+>
+> **A correction I owe.** I earlier reported zero custody hits for this value. That probe searched
+> `~/.r2-dev-trial`; the actual custody root is `~/.r2/`. The method was sound and its positive control did
+> fire — the scope was wrong. **That null is WITHDRAWN.** This is the same scope-fragile-null failure recorded
+> in my standing memory, which is precisely why a null needs its domain stated alongside its result.
+>
+> **Why nothing has been changed, and why a takeover MUST NOT change anything either.** core proposed
+> replacing the literal immediately on the grounds that replacement is correct whether the value turns out
+> real or synthetic, so it need not wait on the answer. That argument does not survive the answer being
+> *real*. Replacing the literal does not remediate anything: the value remains on seven refs of a public
+> repository, and a commit whose message explains that a key was scrubbed is an index pointing straight at
+> it in history. **Rotating the TG-A HMAC key is the remedy; replacing the literal is a step sequenced
+> inside that rotation, not something to be done ahead of it.** The ordering of scrub, history rewrite, and
+> disclosure is Roy's call, and it has been escalated to the supervisor pair and to core.
+>
+> **Standing posture until Roy rules: no scrub, no rewrite, no force-push, no commit touching this file.**
+>
+> One lead not pursued, because widening it is not mine to do: the doc comment at `hive.rs:1235` describes
+> the format as "composer's bench group-keys json", so composer may know who minted the value.
+>
+> Bench readiness below is unaffected by all of this, and flash remains Roy-gated.
+
 > **✅ BENCH READY — verified end-to-end, READ AT `2026-07-19T13:43:33+12:00`** (supervisor's census rule: every row carries the instant it was read, because a census without instants cannot survive a partial propagation — the exact condition it exists to detect).
 > **ARTIFACT** `d4c65886e6f9a85fe5b6858017bc354dd8fa7384434661441bd45346ef5dea57`, 1133660 B — matches the manifest exactly.
 > **PRE-FLASH GATE** (the manifest's own): `git status --porcelain platforms/dfr1195/src` ⇒ **0. PASSES.**
