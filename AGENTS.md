@@ -136,3 +136,27 @@ above — shorter AND unambiguous:
 
 Applies to: fleet messages, AGENTS.md rules, commit messages that carry obligations, RESUME.md
 handoff conditions, spec text.
+
+### ⚠ V2 OVERRIDE (cont.) — SCOPE: COMPRESSION IS FOR INTER-AI COMMS ONLY (Roy, 2026-07-19, relayed by supervisor)
+
+The compression targets and the dense wire format above apply to **messages between running agents**, and
+to nothing else. Everything written for a human reader stays **prose, and deliberately more verbose than
+agent-to-agent traffic**:
+
+- `RESUME.md` and any handoff record — a takeover MAY be a human.
+- `AGENTS.md`, `README`s, and other governance documents.
+- **Spec bodies** — a spec reader IS a human. Do NOT compress spec prose, even while fixing it.
+- Code comments (Roy's commenting standard already governs these).
+- Commit messages.
+
+Two rules survive into documentation, and one does not:
+
+- **RFC 2119 keywords STILL apply.** They ADD precision to prose; they are not a compression device.
+- **The dense wire format does NOT apply.** Sigils, dropped articles and fragment grammar are for
+  agent-to-agent messages only.
+
+The reason is worth keeping: optimising a token budget against a human reader is a **false economy** — the
+cost does not show up in the budget, it shows up later as a misunderstanding. The fitness function cannot
+measure that, because it only scores agent-to-agent encodings. An earlier line in this file said
+compression applies "to agent-to-agent fleet messages, not only human-facing output"; that phrasing
+predates this ruling and MUST NOT be read as licensing compressed documentation.
