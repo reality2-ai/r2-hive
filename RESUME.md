@@ -93,6 +93,38 @@
 > **⚠ "Symbol absent from ELF" is sound in the ABSENT direction only.** Absent proves unbuilt; present
 > proves nothing.
 >
+> ## ✅ L0 CLOSED, 2026-07-20 — ALL THREE AXES POSITIVE, INDEPENDENTLY SOURCED
+>
+> | axis | evidence |
+> |---|---|
+> | **A source** | render block at `50c719dd` (the artifact's own commit) draws L1–L5 as described |
+> | **B artifact** | all five format literals present in `130dc6de…`, negative control 0 |
+> | **C runtime** | Roy at the bench: **"5 lines on each"**, both boards, one line carrying an 8-hex hive id |
+>
+> Plus, independent of any screen: sha asserted before flash **and** after copy on tuxedo;
+> `App/part. size 855,328/1,966,080` on both — **our** table, since the flasher default would print
+> `1,048,576`; `Flashing has completed!` + `ESPFLASH_EXIT=0`.
+>
+> **⚠ THE `has_screen` INTERLOCK SURVIVED — IT IS NOT CLOSED.** I hypothesised `has_screen == false` (R2
+> never drives the panel, prior content persists, which would look exactly like "active but not ours"). The
+> five-line render **refutes it for these boards**: `0x13000` is erased as expected, so `b[0] != 0x00` gives
+> true. **The risk stays live for any board that HAS been provisioned** — a written board profile with
+> `b[0] == 0x00` silently disables the LCD and with it the screen-based acceptance test. Survived, not
+> retired.
+>
+> **P3 CLOSED BY OBSERVATION: the two boards render DIFFERENT hive ids.** Distinct identities ⇒ an L1
+> receive cannot be confused with an echo.
+> **⛔ THE VALUES ARE NOT RECORDED HERE AND MUST NOT BE.** Both boards are unprovisioned and on the
+> `mac_low3` fallback, so those hive ids are **partial MAC correlators** — the class Roy ruled HEAD-scrub
+> on. Bench-chat only; never a commit, spec, issue or any published artifact. Use the hashed labels
+> (`9057ab45`, `a200a586`) in anything durable, including this file.
+>
+> **L1 IS HELD PENDING ONE NUMBER: L5 `nbrs:{n}` on each board.** `nbrs:0` on both ⇒ clean N₀ = 0 and the
+> design runs from zero. `nbrs > 0` on either ⇒ the RAK or XIAO is **already** being counted, and the
+> confound question is answered by measurement rather than by my ruling. **Both answers are usable and the
+> design already covers both** — the baseline-first structure exists precisely so a non-zero N₀ is a floor
+> rather than a failure. Do not redesign for either; state which arm applies once the number lands.
+>
 > ## 🧪 L1 LoRa TEST DESIGN — TWO DFR1195s, SAME IMAGE, DISTINCT IDENTITIES (design only, 2026-07-20)
 >
 > **SCOPE IS LoRa ONLY, and the other two bearers are excluded for measured reasons — their absence is not
