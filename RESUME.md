@@ -142,6 +142,60 @@
 > not a loss — but it silently yields a board reading garbage config, which is a *wrong result*, not just
 > lost time.
 >
+> **STEP 0 — FREE THE PORT. THIS COMES BEFORE EVERYTHING, INCLUDING THE SHA ASSERTION.**
+>
+> On this bench the target port is **not free by default**. `r2-orchestrator.service` is a systemd *user*
+> service on tuxedo-os that holds five serial ports open continuously, passed as `--status-port` and
+> `--identify-port` arguments. While it is running the flasher cannot take a port it holds: the flash sits
+> at `Connecting...` and dies at the timeout **having written nothing**.
+>
+> ```
+> systemctl --user stop r2-orchestrator.service
+> fuser -v /dev/ttyACM3          # MUST report NO holders before going further
+> ```
+>
+> **Do not `kill` the process — systemd restarts it under a new PID.** Measured on 2026-07-20: PID 334305
+> was killed and 2002063 was holding the same port minutes later. Stop the *service*.
+>
+> Afterwards, restore it and confirm it came back:
+> ```
+> systemctl --user start r2-orchestrator.service
+> systemctl --user is-active r2-orchestrator.service
+> ```
+>
+> **⚠ WHY `fuser` COMES FIRST, AND IT COST A MORNING: A HELD PORT AND A FAILED AUTO-RESET PRODUCE THE
+> IDENTICAL SYMPTOM** — a stall at `Connecting...`. On 2026-07-20 two identical stalls were read as "the
+> auto-reset is not working on this board", Roy was asked to do a manual BOOT/RST entry at the bench, and
+> that diagnosis was wrong: once the service was stopped the board connected instantly, first try. The
+> manual entry was probably unnecessary. `fuser` had already named the holder in an earlier check — **the
+> evidence was on screen and a mechanism explanation was reached for instead of the simpler one already
+> measured.** `fuser` is the cheapest step in this procedure and the only one that discriminates the two
+> causes. **Do not diagnose a reset problem until the port is proven free.**
+>
+> **⚠ HOW TO READ THE RESULT — two instrument defects, both hit on 2026-07-20.** Do **not** pipe the flash
+> through `tail` or `head`: it buffers all output until the process exits, so a *running* flash looks
+> identical to a *stalled* one, and an empty output file reads as "hung" when it is merely held. Do **not**
+> trust a pipeline's exit code: `timeout N ssh … | tail -20` yields **tail's** status, so a timeout-killed
+> flash reported `EXIT 0` — had that been believed, a board that received nothing would have been recorded
+> as flashed. Capture the flasher's own status *inside* the remote command and judge on **both** signals:
+> ```
+> ssh host '… <flasher> flash … 2>&1; echo "ESPFLASH_EXIT=$?"'
+> ```
+> Require the literal line **`Flashing has completed!`** *and* **`ESPFLASH_EXIT=0`**. Either alone is
+> insufficient, and the harness's own "task completed" status is not evidence about the flash at all.
+>
+> **✅ `App/part. size` IS A PARTITION-TABLE ASSERTION — READ IT AS ONE.** A complete run prints, in order:
+> `Connecting...`, a chip block (type / crystal / flash size / features / MAC), `App/part. size: <n>/<slot>`,
+> then `Flashing has completed!`. A run that dies at `Connecting...` **with no chip block wrote nothing** —
+> the board is untouched and safe to retry.
+> **On the DFR1195 the slot figure MUST be `1966080`.** That is `0x1E0000`, `ota_0` from *our*
+> `partitions.csv` — verified by arithmetic. The flasher's built-in default slot would print **1048576**
+> (1 MiB), which is visibly different. **If the slot is not 1966080 the table was not applied**, the config
+> plane at `0x12000..0x1D000` is inside the app span, and you must **stop and not write a persona to that
+> board**. Measured on both boards on 2026-07-20: `855328/1966080`, 43.50% — table applied.
+> *(Incidentally this also confirms ELF size ≠ flashed size: the ELF is 1,358,172 bytes, the flashed app is
+> 855,328. An earlier claim of mine that compared the two was withdrawn for exactly this reason.)*
+>
 > **STEP 1 — assert the artifact sha FIRST** (re-asserted 2026-07-20: matches):
 > ```
 > cd /home/roycdavies/Development/R2/dfr1195-fw-wt
@@ -193,7 +247,17 @@
 > | | expect |
 > |---|---|
 > | **BEFORE** | **no** R2 layout. No `hive {my_hive:08x}` line, no `BLE± LoRa± TG±` line. |
+> | ⚠ **but check this still holds** | see the caveat below — flashing happened on 2026-07-20 |
 > | **AFTER** | both lines present. `TG-` (unprovisioned by design), `BLE±`/`LoRa±` per radio state. |
+>
+> **⛔ THE "BEFORE" ROW MAY ALREADY BE STALE — CHECK IT BEFORE RELYING ON THE TEST.** Supervisor's own
+> 2026-07-20 report says *"measured both boards today: 855,328/1,966,080"*, which means **both boards were
+> flashed this morning**, and there were three failed attempts before that. If `9057ab45` already carries
+> R2, its screen already shows the layout and **the before/after test degenerates into a tautology that
+> passes no matter what happens.** A test whose "before" state was destroyed by an earlier attempt cannot
+> fail. **Confirm the current screen state before treating "layout appears" as evidence** — and if the
+> layout is already there, fall back to L2's `hive {my_hive:08x}` and L3's `fw{fw_short}` *changing*, which
+> is still falsifiable, plus the sha and the `1966080` slot assertion.
 >
 > **"The R2 five-line layout appears where there was none" is the pass condition** — falsifiable, and if it
 > does not appear the flash did not take *whatever the flasher printed*. Strictly better than the serial
