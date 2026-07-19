@@ -82,6 +82,20 @@
 > **⚠ "Symbol absent from ELF" is sound in the ABSENT direction only.** Absent proves unbuilt; present
 > proves nothing.
 >
+> **⚠️ BLE OBSERVER IS REPAIRED ON ONE ARM OF TWO — and it lands on the Phase 1 critical path (task #97).**
+> Found by **core** (`r2-core@584b2d3`) asking *completeness* ("does any branch still run the bare form?")
+> where I had asked *presence* ("does the repaired site exist?"). Verified independently at source:
+> `main.rs:3775` advertise arm is `join4(runner.run_with_handler(&scan_handler), work, refresh, scan)` —
+> both halves; **`:3870` joiner arm is `join3(runner.run(), work, refresh)` — bare `run()` AND no scan
+> future, so neither half.** Arm selection at `:3600`: `not(blemesh) && not(cocbench) ⇒ advertise_beacon
+> = true`, so **both staged images take the live arm and the shipped observer is fine**. But `:3602`
+> `#[cfg(blemesh)] advertise_beacon = am_provider` ⇒ **a non-provider under `blemesh` gets a dead
+> observer.**
+> **⇒ If specs rules BLE MESH in Phase 1, the change that closes the BLE gap re-introduces the defect
+> next to it** unless `:3870` is repaired in the same commit — and that repair is `join3 → join4` **plus**
+> a scan session, not a `run_with_handler` swap. **My defect:** I wrote the both-halves criterion at
+> `:3692` and applied it to one arm of two. Not repairing before the ruling; Phase 0 is measurement.
+>
 > **📣 RAK BENCH-IMAGE SIGN-OFF QUALIFIED, 2026-07-20 — `r2-core@d39900d8` on `rak4630-fw`, pushed and
 > verified at origin.** If you run `build-field-image.sh`, the last line it prints is now **`BENCH image
 > assembled … dev-trial ONLY: APPROTECT OPEN, conformance properties WAIVED. Despite this script's name,
