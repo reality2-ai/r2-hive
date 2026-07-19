@@ -114,12 +114,26 @@
 > to bearer capacity · replace the `let _` drop with a **visible counter on the status line AND the
 > screen**. **No SF change, no `benchsf7`, XIAO and RAK not reflashed.**
 >
-> **⚠ DESIGN NOTE FOR CORE — "discovery preempts data" IS NOT EXPRESSIBLE IN THE CURRENT STRUCTURE.**
-> `DATA_TX_LORA` is a **single FIFO** shared by beacons and sensor frames, so preemption cannot be added by
-> throttling alone: a throttled sensor stream still occupies slots ahead of a beacon that arrives later.
-> Priority needs either a **second channel drained first**, or a **priority-aware send**. Throttling alone
-> reduces the drop rate without restoring beacon precedence — it would make `nbrs` recover *by luck of
-> timing* rather than by construction, which is the weaker fix and would look identical when it worked.
+> **⚠ MY DROP-SITE WAS WRONG — REFUTED BY CORE, ONE LAYER BELOW ME. Outcome and arithmetic survive.**
+> I put the loss at `:4329` `DATA_TX_LORA.try_send`. **Core showed that channel is drained to empty every
+> 5 ms tick (`:5167`/`:5327`), so with a 1/s producer it is empty on ~199 of 200 ticks and depth-4 almost
+> never fills.** The real refusal is **`:5173` into `LoRaTransport`, `tx_cap=8`, `Err(Unavailable)` once the
+> **AirtimeBucket** backs up. Core re-derived 1646.6 ms independently and my 1647 reproduces — **only the
+> location moved.**
+>
+> **AND THE BEACON IS NEVER DROPPED AT ALL.** `:5185` does not update `last_beacon_ms` on `Err`, so it
+> **retries forever and is simply never admitted**. So my chain was wrong in kind: I said the keepalive was
+> *dropped alongside* the sensor stream. It is **starved, not dropped** — same symptom, different mechanism.
+>
+> **⇒ MY "THROTTLING CANNOT RESTORE PRECEDENCE" ARGUMENT IS REFUTED IN ITS REASONING.** I argued from FIFO
+> **slot** contention. The binding constraint is the **airtime budget**, not a queue slot — and throttling
+> the sensor emit *directly frees the bucket the beacon is waiting on*. **Throttle has a stronger claim
+> than I gave it.** Whether preemption is still required is core's call on the real mechanism, not mine on
+> the wrong one. **Do not implement against my original reasoning.**
+>
+> **⚠ AND SUPERVISOR'S "beacon-dropped stays zero" ACCEPTANCE TEST IS VACUOUS** — since the beacon is never
+> dropped, that counter reads 0 by construction on a broken system and a fixed one alike. Withdrawn by its
+> author. **A per-class counter must count ADMISSIONS or RETRIES, not drops**, or it cannot see this fault.
 >
 > **OWNERSHIP:** `platforms/dfr1195/src/main.rs` is **r2-core's** — supervisor dispatched the change there
 > with my diagnosis, airtime arithmetic and denominator-7 self-correction attached. **I build when core
