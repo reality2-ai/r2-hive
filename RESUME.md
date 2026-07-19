@@ -47,6 +47,33 @@
 > **The RAK is not in this at all** — exempt from OTA on your bootloader ground, and its BLE is
 > advertise-only today; making it carry BLE data is real work, not done.
 >
+> **🔬 PHASE 0 RESULT (specs issue #20) — MY TWO CHECKS, 2026-07-20. Measurement only.**
+>
+> **CHECK 1 — ESP-NOW: the answer DIFFERS at source and at artifact.** Source is **live, not merely
+> linked**: `main.rs:567 wifi::new` → `:572 interfaces.esp_now` → `:706 spawner.spawn(espnow_task(…))` →
+> `:5610 .split()` → **`:5647 sender.send_async(&BROADCAST_ADDRESS, …)`** — a sent frame. But **`espnow_task`
+> is ABSENT from BOTH staged ELFs.** I enumerated every embassy task POOL symbol; the sensor image has 9
+> (`apiary_bus_task ble_task engine_task io_task lora_route_task net_task ota_task uart_rx_task wifi_task`)
+> and `espnow_task` is not one. **Cause is a feature closure:** `fakesensor = ["otaengine","loraroute",
+> "loratcxo"]` transitively enables `loraroute`, and the spawn gate is `any(not(loraroute), bridge)` —
+> false. `xiaobridge` pulls `loraroute` too. ⇒ **the three ESP-NOW cells are neither "working" nor
+> "unbuilt": the code is reachable, but no staged image can exercise it.** A build with `ble` minus
+> `loraroute`, or `loraroute+bridge`, would carry it — *derived from the gate, not measured*.
+> **⚠ The presence-check false green fired:** `nm | grep -c esp_now` = **17**, all vendor blob
+> (`esp_now_init`, `ieee80211_espnow_*`, `g_espnow_lock`), linked because the WiFi blob is.
+>
+> **CHECK 2 — dev report-internal: ABSENT, cell UNBUILT on DFR1195.** Sha asserted before reading. The
+> target has no source symbol under that name — it is `main.rs:3372 build_device_report` (R2-DIAGNOSTICS
+> §6.5, `nz.r2.diag.device.reply`, task #41), with **zero callers**, and its own doc at `:3353` claims
+> *"Used by: the §6.5 responder … dev_ensemble diag sentant"* — **a used-by claim naming a consumer that
+> does not exist.** Dead-code-eliminated: 0 symbols. Denominators 5627 symbols / 12456 strings; positive
+> control `apiary` = 21 ALIVE; negative = 0. **My first positive control DIED and I nearly banked the null**
+> — I grepped strings for `nz.r2.apiary.reading`, but class strings are compile-time hashed and appear
+> nowhere as literals. Control derived from my hypothesis, not the artifact; re-derived from the symbol
+> table it went live. **DFR1195-only — not generalised to XIAO or RAK.**
+> **⚠ "Symbol absent from ELF" is sound in the ABSENT direction only.** Absent proves unbuilt; present
+> proves nothing.
+>
 > **📣 RAK BENCH-IMAGE SIGN-OFF QUALIFIED, 2026-07-20 — `r2-core@d39900d8` on `rak4630-fw`, pushed and
 > verified at origin.** If you run `build-field-image.sh`, the last line it prints is now **`BENCH image
 > assembled … dev-trial ONLY: APPROTECT OPEN, conformance properties WAIVED. Despite this script's name,
