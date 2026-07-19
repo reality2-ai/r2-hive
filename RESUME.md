@@ -2,6 +2,38 @@
 
 # ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
 
+> ## 📋 SESSION CLOSE 2026-07-20T00:50+12:00 — what is open, what is blocked, what is mine
+>
+> **Both trees clean. r2-hive main is 56 commits ahead of origin and DELIBERATELY UNPUSHED** pending Roy's
+> TG-A ruling (see the security block below — a scrub commit ahead of the rotation is an index pointing at
+> the value in history). `dfr1195-fw` is clean and in sync.
+>
+> **With Roy, not mine to progress:** TG-A rotation scope (#89, confirmed-real live group HMAC key in this
+> public repo); the codex-log 644 permissions finding (#90); Alfred remote-box custody, unprobed and
+> MUST stay unprobed without authorization.
+>
+> **Mine, open, all write-up-only tonight by agreement:** #92 the pre-flash partition hazard — read its
+> top block first, it opens with the strongest attack not yet run rather than burying it; #91 the
+> compile-time role fork against R2-RUNTIME §3.2 (citation corrected after a corpus sweep — v0.9's interim
+> AOT allowance is the counter-argument, v0.12 is the later clause that cuts back); #93 ten reflog-only
+> anchors, corrected down from a reported 35 after my check proved under-scoped.
+>
+> **Flash is frozen on the hazard, not on logistics.** Three independent blockers stood down it: the
+> board-profile hazard (#92), no board on this host, and the boards being on TUXEDO-OS.
+>
+> **Deferred by fleet ruling, not forgotten — none of these tonight:** the file:line drift sweep (each cite
+> MUST be resolved in the ref AND repo it names; checking in your own checkout measures your checkout), the
+> anchor labelling, and the reflog repair. All deliberate, all after the refuter.
+>
+> **Method rules that changed how this file should be read**, earned against my own work tonight and
+> written up in memory as `verification-instructions-are-instruments`: a verification instruction is an
+> instrument and can fail three ways (no emitter / wrong form / correct-but-mis-scoped — an unstated
+> measurement base is mode 3); enumerate the PIN CLASSES this file asserts, not the instructions it
+> contains; a cite without a sha is a claim rather than a pin, and two of mine drifted inside a live safety
+> report within one day; fix the OPERATOR-FACING copy before your own; clean status is not build
+> provenance; and every enumerator must check its returncode and refuse a zero denominator rather than
+> reporting `0 == 0 + 0` as balanced.
+
 > ## 🛑 PRE-FLASH HAZARD — task #92. THE FLASH IS BLOCKED BY A HAZARD, NOT BY LOGISTICS.
 >
 > **Settled first, so the rest reads correctly:** Roy's "flash XIAO" names
