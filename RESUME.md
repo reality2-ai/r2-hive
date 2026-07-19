@@ -69,8 +69,16 @@
 >   flashed `850b` image and **remains true of that image**. Whether the board relays depends on which
 >   image is on it, not on what this tree contains. Current flashable artifact is **NONE**.
 > - **Reason (3) open scope: not mine, not assessed.**
-> - **A fourth, unlisted by composer: task #72 is still open — the RAK persona path FAILS OPEN into
->   radiation.** If anyone reads the (1) reversal as thawing the hold, #72 is a standing reason it should not.
+> - **~~A fourth, unlisted by composer: task #72 — the RAK persona path FAILS OPEN into radiation.~~
+>   WITHDRAWN, same day, by me.** The fail-open is **closed**: `platforms/rak4630/build.rs:107`
+>   `validate_persona_blob` fails the *build* on an invalid persona, and `main.rs:817-827` is
+>   `None => { loop { … } }` with no break — `radio.configure` at `:840` is unreachable from that arm.
+>   **I read my own task status instead of the code**, and reported an open *residual* under a title
+>   naming a defect that no longer exists. What remains under #72 is narrower and different in kind: the
+>   gate-approved persona is **mutable plaintext in a 0644 window** — **NARROWED, not closed**, and it
+>   must not be called closed until immutable handoff or a gate-owned write lands. **The hold is
+>   unaffected either way** — composer's reasons (2)-as-artifact and (3)-open-scope stand, and I cleared
+>   neither. Task #72 retitled so it cannot misreport again.
 >
 > **`crates/_VERSIONS.toml` VOIDed at `r2-core@7011934e`.** It carried a live present-tense block —
 > *"the vendored dataplane decodes EXTENDED ONLY … this repeater relays nothing"* — with the fix listed as
