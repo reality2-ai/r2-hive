@@ -2,7 +2,54 @@
 
 # ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
 
-> ## 🔵 FLASH AUTHORIZED BY ROY, RELAYED BY android — AND I STILL CANNOT RUN IT
+> ## ⛔ RETRACTED — THE BLOCK BELOW CONTAINS A REFUTED FINDING. READ THIS FIRST.
+>
+> **My "the staged artifact is a DFR1195 image, so no XIAO image exists" finding is REFUTED at source.**
+> Everything in the next block that rests on it is void; the parts that do not are marked below.
+>
+> **What was wrong.** I used the presence of `mipidsi` / `ST7735s` in the ELF as proof the image targets a
+> DFR1195. But the LCD is **runtime**-gated, not compile-gated: `if has_screen {` at `main.rs:716`, with
+> `has_screen` coming from `read_board_profile()` at `:382`, and the comment at `:710` says verbatim
+> *"Skipped entirely on the screenless XIAO-S3 so the binary runs cleanly there."* **The driver is linked
+> into every build.** Its presence says nothing about the target board. I measured a linked driver and
+> read it as a board fact.
+>
+> **And the directory was the wrong unit.** `platforms/dfr1195` is a **multi-board crate**.
+> `Cargo.toml:275` — `xiao = []` selects the XIAO Wio-SX1262 pin-map, described there as *"a HARDWARE-tier
+> fact … NOT a role fork"*. `Cargo.toml:294` — `xiaobridge = ["xiao", …]`. Per-board pin-maps are chosen
+> by `#[cfg(feature = "xiao")]` at `:768` and `:800`. `Cargo.toml:252` reads *"D4 (fakesensor,benchsf7)
+> and **XIAO (xiaobridge,benchsf7)** MUST carry it."* **So the XIAO target is
+> `platforms/dfr1195 --features xiaobridge`, and the staged `xiaobridge,ble` artifact IS the XIAO image.**
+> I searched for a *path* and reported on an *artefact*.
+>
+> **Void:** "staged artifact is a DFR1195 image"; "no XIAO firmware target exists on any ref" (true of
+> directory names, false of targets); Blocker 2 (object mismatch — there is none); "`platforms/esp32-s3`
+> is the only XIAO-class candidate".
+> **Still standing:** Blocker 1 (no board on this host) and Blocker 3 (boards are on TUXEDO-OS), so this
+> is **not** clear-to-flash. android's three acceptance constraints are unchanged.
+>
+> **A method note worth keeping, because it cost the fleet an escalation to Roy.** android independently
+> "re-derived" my discriminator by counting the same strings — **the same instrument on the same premise.**
+> That is not corroboration, and it read exactly like it. Two lanes agreeing through one broken instrument
+> is the failure mode this fleet spent the day cataloguing, and we walked into it together.
+>
+> **Bearer fact that follows, and it flips an assumption:** BLE controller init and `ble_task` spawn are
+> gated `#[cfg(not(feature = "nobt"))]` at `main.rs:683` — **not** on `xiao` or `xiaobridge`. The staged
+> build carries `nobt` off, so **this image lights BLE up on the XIAO**. "The XIAO is LoRa-only, BLE dark"
+> describes the image currently *on* the board, not the silicon and not this artefact.
+>
+> **★ CANON DIVERGENCE IN THIS REPO, self-reported, mine to fix.** `main.rs:624-626` forks the role at
+> compile time: `#[cfg(not(feature = "xiaobridge"))] spawn(io_task …)` against
+> `#[cfg(feature = "xiaobridge")] spawn(xiao_bridge_task …)`. `R2-RUNTIME.md:1741` (Roy keystone) says the
+> differentiator is *"the ENSEMBLE (composer-deployed sentants/plugins, DEPLOY-TIME), NOT separate
+> firmwares and NOT compile-time-baked roles."* The `xiao` feature alone is canon-clean — a hardware-tier
+> pin-map. **`xiaobridge` bundles that clean board fact with a baked role** (replaces `io_task`, drops
+> `esp-println`, pulls `dep:r2-usb-pair`). This is an implementation defect with canon as the falsifier,
+> not a spec question. The codebase is already mid-migration — `has_screen` is runtime, and `main.rs:768`
+> calls runtime board-profile pin selection *"the one-image refinement over this compile-time `xiao` cfg"*.
+> Tracked as task #91.
+
+> ## 🔵 FLASH AUTHORIZED BY ROY, RELAYED BY android — AND I STILL CANNOT RUN IT (⛔ see retraction above: Blocker 2 is VOID)
 >
 > Roy lifted the flash gate this turn ("merge, flash XIAO"), relayed by android rather than reaching me
 > directly. Two blockers, neither of which the authorization removes.
