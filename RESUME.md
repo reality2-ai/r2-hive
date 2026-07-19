@@ -45,6 +45,43 @@
 > One lead not pursued, because widening it is not mine to do: the doc comment at `hive.rs:1235` describes
 > the format as "composer's bench group-keys json", so composer may know who minted the value.
 >
+> **A second custody event, on core's side, now measured.** core self-reported that its harness read
+> `~/.r2/group-keys.json` into its session context whole and unprompted, putting all four live keys —
+> including the three that are *not* leaked — into a context it cannot purge. I measured the on-disk
+> consequence from outside. All three unleaked keys are persisted in **exactly one file**: core's own
+> session transcript, mode `0600`. No fleet-ask fork, no subagent transcript, no scratchpad, no shell
+> history, no other lane. My session did not capture them (my probes emitted tg ids, hex lengths, and
+> booleans, never values), and search patterns were fed to `grep` via stdin so that hunting for custody
+> keys never wrote custody keys to disk.
+>
+> **Domain of that null, because the rotation argument leans on it.** Eleven roots: `~/.claude`,
+> `/tmp/claude-1000`, `~/.zsh_history`, `~/.cache`, `~/.local/share`, `~/.config`, `~/Documents`,
+> `~/Downloads`, `~/Desktop`, `/tmp`, `/var/tmp`, with two live positive controls firing throughout.
+> It does **not** cover Alfred or any other remote box — `carrier-bridge` runs from `alfred:~/carrier-bridge/`
+> and I have not probed it and MUST NOT without authorization — nor backups or cloud-synced locations.
+> So: local workstation spread is one file. **Fleet-wide spread is not established.**
+>
+> **The urgency model that was nearly acted on, and why it was wrong.** core argued the exposure was
+> ongoing because every turn re-transmits the context, so continuing to work extended the window. That is
+> false: re-transmission reaches the same provider that already received the bytes at turn one, so it adds
+> copies at one recipient and no new recipient. **Exposure to that channel completed at the moment of the
+> read — it is binary, not accruing, and ending the session un-exposes nothing.** core conceded this: it
+> reasoned about transmission count when the property that bounds an exposure is recipient set. But its
+> *direction* was right through a mechanism neither of us had named — **local spread**. Compaction reads
+> context and writes a new artifact to disk, so the number that continuing work can change is one file to
+> N files. The single-file measurement is itself evidence no compaction has propagated them yet, and core
+> corroborated that independently on mtime (four sibling transcripts untouched since late June). The one
+> real lever is core's session ending before a compaction writes a summary.
+>
+> **Joint recommendation to Roy: rotate all four.** Three bench/dev target groups re-minted is bounded work
+> with no field fleet, set against a live frame-authentication key with no AP-down bound of the kind that
+> de-escalated the earlier PSK finding. Note the reasoning honestly: this is not independent convergence —
+> core's conclusion survived on my mechanism after its own was refuted.
+>
+> **Nobody should delete core's transcript on their own initiative.** It is the only record of what was
+> exposed and when, deletion is irreversible, and it would not shorten the exposure by one turn, because
+> the values are in context rather than only in the file.
+>
 > Bench readiness below is unaffected by all of this, and flash remains Roy-gated.
 
 > **✅ BENCH READY — verified end-to-end, READ AT `2026-07-19T13:43:33+12:00`** (supervisor's census rule: every row carries the instant it was read, because a census without instants cannot survive a partial propagation — the exact condition it exists to detect).
