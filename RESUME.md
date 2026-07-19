@@ -14,6 +14,17 @@
 > are not there and the shas below cannot be matched against anything. Copy them from this worktree, or
 > rebuild at `50c719dd` (assert `git rev-parse HEAD` **first**, sha **second**).
 >
+> **⛔ MATCH THE SHA, NEVER THE FILENAME — 152 STALE ELFs ON THIS HOST CARRY THE DEAD OBSERVER.** Measured
+> 2026-07-20 across every `.elf` under `~`: **tested 174, carriers 4, nm-failed 18.** Only **two distinct
+> shas** carry the `R2ScanHandler` repair — the two below — and each sits at two paths. **152 of 156
+> successfully-tested ELFs are pre-repair**, so a stale artifact outnumbers a good one ~38:1. Flashing one
+> gives a board whose BLE observer never fires.
+> **And the filename is not even a key, let alone a build recipe:** `130dc6de…` exists as *both*
+> `staged-overnight/r2-dfr1195-SENSOR-fakesensor-ble.elf` *and*
+> `staged-xiaobridge-ble/r2-dfr1195-COMPANION-ADVERTISER-fakesensor-ble.elf` — **byte-identical, two
+> names.** (This also confirms by measurement, rather than by memory, the note below that the companion
+> advertiser and the sensor image are the same artifact.) **Only the sha identifies an image.**
+>
 > | role | features | ELF sha256 | bytes |
 > |---|---|---|---|
 > | **SENSOR** (DFR1195) | `fakesensor,ble` | `130dc6de9488ae7dc4c8a63cd5a3562c2b4ffd357969dc815e701423c8ce9df5` | 1358172 |
