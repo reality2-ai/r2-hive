@@ -208,7 +208,14 @@
 
 > **✅ BENCH READY — verified end-to-end, READ AT `2026-07-19T13:43:33+12:00`** (supervisor's census rule: every row carries the instant it was read, because a census without instants cannot survive a partial propagation — the exact condition it exists to detect).
 > **ARTIFACT** `d4c65886e6f9a85fe5b6858017bc354dd8fa7384434661441bd45346ef5dea57`, 1133660 B — matches the manifest exactly.
-> **PRE-FLASH GATE** (the manifest's own): `git status --porcelain platforms/dfr1195/src` ⇒ **0. PASSES.**
+> **PRE-FLASH GATE** (the manifest's own), **corrected — the old form could not fail:**
+> `git ls-files --error-unmatch platforms/dfr1195/src >/dev/null && git status --porcelain platforms/dfr1195/src` ⇒ **0. PASSES.**
+> ⚠ **Do NOT revert this to the bare `git status --porcelain <path>`.** That form returns rc=0 and zero
+> porcelain lines for a WRONG OR RENAMED PATH exactly as it does for a clean tree — verified by
+> substituting `platforms/NONEXISTENT/src`, which produced identical judged output. **A gate that passes
+> when you are looking at the wrong directory is not a gate.** The `ls-files --error-unmatch` prefix
+> consumes the path and fails loudly if it is not tracked (control: the wrong path fails, the right path
+> passes).
 > **BRANCH** `dfr1195-fw` HEAD `fec0b56`, 0 ahead / 0 behind origin, worktree clean — core's PSK scrub is included and the artifact is unaffected (independently audited).
 > **Companion advertiser** `130dc6de…` present, staged, and NOT for this bench (rejected as a confound).
 >
