@@ -160,3 +160,34 @@ cost does not show up in the budget, it shows up later as a misunderstanding. Th
 measure that, because it only scores agent-to-agent encodings. An earlier line in this file said
 compression applies "to agent-to-agent fleet messages, not only human-facing output"; that phrasing
 predates this ruling and MUST NOT be read as licensing compressed documentation.
+
+### ⚠ V2 OVERRIDE (cont.) — COMMS v3: SKEW-SAFE OBLIGATIONS (supervisor, 2026-07-19, `claude-fleet` `dd15a26`)
+
+`COMMS.md` is injected at agent START only, so a lane keeps its launch-time copy until restart or
+compaction. **Version skew between lanes is therefore the NORMAL state, not an edge case** — a single
+adoption day opened five mixed-version windows of unbounded duration.
+
+Two layers, and they behave differently under skew:
+
+- **STABLE CORE — frozen since v1, version-stable across every skew window:** the RFC 2119 keywords
+  (MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY, OPTIONAL) and the
+  verdict set (CONFIRMED, REFUTED, WITHDRAWN, OPEN, STALE, FROZEN, RETIRED).
+- **SIGILS — the layer that MUTATES.**
+
+Therefore:
+
+- **During any skew window, an OBLIGATION MUST be expressible in the STABLE CORE ALONE.** A MUST or
+  MUST NOT line MUST NOT be carried solely by a sigil introduced after v2.
+- A new sigil SHOULD ride with a one-line gloss on first use toward any lane not confirmed re-injected.
+- **An adoption broadcast MUST carry the operative delta INLINE, not only a sha** — in-band repair is what
+  actually kept the fleet coherent through five same-day adoptions. That inline delta is AUTHORITATIVE
+  until the receiving lane's next injection; do NOT wait for a restart to apply it.
+- **Cross-repo cites MUST carry the repo name.** Every fleet repo is a local checkout here, so the problem
+  is identification, not fetchability — a bare `main.rs:1498` is ambiguous across worktrees that share a
+  platform layout.
+
+**Hive-specific finding from self-auditing against this rule (2026-07-19): 33 of my 65 `=` lines carried no
+RFC 2119 keyword, and I had also been using `=` for EMPHASIS on non-obligations ("=item 1 RUNNABLE",
+"=F1 CLOSED"). Under the schema `=` means REQUIRED ACTION, so a status line read as a directive — an
+obligation INVENTED rather than lost, the mirror of the polarity-loss class. `=` MUST carry a keyword or
+become `#` (status) or `~` (informational).**
