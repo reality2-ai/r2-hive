@@ -93,6 +93,53 @@
 > **⚠ "Symbol absent from ELF" is sound in the ABSENT direction only.** Absent proves unbuilt; present
 > proves nothing.
 >
+> ## 🧪 L1 LoRa TEST DESIGN — TWO DFR1195s, SAME IMAGE, DISTINCT IDENTITIES (design only, 2026-07-20)
+>
+> **SCOPE IS LoRa ONLY, and the other two bearers are excluded for measured reasons — their absence is not
+> a failure.** **BLE:** ingress is live but its only consumer is `cfg(xiaobridge)`, absent from this image,
+> so sightings land in a `Deque<_,8>` nothing drains; and there is **no BLE egress at all** since `PHY_BLE`
+> is not in `PHY_ALL`. **ESP-NOW:** compiled in, but `espnow_task` never spawns — the gate
+> `any(not(loraroute), bridge)` is false under `fakesensor`. Running either now would produce a guaranteed
+> failure that measures a **known build gap**, not a bearer.
+>
+> **⛔ THE CONFOUND IS REAL AND IT RESTRUCTURES THE TEST.** The staged image does **not** carry `benchsf7`,
+> so it runs the **SF12** default. The XIAO image (`d4c65886`) and the RAK are also SF12. Under task #28
+> (formation-decouple) a node **forms from any heartbeat regardless of TG** — GroupHmac gates only
+> liveness/duty/deliver, not formation. **So the RAK and XIAO are not neutral bystanders: they can be
+> counted as neighbours.** *(Had the image carried `benchsf7`/SF7, mixed-SF cannot demodulate and the RAK
+> would have been excluded by physics. It does not.)*
+>
+> **⇒ `nbrs` IS A COUNT, NOT AN ATTRIBUTION.** L5 renders `nbrs:{n} ADV±` and nothing on the LCD names
+> *which* peer. `nbrs` is `engine.neighbours().len()`. So `nbrs` going `0→1` **does not mean "B heard A"**.
+>
+> **⇒ THE NEGATIVE CONTROL MUST RUN FIRST, AS A BASELINE — NOT LAST.** Powering A down and requiring B to
+> show nothing **can fail for the right reason and be read as a broken test**, because RAK/XIAO may hold B
+> above zero on their own. Run it first and the same measurement becomes the floor:
+>
+> | step | action | observable | falsifier ⇒ report FAIL |
+> |---|---|---|---|
+> | **0 BASELINE** *(neg. control, first)* | A powered **down**; RAK+XIAO in whatever state they are in | B's `nbrs` = **N₀**, recorded | — this step only establishes N₀ |
+> | **1 POSITIVE** | power A up | B's `nbrs` rises **above N₀** and holds | stays at N₀ past the timing budget below |
+> | **2 REVERSE** | read A's screen | A's `nbrs` rises above **its own** baseline | A stays flat while B rose ⇒ one-way path, **not** bidirectional |
+> | **3 RE-CONTROL** | power A down again | both counts fall back toward N₀ | B stays elevated ⇒ stale/never-expiring entry, the rise proved nothing |
+>
+> **Step 3 is what makes step 1 mean anything.** A count that rises and never falls is compatible with a
+> stale buffer; only the fall attributes the rise to A's presence.
+>
+> **⏱ TIMING BUDGET — SF12 IS SLOW AND AN IMPATIENT READ WILL REPORT A FALSE FAIL.** At SF12 a 29-byte
+> compact frame is ~1647 ms time-on-air, and at `nbrs=0` the 10% neighbour-scaled duty allows **~1 frame
+> per 16.5 s**. First discovery is the *slowest* case because the duty budget widens as neighbours appear.
+> **Allow minutes, not seconds, before declaring step 1 failed.**
+>
+> **ZERO-CONSOLE? PARTIALLY — AND THAT IS THE HONEST ANSWER.** Steps 0–3 are all readable from L5 on the
+> two screens, no tty, no service stop, no DTR/RTS exposure. **But the screen gives count only, never
+> identity**, so this design proves *"B's neighbour count responds to A's presence"* — which the baseline
+> and re-control make attributive **by differential**, not by naming. **If you need B to name A, that needs
+> serial**, and I did **not** find a spontaneous attributive LoRa-RX print: the peer-naming lines I located
+> are a refusal path (`NEG-REFUSE cross-mode peer hive=`) and a console-verb response (`VRSSI peer=`),
+> neither of which fires on a normal successful receive. **A console read also requires STEP 0's service
+> stop** — the orchestrator holds these ports and will fight a console exactly as it fought the flasher.
+>
 > ## 📐 HOW CAPABILITY IS REPORTED NOW — THREE AXES, RULED BY SPECS 2026-07-20
 >
 > `working / unknown / unbuilt` is retired, and so is my proposed fourth state. **The source/artifact plane
