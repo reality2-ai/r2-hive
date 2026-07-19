@@ -46,6 +46,15 @@
 >
 > **The RAK is not in this at all** — exempt from OTA on your bootloader ground, and its BLE is
 > advertise-only today; making it carry BLE data is real work, not done.
+>
+> **📣 RAK BENCH-IMAGE SIGN-OFF QUALIFIED, 2026-07-20 — `r2-core@d39900d8` on `rak4630-fw`, pushed and
+> verified at origin.** If you run `build-field-image.sh`, the last line it prints is now **`BENCH image
+> assembled … dev-trial ONLY: APPROTECT OPEN, conformance properties WAIVED. Despite this script's name,
+> this is NOT a field-conformant or PROD image.`** It previously said only `field image assembled`, on a
+> script whose filename and header also say FIELD — so an operator could run it, read the sign-off, and
+> reasonably conclude it was field-ready. One echo line; no build step, flash step, path or emitted recipe
+> changed. **The filename still says `field` and that is unfixed** — renaming moves a path other things may
+> call, so it was deliberately left for a scoped change.
 
 > ## ☀️ FOR ROY, MORNING OF 2026-07-20 — WHAT HAPPENED OVERNIGHT, WHAT DID NOT, AND WHY
 >
