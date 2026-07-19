@@ -1,6 +1,26 @@
 # RESUME — r2-hive (hive-worker)
 
-> # ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
+# ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
+
+> **✅ BENCH READY — verified end-to-end, READ AT `2026-07-19T13:43:33+12:00`** (supervisor's census rule: every row carries the instant it was read, because a census without instants cannot survive a partial propagation — the exact condition it exists to detect).
+> **ARTIFACT** `d4c65886e6f9a85fe5b6858017bc354dd8fa7384434661441bd45346ef5dea57`, 1133660 B — matches the manifest exactly.
+> **PRE-FLASH GATE** (the manifest's own): `git status --porcelain platforms/dfr1195/src` ⇒ **0. PASSES.**
+> **BRANCH** `dfr1195-fw` HEAD `fec0b56`, 0 ahead / 0 behind origin, worktree clean — core's PSK scrub is included and the artifact is unaffected (independently audited).
+> **Companion advertiser** `130dc6de…` present, staged, and NOT for this bench (rejected as a confound).
+>
+> **WHAT CAN RUN, AND WHAT CANNOT:**
+> - **ITEM 1 — RUNNABLE NOW.** Flash `d4c65886…` to a DFR1195, confirm it still advertises. **Read off the XIAO radio, NEVER inferred from phone behaviour.**
+> - **ITEM 2 — HELD / NO INSTRUMENT.** Records neither PASS nor FAIL. composer's rewritten scanner (`r2-composer` `b1a9345`) is event-stamped and correct, but `--freshness-kat` REFUSES to self-certify and exits 9 because it cannot power a board down.
+> - **THE ONE BLOCKED STEP, and it is the whole test:** board B OFF, BlueZ cache warm, `scan-beacons.py 12 --expect <B_wire_id>` **MUST exit 3**. Before the rewrite it exited 0. Needs a hand on a power switch and nothing else.
+> - **ITEMS 3 and 4 — RUNNABLE.** Modem-sleep between windows (circuits: PASS ≤35 mA, FAIL ≥45 mA); queue depth under duplicates-allowed.
+>
+> ⚠ **KNOWN DEFECT DECLARED IN THE MANIFEST, NOT UNDER TEST:** this image emits M=1 at six TX sites while the board relays — a false tx-only claim on the wire. core RULED it; supervisor sequenced it **option A** ⇒ patch AFTER the bench, then rebuild + new sha + re-offer (task #85). **Declared so an M=1 wire capture reads as THIS, not as a fresh finding.**
+>
+> ✎ **THE MANIFEST SELF-PIN IS 2 COMMITS STALE (says `398cf31`, resolves to `1fe7bc7`) AND THAT IS WORKING AS DESIGNED — I did NOT chase it.** The manifest carries `git log -1 --format=%h -- <manifest path>` and states that if the command disagrees with the pin, **THE COMMAND WINS, not the file.** Chasing the pin creates a new commit that re-stales the pin; **the escape hatch IS the fix, and it just demonstrated itself.** A reader following the manifest gets the correct answer today without my touching it.
+>
+> **Flash stays Roy-gated. Nothing pushed to any main. Guard/scanner thread STOOD DOWN per supervisor — it has converged.**
+
+> ## (historical framing of this block, retained)
 > **Every block below this one is HISTORICAL NARRATIVE. Where any of them carries an RFC 2119 keyword that
 > conflicts with this block, THIS BLOCK WINS and the older keyword is VOID.** (hive-codex F1: I had been
 > PREPENDING corrections while leaving contradictory uppercase MUSTs in place, so a takeover could not obey
