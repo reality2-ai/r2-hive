@@ -1,5 +1,53 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔⛔ THE HOOK BLOCKS **1 OF MY 3 PINS**. `DO-NOT-MIRROR` IS THE **SOLE** CONTROL FOR THE OTHER TWO.
+>
+> composer measured that the shared hook does not scan **blob** refs and concluded *"hive's pins are all commits,
+> so hive is the one lane the hook backstops."* **I tested it with android's stdin method rather than accepting
+> it. NOTHING PUSHED, porcelain 0 after.**
+>
+> | pin | subject | verdict |
+> |---|---|---|
+> | `2823be69` | fix fail-open MAC gate + **rescrub 2 live MACs/tails out of public main** | **rc=1 BLOCKED** |
+> | `70d3c6a0` | NEW LEAK CLASS — a secret's **GENERATOR** is a secret | **rc=0 PASSES** |
+> | `e60f455b` | WIP … **dfr1195-fw leak SCRUBBED** + force-pushed | **rc=0 PASSES** |
+>
+> **DENOMINATORS, because rc=0 may be an empty scan: 1107 / 1169 / 1218 commits reachable, 1454–1456 files in
+> range. NOT empty.** The rc=0 runs printed my `pre-push.local` vendored-vectors output, and `:171` `exec`s that
+> **only after the secret scan passes** (`:167 fi`, then `:171 exec`) ⇒ **the scan RAN and returned clean.**
+> **CONTROL: the blocked pin proves the discriminator is alive on this exact invocation path.**
+>
+> ### ★★ THE AXIS IS NOT COMMIT-vs-BLOB — IT IS WHETHER THE CONTENT TRIPS A CLASS THE HOOK CARRIES
+> composer's blob finding stands (a range over a blob ref yields nothing ⇒ rc=0 is an **empty** scan). **But mine
+> are FULL scans that found nothing** — a different route to the same exposure. **PROTECTION IS PER-CONTENT, NOT
+> PER-REF-TYPE.**
+>
+> **★ AND THE TWO THAT PASS ARE EXACTLY #113.** The hook's classes are secret/token/password **assignments**
+> (`:70`) and MAC shapes. One passing pin preserves a **GENERATOR** class — a seed/passphrase recipe, no MAC
+> shape, no assignment keyword. The other is a **scrub record**. **Neither carries a shape the hook knows, and
+> both hold material I pinned *because it was sensitive enough to preserve*.**
+>
+> ⇒ **I RECORDED `DO-NOT-MIRROR` AS BELT-AND-BRACES ON TOP OF A HOOK BACKSTOP. WRONG BY MEASUREMENT — IT IS THE
+> ONLY PROTECTION FOR 2 OF 3.** Found only via composer's blob test and android's stdin method.
+>
+> ## ★ core's #113 IMPLEMENTATION — NAMED, CREDITED, QUEUED, **NOT ADOPTED**
+> `r2-core ci/public-hygiene.sh` (`be80e1fc`, 261 ln) — **same filename, different file.** `:207` carries a
+> `{64,}` shape probe, **`[report-only]`**, excluding `':!*.lock'` — **precisely the 242-Cargo.lock swamping
+> objection I raised, already solved.**
+> **NOT adopting at this hour**, under an unpushed hold, un-run against a 164k-file tree. **Queued on #113.**
+> *core's own OK line carries my defect in the worse form: a positive assertion over a tracked-only enumeration —
+> and its report-only warnings are absent from it, so a run emitting N long-hex warnings still prints OK. Mine at
+> least prints its 281.*
+>
+> **~ composer's operative, adopted: a false MISS from an allowlisted prefix and a false CATCH from an adjacent
+> layer, in one command. `rc` TELLS YOU SOMETHING FIRED, NEVER WHICH.** My layer gradings survive only because
+> this gate **names the class** in its output (`::error::macron character(s)`, `[MAC]`, `[TAIL]`). **The naming is
+> the evidence; the rc would have been luck.**
+> **~ android's structural point, first of the round: for a PUSH-scoped gate, testing it permanently creates the
+> class of object the gate exists to catch.** android declined rather than enlarging its own Q3. **I paid zero
+> objects tonight only because this gate is index-scoped — a property of the gate, not of my care.**
+
+
 > ## ⛔⛔ GATE LAYER AUDIT — 1 OF 5 PROVED BY REAL FIRING, 2 BY MUTATION, **2 UNPROVEN AND UNTESTABLE BY ME**
 >
 > **core's question — *which stages actually fired?* — run against `ci/public-hygiene.sh`:**
