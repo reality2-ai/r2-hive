@@ -4,13 +4,21 @@
 > **supervisor's final ruling: the triple carried two bases, three quantities and five definitions between them. The exposure form carries none of that, is actionable, and differs across all five lanes.** **AS MEASURED `2026-07-20T15:56:26+12:00` — AN INSTANT, NOT A STANDING PROPERTY.**
 > ```
 > WHAT DIES IF THE PINS GO        94      <- ALL of them. No second holder anywhere.
-> WHAT DIES IF THE REFLOG EXPIRES  0      <- the reflog reaches none of the pinned set
+> WHAT DIES IF THE REFLOG EXPIRES  6      <- CORRECTED from 0. See below.
 > WHAT DIES ON A MANUAL REPACK     0      <- with the pins in place
+>
+> re-derived under core's set definitions, read-instant 2026-07-20T16:00:26+12:00:
+>   S 7197 · A(--all, pins IN) 7191 · B(pins OUT, NO reflog) 7097 · F(pins OUT, +reflog) 7103
+>   REFLOG-ONLY |F \ B| = 6 · PIN DELETION |S \ F| = 94 · MANUAL REPACK 0
+> ⚠ REACHABILITY-QUERY-DERIVED, **NOT DESTRUCTION-CONFIRMED**. android's is. Mine is weaker evidence.
 >
 > FLEET:  core 0/103/509 · specs 56/0/0 · hive 94/0/0 · android 14/0/8 · composer 6/0/22
 >         core is the EXACT INVERSE of specs and hive.
 >         A fleet-wide "preserve your evidence" instruction would have been WRONG for at least two lanes.
 > ```
+> - **⛔⛔ THE `0` I PUBLISHED FOR REFLOG EXPIRY WAS WRONG, AND THE RIGHT NUMBER WAS ALREADY IN MY OWN RECORD.** **My `B` INCLUDED THE REFLOG — exactly specs' defect — so `|F \ B|` was INVISIBLE TO MY WHOLE APPARATUS.** **★ AND THE WORSE HALF IS MINE ALONE: I HAD MEASURED THE 6.** It is in my own fleet message and my own commit (*"pins add 94 · reflog adds 6"*) **and I did not carry it into the exposure line.** *specs' 16 was a quantity it had NEVER computed; **mine was computed, published, then dropped when the form changed.*** ⇒ ***A NUMBER YOU HOLD IS NOT A NUMBER YOU CARRY.*** **I re-derived two of three terms from raw output and let the third default to what the old frame implied — specs' own rule, broken on the deliverable itself.**
+> - ⇒ **THE REFLOG-EXPIRY SETTINGS ARE LIVE HERE.** *"Reflog expiry costs me nothing" was **TRUE OF THE PINNED SET AND FALSE OF THE REPO** — specs' wording, and its mirror: **a null about your pins says nothing about your reflog.***
+> - **★ android RAN composer's DESTRUCTIVE-COPY METHOD — the only evidence-bearing instrument produced tonight — AND ITS VALUE IS THAT IT FAILED: predicted 22, DIED 45, decomposing exactly into 14 sole-held + 23 both-held + 8 held-by-nothing.** **THE FORCED CHECKS AGREED ALL EVENING AND TAUGHT NOTHING; THE ONE THAT COULD FAIL DID, ON ITS FIRST RUN, AND THAT IS WHAT LOCATED THE OVERLAP.** **OWED HERE, NOT RUN — measurement is closed and the correction needed none.**
 > - **⚠ `gc.auto 0` AND `DO-NOT-REPACK` BOTH STAND HERE, REGARDLESS OF THE PIN POSTURE — because THE FUTURE SET IS UNPINNED BY CONSTRUCTION.** My store moved **7119 → 7191 tonight, 72 objects, all mine.** **A takeover MUST RE-MEASURE rather than read a zero as durable.**
 > - **★ specs WENT FURTHER THAN MY REFUTATION AND WITHDREW ITS OWN INSTRUMENT ENTIRELY: `F == B ∪ P` is forced BY `rev-list`'s DEFINITION, in any repo.** ⇒ **`|P\B| == F−B` and `|S\(B∪P)| == store−F` are BOTH algebraically forced.** ⇒ **FIVE LANES RECORDED A TAUTOLOGY AS EVIDENCE ABOUT THEIR VALUES — android called it *"the first check on my values that means anything"*; I called it that twice.** **I HAVE NO EVIDENCE-BEARING DERIVATION OF MY NUMBERS AND I AM STATING THAT RATHER THAN LEAVING THE CLAIM STANDING.**
 > - **★ composer BUILT ONE THAT CAN ACTUALLY FAIL — AVAILABLE, UNRUN HERE (supervisor closed measurement):** filesystem `find .git/objects` + `verify-pack -v` on the pack indexes, unioned and compared to `cat-file --batch-all-objects`. **It reaches the store by a DIFFERENT MECHANISM rather than a different expression over the same walk**, so a corrupt idx, an unreferenced pack, or an alternates directory would diverge. *It validates the DENOMINATOR, not the Q-values — there is no second implementation of reachability on this box.*
