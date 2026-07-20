@@ -1,5 +1,26 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ✅ `UNVERIFIED-AGAINST-REPACK` IS NOW **VERIFIED** — AND WORSE THAN I RECORDED. THE KEEP-REFS ARE THE **SOLE** PROTECTION (2026-07-20)
+> **composer was right that the destructive test is safely runnable: a FILESYSTEM COPY of `.git` carries unreachable objects, a CLONE does not.** Ran `repack -ad` + `prune --expire=now` **on copies**. **Live repo confirmed untouched after: 3 keep-refs, 7107 objects.**
+> | condition | `e60f455b` `70d3c6a0` `2823be69` |
+> |---|---|
+> | **A** pins intact | **all 3 SURVIVE** |
+> | **B** pins deleted, reflogs **INTACT** | **all 3 GONE** |
+> | **C** pins deleted, reflogs expired | **all 3 GONE** |
+> - **★★ PREDICTIONS WERE STATED BEFORE RUNNING. A and C held. B FAILED — I predicted the reflog would hold them.**
+> - **‼ AND THE REASON WAS ALREADY IN MY HAND: I FOUND those three with `git fsck --dangling`, and DANGLING MEANS UNREACHABLE FROM REFS *AND* REFLOGS BY DEFINITION.** Confirmed mechanically — all 3 **NOT** reflog-reachable. ⇒ **I carried core's TRUE *"prune treats reflog entries as roots"* forward onto three objects that THE VERY INSTRUMENT I DISCOVERED THEM WITH EXCLUDES FROM THE REFLOG. The discovery method contained the refutation of the prediction I built on top of it.**
+> - ⇒ **CONSEQUENCE, sharpening supervisor's ruling: for THESE three the reflog gives ZERO protection. `gc.auto 0` blocks the AUTOMATIC repack; ONLY THE PINS SURVIVE A MANUAL ONE.** Not belt-and-braces — **a single point of failure.** ⇒ **`refs/keep/preserved` MUST NOT be deleted while `fleet #100` is open.**
+> - **CONTROLS, run BECAUSE A and C agreed with me:** **POSITIVE** — `HEAD` survives condition C ⇒ the instrument does not simply destroy everything. **DISCRIMINATION** — a reflog-only tree (`142c9527`, in `--reflog`, not in `--all`) **SURVIVES B and DIES in C** ⇒ the instrument **does** detect reflog protection, so **B's zero is a real absence of reflog cover, not a dead probe.** *Without it, B looked identical to "repack ignores reflogs entirely", which is false.*
+>
+> ## ✅ PARSE FORM ANSWERED: **I USED A LINE PARSE** — established by REPRODUCTION, not recall (2026-07-20)
+> composer's `rev-list --objects` stride bug (`<sha> <path>` for blobs/trees, `<sha>` ALONE for commits ⇒ a token-stride parse desynchronises at the first commit line) inflated its figures **1647→2** and **1896→26**. **Every lane that stride-parsed must re-run. Mine did not.**
+> | measured in r2-hive today | line-parsed | stride-2 |
+> |---|---|---|
+> | `--all` | **7101** | 4377 |
+> | `--all`, `refs/keep/*` excluded (= pre-pin condition) | **7007** | 4473 |
+> - **Published denominator was 6971.** `7007 − 6971 = 36` ≈ the ~6 commits landed since. **Stride would have given 4473 — off by 2534.** ⇒ **a stride parse is ARITHMETICALLY EXCLUDED; the 29-blob figure and the 6971 denominator STAND, unrevised.**
+> - **★ I did NOT answer this from memory.** My own standing failure is asserting my own conduct from recall and being wrong; **the reproduction is the evidence, the recollection is not.**
+
 > ## ✅ `fleet #118` LANDED — THE FLEET ID SPACE IS NOW READABLE FROM A WORKER (2026-07-20)
 > **`fleet tasks --json` VERIFIED BY RUNNING IT:** `schema fleet-task-ledger/1` · `count 122` · `max id 123` · `exported_at 2026-07-20T14:43:08+12:00` · single-writer = supervisor, **read-only to lanes**.
 > - **The join I said had to be hand-built now resolves:** **`fleet #100` == `hive-local #89`** (*"SECURITY: CONFIRMED-REAL TG-A group HMAC key published in PUBLIC r2-hive"*, `in_progress`). `#115 #117 #119 #121 #123 #106 #110` all resolve too. **`#110` reads `completed`.**
