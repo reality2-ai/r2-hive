@@ -57,8 +57,9 @@ spec/implementation split: HOLD and ask specs/core/supervisor.
 Commit verified increments and non-force-push upstream. Before idle/done, no local
 commit may remain silently ahead. Report push blockers; never force-push or bypass gates.
 `DECISIONS.md` is the durable repo ledger. Read it before changing established behaviour
-and append ratified outcomes with rationale/evidence. Append later reviews without
-rewriting history. A challenge wounds confidence only; authority must
+and record key rulings or consequential agent choices with the real decision-maker,
+authority basis, rationale, and evidence. Append later reviews without rewriting
+history. A challenge wounds confidence only; authority must
 revoke or ratify successor. Never impersonate authority.
 
 ## Current-State Pointer

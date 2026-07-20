@@ -5,8 +5,10 @@ It is not a task log and does not replace specifications, ADRs, or code.
 
 ## Rules
 
-- Append only explicit human/canonical rulings and explicit holds. Proposals,
-  experiments, and task status stay in their normal documents.
+- Append key human/canonical rulings, explicit holds, and consequential agent
+  implementation choices. Routine edits, experiments, and task status stay out.
+- Name the actual decision-maker and authority basis. An agent choice is delegated
+  judgment; never label it human-ratified or let it override canon.
 - A decision records context, rationale, alternatives, expected consequences, and
   evidence. Existing records are immutable.
 - Review a decision by appending an `R-...` record naming the decision, reviewer/date,
@@ -25,7 +27,8 @@ It is not a task log and does not replace specifications, ADRs, or code.
 - **Date:** 2026-07-21
 - **Scope:** Repository process
 - **Outcome:** Keep a terse repo-local log of key decisions and later reviews.
-- **Authority:** Roy
+- **Decision-maker:** Roy
+- **Authority basis:** Explicit user ruling
 - **Context:** Key rulings were dispersed across transcripts, handoffs, and design files.
 - **Rationale:** A uniform durable record makes reasoning and later appropriateness
   analysis discoverable without treating temporary agent prose as authority.
