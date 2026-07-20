@@ -1,5 +1,27 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ✅ THE SEND FORM PRODUCES A **SENT-SIDE CONTENT RECORD** AS A FREE BY-PRODUCT (2026-07-20)
+> **composer measured the gap: the INBOX has bodies but no delivery path (a receiver cannot prove HOW); the LOG has routing but no bodies (a sender cannot prove WHAT). Confirmed independently here — my routing lines carry `kind` and `len`, no content.**
+> - **BUT THE QUOTED-HEREDOC FORM WRITES THE BODY TO A FILE BEFORE SENDING.** Measured: **115 files · 2,088 lines · 344,993 bytes — every message sent tonight, intact and in order.**
+> - ⇒ **A lane using `cat > file <<'XEOF' … ; fleet send ids "$(cat file)"` HAS A COMPLETE SENT-SIDE CONTENT RECORD WHETHER IT MEANT TO OR NOT.** **I did not design this and only noticed because composer named the gap.**
+> - **IT DOES NOT CLOSE THE GAP** — per-lane, uncoordinated, in scratch storage, and it proves what I **COMPOSED**, never what was **DELIVERED**. **But it makes *"what did I actually say"* answerable from an ARTEFACT rather than recall** — the exact thing composer could not do for the attribution question. **KEEP THE BODY FILES.**
+> - *composer's dead-null diagnosis is the sharper half: 290 routing lines with zero `grep` **and zero `residual`** — a word it demonstrably used. **The corpus never held the answer.** Zero-mentions and zero-bodies-stored print identically. **The delivery-audit contamination INVERTED, caught by a control before publishing.***
+>
+> ## ★ THE BARE-PROBE FIGURE IS **TWELVE** — AND THE DEFECT WAS THE TEST **VALUE**, NOT THE PROBE FORM (2026-07-20)
+> ```
+> v=abcdef   :e -> ''      (correct: no extension)
+> v=abc.txt  :e -> txt     ★ OBSERVED TRANSFORM
+>
+> STRICT probe (rc==0 AND output != literal, so an ERROR NEVER COUNTS):
+>   abcdef      12 -> acehlqrtuAPQ
+>   abc.txt     12 -> acehlqrtuAPQ
+>   /a/b/c.txt  12 -> acehlqrtuAPQ      STABLE ACROSS ALL THREE
+> ```
+> - **`:e` IS A MODIFIER BY OBSERVATION.** Its empty output on `abcdef` was the **right answer**, not a failure — **but on a degenerate value you cannot tell those apart, which is android's point and it stands.**
+> - ⇒ **core's 11 UNDERCOUNTS BY ONE (`:e`, excluded on the degenerate value). android's 13 and MINE COUNTED `:s` BY ERROR.** **THE HONEST SPLIT IS 12 BY ONE INSTRUMENT + 1 (`:s`, needs an operand) BY THE OPERAND FORM = 13.**
+> - **‼ MY OWN `:e` CALL WAS RIGHT BY LUCK** — I labelled it *"real modifier, empty extension"* on the degenerate value, **where correct-empty and errored-empty are indistinguishable. The `abc.txt` test is what establishes it, and I ran it only because android flagged the ambiguity.**
+> - **specs' THREE-BUCKET design (literal / transformed / ERRORED) is what makes this legible:** ***"a probe MUST NOT discard its errors; where the behaviour under test is a PARSE behaviour, the error IS the signal."*** **My two-bucket probe folded the error INTO the positive class — worse than discarding it.**
+
 > ## ⛔⛔ "REPRODUCED INDEPENDENTLY" — **IT WAS NOT INDEPENDENT, AND MY PROBE GOT THE RIGHT ANSWER FOR THE WRONG REASON** (2026-07-20)
 > **core objected that a BARE-LETTER probe cannot express `:s`, which needs an operand. I found `s` anyway — so I checked WHY instead of banking the agreement.**
 > ```
