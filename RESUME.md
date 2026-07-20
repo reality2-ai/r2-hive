@@ -1,5 +1,53 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔ WHAT THE 3 PINS ACTUALLY HOLD — SCRUB EVIDENCE. **PRUNING DESTROYS IT; MIRRORING RE-PUBLISHES IT.** (2026-07-20)
+>
+> **core's standing: *a pin-value figure MUST name what the pins hold.* I carried "pin value 94" all session and
+> never said. Measured now — and it is the sharpest case in the fleet.**
+>
+> | pin | type | subject (no values) | date |
+> |---|---|---|---|
+> | `2823be69` | commit | WIP … fix fail-open MAC gate + **rescrub 2 live MACs/tails OUT OF PUBLIC MAIN** | 2026-07-15 |
+> | `70d3c6a0` | commit | NEW LEAK CLASS — **a secret's GENERATOR is a secret**; contained, never published | 2026-07-17 |
+> | `e60f455b` | commit | WIP … **dfr1195-fw leak SCRUBBED + force-pushed + verified**, task #82 | 2026-07-19 |
+>
+> **ALL THREE ARE SCRUB-ADJACENT IDENTITY EVIDENCE** — the preserved record of removing live identity material
+> from a **public** repo. Not incidental objects.
+>
+> ```
+> reachable from remote refs : 0 of 3   (CONTROL ALIVE: origin/main tip is an ancestor of itself)
+> plain `git push`           : no refspec -> refs/heads only; refs/keep NOT carried
+> ```
+> ⇒ **THESE PINS ARE THE ONLY SURVIVING COPY OF CONTENT DELIBERATELY REMOVED FROM PUBLIC MAIN.**
+> **A repack destroys the scrub's own evidence. A `--mirror` push or a clone-with-all-refs RE-PUBLISHES WHAT WAS
+> SCRUBBED. BOTH ARE HAZARDS AND THEY POINT OPPOSITE WAYS.**
+> ⇒ `DO-NOT-REPACK` here is load-bearing for an **OPEN** item — **#89, Roy's unmade TG-A rotation ruling.**
+> composer's shape exactly: *2 objects and 2-objects-that-are-the-subject-of-an-open-hold license different
+> decisions.* **My 94 was arithmetically correct and operationally mute.**
+>
+> ## ★ grep provenance — VERIFIED HERE, composer's limit confirmed
+> ```
+> grep            ugrep 7.5.0
+> command grep    grep (GNU grep) 3.12-modified
+> /usr/bin/grep   grep (GNU grep) 3.12-modified
+> command -v grep => grep      <- THE FUNCTION NAME, NOT A PATH. Hoisting RE-SELECTS THE WRAPPER.
+> ```
+> My sweeps used `command grep` as a **direct prefix** only — the one surviving form — so they stand.
+> **ADOPTED: absolute `/usr/bin/grep` anywhere the name enters a variable or an `-exec`.**
+>
+> ## ★ LABEL CORRECTION — MINE IS THE LARGEST FILTER RATIO IN THE FLEET
+> ```
+> hive      164,100 ignored files · 64 scanned · 164,036 DROPPED BY FILTER = 2564x
+> composer  33 of 62,350 (1889x) · circuits 6884 · android 7 of 9641 · specs 12
+> ```
+> **CORRECT LABEL: *NON-BUILD gitignored surface, 64 files.*** The build surface is **UNSCANNED — NAMED,
+> COUNTED, NOT CLASSIFIED.** That is the honest word; *"swept"* was not.
+> **★ composer's general form, kept: A FILTER APPLIED BEFORE EXPANSION IS INVISIBLE IN THE RESULT.** Every
+> gitignored-surface number compared across repos tonight compares **filter choices**, not repos.
+> *circuits' detector-artifact-in-COMPILED-form has no analogue here — this gate is shell, not compiled. A
+> measured absence of the precondition, not a clean.*
+
+
 > ## ⛔⛔ #113 NEW — `ci/public-hygiene.sh` HAS **NO LONG-HEX / BASE64 / ENTROPY CLASS**. IT WAS GREEN BY ABSENCE OF A RULE (2026-07-20)
 >
 > ### 1. My ignored-set denominator was silently truncated — worse than the lane I charged with it
