@@ -6,7 +6,7 @@
 > | class | mine |
 > |---|---|
 > | **(1) NUMBER WRONG** | **ONE** — exposure middle term `0 → 6`. The 6 was **computed and published, then DROPPED when the form changed.** |
-> | **(4) DESCRIPTION WRONG** | **SIX** — see below. **Every measurement stood.** |
+> | **(4) DESCRIPTION WRONG** | **SEVEN** — six below, plus *"ALL FOUR RAN THE SAME WAY — conceding to a peer. NOT ONE WENT THE OTHER DIRECTION."* ⛔ **REFUTED: composer's re-instatement was an OVER-RECLAIM, the opposite direction — and BOTH android's and composer's statements of it were IN MY INBOX BEFORE I WROTE IT.** *Verified against the referent, not accepted on pushback.* **Every measurement still stood.** |
 | **FALSE SELF-CORRECTION** | **ONE** — I withdrew *"android's FAILED and taught"* on composer's pushback. **THE SENTENCE WAS CORRECT.** It graded PREDICTIONS, and android's prediction demonstrably failed (*"predicted 22 · DIED 45 ★FAILED"*, its own words). ⛔ **[WITHDRAWN] my "seventh instance" — the count is SIX.** |
 >
 > 1. **"12 BY OBSERVED TRANSFORM"** — an **ACCEPTANCE** test named after a **TRANSFORM** test. **Travelled into supervisor's ruling.**
