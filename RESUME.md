@@ -1476,6 +1476,24 @@
 >   - **⇒ I AGREE: DO NOT RE-PUSH.** Code correct, gap substantially recorded in-code, **and the missing number belongs in the reference-implementation record — exactly where Roy's directive puts it.** A new sha would de-sync a verified artifact to sharpen one clause. **core's reasoning holds and is stronger than core made it.**
 > - **⚠★★ LEAK HAZARD IN THE EVIDENCE LINE — RAISED BEFORE THIS ROW GOES INTO A PUBLIC GH ISSUE.** The new log prints **`origin={:?}` ⇒ `Some(0x00XX)`**, and that value is `(my_hive >> 16)` where an unprovisioned `my_hive = mac_low3 = MAC & 0x00FF_FFFF` ⇒ **`0x00XX` IS A BYTE OF THE DEVICE MAC.** ⇒ **`LORA-CPT … origin=Some(0x0052)` IS A PARTIAL MAC CORRELATOR.** Fine on a bench console; **MUST NOT be pasted verbatim into issue 19, a spec, or a commit message.** **Quote it with the origin redacted (`origin=Some(0x00__)`) or cite `decode=`/`verify=` only — the evidentiary value is entirely in those two booleans; the origin adds nothing to the proof and everything to the exposure.** Same class as the board-id rule we have run all night, and **the first time an evidence artifact carries one INTO a public record.**
 >
+> ## ✅✅ GATES 3+4 FLASHED AND GREEN ON METAL — LoRa INGRESS WORKS (2026-07-20)
+> | measure | ttyACM3 | ttyACM0 |
+> |---|---|---|
+> | control (status lines) | 146 | 146 |
+> | `LORA-CPT` | **10** | **10** |
+> | `decode=ok` | **10/10** | **10/10** |
+> | `verify=true` | **10/10** | **10/10** · `verify=false` **ZERO** |
+> | `LORA-BEACON` / `LORA-RX` | 10 / 10 | 10 / 10 |
+> | **`nbrs` non-zero** | **38/146 = 26.0%** | **32/146 = 21.9%** |
+>
+> - **artifact `2ba6612b1bb4aaffb39e48751efb2992e0a325f8e71908cb00701edbdc9a7f8c` on BOTH boards**, flashed **17 s apart (stamps in supervisor's report; written here as a delta because `HH:MM:SS` false-positives the hygiene gate's MAC-tail matcher), INSIDE the safe band** *(`offset > 1647 ms` and `period − offset > 1647 ms`)*, **so no stagger reset was needed.** The recipe worked as a *prediction*, not just a post-hoc explanation.
+> - **★★ MY TTL MODEL HELD TO WITHIN ONE SAMPLE.** Predicted `peer_ttl_s`/emit = 7/30 = **23.3% ⇒ ~34 of 146**; **measured mean 35.** ⇒ **THIS IS THE PAYOFF FOR REFUSING core's *"draw no negative conclusion from this run"*.** Without the denominator, *"`nbrs` is intermittent"* is unreadable — **is 26% good?** With it, **26% against a predicted 23% is a CONFIRMATION OF THE CHARACTERISED DEFECT.** *The number only became evidence because the model was written down first.*
+> - **★ BOTH PRE-REGISTRATIONS WRONG — AND THAT IS THE STRONGEST FORM OF THE RESULT.** I said the demux; core said `verify_compact` and named it as the line it would read first. **10/10 decode, 10/10 verify, zero failures.** **Neither lane could retro-fit a story afterwards, because both stories were on the record before the run and both are dead.**
+> - **ROW RECORDED IN GH ISSUE 19 — REFERENCE IMPLEMENTATION RECORD — with its pinned sha, the shared-crate vs platform-file split, and EIGHT gaps travelling with it.** *That is what makes it an inheritance rather than a status.*
+> - **⚠★★ THE REDACTION FAILURE IS MINE BEFORE IT IS SUPERVISOR'S.** I raised the leak correctly and then **supplied the redaction as `origin=Some(0x00__)`; supervisor built its filter from my pattern.** Measured `:2040`: `"… origin={:?} …", origin` with `origin: Option<u16>` — **Rust `{:?}` on a `u16` prints DECIMAL**, so the line emits the origin **in DECIMAL**, while my pattern matched only the **hex** form. **Both MAC bytes passed untouched.** **AND I HAD READ THAT EXACT LINE while verifying core's compliance** — I reasoned *"it is a hive_id, so it is hex"*, **from the value's conceptual form instead of the emitter's format string.** ⇒ **A REDACTION PATTERN MUST BE DERIVED FROM THE EMITTER'S FORMAT STRING. A redactor tuned to the wrong encoding is a scanner with no emitter.** **★ THE DURABLE FIX IS NOT A BETTER PATTERN: QUOTE ONLY THE FIELDS THAT CARRY EVIDENTIARY VALUE — AN ALLOWLIST CANNOT FAIL ON ENCODING; A BLOCKLIST CAN, AND DID, TWICE IN ONE SESSION.** Banked to [[green-cell-needs-pinned-code]]. **Scope: issue 19's published body is clean by leak check; the exposure is supervisor's transcript — bench-chat, two MAC bytes, disclosed.**
+> - **SYMMETRY WORTH KEEPING:** I corrected a **durable memory**; supervisor corrected a **task description**. **Both are artifacts that propagate a claim past the point anyone re-checks it** — supervisor named that about its own record before I would have.
+> - **POST-FLASH, MINE:** the `seen` per-bearer **one-line filter** (on the tag core landed), and **running the coverage-inversion check WITH step (ii) on `r2-hive-bin` and the wasm hive — the reciprocal I owe core and have not run.**
+>
 > ## 🔧 BUILT AND REPORTED — GATES 3+4 ARTIFACT, AWAITING SUPERVISOR'S FLASH (2026-07-20)
 > | field | value |
 > |---|---|
