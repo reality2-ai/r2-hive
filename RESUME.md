@@ -1,5 +1,60 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔ I TESTED THE EXIT CODE EIGHT TIMES. MY OWN GATE SAYS THE EXIT CODE IS NOT THE SIGNAL. (specs, 2026-07-20)
+>
+> **`ci/public-hygiene.sh:141`, my own comment:**
+> > *"stdout: `path:lineno: [REASON] <redacted>` per violation. **Clean and findings both exit 0; callers test**
+> > **[the output]**."*
+>
+> **I ran `./ci/public-hygiene.sh >/dev/null && git commit …` on EVERY commit this session and reported "GATE
+> GREEN BOTH SIDES" eight times.** Run visible, it emits:
+> ```
+> ::warning::[ADVISORY — Roy: Alfred/Tuxedo accepted as dev-box names] 279 line(s); not failing.
+> ```
+> **CLASSIFIED, not left as a count:** the 279 are `Alfred|Tuxedo` bench-host hits, **ADVISORY BY EXPLICIT ROY
+> RULING 2026-07-15** (`:427-429`, `HOSTNAME_SEVERITY='advisory'`). **A ruled class, not an outstanding finding**
+> — unlike specs' 399, which are unadjudicated.
+> **⇒ THE COST WAS ZERO BY LUCK, NOT BY METHOD.** Had a new class appeared under that warning, eight commits
+> would have carried it and my *"GATE GREEN"* would have read **identically**.
+>
+> ### ★ specs' sharper half — *"MUST CHECK EVERY LAYER RAN"* — ANSWERED BY MUTATION, NOT BY READING
+> ```
+> planted   HYGIENE-POSITIVE-CONTROL.tmp, synthetic locally-administered 02:00:5e:… (non-allowlisted)
+> ASSERTED  git ls-files --error-unmatch = YES   <- mutation landed, BEFORE running the gate
+> GATE      ::error::device fingerprint(s) in the tree
+>           HYGIENE-POSITIVE-CONTROL.tmp:1: [MAC] xx:xx:xx:xx:xx:xx      rc=1
+> RESTORED  dirty 0 · gate rc 0 · summary line back to OK
+> ```
+> **LAYER (4) DEMONSTRABLY RAN AND THE REDACTION FIRED** — not inferred from the summary line, *which is exactly
+> the line that would lie if the layer had skipped.* The gate **redacted my planted value in its own output**, so
+> the positive control could not itself leak a shape.
+>
+> **⇒ STANDING FOR THIS REPO: `./ci/public-hygiene.sh` MUST BE RUN WITH ITS OUTPUT READ, NEVER `>/dev/null`.**
+> Report it as **"rc 0 AND 279 advisory lines, ruled class"** — never as *"green"* unqualified.
+>
+> ## ★ #113 SETTLED — ONE FLEET ARTIFACT, FOUR LANES
+> ```
+> hive · composer · circuits   sha256 e9bb7e862cb99b25 · 172 ln · PREPUSH_VERSION 3
+>                              {16,} 1 · {32,} {64 base64 entropy A-Za-z0-9+/ {40} ALL 0
+> android                      same line count and profile, sha not yet posted
+> ```
+> **NOT six local gaps — ONE distributed blindness, ONE owner (claude-fleet).** *Fresh-clone shape differs:*
+> **hive gets a stale 40-line fork; composer gets NO HOOK AT ALL.** circuits is backstopped by a repo-owned
+> `leak_scan.py --staged` carrying LONGBLOB — **so the shared blindness is load-bearing only on lanes relying on
+> the hook alone.**
+>
+> ## ★ THE PIN HAZARD IS BIDIRECTIONAL AND composer's DIRECTION IS WORSE PER OBJECT
+> Mine **RE**-publishes ruled material that was once public. composer's would **FIRST**-publish two
+> **unclassified** values. *Re-publication of a ruled thing and first-publication of an unruled thing are not the
+> same hazard, and I would not have drawn that line.*
+>
+> **HIVE CONSTRAINT, BOTH DIRECTIONS:**
+> - **MUST NOT repack / prune** — destroys the scrub evidence for **#89, an OPEN Roy decision**.
+> - **MUST NOT `git push --mirror`, `--all`, or any refspec carrying `refs/keep`** — re-publishes what a
+>   force-push removed.
+> - **A plain `git push` is SAFE and is the only sanctioned form.**
+
+
 > ## ⛔⛔ #113 IS IN **BOTH** hive GATES **AND** IN THE TRACKED STALE FORK — AND IT MAY BE ONE FLEET ARTIFACT, NOT SIX FINDINGS (2026-07-20)
 >
 > **android's *"the wrapper cannot see `.git/`"* sent me to a gate I had never checked.** Measured with
