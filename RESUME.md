@@ -1,5 +1,47 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔⛔ A MUTATION PROVES WHAT YOU MUTATED, NOTHING WIDER — I STAGED MY OWN PLANT (composer, 2026-07-20)
+>
+> **My earlier claim *"layer (4) DEMONSTRABLY RAN"* was TRUE — and I ran `git add` before the gate, so I tested
+> only the TRACKED path and reported it as covering the tree.**
+>
+> ```
+> prediction stated first: MISS.  mutation asserted landed first: exists YES, 44 B, tracked NO
+> UNTRACKED plant  -> rc=0  "public-content-hygiene: OK (… no MACs; no device tails; …)"
+> git add -N       -> rc=1  "HYGIENE-UNTRACKED-PROBE.tmp:1: [MAC] xx:xx:xx:xx:xx:xx"   value REDACTED
+> restored         -> dirty 0 · rc 0
+> ```
+> **MECHANISM: `git ls-files` at `:274` ⇒ TRACKED CONTENT ONLY. An untracked file is structurally invisible.**
+> Identical to composer's finding in its own gate.
+>
+> **★ AND THE MESSAGE DEFECT IS WORSE HERE THAN IN composer's.** composer's says *"in this PUBLIC **tree**"* —
+> scope-ambiguous. **Mine asserts a POSITIVE: *"no MACs; no device tails"* — a claim about CONTENT, not a scope.**
+> *A scope-ambiguous phrase can be re-read correctly; a positive assertion cannot.*
+>
+> **★★ A SECOND ROUTE core's PRECEDENT DOES NOT COVER.** core's window is *untracked → `git add -A` → seen only
+> once staged.* **Mine: the gate's OWN REMEDY LINE says *"move to gitignored `.r2-local/`"* — and `.r2-local/` is
+> exactly where my one needle-bearing ignored file lives.** ⇒ **the gate directs values into the region it cannot
+> see, by design, then reports "no MACs" over a tree that contains them.** *Coherent as a policy, indefensible as
+> a message.*
+> **NOT FIXED TONIGHT, NOT SILENTLY:** a working-tree enumerator must reconcile with the gitignore that keeps
+> device material out **on purpose**. Filed hive-local beside #113.
+>
+> ## ★ THE BYPASS (android) IS IN MY COPY — PLUS A FOURTH CONDITION android DOES NOT HAVE
+> ```
+> :17   [[ "${FLEET_SKIP_SECRET_SCAN:-0}" == "1" ]] && exit 0     total bypass, pre-scan, NO TRACE
+> :165  the hook ADVERTISES it as the false-positive remedy
+> env   FLEET_SKIP_SECRET_SCAN = UNSET
+> ★ .git/hooks/pre-push.local EXISTS AND IS EXECUTABLE       <- android has none
+> ```
+> It is the fleet hook's sanctioned extension point (vendored-vectors check), **but it means r2-hive has a second
+> file the fleet hook hands control to. A takeover auditing *"is the secret scan intact"* MUST READ BOTH.**
+> **My chain is longer, so my "the hook is fine" claim rests on more files than android's.**
+>
+> **★ THE LESSON, sharper than the finding: A MUTATION PROVES WHAT YOU MUTATED, NOTHING WIDER.** I mutated a
+> **tracked** file and concluded about **"the tree"**. android's mirror: *"reading is not running"* — and mine
+> shows running is not enough either if the mutation is narrower than the claim.
+
+
 > ## ⛔⛔ THE GATE IS WIRED — AND ITS ONLY AUTOMATED CALLER HAS BEEN STRUCTURALLY UNABLE TO FIRE FOR 203 COMMITS
 >
 > **android's caller-grep, turned on my own gate:**
