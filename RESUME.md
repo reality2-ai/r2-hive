@@ -1,5 +1,26 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ✅ THE `Q1 = Q2 + Q3` IDENTITY — **MY TRIPLE CLOSES, BUT ONLY IN ONE FRAME, AND MY PUBLISHED Q1 IS IN THE OTHER** (2026-07-20)
+> **composer shipped an arithmetically incoherent triple in three closing blocks (`77 / 2 / 22`, and `2 + 22 = 24`) and nobody caught it, itself included. Ran the same check here rather than assume.**
+> ```
+> store 7173 · --all(pins in) 7167 · --all(pins out) 7073 · full 7173 · base 7079
+>   Q1 as-refs-stand = store - allpins   =   6
+>   Q1 pre-pin       = store - allnopin  = 100
+>   Q2 = full - base                     =  94
+>   Q3 = store - full                    =   0
+>   Q2 + Q3 = 94  ==  store - base = 94        ✅ CLOSES
+>   vs Q1 pre-pin 100                          differ by 6 = REFLOG-HELD
+> ```
+> - **THE IDENTITY CLOSES ONLY AGAINST A Q1 MEASURED IN THE SAME `--all --reflog` FRAME.** **My published Q1 (`6` / `100`) is in the `--all` frame; Q2 and Q3 are in the `--all --reflog` frame.** ⇒ **the triple is coherent AND its terms are not comparable unless each carries its frame.** *That is specs' point-3 axis one level up, inside the coherence check for it.*
+> - **★ composer's SIXTH MODE is the one to carry: its Q2 error was NOT findable by a vocabulary grep — the record was findable, CONSISTENT, and WRONG.** **A grep can succeed and return a false number.**
+> - *composer's root cause is the object-type filter it fixed on Q1 and never re-derived for Q2: **one defect, fixed on one of the two numbers it infected, announced as complete.** And its audit tripped the `--exclude`-before-`--all` order defect **for the third time tonight, inside the command auditing its own published numbers**.*
+>
+> ## 🛑 zsh DENOMINATOR THREAD — **CLOSED BY supervisor. NO FURTHER MEASUREMENT, CORRECTION OR SEND, INCLUDING CORRECTIONS TO THE CLOSE.**
+> **supervisor's own defect, named: *"a supervisor who keeps adjudicating a closed question is FUNDING it."*** **Every lane measured ZERO executable shell-form sites — core 0/644 · hive 0/215 · android 0/119 · composer 0 · specs python-argv only ⇒ THE CLASS CANNOT FIRE IN PRODUCTION ANYWHERE IN THIS FLEET.** **The denominator is a number about zsh, not about R2: it moves no capability cell, no gate, no artifact, no decision in front of Roy.**
+> - **WHAT SURVIVES AND TRAVELS — the METHOD findings:** findability failure · the frame-fitting number · a self-grep cannot detect a vocabulary gap · **acceptance, not difference** · the three ways one probe dies (form / classification / input) · **key only what you measured**.
+> - **RECORD CARRIES: ACCEPTANCE 13 as the primary statement; `12-consumed + 1-errored` as its decomposition.** *(Not independent confirmation — the same data on a sounder axis.)*
+> - **REMAINING FLEET WORK, TWO ITEMS, NEITHER MINE: Roy's flash (artifact A `1fd0437008ada56a`, `dfr1195-fw 50d84636`) · core's 509 classification (method pinned `44b4620c`).**
+
 > ## ⛔⛔ MY `12 BY OBSERVED TRANSFORM` WAS AN **ACCEPTANCE TEST WEARING A TRANSFORM LABEL** — RIGHT NUMBER, WRONG PREDICATE, AND THE LABEL IS WHAT TRAVELLED (composer, 2026-07-20)
 > ```
 > v=/a/b/c.txt, classified against BOTH targets:
