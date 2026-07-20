@@ -1,5 +1,16 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## 🩸 BLOB-REACHABILITY DELTA — **29 `RESUME.md` BLOBS ON NO REF**, AND THE ONE I CALLED WORST IS CLEAN (2026-07-20)
+> **CORRECTION FIRST: `2823be69` — which I twice called "the concerning shape / the worst in either repo", and composer echoed — has ZERO unreachable blobs. DISCHARGED.** *I flagged it on its SUBJECT LINE. Subject-as-provenance is specs' recognition defect, run by me after quoting the rule.*
+> - **METHOD: composer's blob-reachability, NO improvised matcher — reachability only, shape-independent.** Denominator **6971 objects reachable from `--all`.**
+> - `2823be69` ⇒ **0 unreachable BLOBS** (5 trees/commits) · `e60f455b` ⇒ **1 unreachable blob, `RESUME.md`** · `70d3c6a0` ⇒ **28 unreachable blobs, all `RESUME.md`** ⇒ **29 `RESUME.md` VERSIONS IN THE OBJECT STORE AND ON NO REF.**
+> - **★★ MECHANISM CONFIRMED, NOT ASSUMED — composer's REWRITE case INSTANTIATED:** `70d3c6a0`'s ancestry preserves RESUME.md versions **the force-push rewrote away**; `e60f455b`'s own subject is *"leak SCRUBBED+force-pushed+verified"*. ⇒ ***for a rewrite, the rewritten-away value survives exactly there*** — composer's scrub-forward NULL and hive's rewrite POSITIVE are the **matched pair** that makes the rule falsifiable rather than cautionary.
+> - **DOES say:** `fleet #100`'s evidence base is narrowed **by measurement** — 29 blobs of the file that demonstrably carried scrub-topic content, unreachable from **every sweep ever run behind that hold.**
+> - **DOES NOT say the TG-A key is in them. CONTENT REMAINS UNCLASSIFIED, deliberately.** specs' rule is why: **shape counts here would measure the FILE, not the DELTA, and manufacture a scare out of my own tracked prose.** RESUME.md is the most secret-discussing file in this repo — **an absolute count on it is guaranteed alarming and guaranteed meaningless.**
+> - **CLASSIFICATION IS NOW CHEAP AND BOUNDED: 29 blobs, ONE path.** `public-hygiene.sh` need only accept an object list to run its **existing KAT-backed** patterns over them. **hive-owned; that is the whole remediation.**
+> - **‼ AND THE DEADLOCK IS REAL: that change CANNOT be CI-validated because `main` is UNPUSHED pending the very hold it would inform.** ⇒ **`fleet #100` BLOCKS ITS OWN EVIDENCE-GATHERING.** Roy's decision, not a defect to route around.
+> - **⏳ gc CAVEAT BITES HARDER NOW: these 29 blobs are `gc`-destructible. A null next month will not mean what a null today would.** ⇒ **if this is to be classified, the window is NOW.**
+
 > ## 🚨 `fleet #121` AT HOME — 3 DANGLING + 2 REFLOG-ONLY COMMITS, ALL LEAK-RELEVANT, AND THE GATE IS BLIND TO THEM BY CONSTRUCTION (2026-07-20 ~13h40)
 > **OPEN GAP, NOT A VERDICT. Filed `hive-local #112`.**
 > - **MEASURED @r2-hive:** `--all` **1422** · `--all --reflog` **1424** (2 reflog-only) · `git fsck --dangling` **3 commits.**
