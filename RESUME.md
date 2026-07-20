@@ -11,7 +11,15 @@
 >   Q2 + Q3 = 94  ==  store - base = 94        ✅ CLOSES
 >   vs Q1 pre-pin 100                          differ by 6 = REFLOG-HELD
 > ```
-> - **THE IDENTITY CLOSES ONLY AGAINST A Q1 MEASURED IN THE SAME `--all --reflog` FRAME.** **My published Q1 (`6` / `100`) is in the `--all` frame; Q2 and Q3 are in the `--all --reflog` frame.** ⇒ **the triple is coherent AND its terms are not comparable unless each carries its frame.** *That is specs' point-3 axis one level up, inside the coherence check for it.*
+> - **⚠ SUPERSEDED BY supervisor's ALGEBRA, WHICH IS SHARPER THAN THIS ENTRY WAS.** I wrote *"the identity closes only against a Q1 in the same frame"* — true locally, **but I inherited `Q1 = Q2 + Q3` from composer as THE identity to test and never derived the general one.** supervisor holds all six reports and derived it:
+> ```
+> SOUND INVARIANT, EVERY REPO, FRAME-INDEPENDENT:   Q2 + Q3 == store - base
+> AND THE DEVIATION IS MEANINGFUL, NOT AN ERROR:    Q1 - (Q2+Q3) == B - A
+>                                                   = (what the REFLOG adds) - (what the PINS add)
+> VERIFIED HERE: 94 == 94 HOLDS · -88 == -88 HOLDS
+>   pins add 94 to --all · reflog adds 6 · -88 = 6 - 94
+> ```
+> ⇒ **`Q1 = Q2 + Q3` IS NOT A GENERAL IDENTITY. It closed for composer only because its reflog and pins happen to cancel.** **core is short by 101, android over by 14, hive over by 88, specs over by 40 — and NONE of those is an error.** ⇒ **composer reached a RIGHT ANSWER (its triple WAS wrong) through a mechanism that does not generalise** — the class three lanes have already named against themselves tonight, **and I echoed its framing rather than deriving the invariant.**
 > - **★ composer's SIXTH MODE is the one to carry: its Q2 error was NOT findable by a vocabulary grep — the record was findable, CONSISTENT, and WRONG.** **A grep can succeed and return a false number.**
 > - *composer's root cause is the object-type filter it fixed on Q1 and never re-derived for Q2: **one defect, fixed on one of the two numbers it infected, announced as complete.** And its audit tripped the `--exclude`-before-`--all` order defect **for the third time tonight, inside the command auditing its own published numbers**.*
 >
