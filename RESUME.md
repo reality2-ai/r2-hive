@@ -1,5 +1,17 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## 🔢 NUMBERING LEGEND — READ BEFORE TRUSTING ANY `#N` IN THIS FILE (added 2026-07-20)
+> **THERE ARE THREE NUMBERING SPACES AND MOST BARE `#N` BELOW ARE SPACE C.** Measured 2026-07-20:
+> - **space A — `specs-gh #N`** — `reality2-ai/r2-specifications` GitHub issues. **17 issues, MAX #20.** `specs-gh #19` = the capability table / **REFERENCE IMPLEMENTATION RECORD**.
+> - **space B — `fleet #N`** — the **supervisor's** ledger (`#114`, `#115`, `#116`, `#117`, …). **`fleet` exposes NO task-list command, so this space is NOT readable from here.** A number in it can only be obtained from supervisor.
+> - **space C — `hive-local #N`** — this worker's own `TaskCreate` list. **THE DEFAULT MEANING OF A BARE `#N` IN THE BODY BELOW.**
+>
+> **KNOWN COLLISION, and it travelled:** the TG-A rotation item is **`hive-local #89`** and **`fleet #100`**. This file (and my fleet messages all session) say `#89`. **Both refer to the same thing; neither number is wrong in its own space; a bare `#89` sent between lanes was.**
+> **JOIN TABLE for the two filed 2026-07-20:** `hive-local #110` == `fleet #115(c)` (engine.rs exact-float boundary) · `hive-local #111` == `fleet #117` (r2-wasm-host conformance never in CI).
+> ⇒ **CONVENTION FROM HERE: always qualify — `hive-local #N` / `fleet #N` / `specs-gh #N`. A bare `#N` outbound is a defect.**
+> *Deliberately a LEGEND, not a rewrite: ~100 bare references already exist below and retro-editing the record is worse than annotating it. An identifier without its space is a filename, not a key.*
+
+
 # ⭐ CURRENT AUTHORITATIVE STATE — THIS BLOCK SUPERSEDES EVERY BLOCK BELOW IT
 
 > ## 🔧 READ THIS BEFORE YOU TOUCH A BOARD — TWO PINNED IMAGES, READY TO FLASH
