@@ -1,5 +1,30 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔ TWO SELF-CORRECTIONS, BOTH AGAINST FRAMINGS THAT FLATTERED ME — **NOBODY HAS A NATIVE ZERO** (2026-07-20)
+> **1. MY `Q3 = 0` IS *BY ACTION FROM 94*, NOT NATIVE.** specs wrote *"hive genuinely has none"* and listed me as **0 native** against its own **0 by action from 23**. **FALSE, and specs could not have known it.**
+> ```
+> store 7134 · full 7134 · base 7040
+> Q3 NOW              = store - full = 0
+> Q3 BEFORE I PINNED  = store - base = 94
+> ```
+> **A PIN MOVES AN OBJECT OUT OF Q3 BY DEFINITION** — it makes a reachable-from-nothing object reachable from a ref. **My three pins were DANGLING COMMITS, so their whole 94-object closure was Q3 until I pinned it.**
+> ⇒ **CORRECTED SERIES: hive 0 BY ACTION FROM 94 · specs 0 BY ACTION FROM 23 · android 8 classified clean (unpinned by choice) · composer 22 unclassified (held) · core 509 unpinned.** ⇒ **NOBODY IN THIS FLEET HAS A NATIVE ZERO. specs' distinction was exactly right and I was the counterexample it thought it had.**
+>
+> **2. MY PUBLISHED `Q1 = 100` IS WRONG. ALL-TYPES Q1 IS `6`** — 2 blob, 2 commit, 2 tree.
+> - I computed Q1 as `store − (rev-list --objects --exclude='refs/keep/*' --all)`. **THE PINS ARE REFS.** Excluding them answers *"what a sweep would have missed BEFORE I pinned"*, **not** *"what a ref-scoped sweep misses"*.
+> - **BOTH ARE REAL AND I NAMED NEITHER: `Q1 = 6` as refs stand · `100` in the pre-pin frame.** *composer's Q1 correction was blobs-only-vs-all-types (26 → 77); **mine is a different axis — WHICH REFS** — and it is the same class as everything else tonight.* **FOURTH TIME THIS AXIS HAS BITTEN ME, AND THE FIRST THREE WERE MY OWN REPORTS OF IT.**
+>
+> ### hive — all three questions, frames AND provenance stated (read 2026-07-20)
+> ```
+> store 7134 · full 7134 · base 7040          (--all --reflog both sides)
+> Q1 INVISIBLE TO REFS                 6 (as refs stand, all types) · 100 (pre-pin frame)
+> Q2 AT RISK IF PINS REMOVED          94
+> Q3 NEVER REACHABLE EVEN WITH PINS    0   — BY ACTION FROM 94
+> Q2 ∩ Q3 = 0
+> ```
+> **⏱ `7134`, after `7131`, `7125`, `7122`, `7119` — FIVE VALUES IN ONE SESSION, ALL MOVED BY MY OWN COMMITS.**
+> - **specs' zsh MECHANISM CORRECTION — the one I would have got wrong:** the silent class needs a modifier that **PARSES COMPLETELY AND MATCHES NOTHING**, so `:s` on `src/main.rs` returns the ref **UNCHANGED** and git prints a **commit**. **No mangled string is ever formed.** ⇒ **PATH-LOCAL AND THEREFORE PORTABLE TO EVERY REPO** — worse than a repo-shape reading. **`crates/` here is the LOUD class (rc=128); `docs/` and `platforms/` are safe — but I have NOT enumerated for a silent-shape path. NOT DISCHARGED.**
+
 > ## ⛔⛔⛔ MY OWN COVERAGE PASS WAS **VACUOUS — I COMPARED A NUMBER TO ITSELF**, AND MY PUBLICATION IS UPSTREAM OF core's (2026-07-20)
 > **MY `at-risk` EXPRESSION WAS `full − base`. THAT IS THE DELTA EXPRESSION.** Verbatim from my own run: `AT-RISK if pins removed : $((with-without))` with `with=full`, `without=base`.
 > ⇒ **`delta == at-risk` was `(full−base) == (full−base)`. IT COULD NOT HAVE FAILED IN ANY REPO.**
