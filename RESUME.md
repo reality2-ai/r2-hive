@@ -1,5 +1,27 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔ MY `#123` ZERO IS **WITHDRAWN** — THE CORPUS CONTAINED THE PROBE SET. REAL GAP = **1** (2026-07-20)
+> **specs called it before I ran it: the audit message QUOTES ALL 32 OPENERS, so grepping an inbox that contains it makes the probe set and the payload the same strings.** Re-ran with entry-level exclusion:
+> | corpus | missing |
+> |---|---|
+> | **CONTAMINATED** (audit message in) | **0 of 32** |
+> | **EXCLUDED** (audit message out) | **2 of 32** — one of which is `123 REMEDIATION: DELIVERY AUDIT` itself, the exclusion-boundary artifact specs pre-warned about, **not a gap** |
+> - ⇒ **hive REAL GAP: 1 of 32 — `fleet #118 IS LIVE. YOU CAN NOW READ THE TASK LEDGER`.** **Inbox denominator STATED: 616 entries, span `19:52:00` → `02:59:37`.**
+> - **★★ MY CONTROLS BOTH PASSED WHILE THE RESULT WAS CONTAMINATED — BECAUSE THE CONTROLS TEST THE *MATCHER* AND THE DEFECT WAS IN THE *CORPUS*.** **That distinction is the finding, not my number.** *A positive and a negative control are not a corpus check, and I had been treating "controls fired" as though it closed the question.*
+> - **★ THE GAP IS THE SAME ONE specs FOUND ⇒ CORROBORATION, NOT TWO ANECDOTES.** And I can evidence it from the **receiver** side independently: **I DID get `#118` content — worded differently** (`fleet #118 LIVE: 'fleet tasks --json' reads the 122-task ledger you cite into…`). ⇒ **the BROADCAST form died and an ADDRESSED form landed.** Two lanes, two repos, same broadcast, reached separately.
+>
+> ## 🩸 specs' `fsck --dangling` UNDERCOUNT — **CONFIRMED, AND THE GAP IS BIGGER HERE: 3 ROOTS COVER 94 OBJECTS** (2026-07-20)
+> ```
+> fsck --dangling now            : 0     (pins made them reachable — the preserved-reads-as-destroyed trap)
+> AT-RISK SET if pins removed    : 94    = 29 blob / 34 commit / 31 tree
+> total 7116 · reachable-without-pins 7022
+> ```
+> - **I have been quoting 3 (the ROOTS) and 29 (the `RESUME.md` blobs). THE 3 ROOTS COVER 94 OBJECTS.** specs: 8 roots → 33. **hive: 3 roots → 94.**
+> - ⇒ **A LANE SIZING ITS EXPOSURE BY ITS DANGLING COUNT UNDERCOUNTS IT.** **Use `--dangling` to find ROOTS and to classify protection; use the FULL unreachable set to size WHAT DIES.** specs' pin-the-roots unit is right and is confirmed here.
+> - **★ AND IT CLOSES A LOOP: the recorded keep-ref delta was `+94`, and the at-risk set is `94`. SAME NUMBER FROM BOTH DIRECTIONS** ⇒ **the pins cover exactly the set that dies — no more, no less.**
+> - **composer's sha-filename warning CHECKED, NOT ASSERTED:** no scratchpad file carries a 12-hex name; repack copies were `gitcopy`/`copyB`/`copyC`. **Defect does not apply here.** *Taking its sharper point: **read a matcher out of the source, never approximate it** — I was about to reimplement the MAC-tail matcher to fix `hive-local #108`. I will not.*
+> - **PARSE FORM, on specs' rule:** mine was **not** answered from memory or from RESUME — **established ARITHMETICALLY** (line-parsed 7007 vs stride 4473 against a published 6971 ⇒ stride excluded by 2534). **Stronger than a transcript grep, because it tests the NUMBER PUBLISHED rather than an invocation that happened to be echoed.** specs' rule stands for any figure that cannot be re-derived.
+
 > ## ⛔ `2ba6612b` BUILD PROVENANCE — **I AM A DEAD END, AND core's TWO CONFLICTING ARTEFACTS DESCRIBE DIFFERENT BUILDS** (2026-07-20)
 > core asked for the exact `--features` string for the from-state, because Roy weighted flash-`#113`-only and a behaviour delta cannot attribute to `#113` unless the feature set matches. **Answer: I do not have it. Take the reconstructed-and-labelled path.** Four measurements:
 > 1. **`dfr1195-fw-wt/RESUME.md:211` IS NOT THE `2ba6612b` RECIPE.** It is the **2026-07-08/09** recipe for `~/dfr-sensor-compact-c4cce18.elf` (sha `88841158…`), staged alongside `xiao-bridge-compact-17a2377`. ⇒ **not a competing answer — a correct recipe for a different artefact, twelve days earlier.**
