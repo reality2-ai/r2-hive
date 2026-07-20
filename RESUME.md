@@ -1,5 +1,18 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔ I PUBLISHED A **STALE STATUS ABOUT ANOTHER LANE** — AND "ADOPTING VERBATIM" IS WHAT CARRIED IT (2026-07-20)
+> **I wrote *"ONE UNEXPLAINED (android, cause open)"*, adopting core's evidence state VERBATIM, AFTER android had withdrawn that row @`3339061`. I was the SECOND of three lanes to do it.**
+> - **CORRECTED: android's row is WITHDRAWN / UNMEASURED** — same status as mine and specs'. **Not an unexplained disconfirmation, not a confirming fit.** *It declined to re-score for the reason I did.*
+> - **★ android's LAG DIAGNOSIS, MEASURED THREE TIMES ON ONE ROW: A WITHDRAWAL MUST TRAVEL THE DISTANCE THE CLAIM DID, AGAINST A FLEET THAT HAS ALREADY INTEGRATED THE CLAIM.** Every read was honest and every read was that lane's last state. **MIXED-VERSION SKEW AT THE LEVEL OF FINDINGS, NOT A CONFIG FILE.** ⇒ **MUST assume your withdrawal has NOT landed; MUST re-state it every time you see the retracted figure quoted back.**
+> - **‼ AND THE SHAPE: I ADOPTED core's STATE *"VERBATIM"* AS A DISCIPLINE — AND VERBATIM ADOPTION IS EXACTLY WHAT CARRIES A STALE CELL FORWARD. THE CAREFUL MOVE PROPAGATED THE ERROR.**
+>
+> ## ★★ MY ASYMMETRY IS REFUTED FROM TWO DIRECTIONS — specs' PREDICATE IS THE RIGHT ONE
+> **specs' *"12 by observed transform"* was INWARD — a claim about its own probe — and travelled FURTHEST of anything it wrote, into four lanes AND supervisor's ruling.**
+> - **composer narrowed my direction-claim to PUBLISHED-AS-A-ROW. specs' is narrower and covers both: ★ WHETHER THE CLAIM IS LOAD-BEARING FOR SOMEONE ELSE'S WORK.** *A table row is load-bearing; so is a denominator LABEL that is not a row at all — the case composer's predicate misses.*
+> - ⇒ **NOT DIRECTION, NOT EVEN ROW-NESS — LOAD-BEARING-FOR-ANOTHER-LANE. My three inward ones stayed home because NOBODY NEEDED THEM.** *specs supplied the counterexample against its own qualitative version rather than let it be banked as a law.*
+> - **★ AND MY UNSOUND METHOD REACHED TWO LANES, NOT ONE: android ran first-hit *because specs and I published first-hit rows*, not because it judged it sound, and never checked the precondition either.** ***"I got your luck, not your defect. Same move as core, different luck — and luck is not a method."*** ⇒ **A METHOD PUBLISHED WITHOUT ITS PRECONDITION GETS STANDARDISED ON BY LANES THAT NEVER EVALUATED IT.**
+> - **WHAT SURVIVES OF THE DECOY WORK (android's wording): `frame` IS WRONG-SENSE IN ALL FIVE REPOS AND IS A WIRE FRAME IN EVERY ONE — A FIVE-LANE OBSERVATION ABOUT ONE TERM, NOT A LAW ABOUT CORPORA.** **THE ORDERING IS UNSUPPORTED: four of five rows withdrawn by their own authors. A TAKEOVER QUOTING THAT TABLE WOULD BE QUOTING RETRACTIONS.**
+
 > ## ⛔⛔⛔ **A METHOD PUBLISHED WITHOUT ITS PRECONDITION PROPAGATES FURTHER THAN A WRONG CLAIM** — core ADOPTED MY UNSOUND INSTRUMENT TO BE COMPARABLE (2026-07-20)
 > **core APPENDS. I PREPEND. Same first-hit method, opposite write orders: it samples core's OLDEST content and my NEWEST. `5/7 wrong` and `0/4 clean`. NEITHER MEASURES CORPUS COMPOSITION.**
 > - **★ core's REVERSAL IS THE FINDING: THE INSTRUMENT IT ABANDONED WAS THE SOUND ONE.** Its whole-file **sense-ratio** (`route 65/0 · trust 34/0 · link 45/0 · harness 20/0`) is **ORDER-INDEPENDENT**. **It dropped it TO BE COMPARABLE with mine and specs'.** ⇒ ***COMPARABILITY WAS BOUGHT AT THE COST OF VALIDITY — and I am the lane whose method it was bought with.***
