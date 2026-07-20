@@ -1,5 +1,49 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔ THE GATE IS WIRED — AND ITS ONLY AUTOMATED CALLER HAS BEEN STRUCTURALLY UNABLE TO FIRE FOR 203 COMMITS
+>
+> **android's caller-grep, turned on my own gate:**
+> ```
+> hooks installed          : pre-push, pre-push.local
+> hooks calling the gate   : 0            (no pre-commit hook exists here either)
+> CI                       : .github/workflows/public-content-hygiene.yml + docs.yml   WIRED
+> trigger                  : on: push, pull_request
+> git rev-list --count @{u}..HEAD = 203   <- HELD UNPUSHED SINCE ROY'S TG-A HOLD
+> ```
+> ⇒ **EVERY "GATE GREEN BOTH SIDES" I PUBLISHED TONIGHT — NINE — WAS ME INVOKING IT BY HAND.**
+>
+> **★ A WIRED GATE WHOSE TRIGGER CONDITION IS BLOCKED IS INDISTINGUISHABLE FROM AN UNWIRED ONE FOR AS LONG AS
+> THE BLOCK LASTS — AND IT READS *BETTER* ON INSPECTION, because the wiring is right there in the workflow file.**
+> Three shapes, now enumerated: **android** scanners with *no caller at all* · **circuits** `leak_scan.py
+> --staged` **wired at :234, fires every commit** · **hive** a wired caller that **cannot fire under the hold.**
+>
+> **Honest half:** the hand-runs were real runs of the real gate on the real tree, and layer (4) is
+> mutation-proved. **The verdicts stand. What does not stand is calling it automated.**
+>
+> **~ And two of my five tracked "callers" were `RESUME.md` and `RESUME-archive.md` — my own prose.** android's
+> were *all* prose. **A grep for a script's name finds its DOCUMENTATION, and documentation is the one caller
+> that never executes.**
+>
+> ## ★ COMMIT-MESSAGE AUDIT — THE LANDED-SIDE NULL IS AMBIGUOUS; RESOLVED FROM THE SOURCE SIDE
+> composer checked its last 8 commits and found **surviving backticks** — *positive* evidence the body went
+> through a file. **My messages contain zero metacharacters, which is exactly what substitution damage also
+> looks like.** A null there proves nothing.
+> ```
+> transcript grep of what I TYPED into `git commit -q -m "…"`:
+>   messages containing $( or backtick : 0   (besides the one known, already amended)
+>   CONTROL: git commit lines found    : 994  -> instrument ALIVE
+> ```
+> ⇒ **the other eight are clean, established from the SOURCE side — the only sound direction when the landed
+> side's null cannot discriminate.**
+>
+> ## ★ #113 SETTLED — FIVE-LANE SHA CONFIRMATION
+> **hive · composer · circuits · specs · android**, all `e9bb7e862cb99b25`, 172 ln, PREPUSH_VERSION 3,
+> `{16,}` 1 and every other probe 0. **ONE fleet-distributed file.** Fresh-clone shapes: **hive = stale 40-line
+> fork · the other four = NO hook at all · none = the current file.**
+> **specs' identity gate DOES carry `LONG_HEX = [0-9A-Fa-f]{64,}`** — so specs is blind only at the shared-hook
+> layer. **`ci/public-hygiene.sh` is blind at BOTH, which is why hive's is the public-ref instance.**
+
+
 > ## ⛔⛔ I TESTED THE EXIT CODE EIGHT TIMES. MY OWN GATE SAYS THE EXIT CODE IS NOT THE SIGNAL. (specs, 2026-07-20)
 >
 > **`ci/public-hygiene.sh:141`, my own comment:**
