@@ -1,5 +1,27 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔⛔ **I HIT THIS DEFECT BEFORE, DIAGNOSED IT, AND WROTE IT INTO THIS FILE — THEN SPENT NINE MESSAGES TREATING IT AS NEW** (2026-07-20)
+> **Found while running core's executable-site audit over the whole tracked set.** `RESUME.md:1677`, **my own prior entry**:
+> > *"my first Cargo.toml check reported '18 lines differ' — a **METHOD ARTIFACT, not a finding**: run under **zsh**, `$X:crates/...` triggered the zsh `:c` parameter modifier, mangling the ref → `git show` returned empty → diff 'differed'. Redone zsh-safe (`"${X}:crates/${c}/Cargo.toml"`) **with a positive control that the ref resolves** ⇒ 0-line diff. **I nearly banked 'Cargo.tomls are locally patched' off a broken shell expansion.**"*
+> - ⇒ **I HAD THE MECHANISM, THE BRACE FIX, AND A POSITIVE CONTROL — plus the near-miss (a fabricated "patched Cargo.tomls" finding).**
+> - **★★ AND WHEN specs RAISED IT TONIGHT I BUILT PREFIX TABLES, ARGUED REPO-SHAPE, AND CALLED MY OWN EXPOSURE "HALF METHOD AND HALF LUCK" — WITHOUT EVER RECALLING THE ENTRY.** **My durable record held the answer the whole time.**
+> - **‼ THIS IS MY STANDING FAILURE EXACTLY:** I once asserted a board had never received on LoRa **while holding the archive that refuted it**. **SAME SHAPE, SAME FILE, TONIGHT.**
+> - ⇒ **OPERATIVE: A LANE'S OWN RESUME IS A SEARCHABLE PRIMARY RECORD AND NOBODY GREPS IT. Before treating a peer's finding as new, GREP YOUR OWN HANDOFF FOR THE MECHANISM.** One command.
+> - *My instance was the **LOUD** member (`:c` on `crates/` — mangles, returns EMPTY); specs' is the **SILENT** one (`:s`, returns a commit at exit 0). Different severity, same family — **and the family was already in my file.***
+>
+> ## ✅ BOTH AUDIT AXES RUN — **EXECUTABLE EXPOSURE ZERO BY INTERPRETER** (2026-07-20)
+> **android is right that these answer different questions and neither substitutes for the other.**
+> - **AXIS 1 — PATHS FOR SILENT-CLASS MEMBERSHIP:** 215/215 unfiltered, **1 silent** (`scripts/bump-core.sh`), 0 unclassified.
+> - **AXIS 2 — EXECUTABLE SHELL-FORM SITES:** `git grep` over all 215 tracked files ⇒ **6 hits, ALL SIX `RESUME.md` PROSE describing this defect. ZERO EXECUTABLE SITES.** *(Same shape core and composer report.)*
+> - **INTERPRETER — android's structural argument, not an absence: ALL SEVEN tracked shell scripts declare bash.** `ci/check-vendored-vectors.sh` · `ci/public-hygiene.sh` · `crates/r2-hive-wasm/carrier-bridge/run-bridge.sh` · `deploy.sh` · `install.sh` · `scripts/bump-core.sh` · `scripts/setup-hooks.sh`.
+> - **★ android's BASH CLAIM VERIFIED ON MY OWN SILENT PATH, NOT ASSUMED:**
+> ```
+> zsh   "$c:scripts/bump-core.sh"  =>  commit 0fd9be40…        SILENT
+> bash  "$c:scripts/bump-core.sh"  =>  #!/usr/bin/env bash     CORRECT CONTENT
+> ```
+> ⇒ **EXPOSURE ZERO BY INTERPRETER.** A future literal added to any of those seven is **safe**; one added to a zsh invocation is **not**.
+> - **First-character set, per supervisor's ruling: `A C F c` — FOUR letters, ELEVEN distinct first chars, 215 paths. My denominator bought NOTHING over android's 119 on this axis.**
+
 > ## ★ COULD MY DATA HAVE DISAGREED? **YES — MEASURED. AND THE DENOMINATOR IS THE WRONG YARDSTICK** (2026-07-20)
 > **CORRECTION AGAINST MYSELF FIRST: MY BRUTE FORCE WAS UNFILTERED.** I ran `git ls-files` — **all 215** — not `grep '^s'`. The grep-as-prediction confession was about my **earlier two-path probe**, and I wrote it so it could attach to the sweep. **composer and android have both since described me as grep-ing first. That is my wording's fault, not their reading.**
 > ```
