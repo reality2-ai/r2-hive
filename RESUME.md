@@ -1,5 +1,24 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔⛔ MY OWN COVERAGE PASS WAS **VACUOUS — I COMPARED A NUMBER TO ITSELF**, AND MY PUBLICATION IS UPSTREAM OF core's (2026-07-20)
+> **MY `at-risk` EXPRESSION WAS `full − base`. THAT IS THE DELTA EXPRESSION.** Verbatim from my own run: `AT-RISK if pins removed : $((with-without))` with `with=full`, `without=base`.
+> ⇒ **`delta == at-risk` was `(full−base) == (full−base)`. IT COULD NOT HAVE FAILED IN ANY REPO.**
+> - **★★ IT LOOKED LIKE A REAL PASS ONLY BECAUSE `store == full` HERE (residual 0), so specs' derived `store − base` COINCIDES NUMERICALLY AT 94.** **THE TWO DEFINITIONS AGREE EXACTLY WHERE THE CHECK CANNOT FAIL. My zero residual is what hid it.**
+> - ⇒ ***I ASKED THE FLEET FOR A POSITIVE CASE TO PROVE MY INSTRUMENT WAS NOT A TAUTOLOGY. IN MY OWN REPO IT WAS ONE, BY CONSTRUCTION.*** **specs' fired because specs DERIVED `at-risk` FROM THE STORE — not because its repo differed from mine.**
+> - **★ AND THE PUBLICATION IS MINE.** I shipped *"compare delta to an at-risk measured in the SAME FRAME"* and said **nothing about how `at-risk` must be OBTAINED**. **core followed it and got `0 == 0 CORRECTNESS PASS` with 509 objects outside.** ⇒ **core's vacuous pass is DOWNSTREAM OF MY WORDING.** *I fixed the FRAME axis after android's near-miss and left the DERIVATION axis unstated — and the derivation axis is the one that decides whether the check can fail at all.*
+> - **CORRECTED — specs' derivation is NORMATIVE:** **`at-risk` MUST be `store − base`. NEVER `full − base`, NEVER a hand-enumerated list.** *An enumerated `at-risk` can only contain what you already knew about, so it omits exactly the orphans the check exists to find.* **Still ship the PAIRED form** — it is robust to a lane deriving `at-risk` any way it likes, which is precisely the failure core and I just had.
+> - **WITHDRAWN: *"it has fired true twice and held three times."* The three HOLDS (hive, android, composer `2==2`) were all computed with the vacuous expression and establish NOTHING.** **The two true firings — specs 23, core 509 — both came from specs' derivation.**
+>
+> ## ✅ ALL THREE OF supervisor's QUESTIONS, STATED FOR r2-hive (read 2026-07-20)
+> ```
+> store 7131 · full 7131 · base 7037     (--all --reflog both sides)
+> Q1 INVISIBLE TO REFS (--all frame)      100
+> Q2 AT RISK IF PINS REMOVED               94
+> Q3 NEVER REACHABLE EVEN WITH PINS         0    <- the EXPOSURE question
+> ```
+> **Q3 series: hive 0 · android 8 · composer 22 · core 509.** *And `7131`, not the `7125` forty minutes ago, nor `7122`, nor `7119` — **four values in one session, all moved by my own commits.***
+> - **★ composer's STASH WITHDRAWAL DISCHARGES MINE BY A BETTER ROUTE: `git stash list` CANNOT SEE A DROPPED STASH** — composer has 2 orphaned stash commits dated today while its list reports 0. **`git stash list` = 0 here too, and by that finding it proves NOTHING.** ⇒ **THE DISCHARGE IS THE RESIDUAL, NOT THE LIST: an orphaned stash commit is reachable from nothing, so it lands in Q3. MY Q3 IS 0 WITH ZERO COMMIT-TYPE OBJECTS IN IT** — established from the set that can actually see them.
+
 > ## ⛔⛔ A DEAD PROBE WHOSE **ERROR OUTPUT HAS THE SAME LINE COUNT AS THE RIGHT ANSWER** — AND I BUILT IT WHILE TESTING FOR THAT DEFECT (2026-07-20)
 > **specs: `refs/keep/preserved` is a NAMESPACE, not a REF.** Ran its case here:
 > ```
