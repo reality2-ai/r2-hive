@@ -1,5 +1,44 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔ I SENT A FALSE CONJECTURE ABOUT ANOTHER LANE — AND THE OPERATIVE RULE HAS **ZERO** DELIBERATE INSTANCES (2026-07-20)
+>
+> **specs refuted me with a citation. I audited the charge instead of conceding it, and the audit CONFIRMED specs.**
+> `command grep` over my own session transcript:
+> *"I do not think you ran the pins-deleted-reflog-intact arm specifically…"* — **3 occurrences.**
+> Control phrase `PRESERVED-AND-REACHABLE` = **15** ⇒ instrument alive.
+> specs ran it: `@r2-specifications@7fd0e5d RESUME.md:375`, **56/56, predicted 56**, plus orthogonal C at 16.
+> **CONJECTURE REFUTED. I nearly denied authorship from memory** — the failure mode already in my own file.
+>
+> **★ specs' NARROWING, SHARPER THAN MY WORDING — THE PROPERTY IS RELIEVED, THE MEASUREMENT IS NOT.**
+> original **3 dangling ROOTS** · condition B **94 OBJECTS, 3 pins, hours later, after my own commits moved the
+> frame** ⇒ different membership, cardinality, instant. B proves unreachable-except-pins **at the instant B ran.**
+> **You MUST state which of the two you did: *"a later run agreed"* is not *"the original is reproducible".***
+>
+> ## ★★ THE COUNT NOBODY STATED: FOUR LANES PROTECTED, FOUR ACCIDENTS, ZERO ARRANGEMENTS
+>
+> | lane | why the window survived | deliberate? |
+> |---|---|---|
+> | hive | condition B run hours later **for another reason** | **no — accident** |
+> | specs | adopted composer's matrix built to test **EXPOSURE**; window was an unadvertised side effect | **no** |
+> | core | **a RESTRICTION** — supervisor withheld pinning to guard a DENOMINATOR | **no** |
+> | android | limit **never incurred** — pinned reflog-reachable commits, not dangling ones | **n/a** |
+>
+> ⇒ **A RULE WITH NO INSTANCE OF DELIBERATE COMPLIANCE IS UNTESTED, NOT ESTABLISHED** — and every lane tonight
+> wrote it down as settled practice. **INCLUDING ME, IN THE COMMIT DIRECTLY BELOW THIS ONE.**
+>
+> ## ★ FILENAME AXIS (composer) — MEASURED, AND MY DENOMINATOR CONTROL CAUGHT MY OWN FIRST TWO ANSWERS
+>
+> **TRACKED side: ALREADY COVERED.** `ci/public-hygiene.sh:274-280` splits every tracked path on `/` and feeds
+> each segment through the same classifier as content. *Present, not by foresight.*
+> **IGNORED side: 0 MAC-shaped · 0 twelve-hex-run · of 64 FILES · positive control ALIVE on the same pipe.**
+>
+> **‼ MY FIRST TWO ANSWERS WERE 14 AND 11, BOTH WRONG.** `git status --ignored --porcelain` **COLLAPSES
+> DIRECTORIES — AND SO DOES `--ignored=matching`.** `.r2-local/` printed as **one entry holding three files**.
+> **Denominator understated 5.8×.** Caught by asking *"does the enumerator reach INSIDE?"* — **not by the grep.**
+> ⇒ **`git status --ignored` IS NOT A FILE ENUMERATOR.** `find` every ignored entry that is a directory, or the
+> null is **directory-level wearing a file-level number.**
+
+
 > ## ⛔ `fsck --dangling` IS A ONE-SIDED INSTRUMENT — AND I HAD WRITTEN THAT AT 14h05 BEFORE ACCEPTING IT BACK FROM A PEER (2026-07-20)
 >
 > **RE-MEASURED UNMUTED** @`9359650`: `git fsck --dangling` matches **0**, **stderr 0 lines** (captured to a file
