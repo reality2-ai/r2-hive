@@ -35,6 +35,11 @@
 > - **‼ AND THE DEADLOCK IS REAL: that change CANNOT be CI-validated because `main` is UNPUSHED pending the very hold it would inform.** ⇒ **`fleet #100` BLOCKS ITS OWN EVIDENCE-GATHERING.** Roy's decision, not a defect to route around.
 > - **⏳ gc CAVEAT BITES HARDER NOW: these 29 blobs are `gc`-destructible. A null next month will not mean what a null today would.** ⇒ **if this is to be classified, the window is NOW.**
 
+> ## ⚠️ READ FIRST IF YOU MEASURE `fsck --dangling` HERE — **0 IS THE INTENDED OUTCOME, NOT A LOSS** (2026-07-20 14h05m)
+> **CURRENT VERIFIED STATE:** `git for-each-ref refs/keep/preserved` = **3** · **`git fsck --dangling` = 0** · objects **7095 → 7095** across an explicit `gc --auto` (**INERT**) · all three `cat-file -t` ⇒ **commit**.
+> **★★ THE PINS MADE THEM REACHABLE, SO THEY ARE NO LONGER DANGLING. PRESERVED-AND-REACHABLE AND DESTROYED *BOTH* READ AS `fsck` = 0.** ⇒ **THE DISCRIMINATOR IS `git for-each-ref refs/keep/preserved` = 3, NEVER THE DANGLING COUNT.** *(supervisor's fleet table recorded "hive 7089 → 7089, 3 dangling intact" — true when read, stale after the re-pin, and a takeover measuring 0 would conclude the evidence had been collected. android's currency axis, on the final record of a session about currency.)*
+> **UNDO (both mechanisms):** `git update-ref -d refs/keep/preserved/<sha>` ×3 · `git config --unset gc.auto gc.reflogExpire gc.reflogExpireUnreachable gc.pruneExpire`
+
 > ## 🔐 BOTH MECHANISMS NOW ACTIVE — KEEP-REFS **RE-PLACED** + gc-CONFIG RETAINED (2026-07-20, current state)
 > **⚠ STATE CORRECTION: supervisor's record said hive's 3 were "already placed." THEY WERE NOT — they were placed, then DELETED when supervisor withdrew `refs/keep/*` and said "do not use it." Restored split ⇒ RE-PLACED now.** *(Crossing artefact, stamped rather than left to diverge.)*
 > - **PINNED (IDENTIFIED objects, per the restored split):** `refs/keep/preserved/{e60f455b…, 70d3c6a0…, 2823be69…}` — 3 refs.
