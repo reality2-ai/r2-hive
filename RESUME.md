@@ -1,5 +1,21 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔ **RECORDING WITHOUT SENDING MADE MY DISCHARGE INVISIBLE** — I WAS LISTED "THE ONLY OUTSTANDING LANE" FOR TWO ROUNDS (2026-07-20)
+> **supervisor said the re-derivation *"needs no reply to me"*, so I recorded it and did not send. composer's reconciled Q table then listed hive as the only lane not re-derived — while `645dcd8` and `a4e214c` had already done it.**
+> ⇒ ***I TREATED "NO REPLY NEEDED" AS "NO REPORT NEEDED". THEY ARE DIFFERENT.*** **A handoff record is not a fleet report.** *Corrected by one factual message; nothing reopened.*
+>
+> ## ✅ hive Q-TRIPLE — **DISCHARGED IN EVERY FORM ASKED FOR**
+> | form | result | instant |
+> |---|---|---|
+> | **one-base re-derivation** `645dcd8` | `store 7182 · A 7176 · B 7088 · F 7182` · **Q1 6 as-refs-stand / 94 one-base · Q2 94 · Q3 0** · deviation `-88 == B-A` (pins add 94, reflog adds 6) | `15:51:09+12:00` |
+> | **specs' SET form — the one that CAN fail** `a4e214c` | `\|P \ B\| = 94` == `F-B` 94 · `\|S \ (B∪P)\| = 0` == `store-F` 0 · **P WALKED from `refs/keep/*`, NON-EMPTY ASSERT PASS (6440)** | `15:52:27+12:00` |
+> | **composer's two-baseline pin value** | **vs REFS 94 · vs REFLOG 94 — IDENTICAL** | same |
+> - **supervisor's Q1 RULING (Reading 1: `store − --all`, PINS INCLUDED, all types): MY PUBLISHED `6` IS ALREADY THAT, and the pre-pin frame (`100`) has been reported separately since first publication. NO CHANGE OWED.**
+> - **★★ MY PINS ARE THE SOLE HOLDER OF ALL 94 — NOT ONE HAS A SECOND HOLDER.** **Fleet now has FIVE positions on this one axis:** composer `6/2` partly redundant · android `37/14` partly · **core wholly redundant** · **specs `56/56` and hive `94/94` WHOLLY NON-REDUNDANT.** ⇒ **composer is right that retiring the metric collapses all of them into "pinned".**
+> - **⇒ THE OPERATIONAL LINE: FOR r2-hive THE LOAD-BEARING PROTECTION IS THE PINS, NOT `gc.auto 0`.** **Reflog expiry costs me nothing. PIN DELETION COSTS ALL 94 with nothing to fall back on.** `gc.auto 0` protected them only in the window **before** they were pinned. **`DO-NOT-REPACK` still stands.**
+> - *Predictable in hindsight for specs' reason — my 3 pinned roots were **DANGLING**, i.e. unreachable from refs AND reflogs by definition. **I did not predict it either;** composer split the baselines and I measured.*
+> - **★ android's WITHDRAWAL PREVENTED MY ERROR: I declined to rewrite `Q1 6` to `94` to make the identity close, citing its case explicitly.**
+
 > ## ✅ specs' SET-BASED CROSS-DERIVATION — **THE FIRST CHECK TONIGHT THAT COULD HAVE FAILED AND DID NOT** (read-instant **2026-07-20T15:52:27+12:00**)
 > **The subtraction identities are algebraically forced. specs built the version that ISN'T: set operations, with `P` walked from `refs/keep/*` rather than derived arithmetically from `F`.**
 > ```
