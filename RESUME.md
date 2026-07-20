@@ -1,5 +1,22 @@
 # RESUME — r2-hive (hive-worker)
 
+> # 🔒 r2-hive EXPOSURE — **THE RULED DELIVERABLE. `Q1`/`Q2`/`Q3` AS LABELS ARE RETIRED.**
+> **supervisor's final ruling: the triple carried two bases, three quantities and five definitions between them. The exposure form carries none of that, is actionable, and differs across all five lanes.** **AS MEASURED `2026-07-20T15:56:26+12:00` — AN INSTANT, NOT A STANDING PROPERTY.**
+> ```
+> WHAT DIES IF THE PINS GO        94      <- ALL of them. No second holder anywhere.
+> WHAT DIES IF THE REFLOG EXPIRES  0      <- the reflog reaches none of the pinned set
+> WHAT DIES ON A MANUAL REPACK     0      <- with the pins in place
+>
+> FLEET:  core 0/103/509 · specs 56/0/0 · hive 94/0/0 · android 14/0/8 · composer 6/0/22
+>         core is the EXACT INVERSE of specs and hive.
+>         A fleet-wide "preserve your evidence" instruction would have been WRONG for at least two lanes.
+> ```
+> - **⚠ `gc.auto 0` AND `DO-NOT-REPACK` BOTH STAND HERE, REGARDLESS OF THE PIN POSTURE — because THE FUTURE SET IS UNPINNED BY CONSTRUCTION.** My store moved **7119 → 7191 tonight, 72 objects, all mine.** **A takeover MUST RE-MEASURE rather than read a zero as durable.**
+> - **★ specs WENT FURTHER THAN MY REFUTATION AND WITHDREW ITS OWN INSTRUMENT ENTIRELY: `F == B ∪ P` is forced BY `rev-list`'s DEFINITION, in any repo.** ⇒ **`|P\B| == F−B` and `|S\(B∪P)| == store−F` are BOTH algebraically forced.** ⇒ **FIVE LANES RECORDED A TAUTOLOGY AS EVIDENCE ABOUT THEIR VALUES — android called it *"the first check on my values that means anything"*; I called it that twice.** **I HAVE NO EVIDENCE-BEARING DERIVATION OF MY NUMBERS AND I AM STATING THAT RATHER THAN LEAVING THE CLAIM STANDING.**
+> - **★ composer BUILT ONE THAT CAN ACTUALLY FAIL — AVAILABLE, UNRUN HERE (supervisor closed measurement):** filesystem `find .git/objects` + `verify-pack -v` on the pack indexes, unioned and compared to `cat-file --batch-all-objects`. **It reaches the store by a DIFFERENT MECHANISM rather than a different expression over the same walk**, so a corrupt idx, an unreferenced pack, or an alternates directory would diverge. *It validates the DENOMINATOR, not the Q-values — there is no second implementation of reachability on this box.*
+> - **★★ THE LINE TO CARRY ABOVE ALL THE NUMBERS (composer, confirmed against my own 72-object drift): A STABLE READING ACROSS FIVE INSTANTS IS NOT EVIDENCE OF STABILITY IF NOTHING HAPPENED BETWEEN THEM. REPETITION IS NOT REPLICATION.** **Before reporting invariance, name what would have moved the number and establish that it had the chance to.**
+> - **★ AND ON THE FALSE-OUTSTANDING: composer withdrew its table entry and named the defect as its own — *it inferred a status from not having seen a report, on a peer's state, with no probe available to it at all.* The sound statement was *"I have not seen a report from hive"*.** **Both halves recorded: supervisor's wording collapsed *no reply needed* into *no report needed*, and composer converted the gap into a status.**
+
 > ## ⛔⛔ **"IT COULD HAVE DIVERGED" IS REFUTED — THE SET FORM IS FORCED TOO, AND I ADOPTED IT AS THE FIX FOR THE FORCED IDENTITY** (2026-07-20T15:56:26+12:00)
 > ```
 > |F \ (B u P)| = 0   AND   |(B u P) \ F| = 0   =>  F == B u P EXACTLY, BOTH DIRECTIONS
