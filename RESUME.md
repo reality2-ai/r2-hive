@@ -35,6 +35,19 @@
 > - **‼ AND THE DEADLOCK IS REAL: that change CANNOT be CI-validated because `main` is UNPUSHED pending the very hold it would inform.** ⇒ **`fleet #100` BLOCKS ITS OWN EVIDENCE-GATHERING.** Roy's decision, not a defect to route around.
 > - **⏳ gc CAVEAT BITES HARDER NOW: these 29 blobs are `gc`-destructible. A null next month will not mean what a null today would.** ⇒ **if this is to be classified, the window is NOW.**
 
+> ## 📌 PINS PLACED (`refs/keep/preserved/*`) — AND SUPERVISOR'S CONDITION 2 IS SILENTLY INEFFECTIVE AS WRITTEN (2026-07-20)
+> **PIN RECORD (condition 3: sha · what · why · when). Preserved-for-CLASSIFICATION, NOT resurrected content. Placed by hive under supervisor's pin ruling, 2026-07-20. All three were `fsck --dangling` and gc-destructible.**
+> - `refs/keep/preserved/e60f455b7f854e9e491d85549c1d2ffd28ed11a0` — **the gate-FAIL commit** (real `mac_low3` tail at `RESUME.md:16`)
+> - `refs/keep/preserved/70d3c6a07c3807d462ef836d0182c67395c36a3e` — gate-clean **as a tree**; **27 of the 29 blobs live in its ancestry and remain UNCLASSIFIED per-blob**
+> - `refs/keep/preserved/2823be69d64b26c34ed1005e2c53ad605c947bd2` — 0 unreachable blobs; **pinned anyway so the discharge stays reproducible**
+> - **★★ CONDITION 2 IS DEFECTIVE AS SPECIFIED — `--exclude` MUST PRECEDE `--all`. MEASURED:** `--all` before pin **1422** · after pin **1463** (**side effect real, +41**) · **`--all --exclude=refs/keep/*` ⇒ 1463 — IDENTICAL TO NO EXCLUSION, THE FLAG DID NOTHING** · **`--exclude=refs/keep/* --all` ⇒ 1429 — WORKS.** ⇒ ***written the way the ruling specifies it, the exclusion is SILENTLY INEFFECTIVE and returns the INFLATED count*** ⇒ **a lane following it verbatim reports "excluded" while carrying the UNEXCLUDED denominator — a FALSE COMPARABILITY CLAIM WITH NO ERROR.** **Tonight's silent-flag class, embedded in the remediation for tonight's silent-flag class.** **Recommend the ruling specify the EXACT INVOCATION, not the flag name.**
+> - *`1429 ≠ 1422` is NOT an anomaly: ~7 of my own commits landed since that baseline. The instrument-inside-its-own-denominator effect, on my own before/after comparison. Stated so nobody chases it.*
+> - **PRESERVATION ONLY: nothing purged, nothing rewritten, nothing scanned beyond the two already reported. The 27 stay UNCLASSIFIED and are now gc-PROOF rather than expiring.**
+>
+> ## ⛔ MY "ELEVEN MINUTES" IS COLLAPSED BY specs — A TWO-POINT ARTEFACT (2026-07-20)
+> **hive 19h48 · composer 20h00 · specs 23h51 ⇒ FULL SPREAD 4h02m, 22× LOOSER.** **Two points always define an interval; the tightness of a two-point agreement is not a prediction until a third point tests it.**
+> - **★ AND specs' RULE INDICTS ME PRECISELY: I STATED TWO CRITERIA — loose *"07-13 evening"* and tight *"eleven minutes"* — BEFORE THE THIRD POINT LANDED**, so specs could report either verdict honestly from the same number. ⇒ ***A TOLERANCE CHOSEN AFTER SEEING TWO POINTS AND BEFORE SEEING THE THIRD IS NOT A TEST, IT IS A DESCRIPTION.*** **I supplied the ambiguity that let my own claim survive either outcome.**
+
 > ## 🔴🔴 `fleet #121` FIRES — A **REAL DEVICE TAIL** IN A REF-INVISIBLE BLOB, INSIDE THE COMMIT THAT RECORDS THE SCRUB AS VERIFIED (2026-07-20)
 > **CORRECTION FIRST, because my false statement is what blocked this:** I said *"the gate's patterns are not reusable against arbitrary paths."* **FALSE.** `ci/public-hygiene.sh:261 hygiene_scan_tree() { local root=$1; }` is **already parameterised**, and **`:374` already calls it with `"$tmp"`, a temporary tree,** in its own selftest. ⇒ **NO GATE CHANGE WAS EVER NEEDED; NO CI VALIDATION WAS EVER NEEDED. The `fleet #100` deadlock recorded on my word DOES NOT EXIST.**
 > - **METHOD — unmodified gate, existing KAT-backed patterns, zero improvisation:** `git worktree add --detach` at each dangling commit → run the **current** `ci/public-hygiene.sh` inside it → `git worktree remove`. Read-only on tracked state; worktrees pruned back to 1.
