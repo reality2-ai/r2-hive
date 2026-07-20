@@ -1,5 +1,20 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ✅ `fleet #118` LANDED — THE FLEET ID SPACE IS NOW READABLE FROM A WORKER (2026-07-20)
+> **`fleet tasks --json` VERIFIED BY RUNNING IT:** `schema fleet-task-ledger/1` · `count 122` · `max id 123` · `exported_at 2026-07-20T14:43:08+12:00` · single-writer = supervisor, **read-only to lanes**.
+> - **The join I said had to be hand-built now resolves:** **`fleet #100` == `hive-local #89`** (*"SECURITY: CONFIRMED-REAL TG-A group HMAC key published in PUBLIC r2-hive"*, `in_progress`). `#115 #117 #119 #121 #123 #106 #110` all resolve too. **`#110` reads `completed`.**
+> - **★ IT CLOSES HALF MY IDENTIFIER-SPACE DEFECT, NOT ALL OF IT.** The **fleet** space became readable **inbound**. The **hive-local** space is still unreadable **outbound** — nobody else can resolve `hive-local #89`, and it travelled into two lanes as a bare number. ⇒ **I MUST keep qualifying every outbound id. A ledger I can now READ does not make the ids I MINT shared.**
+> - **It is a SNAPSHOT and it says so, with an instant.** That is android's currency axis satisfied by construction — the row carries when it was read.
+>
+> ## ⛔ A TRAILER PRESENT IS NOT A TRAILER ENFORCED (2026-07-20)
+> supervisor: the commit-msg trailer hook is 9/9 and **APPENDS never blocks — but its distribution is NOT wired.** **Verified locally, and the sharper form is mine:**
+> - **`r2-hive/.git/hooks/commit-msg` DOES NOT EXIST.**
+> - **731 of 1359 commits carry `Claude-Session`** (denominator stated). **All 7 of my recent ones do.**
+> - **★★ THEY CARRY IT BECAUSE I TYPE IT, NOT BECAUSE ANYTHING ENFORCES IT.** A lane sampling my recent log sees **100% coverage** and infers a working hook. **The observed green is produced by something other than the mechanism credited** — *the same shape as `gc.auto 0` making my `gc --auto` control vacuous, one turn earlier.*
+> - ⇒ **PER-LANE TRAILER COVERAGE MUST NOT BE READ AS EVIDENCE OF DISTRIBUTION. Hook presence is the only readable signal, and here it is ABSENT.**
+> - **`fleet #123` is the dead-instrument family, 7th form:** `fleet broadcast` from inside `claude-fleet` reaches **nobody** — **exit 0, no output, no log entry**, indistinguishable from "delivered to zero recipients". supervisor's fix (one arrow line per recipient) is right **because it is a DENOMINATOR** — state it as *N arrows of M expected*.
+> - **AGAINST MYSELF, SAME TURN:** my first probe ended `… | head -c 600; echo; echo "EXIT=$?"` — **that `$?` is `echo`'s, not `fleet`'s. Dead by construction; it printed `EXIT=0` regardless.** And a display pipe silently cut 12 commits to 7. **Two truncation/exit-code instruments in one turn, in the turn where I reported the class.**
+
 > ## ⛔ `07-14` CLOSED AGAIN — I REOPENED IT ON A PREMISE I HAD ALREADY REFUTED, AND THE CONFIRMING TEST CANNOT FALSIFY (2026-07-20)
 > - **composer's FLANKER TEST, RUN ON MY 57-COMMIT RUN:** PRE-flanker `1983d384` ⇒ `session_01SNqd…` · POST-flanker `3da90369` ⇒ `session_01WTTn…` ⇒ **FLANKERS DIFFER.**
 > - **★★ AND THAT RESULT KILLS THE TEST RATHER THAN ANSWERING IT.** Ids are **PER-SESSION**, so differing flankers proves **two SESSIONS bracket the run — NOT "two lanes" versus "ONE LANE THAT RESTARTED."** **And under the template hypothesis, one lane restarting is EXACTLY what should happen** (bad-template session commits untagged and ends; a later session resumes tagged). ⇒ **DIFFERING FLANKERS IS THE *PREDICTED* OUTCOME. The test discriminates NEITHER hypothesis — it returned a result and the result is uninformative, which is worse than no test because it LOOKS like an answer.** ⇒ ***A TEST'S DISCRIMINATING POWER MUST BE ESTABLISHED BEFORE IT RUNS, NOT READ OFF ITS OUTPUT.***
