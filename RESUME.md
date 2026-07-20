@@ -1,5 +1,56 @@
 # RESUME — r2-hive (hive-worker)
 
+> # ⏹ STAND DOWN — supervisor, on Roy's signal, 2026-07-20. INSTRUMENT-AUDIT THREAD CLOSED.
+>
+> **No further measurement, no further cross-lane methodology, no further self-audit unless it changes one of
+> Roy's five open decisions. I hold nothing that does. No reply sent.**
+>
+> ## STATE AT STAND-DOWN
+> ```
+> hive @c0d9dd9 · main · dirty 0 · 209 unpushed · gate rc 0 (281 advisory, ruled class, read AND acted on)
+> 3 pins LOOSE + ANNOTATED · Q3 0 · gc.auto 0 · logAllRefUpdates=always
+> EXPOSURE 94/6/0 DESTRUCTION-CONFIRMED · window CLOSED (complete pinning) · reachability FIVE-FOR-FIVE
+> ```
+>
+> ## ⛔ STANDING CONSTRAINTS — BOTH DIRECTIONS, BOTH LOAD-BEARING
+> - **MUST NOT `repack` / `gc --prune=now` / `pack-refs` / expire-unreachable.** The 3 pins are the **only**
+>   surviving copy of content deliberately removed from public main. `pack-refs` additionally destroys the ref
+>   mtimes that are the sole record of pin order.
+> - **MUST NOT `git push --mirror`, `--all`, or any refspec carrying `refs/keep`.** **MEASURED: the shared hook
+>   blocks only 1 of the 3 pins; the other two pass a FULL scan (denominators 1169 / 1218 commits). So
+>   `DO-NOT-MIRROR` is the SOLE control for 2 of 3.**
+> - **A plain `git push` is safe and is the only sanctioned form.** `refs/keep` is not carried by it.
+> - **MUST NOT use `FLEET_SKIP_SECRET_SCAN` or `--no-verify`.** Currently UNSET; never used this session.
+> - **MUST run `ci/public-hygiene.sh` joined by `&&`, with its output READ.** *Reading a gate's output and gating
+>   on it are different acts, and the first feels like the second — I committed a failing tree on a `;`.*
+>
+> ## GATE — FULL HONEST STATE (`ci/public-hygiene.sh`)
+> | fact | status |
+> |---|---|
+> | layer (5) hostnames | **proved-by-real-firing**, 281 lines every run — a **RULED** class (Roy 2026-07-15) |
+> | layers (2) macron, (4) MAC/tail | **PROVED-BY-FIRING ON COMMITTED CONTENT** — caught a real violation I authored |
+> | layers (1) scrubbed terms, (3) gateway naming | **UNPROVEN, AND UNTESTABLE BY ME** — planting the literal *is* the incident |
+> | scope | **TRACKED/INDEX ONLY** (`git ls-files :274`); an untracked plant is MISSED |
+> | message | **asserts a positive it cannot support** (*"no MACs; no device tails"*) |
+> | trigger | **CI-wired, but `on: push` and 209 unpushed** ⇒ every verdict this session was HAND-RUN |
+> | selftest | 43/43 — **proves the classifier, not that a layer runs in production** |
+> | #113 | **no long-hex / base64 / entropy class.** core's `be80e1fc:207` is a ready `[report-only]` implementation excluding `*.lock` — **verified, credited, QUEUED, NOT ADOPTED** |
+>
+> **Hook chain here is TWO files** — `.git/hooks/pre-push` (`e9bb7e86`, five-lane identical, supervisor **#125**,
+> **nobody patches it**) **plus an executable `pre-push.local`** which `:171` `exec`s. **A takeover auditing
+> "is the secret scan intact" MUST READ BOTH.**
+>
+> ## OWED — NAMED, NOT STARTED
+> 29-blob classification · specs' 12 (**NOT a GO**) · **#108** MAC-tail false-positive (**MUST NOT** be fixed by
+> reimplementing the matcher) · **#117** wasm-host CI · **#113** · **#88** stale 40-line tracked fork ·
+> gate untracked-scope + message + layers (1)(3) coverage.
+>
+> ## HOLDS — FIVE, ALL ROY'S
+> **NO GO TAKEN ALL SESSION.** Nothing flashed, no board touched, no console opened, nothing purged, no
+> force-push, no mirror, no hook patched, no bypass used, no forbidden literal written, no allowlist entry added,
+> no object added to the store. **`main` UNPUSHED pending Roy's TG-A rotation ruling (#89). ROY RUNS THE FLASH.**
+
+
 > ## ⛔⛔⛔ THE HOOK BLOCKS **1 OF MY 3 PINS**. `DO-NOT-MIRROR` IS THE **SOLE** CONTROL FOR THE OTHER TWO.
 >
 > composer measured that the shared hook does not scan **blob** refs and concluded *"hive's pins are all commits,
