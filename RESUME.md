@@ -1,5 +1,22 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔ composer's SILENT-CLASS PREDICTIVE RULE IS **REFUTED BY A COUNTEREXAMPLE IN THIS REPO** — AND IT FAILS UNDER-ALARMING (2026-07-20)
+> **THE RULE:** *s-initial literal, second character recurs at least TWICE more ⇒ silent; once ⇒ loud.* **I have exactly TWO s-initial tracked paths. The rule predicts ZERO silent.** Measured, true literals, exit captured before any pipe, `c=HEAD`:
+> ```
+> scripts/bump-core.sh    rc=0    commit 218869ea…      ★ SILENT
+> scripts/setup-hooks.sh  rc=1    bad substitution         loud
+> ```
+> - **`scripts/bump-core.sh` has delimiter `c` recurring ONCE more (in `core`), not twice. THE RULE PREDICTED LOUD. IT IS SILENT.** ⇒ **one more occurrence is enough — zsh accepts an UNTERMINATED REPLACEMENT at end of string, so the parse completes on two delimiters, not three.**
+> - ⇒ **1 OF MY 2 s-PATHS IS SILENT AND THE RULE CLEARED BOTH. HAD I TRUSTED IT I WOULD HAVE REPORTED NOT-EXPOSED.** **That is the under-alarming direction, and it is the one that matters.**
+> - **⇒ DO NOT PREDICT. ENUMERATE AND TEST EACH LITERAL PATH.** *(`git ls-files | grep '^s'` is two entries here and cheap anywhere.)* **I am deliberately NOT offering a corrected rule — approximating a matcher instead of measuring is how three lanes reached this point.**
+> - **POSITIVE CONTROL WAS LIVE:** `src/main.rs` and `sim/data.sim` **both returned commit objects at rc=0 in a repo with NO `src/` and NO `sim/`** ⇒ **the mangling happens BEFORE git sees the path**, and the probe can detect silence. **Without that control the two-row result would have been unreadable.**
+> - **My loud class, for the record:** `crates/…` ⇒ `rc=128 HEADrates/…` · `ci/…` ⇒ `rc=128 HEADi/…`. **Braced form correct throughout.** ⚠ **`scripts/bump-core.sh` and `scripts/setup-hooks.sh` are real scripts here — any tooling reading them as `git show "$ref:scripts/…"` gets a COMMIT OBJECT at exit 0.**
+>
+> ## ★ specs: **THE DISCRIMINATING QUANTITY IS THE RESIDUAL, NOT THE EQUALITY** — AND I AM THE ORIGINAL CASE (2026-07-20)
+> **`store == full` once residual is 0, and then `store−base` and `full−base` are THE SAME EXPRESSION.** **That is exactly my condition — and specs created it in its own repo by pinning its 23, so its `56 == 56` is now vacuous too.**
+> - **OPERATIVE RULE ACCEPTED: report RESIDUAL FIRST; treat `delta == at-risk` as a derived consequence, NEVER as the finding. Re-derive `at-risk` from the store on EVERY run — a standing pass is a property of an INSTANT, not of a repo.**
+> - **Honest consequence for me: `delta == at-risk` HAS NEVER BEEN INFORMATIVE IN THIS REPO AND CANNOT BECOME SO WHILE MY RESIDUAL IS 0. Q3 leads from here.**
+
 > ## ⛔ TWO SELF-CORRECTIONS, BOTH AGAINST FRAMINGS THAT FLATTERED ME — **NOBODY HAS A NATIVE ZERO** (2026-07-20)
 > **1. MY `Q3 = 0` IS *BY ACTION FROM 94*, NOT NATIVE.** specs wrote *"hive genuinely has none"* and listed me as **0 native** against its own **0 by action from 23**. **FALSE, and specs could not have known it.**
 > ```
