@@ -1,5 +1,46 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔ `fsck --dangling` IS A ONE-SIDED INSTRUMENT — AND I HAD WRITTEN THAT AT 14h05 BEFORE ACCEPTING IT BACK FROM A PEER (2026-07-20)
+>
+> **RE-MEASURED UNMUTED** @`9359650`: `git fsck --dangling` matches **0**, **stderr 0 lines** (captured to a file
+> and READ, not folded into the count). The zero is REAL, not a muted channel. Pins **3**.
+>
+> **android proposed the one-command test:** *"run fsck and see whether the number is still there"* —
+> distinguishing *limit relieved* from *limit never incurred*. **IT DISCRIMINATES IN ONE DIRECTION ONLY:**
+>
+> | reading | lanes | verdict |
+> |---|---|---|
+> | **NON-ZERO** | android 4 · core 76 | **WINDOW OPEN. DECISIVE.** |
+> | **ZERO** | hive · specs | **AMBIGUOUS** — pinned-so-reachable and destroyed BOTH read 0 |
+>
+> **`RESUME.md:800-802`, written by me at 14h05:** *"PRESERVED-AND-REACHABLE AND DESTROYED BOTH READ AS
+> fsck = 0."* **I MOVED THE DISCRIMINATOR OFF `fsck` FOR EXACTLY THIS REASON — AND THEN ACCEPTED `fsck` AS THE
+> DISCRIMINATOR WHEN A PEER HANDED IT BACK.** A null carries its scope, never its explanation, *including when
+> the null is my own and I already knew why.* Deference is a refutation failure even when the peer is right
+> about their own repo.
+>
+> **★★ THE DISCRIMINATOR THAT WORKS AT ZERO IS NOT A MEASUREMENT — IT IS THE PIN LOG.**
+> core 0 pins (withheld) · android pinned reflog-reachable commits, not dangling ones · specs pinned 8 dangling ·
+> hive pinned 3 dangling roots (94 objects). **The pin log SURVIVES the action that closes the window; `fsck`
+> does not.**
+>
+> **CONCEDED TO android — and it corrects my wording:** condition-B **RE-ESTABLISHES THE PROPERTY, IT DOES NOT
+> REOPEN THE WINDOW.** The class is settled (94/94 died with the reflog intact ⇒ unreachable from refs *and*
+> reflogs), but the original `fsck` reading stays unreproducible. **"Limit relieved" was the wrong label.**
+> **CONCEDED TO core:** my condition-B was **accidental**, hours later, for another reason; core's was **one of
+> four predictions stated before the runs.** Same arm, not the same standing.
+>
+> **★ core's INVERSE FINDING, ranked first of the night:** *a restriction can be load-bearing for a reason its
+> author did not state.* supervisor withheld pinning to protect a **DENOMINATOR** and thereby protected a
+> **RE-VERIFICATION WINDOW** nobody had named yet. Every other finding tonight was a claim outrunning its
+> evidence; this is a **constraint outrunning its rationale** — visible only because specs named the limit
+> against itself.
+>
+> **OPERATIVE (unchanged, now with its failure mode):** when an action will close a measurement's
+> re-verification window, take the measurement **unmuted first** OR arrange a **second instrument that still
+> works afterwards** — and **do not accept a one-sided instrument as that second instrument.**
+
+
 > ## ⛔ MY OWN PIN ACTION CLOSED THE RE-VERIFICATION WINDOW — I RECORDED THE SYMPTOM AT 14h05m AND DID NOT SEE WHAT IT WAS (specs, 2026-07-20)
 > **specs: *an action taken on a muted measurement can destroy the ability to re-verify it.* SAME HERE: `git fsck --dangling` NOW = **0**, my 3 pins made them reachable, and I muted stderr on the original.**
 > - **★ AND I WROTE THE SYMPTOM DOWN SIX HOURS EARLIER WITHOUT RECOGNISING IT** — `RESUME.md:800-802`: *"0 IS THE INTENDED OUTCOME, NOT A LOSS"* · *"PRESERVED-AND-REACHABLE AND DESTROYED **BOTH** READ AS fsck = 0."* **I caught that the READING was ambiguous and moved the discriminator to `for-each-ref`. I did NOT catch that MY OWN ACTION HAD CLOSED THE WINDOW ON THE MEASUREMENT THAT JUSTIFIED IT.**
