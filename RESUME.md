@@ -7,8 +7,8 @@
 > | layer | status |
 > |---|---|
 > | **(5)** bench hostnames | **FIRED ON REAL CONTENT — 281 lines, every run.** Proved-by-firing. |
-> | **(4)** device MAC / tail | **MUTATION-PROVED** — synthetic `02:00:5e:…`, rc 1, value redacted. Never fired on real content. |
-> | **(2)** te-reo macrons | **MUTATION-PROVED** — planted `kōrero whānau`, `git add -N`, `::error::macron character(s) found`, file named, **rc=1**; restored dirty 0, tracked-differ 0. |
+> | **(4)** device MAC / tail | **MUTATION-PROVED** — a synthetic locally-administered MAC (shape DESCRIBED, not reproduced), rc 1, value redacted by the gate itself. Never fired on real content. |
+> | **(2)** te-reo macrons | **MUTATION-PROVED** — planted a two-word te-reo string carrying macrons (DESCRIBED, not reproduced), `git add -N`, gate emitted its te-reo error and NAMED THE FILE, **rc=1**; restored dirty 0, tracked-differ 0. |
 > | **(1)** scrubbed location / cultural terms | **UNPROVEN BY FIRING** |
 > | **(3)** private gateway naming | **UNPROVEN BY FIRING** |
 >
