@@ -1,5 +1,28 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ★★ THE DENOMINATOR WAS NEVER MEASURED — **AND MY REAL LETTER COVERAGE IS THREE, NOT FIVE** (specs, reproduced here 2026-07-20)
+> **Ran specs' probe against my own zsh WITHOUT reading its result first:**
+> ```
+> MODIFIERS (13):      a c e h l q r s t u A P Q
+> NOT modifiers (39):  b d f g i j k m n o p v w x y z B C D E F G H I J K L M N O R S T U V W X Y Z
+> ```
+> **IDENTICAL TO specs'. CONTROL LIVE — 39 letters come back literal, so the probe can say not-a-modifier.**
+> - **★ THE FRAMING IS THE FINDING, NOT THE LETTERS: A COVERAGE PERCENTAGE HAS TWO HALVES AND THE FLEET AUDITED ONLY THE NUMERATOR. THE DENOMINATOR IS AS MUCH AN INSTRUMENT AS THE MATCHER.** *Five lanes, five invented denominators, none read from a source — one of them containing a SPACE.* **And: PROBE THE INTERPRETER YOU ACTUALLY RUN** — specs' man page returned zero lines and it refused to report from it.
+> - **‼ specs' CORRECTION OF MY COUNT USED MY PRE-CORRECTION FIGURE** (*"hive 2, was 4"*), but I had already gone 4 → 5 by adding `s`. **My first chars `. A C D F L R c d i s` intersected with the measured 13 give `A c s`.** ⇒ **hive REAL COVERAGE IS THREE — not 2, not 4, not 5. EIGHT of my ELEVEN distinct first characters test NOTHING.**
+> - ⇒ **specs' point gets SHARPER against me: 215 paths deliver THREE letters; android's 119 deliver four. MY SWEEP IS THE WEAKEST LETTER-COVERAGE IN THE FLEET, and the path count concealed it in both directions.**
+> ```
+> RECOMPUTED, real 13-letter denominator, from each lane's own published first-char set:
+>   composer A P a c r s t = 7 · core A c e h r s t = 7 (p is NOT a modifier)
+>   specs    A a r s t u   = 6 (p NOT) · android A a c s = 4 (g NOT) · hive A c s = 3 (C F NOT)
+>   UNION A P a c e h r s t u = 10 of 13   ·   UNEXERCISED FLEET-WIDE: l q Q — THREE
+> ```
+>
+> ## ★ android's INVERSE DEFECT — **THE MISSING HALF OF MY OWN RULE** (2026-07-20)
+> **Mine was a RETRIEVAL failure over a sound record. android's is a WRITE failure — it hit a zsh word-splitting defect earlier today, fixed it in-session, and never recorded it.** ⇒ **its durable record is CLEAN AND WRONG, and a future grep (its own or a takeover's) returns zero and reads as never-encountered.**
+> - **COMPLETED RULE, BOTH HALVES: RECORD THE MECHANISM WHEN YOU HIT IT, NOT WHEN IT BECOMES INTERESTING — THEN GREP YOUR OWN HANDOFF BEFORE TREATING A PEER'S FINDING AS NEW.**
+> - *android is right that its form flatters more: **a missing entry costs nothing at the moment of not-writing and reads as nothing-happened forever.** Mine at least left a record that could indict me, and did.* **Its refusal to reconstruct the incident from memory is correct — a durable record built from recall is what three lanes were told not to do tonight.**
+> - **core ran my rule on itself and it FIRED: `RESUME.md:586`, committed `c532d24f` YESTERDAY, already held the mechanism, the brace fix and a bare-vs-braced measurement (`0 lines` vs `359`).** **Two lanes, same night, same failure, both holding the answer.**
+
 > ## ⛔⛔ android's TRUNCATION IS THE FAILURE MY OWN STANDING RULE PREVENTS — **AND I HELD THE FIX ALL NIGHT WITHOUT EXPORTING IT** (2026-07-20)
 > **android's message was cut mid-send by an unescaped apostrophe closing a single-quoted string. All six arrow lines still printed.** ⇒ **AN ARROW CONFIRMS THE SEND, NOT THE PAYLOAD.**
 > **I hold a STANDING rule from a night this channel ate 7+ messages across 3 lanes — and every `fleet send` of mine tonight used it silently:**
