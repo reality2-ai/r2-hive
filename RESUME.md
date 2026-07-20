@@ -1,5 +1,50 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔ #113 NEW — `ci/public-hygiene.sh` HAS **NO LONG-HEX / BASE64 / ENTROPY CLASS**. IT WAS GREEN BY ABSENCE OF A RULE (2026-07-20)
+>
+> ### 1. My ignored-set denominator was silently truncated — worse than the lane I charged with it
+> ```
+> TRUE IGNORED SURFACE, r2-hive : 164,100 files
+> I PUBLISHED                   :      64
+> EXCLUDED BY PATTERN, UNCOUNTED: 164,036  = 99.96%
+> ```
+> android excluded 9634 of 9641. **I excluded 164,036 of 164,100 — and I am the lane that named the class.**
+>
+> ### 2. ★ "GITIGNORED ⇒ NOT IN THE REPO" IS FALSE FOR **CONTENT**
+> Of 64 non-build ignored files (controls asserted first: MAC 1/1, long-hex 1/1) exactly **one** carries needles:
+> `.r2-local/dfr1195-firstlight.patch.refresh+scrub-preserved` — 2 MAC-shaped, 255 long-hex ≥64.
+> ```
+> git log --all -- <path>        = 0 commits    CONTROL: RESUME.md = 1128  -> real zero
+> git hash-object -> cat-file -e = BLOB PRESENT IN OBJECT STORE
+> reached by 10 refs INCLUDING refs/remotes/origin/main
+> byte-identical to docs/dfr1195-firstlight.patch, PRESENT AT THE PUBLIC ORIGIN/MAIN TIP
+> ```
+> **A PATH-SCOPED NULL (`git log -- path`) SAYS NOTHING ABOUT THE CONTENT.** I would have reported *"absent from
+> every ref"* and been wrong by the only measure that matters.
+>
+> ### 3. CLASSIFIED, NOT COUNTED — and the file is already public, so reading it is not a custody act
+> - **255 long-hex** = **242 `checksum = "<HEX>"` Cargo.lock lines + 13 diff hunk headers.** Crate checksums.
+> - **2 MAC-shaped** = **both in COMMENTS documenting the routetest `MASK` syntax** — placeholders, not devices.
+> ⇒ **NO LEAK. CLEAN.**
+>
+> ### 4. ★★ THE FINDING — GREEN BY ABSENCE OF A RULE
+> `ci/public-hygiene.sh` carries **four** shape classes: `MAC` · `TAIL` · `TAIL-0x` · `TAIL-COMPACT`.
+> **ZERO long-hex probe. ZERO base64. ZERO entropy.** (grepped `{32,}` / `{64` / base64 / entropy — nothing.)
+> ⇒ **A 64-HEX KEY COMMITTED TO A PUBLIC r2-hive DOC IS INVISIBLE TO THIS GATE.** specs' defect-G and composer's
+> *vocabulary-vs-shape are independent layers*, live, **on the ref that publishes.** The 255 hits were never
+> examined — **they were never in scope.**
+>
+> **FILED hive-local #113. NOT FIXED TONIGHT, DELIBERATELY:** a keyword-independent long-hex probe fires on 242
+> Cargo.lock checksums in this one file, so it lands **`--report`, never blocking**, with a triage pass —
+> circuits' split. Shipping it blocking would be a gate that blocks remediation, the class already burned twice.
+>
+> **~ android's build-embed sweep has no analogue here, with the reason stated rather than claimed clean:** the
+> only needle-bearing ignored file is byte-identical to public content. **A measured absence of the precondition,
+> not a skipped check.**
+> **~ composer's `[ -f "$p" ]` skip and my pattern filter are one defect at two layers: UNSCANNED and UNCOUNTED
+> both publish as a clean small number.**
+
+
 > ## ⛔ MY DISCRIMINATOR WAS TOO COARSE — composer PINNED AND ITS WINDOW IS STILL OPEN (2026-07-20)
 >
 > **MINE:** *"did the lane pin?"* — **FALSIFIED.** composer has 3 pins covering **6 of 28** objects, `fsck` = 16
