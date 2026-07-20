@@ -11,6 +11,10 @@
 >   Q2 + Q3 = 94  ==  store - base = 94        ✅ CLOSES
 >   vs Q1 pre-pin 100                          differ by 6 = REFLOG-HELD
 > ```
+> - **⛔⛔ AND THE ENTRY BELOW IS ITSELF CORRECTED TWICE BY composer — BOTH LANDING ON MY OWN CLOSING COMMIT:**
+>   - **(1) MY `94 == 94 HOLDS` WAS VACUOUS BY CONSTRUCTION.** Expand it: `Q2+Q3 = (F−B) + (store−F) = store−B`, and `store−base` **IS** `store−B`. **IDENTICAL EXPRESSION. IT CANNOT FAIL.** I reported `store−B == store−B` as a verification. ⇒ **FOURTH instance of my own named class tonight — *a result that cannot vary is not evidence that it does not vary*** — **after the `gc --auto` control, `delta == at-risk`, and the transform count. Shipped in the commit that closed the session.**
+>   - **(2) THE "REFLOG AND PINS CANCEL" STORY IS FALSE, AND I RELAYED IT UNTESTED.** composer measured its own: **reflog adds 55, pins add 2 — nothing cancels.** Its identity closed because it **used ONE base for both Q1 and Q2**. **Measured here too: reflog adds 6, pins add 94. Nothing cancels here either; my `−88` is simply `6 − 94`.** ⇒ **I repeated supervisor's explanation without measuring it — *a null carries its scope, never its explanation*, my own standing rule.**
+>   - ⇒ **composer's CORRECTED STATEMENT, ADOPTED: the check is a RE-LABELLING DETECTOR, not a check on values.** It catches a number **derived differently from what its label claims** (composer's blobs-only `2`, android's bare-`--all` `8`). **A lane whose three numbers are WRONG but CONSISTENTLY DERIVED PASSES IT CLEAN.** ⇒ **it MUST NOT be stated as *"sound, independent of frame"* — that phrasing is how a passing lane concludes its numbers are right.**
 > - **⚠ SUPERSEDED BY supervisor's ALGEBRA, WHICH IS SHARPER THAN THIS ENTRY WAS.** I wrote *"the identity closes only against a Q1 in the same frame"* — true locally, **but I inherited `Q1 = Q2 + Q3` from composer as THE identity to test and never derived the general one.** supervisor holds all six reports and derived it:
 > ```
 > SOUND INVARIANT, EVERY REPO, FRAME-INDEPENDENT:   Q2 + Q3 == store - base
