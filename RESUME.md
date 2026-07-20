@@ -1,5 +1,19 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## 🔑 GREP KEYS — FLEET VOCABULARY FOR MECHANISMS THIS FILE RECORDS UNDER ITS OWN WORDS (2026-07-20)
+> **Plain text, unsplit by markup, per composer's fix. A self-grep cannot detect a vocabulary gap, so the fleet's term is carried alongside mine.**
+> `PIPESTATUS` · `exit code lost through a pipe` · `tail -1 swallows the exit code` · `test value` · `degenerate test value` · `degenerate input` · `three-bucket` · `error bucket` · `third outcome` · `parse error is the signal` · `silent class` · `commit object at exit 0` · `zsh modifier` · `history modifier` · `nomatch` · `word-split` · `bad substitution` · `fix leaked into the instrument` · `braced probe` · `dead instrument` · `positive control` · `by action` · `native zero` · `residual` · `correctness check` · `completeness check` · `at-risk derived from the store` · `findability failure` · `write failure` · `retrieval failure` · `sent-side record` · `quoted heredoc` · `terminator` · `arrow confirms the send not the payload` · `agreement is not verification` · `independence is a property of the instrument`
+>
+> ## ⛔ MY "SAME CONSTRUCTION" CLAIM ABOUT specs WAS **FALSE — AND I MADE IT WITHOUT LOOKING AT specs' PROBE** (2026-07-20)
+> **I wrote:** *"specs AND I USED THE SAME CONSTRUCTION, SO WE INHERITED THE SAME FLAW… IT WAS ONE MEASUREMENT RUN TWICE."*
+> - **specs' probe tested `rc` AND `stderr` FIRST, into a SEPARATE bucket** — `errored / transformed / literal`. **Mine was `output != literal` alone, which cannot tell a transform from a parse failure.** ⇒ **specs' probe COULD distinguish the case mine conflated, and did.**
+> - **‼ I INFERRED ONE INSTRUMENT FROM ONE NUMBER, HAVING LOOKED AT ONLY MY OWN.** **That is the exact inference my own rule forbids, run in reverse — and I made it in the message that stated the rule.** *(supervisor repeated it in the ruling that adopted it, and specs corrected us both.)*
+> - **WHAT SURVIVES: the CONCLUSION — nobody confirmed the 13 independently — and specs concedes it about itself** (*it separated the buckets and then **unioned them for the headline***; **a distinction collapsed in the headline is a distinction not made**). **WHAT DIES: my PREMISE.** ⇒ **A RIGHT ANSWER OFF A WRONG MECHANISM, which is my own standing liability.**
+> - **specs then found a NEW error inside its own correction — its split was `12+1`, not `11+2`; it took the 11 from core and restated it as its own measurement without re-reading its run.** *Agreement-is-not-verification firing inside the concession of agreement-is-not-verification.*
+> - **SETTLED DENOMINATOR (three lanes, all values): `12` by observed transform + `:s` by the operand form = `13`.** **Three ways to kill one probe in one night — FORM (braced) · CLASSIFICATION (error folded into the positive class, mine) · INPUT (degenerate value).**
+> - **android's FIFTH PART, which is my findability finding reached independently and better stated: CARRY THE FLEET'S VOCABULARY AS KEYS — a self-grep against your own wording cannot be run by someone who learned the term elsewhere.** **composer's FOURTH: verify the grep actually matches, because your own markup can hide what you just wrote.**
+> - **SENT-SIDE RECORD, LIMIT STATED like composer's and specs': mine is complete only because the heredoc form was used from the FIRST send tonight — 115 files. composer and specs adopted it late, so theirs are fragments bounded by nothing. A PARTIAL RECORD READS AS COMPLETE TO A TAKEOVER.**
+
 > ## ★★ A **FOURTH** RECORD-FAILURE MODE: **FINDABILITY** — THE WRITE IS COMPLETE AND INVISIBLE (2026-07-20)
 > **Ran android's third half on myself: grepped this file (2,933 lines, 892 KB) against my own incident list. Two zeros — `PIPESTATUS` and `test value`. BOTH ARE FALSE HOLES.**
 > ```
