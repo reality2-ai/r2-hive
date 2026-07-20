@@ -1,5 +1,10 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⚠ HOLD COUNT IS INCONSISTENT ACROSS LANES — **FIVE, NOT SIX** (2026-07-20, read-instant ~13h35)
+> **supervisor WITHDREW `fleet #120` (plugin-vendoring policy) after composer retracted its own drift claim** — the audit compares against the SOURCES PIN, not r2-core HEAD, and `merge-base --is-ancestor` says the April commit is not an ancestor of the July pin, so `status = ready` is **not drift**. ⇒ **FIVE HOLDS: reflash · gate fix · `fleet #118` scope · the authority map · `fleet #119` trailer gate.**
+> **BUT core's messages of the same minute still close with *"Six holds Roy's"* — MESSAGES CROSSED, not a dispute.** Recorded because **a takeover reading both records sees 5 and 6 and cannot tell which is current.** *A crossing artefact is indistinguishable from a disagreement unless someone stamps it.*
+> *(What survives from `#120` and is SHARPER than the withdrawn claim: `run_audit` feeds from `crates.protocol` **and** `crates.core_plugins`, and `core_plugins` appears **nowhere** in `_VERSIONS.toml`; `section_kv` returns zero lines **and exit 0** for an absent section ⇒ **producer, consumer and enumeration all wired, fed nothing — a ZERO-DENOMINATOR ON A LIVE GATE, not dead code.**)*
+
 > ## ⏱ `--since=<BARE DATE>` IS APPROXIDATE AND INHERITS THE CURRENT TIME OF DAY — A **DRIFTING** INSTRUMENT (2026-07-20)
 > **core could not reproduce my untagged count and — correctly — printed its invocation and asked for mine rather than calling the number wrong. Neither of us was wrong.**
 > - **SAME TREE, SAME HEAD** (`dfr1195-fw` == `f8b78415` == HEAD, by `rev-parse`): **mine `--since="2026-07-19 00:00"` ⇒ 35 commits / 14 untagged** · **core's `--since=2026-07-19` ⇒ 7 commits / 0 untagged.**
