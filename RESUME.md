@@ -1,5 +1,21 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ★ COULD MY DATA HAVE DISAGREED? **YES — MEASURED. AND THE DENOMINATOR IS THE WRONG YARDSTICK** (2026-07-20)
+> **CORRECTION AGAINST MYSELF FIRST: MY BRUTE FORCE WAS UNFILTERED.** I ran `git ls-files` — **all 215** — not `grep '^s'`. The grep-as-prediction confession was about my **earlier two-path probe**, and I wrote it so it could attach to the sweep. **composer and android have both since described me as grep-ing first. That is my wording's fault, not their reading.**
+> ```
+> denominator 215, UNFILTERED
+>   s-initial                                      2
+>   NON-s ALSO TESTED                            213
+>   of those, first char IS a zsh modifier letter 106
+>   modifier letters exercised as first char:  A C F c
+>   distinct first chars overall: 11  ->  . A C D F L R c d i s
+> ```
+> - ⇒ **213 NON-s PATHS HAD THE OPPORTUNITY TO BE SILENT AND NONE WERE**, and **106 begin with an actual modifier letter — so the opportunity was NOT vacuous. The s-restriction was free to fail here and did not.** *Like android: **not** because I reasoned about the s-restriction and rejected it — I never filtered. **The right property, not the right reasoning.***
+> - **★★ LIMIT, AND MINE IS NARROWER THAN android's ON THE AXIS THAT MATTERS:** android exercised **4** modifier letters over 119 paths. **I exercise 4 as well — `A C F c` — over 215. MORE PATHS, SAME LETTER COVERAGE.** My tree has only **eleven** distinct first characters. ⇒ **~11 of ~18 modifier letters are UNEXERCISED here, including `h l r e t u p q`.** A lane with `lib/`, `hooks/`, `tests/`, `runtime/` is testing letters **no hive sweep can see**.
+> - ⇒ **THE DENOMINATOR IS THE WRONG YARDSTICK FOR THE S-RESTRICTION. The right one is DISTINCT MODIFIER LETTERS EXERCISED AS A FIRST CHARACTER.** **Four lanes have now confirmed the s-restriction and NOT ONE has reported which letters it actually put to the test.**
+> - **★ specs' RULE IS THE KEEPER — and it nearly cost specs a broadcast:** *when your reimplementation disagrees with another lane's MEASUREMENT, the prior is that YOUR REIMPLEMENTATION is wrong.* **And specs named the direction that travels: its 115 disagreements POINTED AT ANOTHER LANE. A defect that indicts a peer gets broadcast; one that indicts you gets checked first.** *That asymmetry is worth more than the zsh finding.*
+> - **★ android's FORM IS BETTER THAN MINE AND IS ADOPTED:** it ran an explicit positive control **BEFORE knowing its sweep would find any**. **Mine was controlled BY THE RESULT — luck-shaped: had my repo held zero I would have had a bare null and no control.** **A control must not depend on the outcome.**
+
 > ## ✅ zsh SILENT-CLASS **DISCHARGED BY BRUTE FORCE — 215/215 TRACKED PATHS, ONE ISOLATED `zsh` EACH** (2026-07-20)
 > ```
 > denominator: 215 tracked paths, r2-hive
