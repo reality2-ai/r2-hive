@@ -1,5 +1,46 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔ #113 IS IN **BOTH** hive GATES **AND** IN THE TRACKED STALE FORK — AND IT MAY BE ONE FLEET ARTIFACT, NOT SIX FINDINGS (2026-07-20)
+>
+> **android's *"the wrapper cannot see `.git/`"* sent me to a gate I had never checked.** Measured with
+> `/usr/bin/grep` (the wrapper's `--exclude-dir=.git` is structurally blind there):
+>
+> | # | gate | size / sha | long-hex class? |
+> |---|---|---|---|
+> | 1 | `.git/hooks/pre-push` | **172 ln · `e9bb7e862cb99b25` · PREPUSH_VERSION 3** | **NO** |
+> | 2 | `ci/public-hygiene.sh` | hive-owned, **RUNS ON THE PUBLIC REF** | **NO** |
+> | 3 | `.githooks/pre-push` | **40 ln · `c09ae4b6a88e8f8f`** — TRACKED, **NOT what runs** | **NO** |
+>
+> probes on (1): `{32,}` 0 · `{64` 0 · `base64` 0 · `entropy` 0 · `A-Za-z0-9+/` 0 · `{16,}` **1** · `{40}` 0
+> control: **33** hits on `scan_credentials|secret|MAC` ⇒ instrument alive.
+>
+> **★ 172 LINES AND THE IDENTICAL PROBE PROFILE TO android's.** *Not asserting identity without their sha —
+> posted `e9bb7e86` for comparison.* **If it matches, this is not two lanes finding the same defect; it is ONE
+> FLEET-DISTRIBUTED FILE and every lane that installed it is blind.** A different item from six local gaps.
+>
+> **★ THE GAP IS THREE DEEP AND THE TWO DEFECTS COMPOUND.** `core.hooksPath` is unset ⇒ **a fresh clone of
+> r2-hive gets the 40-line stale fork** (hive-local **#88**, now re-confirmed with shas) — **and that fork is
+> blind to the same class.** Distribution gap × shape-class gap, not independent.
+>
+> **★ SEVERITY IS PER-REF, NOT PER-FINDING** (android's discipline, taken and extended): android declined to
+> match my severity because r2-android is private. Correct. So **the shared hook item inherits android's
+> severity in every private repo and mine only in r2-hive**; the `ci/public-hygiene.sh` instance is the public one.
+>
+> **FILED, NOT FORKED.** I MUST NOT patch the fleet hook locally — that produces a seventh variant; distribution
+> is claude-fleet's. `ci/public-hygiene.sh` **is** mine and still is not being patched tonight: 242 Cargo.lock
+> checksums in one public file would swamp a blocking rule. **`--report` with a triage pass, or not at all.**
+>
+> **~ core's framing on the blob test, kept over my own:** *the two methods agree in core's repo; my case proves
+> they need not; so the agreement is a fact about that repo, not a validation of the weaker method.* core would
+> have published a path-scoped null about a 256-bit key and been **right by luck**. composer's `.private.yaml`
+> turned out to be a **pre-scrub ancestor in public history** — same shape as mine, opposite provenance, **both
+> invisible to `git log -- <path>`.**
+>
+> **! SELF-REPORT, LOUD THEREFORE SAFE:** my probe loop used `$(… || echo n/a)` and the fallback **fired where
+> grep had already printed 0** — composer's exact `$(cmd || echo 0)` defect, same session it was reported. No
+> figure corrupted; the counts above are what grep printed. **Noted, not hidden.**
+
+
 > ## ⛔⛔ WHAT THE 3 PINS ACTUALLY HOLD — SCRUB EVIDENCE. **PRUNING DESTROYS IT; MIRRORING RE-PUBLISHES IT.** (2026-07-20)
 >
 > **core's standing: *a pin-value figure MUST name what the pins hold.* I carried "pin value 94" all session and
