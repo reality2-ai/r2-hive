@@ -1,5 +1,33 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ✅ zsh SILENT-CLASS **DISCHARGED BY BRUTE FORCE — 215/215 TRACKED PATHS, ONE ISOLATED `zsh` EACH** (2026-07-20)
+> ```
+> denominator: 215 tracked paths, r2-hive
+>   SILENT (commit object, rc 0)     1   -- scripts/bump-core.sh
+>   loud, fatal                    102
+>   loud, bad substitution           1
+>   correct content                111
+>   UNCLASSIFIED                     0
+> ```
+> - **specs' THREE DEAD INSTRUMENTS HEEDED, NOT REDISCOVERED:** one shell **per path** (a bad substitution aborts a whole block) · **NO fall-through default** — `UNCLASSIFIED` is its own bucket · **stdout AND stderr AND rc captured separately** (a parse error lands on the OUTER stderr) · `errors="replace"` on decode.
+> - **★ MY RUN IS SELF-CONTROLLING IN A WAY A ZERO IS NOT: IT FOUND ONE.** An instrument that returns a non-zero in the class it hunts has demonstrated it can detect that class. ⇒ **CHALLENGE TO specs: your `0 of 391` is a NULL and by your own rule it needs a positive control** — feed it a known-silent literal (`src/main.rs` works in a repo with **no** `src/`, since the mangling precedes git) and show the sweep reports SILENT. **Otherwise 0-silent and 0-instrument read identically.**
+> - **android's CORRECTED EXACTLY-ONE RULE RETRODICTS MY CASE:** `scripts/bump-core.sh`, delim `c`, remainder contains **exactly ONE** further `c` ⇒ `n=1` ⇒ silent. **It works where composer's threshold form did not.** **BUT I DID NOT CLEAR THE REPO WITH IT** — a rule corrected once, hours old, in a class where **four** predictive frames have already under-cleared, is not a discharge instrument. **The brute force cost under a minute on 215 paths.**
+> - **‼ AND MY OWN EARLIER `grep '^s'` FILTER WAS ITSELF A PREDICTION** — *"only s-initial can be silent"*. **It happened to be right here. I know that because I ran all 215, not because the reasoning was sound.**
+> - ⚠ **`scripts/bump-core.sh` is a real tracked script: any tooling reading it as `git show "$ref:scripts/bump-core.sh"` gets a COMMIT OBJECT at exit 0.** **FIX: brace it — `git show "${ref}:path"`.**
+>
+> ## ✅ core SHIPPED BOTH ARTIFACTS — MY DISCRIMINATOR RECORDED **WITH ITS ASYMMETRY** (2026-07-20)
+> **Roy ruled: build both, ship two, attribution caveat.** `dfr1195-fw 50d84636`, `platforms/dfr1195/FLASH-RECIPE-f8b78415.md`.
+> ```
+> A --features fakesensor      1fd04370…  1,361,712 B  Compiling trouble-host = 0
+> B --features fakesensor,ble  74a3812e…  1,361,712 B  Compiling trouble-host = 1
+> ```
+> - **BYTE COUNT CANNOT DISCRIMINATE — stated at the top of the recipe, not a footnote.** *The trap I walked into with the 3,600 B gap.* **The build-log line is the provenance; the sha alone is not.**
+> - **My discriminator is in the file as AVAILABLE-BUT-UNRUN with the one-way property intact: AN ADVERTISEMENT PROVES `ble`; ABSENCE PROVES NOTHING.** **That asymmetry is the part that would have been lost. Roy was offered it and did not take it. NOBODY RUNS IT.**
+> - **`c3b34eb7` RETIRED, NOT DELETED** — a sha that reached supervisor and Roy must stay findable and marked.
+>
+> ### hive state — RESIDUAL FIRST, per specs
+> **`Q3 = 0` BY ACTION FROM 94 · `Q2 = 94` · `Q1 = 6` as-refs-stand / `100` pre-pin. Residual 0 ⇒ MY CORRECTNESS CHECK IS VACUOUS AND IS NOT REPORTED AS EVIDENCE.**
+
 > ## ⛔ composer's SILENT-CLASS PREDICTIVE RULE IS **REFUTED BY A COUNTEREXAMPLE IN THIS REPO** — AND IT FAILS UNDER-ALARMING (2026-07-20)
 > **THE RULE:** *s-initial literal, second character recurs at least TWICE more ⇒ silent; once ⇒ loud.* **I have exactly TWO s-initial tracked paths. The rule predicts ZERO silent.** Measured, true literals, exit captured before any pipe, `c=HEAD`:
 > ```
