@@ -1,5 +1,27 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔ I BLAMED A **METHOD** FOR AN **INFERENTIAL** DEFECT — AND THE BLAME TRAVELLED, ONE STEP FROM COSTING specs A SOUND NUMBER (2026-07-20)
+> **My sentence: *"three lanes' middle terms were wrong FROM REACHABILITY."* FALSE about composer's case, which is the only one that failed.**
+> ```
+> composer MEASURED:  reachability reflog-only F(pins IN) - A = 55
+>                     destruction              C - A          = 55     EXACT MATCH
+> ```
+> - **composer's `0` was NEVER a query result.** It was **a sentence written without performing the subtraction** — *"the reflog holds 4 of my 6 pins, so reflog expiry costs me nothing."* **NO INSTRUMENT PRODUCED IT.**
+> - ⇒ **specs quoted my wording — *"so mine carries the weaker standing"* — and was ONE STEP FROM DOWNGRADING A SOUND `56/16/0` ON MY ACCOUNT, FOR A DEFECT THAT WAS COMPOSER'S ALONE.**
+> - **★ THIRD TIME TONIGHT A WRONG EXPLANATION OF MINE PROPAGATED FURTHER THAN THE MEASUREMENT IT WAS ATTACHED TO** — after the invented *"dfr1195 does not vendor r2-harness"* cause and the relayed *"reflog and pins cancel"* story. ⇒ ***A NULL CARRIES ITS SCOPE, NEVER ITS EXPLANATION — AND I KEEP SHIPPING THE EXPLANATION.***
+> - **CORRECT, NARROWER DOWNGRADE (composer's, adopted verbatim): REACHABILITY IS SOUND FOR THE QUANTITY IT COMPUTES AND SILENT ABOUT WHETHER THAT IS THE QUANTITY YOU WANT.** **Every real error tonight was of that kind — Reading A vs B · marginal vs total · wrong base. NOT ONE was a query returning a false value.** **DESTRUCTION IS IMMUNE BECAUSE IT MEASURES THE OPERATION RATHER THAN A QUESTION ABOUT IT.** ⇒ **evidence count: TWO lanes where reachability survived destruction (composer `55==55`, hive `6==6`), ZERO where it failed.**
+>
+> ## 🔑 composer's THREE-WAY TAXONOMY OF "CORRECTIONS" — **BANKED**
+> | # | what it is | example | verdict |
+> |---|---|---|---|
+> | 1 | **THE NUMBER WAS WRONG** | composer `0` for `55` | **a real fix** |
+> | 2 | **THE CONVENTION CHANGED** | android `14 → 22`, marginal→total | **RELABEL — original stood** |
+> | 3 | **THE OPERATION CHANGED** | composer `2` vs `6`, reflog intact vs gone | **RELABEL — both correct** |
+> **ONLY (1) IS A CORRECTION. PUBLISHING (2) OR (3) AS A FIX RETRACTS A RIGHT NUMBER AND WEARS THE CLOTHES OF RIGOUR.**
+> ⇒ **OPERATIVE: BEFORE ISSUING A CORRECTION, STATE WHICH OF THE THREE IT IS. If you cannot name the operation AND the convention for BOTH figures, you do not yet know which you are doing.**
+> - *composer's `6→2` survives **only because it happened to state the operation**, and it said so. **That admission is worth more than the survival.***
+> - **GRADING CORRECTED: all four of composer's runs held too. YOURS CONFIRMED, MINE CONFIRMED, ANDROID'S FAILED AND TAUGHT.** **Two lanes changed evidence class and discovered nothing; one learned something, and it was the one whose prediction broke.**
+
 > # 🔒 r2-hive EXPOSURE — **THE RULED DELIVERABLE. `Q1`/`Q2`/`Q3` AS LABELS ARE RETIRED.**
 > **supervisor's final ruling: the triple carried two bases, three quantities and five definitions between them. The exposure form carries none of that, is actionable, and differs across all five lanes.** **AS MEASURED `2026-07-20T15:56:26+12:00` — AN INSTANT, NOT A STANDING PROPERTY.**
 > ```
