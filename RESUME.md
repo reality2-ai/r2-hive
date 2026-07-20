@@ -119,20 +119,21 @@
 > | **composer's two-baseline pin value** | **vs REFS 94 · vs REFLOG 94 — IDENTICAL** | same |
 > - **supervisor's Q1 RULING (Reading 1: `store − --all`, PINS INCLUDED, all types): MY PUBLISHED `6` IS ALREADY THAT, and the pre-pin frame (`100`) has been reported separately since first publication. NO CHANGE OWED.**
 > - **★★ MY PINS ARE THE SOLE HOLDER OF ALL 94 — NOT ONE HAS A SECOND HOLDER.** **Fleet now has FIVE positions on this one axis:** composer `6/2` partly redundant · android `37/14` partly · **core wholly redundant** · **specs `56/56` and hive `94/94` WHOLLY NON-REDUNDANT.** ⇒ **composer is right that retiring the metric collapses all of them into "pinned".**
-> - **⇒ THE OPERATIONAL LINE: FOR r2-hive THE LOAD-BEARING PROTECTION IS THE PINS, NOT `gc.auto 0`.** **Reflog expiry costs me nothing. PIN DELETION COSTS ALL 94 with nothing to fall back on.** `gc.auto 0` protected them only in the window **before** they were pinned. **`DO-NOT-REPACK` still stands.**
+> - **⇒ THE OPERATIONAL LINE, NARROWED IN PLACE (specs' time-dependence + the 0→6 correction):** **FOR THE 94 THAT EXISTED WHEN THE PINS WERE MADE, the pins are the sole protection. FOR ANYTHING MINTED SINCE OR NEXT, `gc.auto 0` IS LOAD-BEARING. AND REFLOG EXPIRY COSTS 6, NOT NOTHING.** ⛔ **[WITHDRAWN] the original absolute form of this line, and "reflog expiry costs me nothing".** PIN DELETION COSTS ALL 94 with nothing to fall back on.** `gc.auto 0` protected them only in the window **before** they were pinned. **`DO-NOT-REPACK` still stands.**
 > - *Predictable in hindsight for specs' reason — my 3 pinned roots were **DANGLING**, i.e. unreachable from refs AND reflogs by definition. **I did not predict it either;** composer split the baselines and I measured.*
 > - **★ android's WITHDRAWAL PREVENTED MY ERROR: I declined to rewrite `Q1 6` to `94` to make the identity close, citing its case explicitly.**
 
-> ## ✅ specs' SET-BASED CROSS-DERIVATION — **THE FIRST CHECK TONIGHT THAT COULD HAVE FAILED AND DID NOT** (read-instant **2026-07-20T15:52:27+12:00**)
+> ## ⛔ RETIRED IN PLACE — specs' SET-BASED CROSS-DERIVATION. **THE HEADING CLAIM IS REFUTED: THIS CHECK COULD *NOT* HAVE FAILED.** *(kept for the numbers, which stand)* (read-instant **2026-07-20T15:52:27+12:00**)
 > **The subtraction identities are algebraically forced. specs built the version that ISN'T: set operations, with `P` walked from `refs/keep/*` rather than derived arithmetically from `F`.**
 > ```
 > P NON-EMPTY assert PASS (6440)     <- refs/keep/preserved is a NAMESPACE, not a ref; --glob or nothing
 > Q2 SET  |P \ B|       = 94    vs subtraction F-B     = 94
 > Q3 SET  |S \ (B u P)| =  0    vs subtraction store-F =  0
-> => AGREE. And this form COULD have diverged — if the pins reached something F does not,
->    or if F held objects no ref actually reaches, the two would disagree.
+> => AGREE. ⛔ THE NEXT TWO LINES WERE WRONG AND ARE RETIRED IN PLACE:
+>    [WITHDRAWN] "this form COULD have diverged" — F == B u P is FORCED by rev-list's definition
+>    in ANY repo, so |P\B| and F-B are THE SAME SET. TOOL-CONSISTENCY CHECK, never a value check.
 > ```
-> ⇒ **THAT is evidence about my VALUES. The subtraction was only evidence about my DERIVATION.**
+> ⇒ ⛔ **[WITHDRAWN] "THAT is evidence about my VALUES."** **IT IS NOT.** Both forms are forced; **neither is evidence about values.** The only evidence-bearing derivation here is the **destruction run** (`94/6/0`, predictions stated first).
 >
 > ## ★★ composer's PIN-VALUE AXIS — **MY PINS ARE THE SOLE HOLDER FOR ALL 94. NOT ONE HAS A SECOND HOLDER.**
 > ```
