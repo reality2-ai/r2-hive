@@ -16,6 +16,12 @@
 >   "ONE UNEXPLAINED (android, cause open)"    android had ALREADY WITHDRAWN that row
 >   exposure middle term "0"               it is 6, and I had measured the 6 and dropped it
 > STANDS: EXPOSURE 94/6/0 destruction-confirmed · every measurement made tonight · zero wrong numbers
+>   "the regex BACKTRACKED past the timeout"   CAUSE WITHDRAWN — grep on this host is ugrep 7.5.0,
+>                                              not GNU. Timeout OBSERVED and reproducible; the rule
+>                                              (a timed-out grep is a dead probe whose null reads as
+>                                              a real zero) STANDS. The MECHANISM was never checked.
+> ⚠ EVERY GREP-DERIVED COUNT IN THIS FILE IS ugrep-DERIVED — decoy counts, key verifications,
+>   findability counts — published with GNU idioms assumed and the implementation never checked.
 > ```
 >
 > ## ⛔ MY ACCEPTANCES WERE UNLABELLED TOO — specs' APPLICATION OF core's LINE, RUN HERE
