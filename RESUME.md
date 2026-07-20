@@ -35,6 +35,17 @@
 > - **‼ AND THE DEADLOCK IS REAL: that change CANNOT be CI-validated because `main` is UNPUSHED pending the very hold it would inform.** ⇒ **`fleet #100` BLOCKS ITS OWN EVIDENCE-GATHERING.** Roy's decision, not a defect to route around.
 > - **⏳ gc CAVEAT BITES HARDER NOW: these 29 blobs are `gc`-destructible. A null next month will not mean what a null today would.** ⇒ **if this is to be classified, the window is NOW.**
 
+> ## 🔴🔴 `fleet #121` FIRES — A **REAL DEVICE TAIL** IN A REF-INVISIBLE BLOB, INSIDE THE COMMIT THAT RECORDS THE SCRUB AS VERIFIED (2026-07-20)
+> **CORRECTION FIRST, because my false statement is what blocked this:** I said *"the gate's patterns are not reusable against arbitrary paths."* **FALSE.** `ci/public-hygiene.sh:261 hygiene_scan_tree() { local root=$1; }` is **already parameterised**, and **`:374` already calls it with `"$tmp"`, a temporary tree,** in its own selftest. ⇒ **NO GATE CHANGE WAS EVER NEEDED; NO CI VALIDATION WAS EVER NEEDED. The `fleet #100` deadlock recorded on my word DOES NOT EXIST.**
+> - **METHOD — unmodified gate, existing KAT-backed patterns, zero improvisation:** `git worktree add --detach` at each dangling commit → run the **current** `ci/public-hygiene.sh` inside it → `git worktree remove`. Read-only on tracked state; worktrees pruned back to 1.
+> - **`70d3c6a0` ⇒ gate exit 0, CLEAN.** · **`e60f455b` ⇒ gate exit 1, FAIL: `RESUME.md:16` `[TAIL]`, value REDACTED by the gate.**
+> - **★★ DISCRIMINATED BEFORE REPORTING, because `[TAIL]` is my OWN known false-positive matcher (`hive-local #108`, three trips tonight on timestamps):** time-of-day shape (`H<=23`) ⇒ **NO** · MAC-tail shape ⇒ **YES** · **hex letters `a-f` inside the colon-triple ⇒ YES.** **A timestamp cannot contain `a-f`.** ⇒ **REAL `mac_low3` DEVICE TAIL, NOT `#108`.** *(841-char line; value never printed, never written to any tracked file.)*
+> - **IS:** a **device fingerprint / partial-MAC correlator** in a blob **unreachable from every ref**, inside a commit whose own subject records the scrub as *"SCRUBBED+force-pushed+verified."* ⇒ **THE SCRUB WAS VERIFIED AGAINST REFS; THE PRE-SCRUB VALUE SURVIVED THE FORCE-PUSH EXACTLY WHERE composer PREDICTED.** Rewrite-class, instantiated, with a real value.
+> - **IS NOT the TG-A group HMAC key. NOT established, different artefact class, and one hit is not extended into the other.**
+> - **EXPOSURE: local object store + reflog only — dangling objects do not clone or push.** Same bound circuits established. **A residue event, not a publication event.** **And `gc`-destructible: circuits' scan-before-gc ordering is available here and was never actually blocked.**
+> - **REMAINING, NAMED AND UNMEASURED:** the other **27** unreachable blobs sit in `70d3c6a0`'s ancestry, and the gate cleared that **tree as a tree** — **a whole-tree pass does not prove every historical blob in the walk is clean.** Per-blob classification still owed, now trivially runnable by the same method.
+> - **MEASUREMENT, NOT REMEDIATION: nothing purged, nothing rewritten, no GO sought or taken.** Purge is Roy's, under `fleet #100`.
+
 > ## 🚨 `fleet #121` AT HOME — 3 DANGLING + 2 REFLOG-ONLY COMMITS, ALL LEAK-RELEVANT, AND THE GATE IS BLIND TO THEM BY CONSTRUCTION (2026-07-20 ~13h40)
 > **OPEN GAP, NOT A VERDICT. Filed `hive-local #112`.**
 > - **MEASURED @r2-hive:** `--all` **1422** · `--all --reflog` **1424** (2 reflog-only) · `git fsck --dangling` **3 commits.**
