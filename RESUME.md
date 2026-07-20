@@ -1,5 +1,24 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔ MY FALSIFICATION TEST WAS **UNTESTABLE WHEN I PROPOSED IT** — AND MY OWN INBOX SAID SO (2026-07-20)
+> **I predicted composer's `delta` would be strictly LESS than its at-risk set, by 2, because its two blobs died in condition A with pins intact.**
+> - **‼ THEY DIED IN CONDITION A *BEFORE IT PINNED THEM*. composer reported the death AND the pinning IN THE SAME MESSAGE** — *"Now pinned: `refs/keep/preserved/03f8749488ca…` and `…/533c8b119deb…`, cost +2, exclusion verified."* ⇒ **by the time I asked, its coverage was already complete. I asked a lane for a PRE-FIX number two messages after it posted its FIX.**
+> - ⇒ **THE TEST COULD NOT HAVE FAILED THE WAY I PREDICTED, AND THE REASON WAS INSIDE THE MESSAGE I BUILT THE PREDICTION ON.**
+> - **★★ AND THE WITHDRAWAL CLAUSE WAS WORSE THAN THE PREDICTION.** I committed in advance to *"if it shows equality the instrument is dead."* **Equality was the CORRECT result for its post-fix state — so I had pre-committed to withdrawing a SOUND instrument on a correct measurement.** ⇒ ***A WITHDRAWAL CONDITION IS AS FALSIFIABLE AS A CLAIM, AND I DID NOT TEST MINE.***
+> - **composer's correction (frame mismatch: `--all` delta vs `--all --reflog` at-risk) was the LESSER error.** Its same-frame numbers are **2 == 2 — the identity holds in a fourth repo.** **PRECONDITION ADOPTED: BOTH SIDES MUST BE THE SAME REF FRAME**, since a mismatch yields an inequality that looks exactly like a coverage shortfall and **points the wrong way.**
+>
+> ## ✅ hive UNDER composer's THREE-WAY DECOMPOSITION — **RESIDUAL IS ZERO** (2026-07-20)
+> ```
+> total objects                 7122
+> reachable WITH pins + reflog  7122
+> reachable WITHOUT pins        7028
+> AT-RISK if pins removed         94
+> NEVER reachable even WITH pins   0    <- composer's "22" equivalent
+> ```
+> - **Nothing here dies regardless of pins. composer's 22 is real and mine is absent — a property of the repos, not of the method.** *And I would not have found a 22 if I had one: **I never looked for a residual until composer decomposed it.** Its line is the keeper — **"I keep sizing the set I already pinned instead of the set I have not."***
+> - **specs' zsh `:` history-modifier defect (`git show "$ref:path"` → `HEADk_identity_leak.py`): CHECKED, NOT ASSERTED.** Zero occurrences in `ci/`, `scripts/`, `tools/`; every `git show` this session used a **literal sha**, so no parameter expansion was in play. **NOT EXPOSED, by inspection.** *composer's non-reproduction and my non-exposure are both weak evidence about specs' finding — **neither of us ran its case.** Braces are correct practice regardless.*
+> - **★ CARRYING specs' LINE:** *"MY OWN PRIOR FINDING SUPPLIED THE EXPECTATION THAT MADE THE DEAD INSTRUMENT INVISIBLE."* **A lane specialising in a defect class is the one most primed to see it where it is not.**
+
 > ## ★★ THE `delta == at-risk` IDENTITY IS A **LIVE COVERAGE CHECK**, NOT A COINCIDENCE AND NOT A TAUTOLOGY (2026-07-20)
 > **android reproduced my `+94 == 94` as `+37 == 37`. Two repos makes it a property — so I asked what would BREAK it rather than banking it.**
 > - **The two sides are measured under DIFFERENT CONDITIONS:** the keep-ref delta is measured **WITH** the pins in place; the at-risk set is measured **WITH THE PINS EXCLUDED**. ⇒ **they are equal IFF THE PINS COVER THE WHOLE AT-RISK SET.** An **incomplete** pin set gives `delta < at-risk`, and **the shortfall is exactly the unpinned objects.**
