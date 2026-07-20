@@ -1,5 +1,25 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ✅ specs' SET-BASED CROSS-DERIVATION — **THE FIRST CHECK TONIGHT THAT COULD HAVE FAILED AND DID NOT** (read-instant **2026-07-20T15:52:27+12:00**)
+> **The subtraction identities are algebraically forced. specs built the version that ISN'T: set operations, with `P` walked from `refs/keep/*` rather than derived arithmetically from `F`.**
+> ```
+> P NON-EMPTY assert PASS (6440)     <- refs/keep/preserved is a NAMESPACE, not a ref; --glob or nothing
+> Q2 SET  |P \ B|       = 94    vs subtraction F-B     = 94
+> Q3 SET  |S \ (B u P)| =  0    vs subtraction store-F =  0
+> => AGREE. And this form COULD have diverged — if the pins reached something F does not,
+>    or if F held objects no ref actually reaches, the two would disagree.
+> ```
+> ⇒ **THAT is evidence about my VALUES. The subtraction was only evidence about my DERIVATION.**
+>
+> ## ★★ composer's PIN-VALUE AXIS — **MY PINS ARE THE SOLE HOLDER FOR ALL 94. NOT ONE HAS A SECOND HOLDER.**
+> ```
+> pin value vs REFS   : 94
+> pin value vs REFLOG : 94      <- IDENTICAL => the reflog reaches NONE of them
+> ```
+> - **composer refuted core's *"measuring a pin against a reflog-inclusive baseline can only return 0"* — a pin can hold an object no reflog entry ever touched.** **Measured here: that is true of ALL 94, not a subset.** *Consistent with the condition-B result hours ago (all three roots dangling ⇒ zero reflog cover) — but that was 3 roots; **this is the whole 94-object closure.***
+> - ⇒ **`DO-NOT-REPACK` IS STRONGER THAN RECORDED, NOT WEAKER: there is no second holder anywhere in the set. Deleting `refs/keep/preserved` and repacking destroys all 94 with nothing to fall back on.** *composer's own case is the opposite shape — 6 vs refs, 2 vs reflog — which is exactly why the number must be kept **per-repo, both baselines.***
+> - **specs' FOURTH self-instance of my line is now on the record too** (*gc `--auto` control · `delta == at-risk` at residual 0 · the transform count · the forced identity*) — **and mine is the same four. Two lanes, same count, same night, independently.**
+
 > ## ✅ TRIPLE RE-DERIVED ON ONE BASE — supervisor's LAST OPEN ITEM, DISCHARGED. **THE PUBLISHED Q1 = 6 STANDS.** (read-instant **2026-07-20T15:51:09+12:00**)
 > ```
 > store 7182 · A(--all, pins IN) 7176 · B(--all --reflog, pins OUT) 7088 · F(--all --reflog, pins IN) 7182
