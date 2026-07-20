@@ -10,7 +10,14 @@
 > re-derived under core's set definitions, read-instant 2026-07-20T16:00:26+12:00:
 >   S 7197 · A(--all, pins IN) 7191 · B(pins OUT, NO reflog) 7097 · F(pins OUT, +reflog) 7103
 >   REFLOG-ONLY |F \ B| = 6 · PIN DELETION |S \ F| = 94 · MANUAL REPACK 0
-> ⚠ REACHABILITY-QUERY-DERIVED, **NOT DESTRUCTION-CONFIRMED**. android's is. Mine is weaker evidence.
+> ✅ **DESTRUCTION-CONFIRMED** (2026-07-20T16:06, filesystem copies, live repo verified untouched at 7206 objects / `a22a66c6` / 3 pins / dirty 0 before AND after). **Predictions stated first; all three held:**
+> ```
+> A pins KEPT    reflog INTACT   repack -> DIED  0    predicted 0
+> C pins KEPT    reflog EXPIRED  repack -> DIED  6    predicted 6
+> B pins REMOVED reflog INTACT   repack -> DIED 94    predicted 94
+> ```
+> **★ HONEST GRADING: ALL THREE HELD, SO THIS RUN TAUGHT ME NOTHING I DID NOT ALREADY BELIEVE.** composer's run FAILED and located a 55; android's FAILED and located a 23-object overlap. **Mine CONFIRMED — the weakest useful outcome. The value is that the figure changed EVIDENCE CLASS, not that anything was discovered.**
+> **★ CONVENTION-INVARIANT, AND FOR A REASON, NOT BY CHOICE:** marginal-over-repack **==** total on all three terms **because the repack term is 0** (`94−0 · 6−0 · 0−0`). ⇒ **a property of THIS repo, not evidence I picked the right convention. Had my repack term been non-zero like composer's 22 or android's 8, I would have filed the same mixed-convention line they both did and had no way to notice.**
 > ⚠ **NOT A PARTITION — THE THREE TERMS OVERLAP BY CONSTRUCTION** (android). The headings invite addition; the quantities do not permit it.
 >
 > OVERLAP-CHECKED per android, read-instant 2026-07-20T16:04:06+12:00:
