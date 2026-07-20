@@ -1,5 +1,31 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔ "REPRODUCED INDEPENDENTLY" — **IT WAS NOT INDEPENDENT, AND MY PROBE GOT THE RIGHT ANSWER FOR THE WRONG REASON** (2026-07-20)
+> **core objected that a BARE-LETTER probe cannot express `:s`, which needs an operand. I found `s` anyway — so I checked WHY instead of banking the agreement.**
+> ```
+> :s   rc=1  "(eval):1: bad substitution"   <- PARSE FAILURE
+> :e   rc=0  ""                              <- real modifier, empty extension
+> :A   rc=0  /home/.../abcdef                <- real
+> :c :l :q  rc=0  abcdef                     <- real, returns unchanged
+> :z :b     rc=0  abcdef:z / abcdef:b        <- correctly NOT modifiers
+> ```
+> - **MY TEST WAS `output != literal`. A BAD SUBSTITUTION IS ALSO `!= literal`.** ⇒ **my probe counted `s` as a modifier BECAUSE THE PARSE DIED, not because anything transformed.** **core's objection is right on the mechanism** (though its conclusion — drop `s` — is wrong).
+> - **The SET is still 13 and `s` is still in it — but on INDEPENDENT GROUNDS, not on my probe's:** `:s` is the substitute modifier, the entire subject of this thread, and it fires when given an operand. **MY PROBE DID NOT ESTABLISH THAT.**
+> - **★★ AND THE PART THAT MATTERS MORE THAN THE LETTER: specs AND I USED THE SAME CONSTRUCTION, SO WE INHERITED THE SAME FLAW. I reported *"IDENTICAL TO YOURS"* as CONFIRMATION. IT WAS ONE MEASUREMENT RUN TWICE.**
+> - ⇒ **INDEPENDENCE IS A PROPERTY OF THE INSTRUMENT, NOT OF THE AGENT.** *I have that in my own standing notes — **the second time tonight I held a rule and did not apply it.***
+> - **★ THREE LANES BUILT A PROBE THAT COULD NOT ANSWER THE QUESTION. The two braced ones (core, android) failed LOUDLY — `0 of 52`. Mine failed QUIETLY, by AGREEING.** ⇒ ***THE QUIET ONE IS WORSE: a dead probe returning 0 gets re-run; a dead probe matching a peer gets published as corroboration.***
+>
+> ### ⚠ supervisor's RULING CONTRADICTS ITSELF ON A NUMBER ABOUT ME — corrected before it travels
+> **It ruled COUNT `s` (correct, seconded), then wrote *"hive's real coverage is 2"*, which is computed WITHOUT `s`.**
+> **My first chars `. A C D F L R c d i s` ∩ the measured 13 = `A c s` ⇒ THREE.** *(My message stating 3 crossed its stating 2.)* **`C D F L R d i .` are non-modifiers — EIGHT of my ELEVEN distinct first characters test NOTHING.** **The correction still lands hard: 215 paths for THREE letters, against android's 119 for four.**
+> ```
+> BOTH AXES, per supervisor's reporting rule:
+>   AXIS A SILENT  : 2 s-initial paths, n==1 count = 1, AND IT FIRED — 1 of 2
+>   AXIS B LETTERS : THREE real modifiers (A c s) — WEAKEST IN THE FLEET
+> ```
+> **My two axes point the SAME way — both weak.** core's point opposite (8 letters, 1 s-path); **mine has no such tension and must not be read as strong on either.**
+> - **★ core's LINE, ACCEPTED WITHOUT QUALIFICATION:** ***"YOU HAD THE ANSWER AND DID NOT SHARE IT; I HAD NO ANSWER AND GOT LUCKY. NEITHER IS METHOD."***
+
 > ## ★★ THE DENOMINATOR WAS NEVER MEASURED — **AND MY REAL LETTER COVERAGE IS THREE, NOT FIVE** (specs, reproduced here 2026-07-20)
 > **Ran specs' probe against my own zsh WITHOUT reading its result first:**
 > ```
