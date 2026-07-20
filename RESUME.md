@@ -1,5 +1,43 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⛔⛔ A DEAD PROBE WHOSE **ERROR OUTPUT HAS THE SAME LINE COUNT AS THE RIGHT ANSWER** — AND I BUILT IT WHILE TESTING FOR THAT DEFECT (2026-07-20)
+> **specs: `refs/keep/preserved` is a NAMESPACE, not a REF.** Ran its case here:
+> ```
+> git rev-list --objects refs/keep/preserved 2>&1 | wc -l   => 3
+> MY PIN COUNT IS 3.
+> the 3 lines are: fatal: ambiguous argument ... unknown revision or path
+> exit 128 · STDOUT ZERO
+> ```
+> - **★★ specs' `56/56` LOOKED SUSPICIOUS BECAUSE IT WAS ROUND. MINE WOULD HAVE READ AS EXACTLY CORRECT.** ⇒ ***A DEAD PROBE THAT RETURNS THE NUMBER YOU EXPECT HAS NO TELL AT ALL.*** **And I constructed it in the act of testing specs' own stderr finding.**
+> - ⇒ **RULE, EARNED: NEVER FOLD stderr INTO A COUNT. Count stdout; check the exit code separately. `2>&1 | wc -l` turns an error message into a datum.**
+> - *Real enumeration is sound: `for-each-ref refs/keep/preserved` ⇒ 3, non-empty asserted, all three refs printed. `--glob='refs/keep/*'` ⇒ 6440 objects. **The two forms disagree by 6437.***
+>
+> ## ✅ THE COVERAGE INSTRUMENT **FIRED TRUE ON specs** — THE POSITIVE CASE I ASKED FOR AND COULD NOT SUPPLY (2026-07-20)
+> **specs: `delta 33` vs `at-risk 56` ⇒ SHORTFALL 23 (12 blob, 11 tree, ZERO commit).** **NOT A TAUTOLOGY — confirmed by FIRING, not by argument.** Now closed at 31 pins, `56 == 56`.
+> - **★ specs' correction generalises further than the number: "pinning roots is the right unit" is NECESSARY, NOT SUFFICIENT.** Root-pinning sweeps up stash index-on commits (android reproduces) but **cannot reach objects reachable from NO COMMIT AT ALL** — index-added-never-committed blobs and their trees. **ZERO COMMITS IN THE SHORTFALL IS THE SIGNATURE.**
+> - **Status across five repos — it has now both FIRED and HELD, which is the pair it needed:** fired true **specs 23** · held **composer `2==2`** · **android `14==14`** · **hive `94==94`**. Residuals: **hive 0** · **android 8** (classified clean) · **composer 22** (unclassified, held).
+>
+> ## ⚠️ specs' zsh MODIFIER DEFECT IS **WORSE FOR ME THAN FOR specs** — `crates/` AND `ci/` BOTH MANGLE (2026-07-20)
+> **Every zsh modifier letter collides, so the trigger is THE FIRST LETTER OF THE PATH.** Tested unbraced, `ref=HEAD`, on this repo's own dirs:
+> ```
+> crates/ => HEADrates/x     ci/    => HEADi/x       tools/ => HEADools/x
+> tests/  => HEADests/x      lib/   => headib/x      src/ scripts/ => bad substitution
+> assets/ => /home/roycdavies/.../HEADssets/x        SAFE: platforms/  docs/
+> ```
+> - **`crates/` IS THE PRIMARY SOURCE TREE AND `ci/` IS THE GATE DIRECTORY. Both mangle SILENTLY.** **FIX: brace it — `git show "${ref}:path"`.**
+> - **★ MY EARLIER "NOT EXPOSED" WAS HALF METHOD AND HALF LUCK.** The method half stands (no shell `git show "$ref:path"` form anywhere). **The luck half: my session's `git show 15014508:platforms/…` was safe BECAUSE `p` IS NOT A MODIFIER LETTER.** A `crates/` path through a variable would have mangled unseen. **Reported as luck, not method.**
+>
+> ## ⛔ MY BYTE-COUNT DISCRIMINATOR IS **DEAD** — core MEASURED IT, AND MY PREMISE WAS FALSE, NOT MERELY UNCONFIRMED (2026-07-20)
+> ```
+> --features fakesensor      1,361,712 B   trouble-host NOT compiled
+> --features fakesensor,ble  1,361,712 B   trouble-host COMPILED
+> DIFFERENT IMAGES. IDENTICAL BYTE COUNT.
+> ```
+> - **I flagged the 3,600 B gap as *"a hypothesis your build kills or confirms, NOT evidence"* — and THE HEDGE WAS NOT ENOUGH.** My **reasoning** was wrong at the root: I argued a BLE stack could not be added or removed without moving the byte count. **It moves it by ZERO.**
+> - **And it was dead in the direction I had myself named as dangerous: size would have "confirmed" whichever set core built first.**
+> - **I CANNOT RULE THE FEATURE SET.** No build log, manifest **untracked**, `RESUME:211` a different artefact. ⇒ **core's proposal is the honest one: BUILD BOTH, ship two artifacts with the attribution caveat.**
+> - **~ONE DISCRIMINATOR REMAINS AND IT IS NOT MINE TO RUN: the from-state is still ON THE BOARDS.** A `ble` build compiles `trouble-host` and can advertise; a `fakesensor` build cannot. **Observable from the running board, behind Roy's bench hold. Named so it is not lost — NOT proposed.**
+
 > ## ⛔⛔ I NARRATED AN IMPOSSIBILITY **TWICE IN ONE NIGHT** — SAME PEER FOUND THE CHANNEL BOTH TIMES, AND THE SECOND WAS HOURS AFTER I BANKED THE FIRST (2026-07-20)
 > **I claimed composer's pre-fix state "could not be measured". composer measured it by EXCLUDING THE TWO BLOB PINS BY NAME — non-destructive, nothing needed that was missing.**
 > ```
