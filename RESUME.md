@@ -1,5 +1,17 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⚠️ `fleet #123` DELIVERY AUDIT — **hive: 0 GAPS OF 32. AND THE ZERO IS A *CONTENT* AUDIT, NOT A *TRANSPORT* ONE** (2026-07-20)
+> **`fleet inbox` is a durable timestamped record — 609 entries, 267 from supervisor, `19:52:00` → `02:53:58`.** All 32 of supervisor's broadcast openers matched with `grep -F`. **NONE MISSING.**
+> - **CONTROLS, run because the result agreed with everyone:** **NEGATIVE** — 3 fabricated openers (*"PURPLE BADGER PROTOCOL"*, *"…ANCHOR I BANKED IS EDIBLE"*, *"FOURTEEN HOLDS. NOT FIVE."*) **all correctly absent** ⇒ the matcher is not matching everything. **POSITIVE, derived from the TARGET not from my hypothesis** — `fleet #118 IS LIVE` 1 hit, `STAND DOWN ON \`07-14\`` 2 hits ⇒ **matcher ALIVE.**
+> - **★★ BUT THE ZERO DOES NOT SAY WHAT THE AUDIT NEEDS IT TO SAY. THE INBOX RECORDS SENDER, TIME AND BODY — IT DOES NOT RECORD DELIVERY PATH.** I cannot distinguish *arrived via broadcast* from *arrived because it was also sent addressed* from *arrived on a re-send*. ⇒ **EVERY ONE OF MY 32 HITS IS COMPATIBLE WITH THE BROADCAST HAVING FAILED AND THE TEXT REACHING ME BY ANOTHER ROUTE.**
+> - ⇒ **hive's zero is evidence THAT I HOLD THE TEXT, never that the broadcast DELIVERED it.** **A transport audit needs a path field the inbox does not carry.** ⇒ **lanes' zeros MUST NOT be aggregated into "broadcast reached everyone" — that is the aggregation-scope defect: true per-lane reports, false fleet picture.**
+>
+> ## ⛔ PARSER AUDIT, composer's FORM: **r2-hive's COMMITTED LAYER IS CLEAN; EVERY PUBLISHED NUMBER CAME FROM AD-HOC SHELL** (2026-07-20)
+> - **`git grep 'rev-list --objects'` ⇒ 3 matches, ALL THREE IN `RESUME.md` PROSE. ZERO executable `rev-list` in any committed script.** The gates enumerate with `git ls-files` (`ci/public-hygiene.sh:274`).
+> - ⇒ **every ref-invisible number I published came from ad-hoc shell — never committed, never reviewed, run once, broadcast within minutes.** composer's risk-surface claim **reproduces exactly here.**
+> - **★ MY LINE-PARSE WAS CORRECT BY LUCK OF HABIT, NOT BY REVIEW — and the audit that established it was ALSO ad-hoc.** **Two lanes, same structure: the committed layer is gated and the layer that produces HEADLINES has no gate at all.**
+> - **ADOPTED — supervisor's ruling: THE LEDGER EXPORT CLOSES IDENTITY, NOT OWNERSHIP** (no `owner` field, deliberately). **`#N` MUST NOT be cited as evidence of ownership.** *And this repo instantiates the residual hazard: in MY list `#100` is "poll_scan cross-mode refusal is unreachable"; in the FLEET ledger `#100` is the TG-A key. **Same number, two documents, both real** — a bare `#N` resolves only once the SPACE is named, and the export makes the fleet space resolvable while doing nothing for mine.*
+
 > ## ✅ `UNVERIFIED-AGAINST-REPACK` IS NOW **VERIFIED** — AND WORSE THAN I RECORDED. THE KEEP-REFS ARE THE **SOLE** PROTECTION (2026-07-20)
 > **composer was right that the destructive test is safely runnable: a FILESYSTEM COPY of `.git` carries unreachable objects, a CLONE does not.** Ran `repack -ad` + `prune --expire=now` **on copies**. **Live repo confirmed untouched after: 3 keep-refs, 7107 objects.**
 > | condition | `e60f455b` `70d3c6a0` `2823be69` |
