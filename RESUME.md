@@ -1,5 +1,19 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## 📉 MY SELF-AUDIT FIGURE WAS A LOWER BOUND, EMITTED AS A COUNT (android's trailer finding, 2026-07-20)
+> **android's commits carry NO `Claude-Session` trailer (0 of 40), so the self-audit instrument cannot convict or clear it. The same gap exists here, partially, and I had not measured it.**
+> - **MEASURED: `r2-hive` trailer coverage today = 63 of 63.** Sound in my own repo.
+> - **BUT `dfr1195-fw` since 2026-07-19: 35 commits, 14 UNTAGGED (no `Claude-Session`). `rak4630-fw`: 5 commits, 2 UNTAGGED.** ⇒ **16 commits across the two firmware trees carry NO session id — any could be mine, and the instrument cannot say.**
+> - ⇒ **MY "1 in dfr1195, 2 in rak4630" IS A LOWER BOUND, NOT A COUNT — and I emitted it as a count ONE HOUR after being convicted of exactly that with 244.** Restated: **at least 1 and at least 2; upper bound UNKNOWN.** *android's gap is total and known; mine was partial and unmeasured — **its position was the more honest of the two.***
+>
+> ## 🔧 `d4c65886` — THE MISSING CHANGE IS 284 LINES OF A LINKED CRATE, NOT ONE `main.rs` COMMIT (2026-07-20)
+> **android traced `4f17efa..f8b78415` by enclosing function and concluded `a26119f6` is the one code commit reaching the `xiaobridge` path, then correctly routed the SO-WHAT to hive/core. The trace is sound for the file it covered; the file was the wrong denominator.**
+> - **`a26119f6`'s added lines on the reaching paths are TELEMETRY:** `LORA_TX_DROPPED` / `LORA_BEACON_TX` / `LORA_BEACON_DROPPED` / `APIARY_THROTTLED` plus the status-line and screen rendering. Its own comment: *"mirrored from LoRaTransport's own counters each carrier tick (single source of truth)."* ⇒ **`main.rs` READS AND PRINTS the preempt; it does not implement it.**
+> - **MEASURED, the layer neither lane had looked at:** `git diff --stat 4f17efa..f8b78415 -- crates/` ⇒ **`crates/r2-transport/src/lora_transport.rs | 298 ++++, 284 insertions`. One file, one linked crate.**
+> - ⇒ **WHAT THE STAGED `d4c65886` IS MISSING IS 284 LINES OF `lora_transport.rs`, NOT A `main.rs` COMMIT.**
+> - **hive's CALL (a RECOMMENDATION, not a GO — the build is core's tree, the flash is Roy's): `d4c65886` STAYS NOT-TO-FLASH, and the reason is now specific rather than unknown — it links a PRE-PREEMPT `r2-transport`.** The XIAO bridge's whole function is pushing USB data onto LoRa, i.e. **it is the saturated-bearer case by construction**, and a pre-preempt build is the configuration that left two boards at `nbrs=0` for hours while every printed line looked healthy. **Rebuild rather than reason about it.**
+> - **★ THE GENERAL FORM, worth more than the instance: A DIFF SCOPED TO `platforms/` CANNOT SEE A BEHAVIOURAL CHANGE IN A VENDORED CRATE — AND FIRMWARE BEHAVIOUR IS MOSTLY IN THE CRATES.** [[shared-checkout-path-dep-coupling]] from the other side.
+
 > ## 🔒 `rak4630-fw` HAS NO ASSIGNED WRITER — MY RAK ITEMS ARE **UNASSIGNED**, NOT OWED (supervisor ruling, 2026-07-20)
 > **I asked for a ruling rather than trusting my own recall, and the answer is not the one I expected.** **VERIFIED INDEPENDENTLY against the artefact, not accepted:** `/home/roycdavies/Development/R2/.fleet/fleet.toml` maps **FIVE members to FIVE repos** — specs→`r2-specifications` · core→`r2-core` · hive→`r2-hive` · composer→`r2-composer` · android→`r2-android`. **`grep -c rak4630` ⇒ 0. `grep -c dfr1195` ⇒ 0.** Both firmware trees are **worktrees, not manifest members.**
 > - ⇒ **`rak4630-fw` HAS NO ASSIGNED WRITER — NOT hive, NOT core.** Git cannot establish authority (all lanes commit as Roy) **and neither can the manifest.** supervisor refused to mint an owner from my recall or its own: ***a dated memory is a dated claim***, which is the whole finding.
