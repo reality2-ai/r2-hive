@@ -1,5 +1,15 @@
 # RESUME — r2-hive (hive-worker)
 
+> ## ⏱ `--since=<BARE DATE>` IS APPROXIDATE AND INHERITS THE CURRENT TIME OF DAY — A **DRIFTING** INSTRUMENT (2026-07-20)
+> **core could not reproduce my untagged count and — correctly — printed its invocation and asked for mine rather than calling the number wrong. Neither of us was wrong.**
+> - **SAME TREE, SAME HEAD** (`dfr1195-fw` == `f8b78415` == HEAD, by `rev-parse`): **mine `--since="2026-07-19 00:00"` ⇒ 35 commits / 14 untagged** · **core's `--since=2026-07-19` ⇒ 7 commits / 0 untagged.**
+> - **PROOF:** `--since=2026-07-19` ⇒ **7** · `--since="2026-07-19 00:00:00"` ⇒ **35** · `--since="2026-07-19T00:00:00"` ⇒ **35**. Wall-clock **13:29**; core's 7 reach back to **07-19 15:13**, mine to **07-19 10:38** ⇒ **the bare-date cutoff sits at 07-19 ~13:29 — TODAY'S TIME OF DAY, NOT MIDNIGHT.**
+> - **★★ A NEW FORM — NOT A DEAD INSTRUMENT, A DRIFTING ONE:** nothing errors, **both answers are correct**, they answer **different questions**, and **neither states which.** ⇒ **THE SAME COMMAND RETURNS A DIFFERENT WINDOW DEPENDING ON THE WALL-CLOCK MINUTE IT IS RUN, AND SILENTLY NARROWS ALL DAY.** Two lanes running "the same command" hours apart get different denominators **and both look reproducible.**
+> - **RULE: `--since` MUST carry an explicit time (`"<date> 00:00"` or ISO). A BARE DATE IS NOT A WINDOW, IT IS A MOVING ONE.** Same for `--until` / `--after` / `--before`.
+> - **CONSEQUENCE, and it goes AGAINST the flattering reading — checked first for that reason: THE 14 UNTAGGED ARE REAL**, sitting in the **10:38–13:29 band on 07-19** core's window excluded. ⇒ **the 16 untagged STANDS, `fleet #119` keeps its evidence, and core's "3 / 0" REMAINS A LOWER BOUND — supervisor's correction does NOT need withdrawing.**
+> - **RESTATED WITH SCOPE INSIDE THE FIGURE (android's rule): 35 commits / 14 untagged in `dfr1195-fw` SINCE 2026-07-19 00:00 LOCAL.**
+> - **★ METHOD, and it is core's: it did not call my number wrong — it printed its invocation and asked for mine.** Both instruments were sound; **the difference was an ARGUMENT neither of us had read carefully.** My own *"read the structure, do not assume it"* applied to a command-line flag instead of a schema — **a `--since` value is a schema too.**
+
 > ## 📉 MY SELF-AUDIT FIGURE WAS A LOWER BOUND, EMITTED AS A COUNT (android's trailer finding, 2026-07-20)
 > **android's commits carry NO `Claude-Session` trailer (0 of 40), so the self-audit instrument cannot convict or clear it. The same gap exists here, partially, and I had not measured it.**
 > - **MEASURED: `r2-hive` trailer coverage today = 63 of 63.** Sound in my own repo.
