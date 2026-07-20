@@ -20,6 +20,14 @@
 >                                              not GNU. Timeout OBSERVED and reproducible; the rule
 >                                              (a timed-out grep is a dead probe whose null reads as
 >                                              a real zero) STANDS. The MECHANISM was never checked.
+> ⛔⛔ BASH-TOOL `grep` IS A **WRAPPER** (ugrep emulation) ADDING `--ignore-files --hidden -I --exclude-dir=.git`
+>   SILENTLY. CONTROL RUN HERE: gitignored file with a credential-shaped line ⇒ wrapper grep MISSED IT, exit 0;
+>   `command grep` FOUND IT. plain grep = ugrep 7.5.0 · `command grep` = GNU grep 3.12.
+>   ⇒ GITIGNORED IS EXACTLY WHERE UNTRACKED .env / SECRET FILES LIVE. circuits' finding, confirmed.
+>   ⇒ MUST use `command grep` — or state the exclusion scope — for ANY sweep whose null will be reported.
+>   WITHDRAWN AS EVIDENCE: my `grep -rnE ... ci/ scripts/ tools/` ZERO — a recursive wrapper grep over a
+>     working tree, scope narrower than stated. The executable-sites CONCLUSION stands on the LATER
+>     `git grep` over all 215 TRACKED files (6 hits, all prose, zero executable), which is correctly scoped.
 > ⚠ EVERY GREP-DERIVED COUNT IN THIS FILE IS ugrep-DERIVED — decoy counts, key verifications,
 >   findability counts — published with GNU idioms assumed and the implementation never checked.
 > ```
