@@ -36,26 +36,22 @@ Final artifact (Alfred, HEAD `70f442b9`): `field-dfu/rak-repeater-compact.hex` s
 `8d5d099f`). SECRET-bearing → gitignored/scp-only. Supersedes decode-only `8215b52a`. Handed composer
 for genpkg; reported to supervisor. RAK has no partition table (nRF UF2, app@0x26000).
 
-Image is correct and PACKAGED. One open item (persona-TG identity), composer/Roy-owned.
+Image is correct, PACKAGED, and RULED flash-ready. Hive side complete.
 
 **Packaged (composer, verified):** canonical hex `rak-repeater-compact-70f442b9-858bc638.hex` sha256
-`858bc638…` (== ELF `d1aeefdc`); image_digest `e5c7073e…` (3-way reproduced: objcopy ELF + hex +
-zip-extracted bin); flash_package_digest `d51b5b86…` on
-`field-dfu/r2-rak4630-repeater-compact-70f442b9-devtrial.zip`. Ready for Roy STEP3 (serial-DFU;
-`adafruit-nrfutil` on Alfred `~/rak-flash/nrfutil-venv/bin`). The earlier stale-staging / filename
-collision (composer had pulled superseded `8215b52a`) is resolved by the sha-distinct name.
+`858bc638…` (== ELF `d1aeefdc`); image_digest `e5c7073e…` (3-way reproduced); flash_package_digest
+`d51b5b86…` on `field-dfu/r2-rak4630-repeater-compact-70f442b9-devtrial.zip`. Roy STEP3 (serial-DFU;
+`adafruit-nrfutil` on Alfred `~/rak-flash/nrfutil-venv/bin`).
 
-**Open — persona-TG identity (contested, NOT hive-closeable):** lift-criteria demand tg_hash
-`0x3eb54833` / wire_id `0xd256dc00`. Measured via `r2_trust::parse_persona` on baked blob `8d5d099f`
-(== bytes in ELF `d1aeefdc` @115234): tg_id `730c29e7-209f-4d2e-c8fd-b68e71f5f73b`, tg_hash
-`0x6E31DEC6`, wire_id `0xCC788B17`. tg_hash is DERIVED (`persona.rs:142 fnv1a_32(tg_id)`), never
-stored → a rodata u32 scan is structurally blind (explains composer's 0-hits; parser is the only
-instrument). All 4 bench personas share `0x6E31DEC6`; criteria name a different provisioning. On-air
-relay proof will NOT settle it (D4/RAK/XIAO share the TG → relay succeeds regardless). Harness:
-`scratchpad/persona-attest`.
+**Persona-TG RESOLVED (D-20260721-02):** `0x6E31DEC6` / `0xCC788B17` (tg_id `730c29e7…`, blob
+`8d5d099f`) is the `#d001`-ratified shared bench TG — supervisor/Roy ruling 2026-07-21. NO re-mint.
+Composer's `0x3eb54833`/`0xd256dc00` criteria were stale/superseded. On-air relay (`route_len 1→2`)
+proves RELAY not persona (same-TG members relay regardless); persona rests on `#d001` + the parser.
+Owed by COMPOSER (not hive): correct criteria + trace origin of `0x3eb54833` (HALT to Roy if
+deliberate). Harness kept: `scratchpad/persona-attest`.
 
-## Next action — HELD on composer/Roy ruling
+## Next action
 
-Await the canonical-TG ruling: accept `0x6E31DEC6` (artifact flash-ready as-is), or require
-`0x3eb54833` (composer re-mints personas = a re-provision, then hive rebuilds). Nothing else
-outstanding on hive's side.
+Nothing outstanding on hive's side; P0 complete pending Roy's STEP3 flash + on-air `route_len 1→2`
+observation. Then await a new objective — fetch, verify branch + clean tree, run Hive tests +
+public-hygiene gate before any commit or push.
