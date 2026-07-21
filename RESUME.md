@@ -132,12 +132,16 @@ MACs held off-tree per hygiene) — resolve which physical board is D5 before an
 will NOT bake until both land.
 
 **Core confirmed ownership** (2026-07-22): core lands it on `dfr1195-fw`, hive does NOT edit core
-("read-only-reviewer role is correct") — AGENTS.md upheld. Design pasted into the core thread (core
-can't read Alfred files). Core raised a contract challenge: redefining key-10 in place is a **breaking
-flag-day** (needs a byte-exact KAT + synchronized composer parser cutover); the **additive key-11**
-alternative ships the proof non-breaking but leaves key-10's false-green. Hive rec = key-11 for the
-proof now + a separate sequenced key-10 honesty-fix; **ruling owed (Roy/supervisor).** Core's
-preconditions (KAT authored by core; composer parse cutover) accepted.
+("read-only-reviewer role is correct") — AGENTS.md upheld. Design pasted into the core thread. Core's
+contract challenge: key-10 redefine = breaking flag-day (KAT + synchronized composer cutover); additive
+**key-11** ships the proof non-breaking. Hive rec = key-11 + separate key-10 honesty-fix; **ruling owed
+(Roy/supervisor).** Core preconditions (KAT by core; composer cutover) accepted.
+
+**Bit layout revised to enum-ordinal (R-20260722-01, composer proposal, hive-verified):** anchor on the
+`Transport` enum (Ble0 Wifi1 Lora2 Internet3 Usb4 WifiMesh5 Udp6) — bit_i = ordinal i live; ESP32
+tri-radio = `0x25`; one layout spans the whole heterogeneous TN. Both prior layouts (mine + composer's)
+were non-ordinal. Drift guard owed: `r2-route::Transport` and `r2-transport::TransportId` are two enums
+with matching ordinals — pin one/test they agree. Composer updates its contract + `health_reader.rs`.
 
 **HELD** on: (a) the key-10-vs-key-11 ruling, then core landing the patch (KAT + composer cutover);
 (b) D5 provision authority + board-identity (separate track). XIAO flash waits on #d001 close.

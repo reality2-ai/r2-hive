@@ -122,3 +122,20 @@ It is not a task log and does not replace specifications, ADRs, or code.
 - **Evidence:** `dfr1195 main.rs:3548` (hardcode), `:3891/:3894` (BLE CoC), `:1558` (espnow RX),
   `:5435` (LoRa admit); supervisor thread 2026-07-22; design `~/coex-health-design.txt`.
 - **Supersedes:** None.
+
+### R-20260722-01 — review of D-20260722-01: bit layout should be enum-ordinal
+
+- **Kind:** Review
+- **Decision reviewed:** D-20260722-01
+- **Reviewer/date:** hive, 2026-07-22 (composer proposal, hive-verified)
+- **Observed outcome:** D-20260722-01 specified a compact layout (bit0=BLE, bit1=LoRa, bit2=Mesh).
+  Composer showed both that and its own contract (`1=wifi 2=lora 4=ble`) are NON-ordinal — neither
+  matches the canonical `Transport` enum (`repr(u8)`: Ble0 Wifi1 Lora2 Internet3 Usb4 WifiMesh5 Udp6).
+- **Revised layout:** key bit_i = (Transport ordinal i live): BLE<<0, LoRa<<2, WifiMesh<<5 → ESP32
+  tri-radio = `0x25`; WASM = Internet<<3 | Udp<<6; decode = `(bits>>ordinal)&1`. One layout spans the
+  whole heterogeneous TN; firmware cost trivial (shift constants). Admit-atomics, W≈8s, admit-RX-only,
+  WiFi-false-green-drop all unchanged.
+- **Evidence:** `r2-route/src/transport.rs:43` (`Transport`), `r2-transport/src/transport.rs:39`
+  (`TransportId`) — same ordinals, TWO enums (drift guard owed: a test they agree, or one canonical).
+- **Finding:** revise (layout → enum-ordinal). The D-20260722-01 outcome — kill the false-green via a
+  real admitted-frame bitset — stands; only the bit assignment is corrected.
