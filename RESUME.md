@@ -81,8 +81,10 @@ Reflash the SF12 board(s) to benchsf7; do NOT downgrade the RAK.
   compiled const (`main.rs:50`), NEVER touches flash 0x12000 → this reflash writes NO raw offsets,
   app-only. Pre-write tripwire: confirm espflash's plan shows app@0x20000 not 0x10000, else ABORT;
   no erase-flash. Post: boot must read `LORA-ROUTE up (SF7 …)`.
-- SECRET-bearing (baked persona) → scp-only, uncommitted. Roy writes the flash-auth; flashing is
-  fleet-gated from hive.
+- SECRET-bearing (baked persona) → scp-only, uncommitted. Roy writes the flash-auth (artifact
+  `cbd6bf67`, target tuxedo-os); flashing is fleet-gated from hive. **Staging gap:** artifacts are on
+  **Alfred**, flash host is **tuxedo-os** — composer/Roy must scp Alfred→tuxedo + re-verify both shas
+  on tuxedo before flashing (do not flash the Alfred paths). HELD for Roy's go; no hive action until.
 - **Doc drift flagged:** AGENTS.md cites `docs/dfr1195-partitions.csv` (older phy_init); the build
   uses `platforms/dfr1195/partitions.csv` (r2cfg). Both app@0x20000. Recommend AGENTS.md → r2cfg
   table (owed, not yet edited — governance change).
