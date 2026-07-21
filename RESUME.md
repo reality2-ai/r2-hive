@@ -58,18 +58,29 @@ direct from D4 (count=0); DFRs leaderless role=STA, nbrs~0, synced=false; no `ro
 Get the DIRECT D4→XIAO `route_len=1` working FIRST; RAK relay can't be tested until the mesh is up.
 Firmware/radio = hive; physical (antenna/range/SF) = Roy.
 
-**First deliverable — SF map — DELIVERED (sup7):** base `as923_nz()` = 916.8/BW125/SF12/+20dBm/
-sync0x21 (`r2-sx1262/src/lib.rs:124`). Both DFRs run `lora_route_task` (not the SF12-only `lora_task`)
-— `fakesensor` AND `xiaobridge` both pull `loraroute` (`Cargo:139/:294`), spawn gate `main.rs:853`.
-All three SF7 by construction (benchsf7: DFR `main.rs:5312`, RAK `main.rs:1224`) — so SF is NOT the
-likely D4↔XIAO cause. Ground-truth SF = DFR boot log `LORA-ROUTE up (SF{sf} …)` (`main.rs:5320`).
+**SF map delivered (sup7).** Base `as923_nz()` = 916.8/BW125/SF12/+20dBm/sync0x21
+(`r2-sx1262:124`). Both DFRs run `lora_route_task` (fakesensor+xiaobridge both pull `loraroute`);
+all three SF7 *by construction* under benchsf7 (DFR `main.rs:5312`, RAK `:1224`). Ground-truth SF =
+DFR boot log `LORA-ROUTE up (SF{sf} …)` (`:5320`).
 
-Open leads (need composer/Roy — no TTY here): (1) read D4+XIAO boot-log SF (SF12 there = benchsf7
-missing = deaf); (2) exact flash feature-list per board to rule **labrig** — `#[cfg(labrig)]`
-shifts freq to 919.8MHz (`main.rs:5301`) and the boot log HARDCODES "916.8" so it hides the shift;
-(3) if SF+freq check out, chase the RX path. Separate real asymmetry (threatens RAK relay, not
-D4↔XIAO): **RAK tx_power = +20dBm** (as923_nz default; benchsf7 only touches SF) vs both DFRs' −9dBm
-— at 30cm +20 saturates the RX (CRC-fail). RAK needs −9 for the bench.
+**Root cause (composer metal):** D4 `lora_dr=0` = **SF12** — benchsf7 did NOT take on the flashed D4;
+RAK = SF7. SF split → mutually deaf → no mesh. The hive build RECORD claimed D4=benchsf7 but metal
+refuted it → a non-benchsf7 (stale) ELF had been flashed; the board wins over the label.
+
+**Ruling D-20260721-03: bench canon = ALL-SF7** (airtime: SF12 = 16× over the 1/s apiary duty).
+Reflash the SF12 board(s) to benchsf7; do NOT downgrade the RAK.
+
+**D4 fix built + differential-proven:** `~/d4-fakesensor-benchsf7-dev-baked-cbd6bf67.elf` sha
+`cbd6bf67` (fakesensor,benchsf7,dev,baked_persona; HEAD `dca5d126`; persona `0ad4a84d` → tg
+`0x6E31DEC6`/hive_id `0xC434FAFC`, D4 identity unchanged). Differential: benchsf7 `cbd6bf67` ≠
+non-benchsf7 `a23c21ea` → benchsf7 is not a no-op; the SF12 board ran a non-benchsf7 image.
+SECRET-bearing → scp-only. Handed for reflash (Roy/composer, fleet-gated); reflash MUST verify the
+sha on-target + read boot `SF7`.
+
+Open: (1) XIAO boot SF after Roy reset — if SF12, build matching `xiaobridge,benchsf7` ELF; (2) RAK
+tx_power `−9dBm` for 30cm (as923_nz default +20 saturates RX) — a **core** change to rak
+`lora_leaf_config` (`main.rs:1219`), then hive rebuilds; (3) `labrig` ruled out (not in any record,
+not pulled by fakesensor/xiaobridge → freq 916.8).
 
 ## RAK artifact (parked, flash-ready)
 

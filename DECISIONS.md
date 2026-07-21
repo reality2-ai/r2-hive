@@ -65,3 +65,29 @@ It is not a task log and does not replace specifications, ADRs, or code.
 - **Evidence:** `parse_persona` harness `scratchpad/persona-attest`; ELF `d1aeefdc` @offset 115234
   == `8d5d099f`; supervisor ruling 2026-07-21; [RESUME.md](RESUME.md).
 - **Supersedes:** None (composer's `0x3eb54833` criteria were never a ratified decision here).
+
+### D-20260721-03 — Bench LoRa SF canon is ALL-SF7; reflash the SF12 board(s), not the RAK
+
+- **Kind:** Decision
+- **Date:** 2026-07-21
+- **Scope:** LoRa bench mesh (D4 + XIAO + RAK), spreading factor unification
+- **Outcome:** The bench mesh MUST be one SF, and that SF is **SF7** (`benchsf7`). D4 (measured SF12,
+  benchsf7 did not take) reflashes to a confirmed-benchsf7 image; XIAO reflashes iff its boot
+  `LORA-ROUTE up (SF..)` line shows SF12; the RAK (already SF7) is NOT downgraded to SF12.
+- **Decision-maker:** hive (delegated by supervisor's 2026-07-21 ask to rule the SF direction).
+- **Authority basis:** Re-affirms the existing `benchsf7` core-ruling (R2-LORA §5, 2026-07-10,
+  spec-blessed v0.4.19); not new canon. Grounded in airtime governance, not preference.
+- **Context:** Ground truth split the mesh — D4 `lora_dr=0`=SF12 vs RAK SF7; SF7 and SF12 are
+  mutually deaf, so no mesh forms. Supervisor asked hive to rule all-SF7 (reflash the DFRs) vs
+  all-SF12 (reflash the RAK).
+- **Rationale:** A 29 B compact frame at SF12 ≈ 1647 ms ToA → ~1 per 16.5 s at the nbrs=0 10%
+  neighbour-scaled duty ≈ 16× too slow for the ~1/s apiary stream; SF7/BW125 ≈ 67 ms ToA → ~1.5/s,
+  meets 1/s with margin. All-SF12 would put the whole bench below its apiary throughput requirement.
+  Compact frame/§5.1 vector unchanged (PHY-only).
+- **Alternatives:** All-SF12 (downgrade the RAK) rejected — it regresses the campaign's 1/s stream.
+- **Expected consequences:** D4 reflashed with a confirmed-benchsf7 sha-pinned image (removes the
+  "did benchsf7 land" ambiguity that split the mesh); XIAO conditional on its boot SF; RAK separately
+  owed tx_power −9 dBm (as923_nz default +20 saturates the 30 cm RX). Physical reflash = Roy/composer.
+- **Evidence:** composer metal `lora_dr=0`=SF12; `dfr1195 main.rs:5305-5315`, `rak main.rs:1219-1227`,
+  `r2-sx1262 lib.rs:124`; memory `sf12-airtime-cant-carry-sensor-stream`; supervisor thread 2026-07-21.
+- **Supersedes:** None.
