@@ -104,10 +104,21 @@ ble→esp-radio/coex+esp-now+trouble-host; espnow re-enabled by bridge alongside
 BLE+ESP-NOW share one 2.4GHz radio (esp-radio/coex time-slice); LoRa independent SX1262. **Feasibility
 CONFIRMED:** `bridge,ble,benchsf7` links clean (exit 0, ELF 1357484B, HEAD `dca5d126`).
 
-Real work = the health proof: `build_health` key-10 "transports bitset" is HARDCODED `1`=WiFi
-(`:3548`); `BLE_UP`/`LORA_UP` are spawn flags not traffic. LoRa already has real-traffic
-instrumentation (`tx_hi_admitted`/`LORA_BEACON_TX`, `:5435`); BLE + ESP-NOW need admitted-frame
-counters; then drive key-10 from all three so each bit sets only on an admitted frame.
+**Shaping resolved (supervisor 2026-07-22):** coex proof node = **XIAO** (`bridge,ble`, its EXISTING
+TG-730c29e7 persona — no new mint); **D5 = separate** fakesensor/loraroute sensor image (composer
+mints its own). Don't conflate role with bearer-set — that gating smell is a later canon-fix (all
+radios on base, role=ensemble). Acceptance approved: key-10 driven by admitted-frame counters, each
+bit set only on an admitted frame, all 3 in ONE health frame, SUSTAINED ≥10s continuous per-bearer.
+Peers: LoRa=D4, ESP-NOW=2nd S3, BLE=CoC from a central (interim phone central pending Android).
+
+**Instrumentation DESIGNED + filed (D-20260722-01), routed to core.** `build_health` key-10 is a
+hardcoded `1`=WiFi false-green (`:3548`); fix = 3 per-bearer admitted-second atomics set at real
+admit-RX (BLE `serve_coc:3891`, LoRa ingress, Mesh `espnow_task:1558`) → key-10 liveness bitset
+bit0=BLE/bit1=LoRa/bit2=Mesh (W≈8s). Design `~/coex-health-design.txt`. **Boundary:**
+`platforms/dfr1195/main.rs` is **r2-core's repo** (dfr1195-fw worktree) → AGENTS.md "never edit core"
+→ hive designed it, **core lands it** (asked); key-10 is also composer's dashboard contract (flagged).
+Hive builds the XIAO `bridge,ble` image + runs the metal proof AFTER core lands AND #d001 closes
+(XIAO is the live #d001 observer — nothing flashes to it now).
 
 **D5 persona — BLOCKED on a provision decision (Roy authority).** My "no D5 persona" was a
 scope-limited null (checked only `~/.r2-dev-trial`). A D5 persona exists at
@@ -120,9 +131,9 @@ MAC read off the ttyACM1 board called D5 DISAGREE (the board's MAC matches no ri
 MACs held off-tree per hygiene) — resolve which physical board is D5 before any bake. Escalated;
 will NOT bake until both land.
 
-**HELD** on: (a) supervisor shaping — tri-bearer = D5 image or separate node / identity / coex
-acceptance definition; (b) D5 provision authority + board-identity resolution. Tri-bearer proof does
-not strictly need D5 (feasibility already confirmed); can proof-run on an existing bench identity.
+**HELD** on: (a) core landing the key-10 patch (or supervisor authorizing hive to edit the platform
+binary); (b) D5 provision authority + board-identity resolution (separate track). XIAO flash waits on
+#d001 close regardless.
 
 ## RAK artifact (parked, flash-ready)
 
