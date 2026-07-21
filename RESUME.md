@@ -131,9 +131,16 @@ MAC read off the ttyACM1 board called D5 DISAGREE (the board's MAC matches no ri
 MACs held off-tree per hygiene) — resolve which physical board is D5 before any bake. Escalated;
 will NOT bake until both land.
 
-**HELD** on: (a) core landing the key-10 patch (or supervisor authorizing hive to edit the platform
-binary); (b) D5 provision authority + board-identity resolution (separate track). XIAO flash waits on
-#d001 close regardless.
+**Core confirmed ownership** (2026-07-22): core lands it on `dfr1195-fw`, hive does NOT edit core
+("read-only-reviewer role is correct") — AGENTS.md upheld. Design pasted into the core thread (core
+can't read Alfred files). Core raised a contract challenge: redefining key-10 in place is a **breaking
+flag-day** (needs a byte-exact KAT + synchronized composer parser cutover); the **additive key-11**
+alternative ships the proof non-breaking but leaves key-10's false-green. Hive rec = key-11 for the
+proof now + a separate sequenced key-10 honesty-fix; **ruling owed (Roy/supervisor).** Core's
+preconditions (KAT authored by core; composer parse cutover) accepted.
+
+**HELD** on: (a) the key-10-vs-key-11 ruling, then core landing the patch (KAT + composer cutover);
+(b) D5 provision authority + board-identity (separate track). XIAO flash waits on #d001 close.
 
 ## RAK artifact (parked, flash-ready)
 
