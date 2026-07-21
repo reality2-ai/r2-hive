@@ -109,9 +109,20 @@ Real work = the health proof: `build_health` key-10 "transports bitset" is HARDC
 instrumentation (`tx_hi_admitted`/`LORA_BEACON_TX`, `:5435`); BLE + ESP-NOW need admitted-frame
 counters; then drive key-10 from all three so each bit sets only on an admitted frame.
 
+**D5 persona — BLOCKED on a provision decision (Roy authority).** My "no D5 persona" was a
+scope-limited null (checked only `~/.r2-dev-trial`). A D5 persona exists at
+`~/.config/r2-composer/bench-personas/D5.bin` (sha `2951fedf`) — but `parse_persona` shows it is a
+**different TG**: tg_id `211e0d75`, tg_hash `0x89BFBD4C`, hive_id `0x89E83D99`, role byte[4]=0 (Hive,
+not Sensor). NOT the bench TG `730c29e7`/`0x6E31DEC6` → baking it puts D5 in another trust group,
+can't join the bench mesh. A bench-TG D5 needs a fresh provision (key-mint gated + touches
+D-20260721-02) = Roy's call via supervisor. Also unresolved (composer): the rig-map D5 MAC and the
+MAC read off the ttyACM1 board called D5 DISAGREE (the board's MAC matches no rig-map entry; actual
+MACs held off-tree per hygiene) — resolve which physical board is D5 before any bake. Escalated;
+will NOT bake until both land.
+
 **HELD** on: (a) supervisor shaping — tri-bearer = D5 image or separate node / identity / coex
-acceptance definition; (b) composer minting a **D5 persona** (none on Alfred; asked — TG `730c29e7`,
-distinct hive_id, role Sensor). Then build the health-bitset leg + metal coex proof.
+acceptance definition; (b) D5 provision authority + board-identity resolution. Tri-bearer proof does
+not strictly need D5 (feasibility already confirmed); can proof-run on an existing bench identity.
 
 ## RAK artifact (parked, flash-ready)
 
