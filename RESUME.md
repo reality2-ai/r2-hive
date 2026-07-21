@@ -133,9 +133,12 @@ will NOT bake until both land.
 
 **Core confirmed ownership** (2026-07-22): core lands it on `dfr1195-fw`, hive does NOT edit core
 ("read-only-reviewer role is correct") — AGENTS.md upheld. Design pasted into the core thread. Core's
-contract challenge: key-10 redefine = breaking flag-day (KAT + synchronized composer cutover); additive
-**key-11** ships the proof non-breaking. Hive rec = key-11 + separate key-10 honesty-fix; **ruling owed
-(Roy/supervisor).** Core preconditions (KAT by core; composer cutover) accepted.
+contract challenge + falsifier: `build_health` is `map(15)`, keys 0–14 all occupied (11=uptime,
+12=beat_seq, 13=conductor, 14=nbrs) — so my earlier "additive key-11" was WRONG (key 11 = uptime; I'd
+read the map myself and missed it). Corrected ruling: **(A) redefine key-10** = breaking (kills the
+false-green + proves; KAT + composer cutover in lockstep) **vs (B) add key-15** = additive
+(`map(15)→map(16)`, key-10 stays, key-15 = liveness bitset, non-breaking; key-10 lie persists). Hive
+rec = B + separate key-10 honesty-fix; **ruling owed (Roy/supervisor).** Core preconditions accepted.
 
 **Bit layout revised to enum-ordinal (R-20260722-01, composer proposal, hive-verified):** anchor on the
 `Transport` enum (Ble0 Wifi1 Lora2 Internet3 Usb4 WifiMesh5 Udp6) — bit_i = ordinal i live; ESP32
