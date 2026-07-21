@@ -91,3 +91,34 @@ It is not a task log and does not replace specifications, ADRs, or code.
 - **Evidence:** composer metal `lora_dr=0`=SF12; `dfr1195 main.rs:5305-5315`, `rak main.rs:1219-1227`,
   `r2-sx1262 lib.rs:124`; memory `sf12-airtime-cant-carry-sensor-stream`; supervisor thread 2026-07-21.
 - **Supersedes:** None.
+
+### D-20260722-01 — key-10 transports bitset is a Phase-0 false-green; coex proof = making it real
+
+- **Kind:** Decision
+- **Date:** 2026-07-22
+- **Scope:** Tri-bearer coex proof (esp32-s3 tn_base), `dfr1195 build_health` key-10 transports field
+- **Outcome:** `build_health` key-10 is hardcoded `e.uint(10); e.uint(1)` (`main.rs:3548`) = a board
+  with zero bearer traffic still reports transports=1 — a genuine false-green. The tri-bearer coex
+  proof IS replacing it with a per-bearer admitted-frame liveness bitset (bit0=BLE, bit1=LoRa,
+  bit2=Mesh/ESP-NOW), each bit set ONLY on a real admitted frame within a liveness window.
+- **Decision-maker:** supervisor (Roy-directed tri-bearer task), 2026-07-22; hive designs/verifies.
+- **Authority basis:** supervisor directive; acceptance criteria supervisor-approved.
+- **Context:** Tri-bearer task requires proving BLE+LoRa+ESP-NOW coex RUNS (real traffic), not
+  compiles. Presence flags (`BLE_UP`/`LORA_UP`) and the hardcoded key-10 cannot distinguish a starved
+  bearer from a live one — presence != reachability.
+- **Rationale:** Admission (a frame the transport accepted) is the only signal that separates a
+  carrying bearer from a spawned-but-silent one. LoRa already has admission telemetry
+  (`tx_hi_admitted`); BLE/ESP-NOW need admit counters; key-10 then reflects real per-bearer liveness.
+- **Acceptance:** all 3 bits set in ONE health frame, sustained ≥10s continuous per-bearer traffic;
+  peers LoRa=D4, ESP-NOW=2nd S3, BLE=CoC from a central (interim phone central pending Android).
+- **Ownership routing:** the firmware change is in `platforms/dfr1195/src/main.rs` = **r2-core's repo**
+  (dfr1195-fw worktree). Per hive AGENTS.md ("Never edit r2-core") hive does NOT commit it — hive
+  designed it (`~/coex-health-design.txt`), **core lands it**, and key-10's semantics change is a
+  **composer dashboard-contract** change (r2.hb.health key-10 parse). Hive builds the XIAO
+  `bridge,ble` image from the landed core HEAD and runs the metal coex proof.
+- **Alternatives:** Leaving key-10 hardcoded (rejected — it is the false-green the proof must remove).
+- **Expected consequences:** A real coex proof; a cross-repo change (core firmware + composer contract)
+  coordinated in dependency order.
+- **Evidence:** `dfr1195 main.rs:3548` (hardcode), `:3891/:3894` (BLE CoC), `:1558` (espnow RX),
+  `:5435` (LoRa admit); supervisor thread 2026-07-22; design `~/coex-health-design.txt`.
+- **Supersedes:** None.
