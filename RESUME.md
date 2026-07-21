@@ -36,8 +36,21 @@ Final artifact (Alfred, HEAD `70f442b9`): `field-dfu/rak-repeater-compact.hex` s
 `8d5d099f`). SECRET-bearing → gitignored/scp-only. Supersedes decode-only `8215b52a`. Handed composer
 for genpkg; reported to supervisor. RAK has no partition table (nRF UF2, app@0x26000).
 
-## Next action
+Image is correct. Two open blockers before flash/lift, both composer-owned:
 
-Await composer staging result (on-air: D4 K=3 compact → RAK decode → RELAY `route_len 1→2` → XIAO).
-genpkg + serial-DFU write are fleet-gated → composer/Roy. Then a new objective; fetch, verify branch +
-clean tree, run Hive tests + public-hygiene gate before any commit or push.
+1. **Stale staging** — composer's staged candidate `a3c7791` bound the SUPERSEDED decode-only
+   artifact (ELF `320560b9`/hex `8215b52a`); verified before the rebuild overwrote the files.
+   Corrected: re-stage against on-disk `d1aeefdc`/`858bc638` (HEAD `70f442b9`).
+2. **Persona-TG mismatch (lift-blocker)** — composer lift-criteria demand tg_hash `0x3eb54833` /
+   wire_id `0xd256dc00`. Measured via `r2_trust::parse_persona` (scratchpad harness, fnv recompute
+   agrees): baked persona `8d5d099f` = tg_id `730c29e7-209f-4d2e-c8fd-b68e71f5f73b`, tg_hash
+   `0x6E31DEC6`, wire_id `0xCC788B17`. ALL 4 bench personas (rak/field-APPROVED/d4/xiao) share
+   `0x6E31DEC6` (D4/RAK/XIAO one TG, as relay needs); criteria match none. Reconcile = composer:
+   fix criteria to `0x6E31DEC6`, or re-mint the bench (re-provision). Harness:
+   `scratchpad/persona-attest`.
+
+## Next action — HELD on composer
+
+Await composer ruling on the canonical bench TG + re-stage against `d1aeefdc`/`858bc638`. genpkg
+(`adafruit-nrfutil` present on Alfred at `~/rak-flash/nrfutil-venv/bin`) + serial-DFU are Roy/flash-host,
+fleet-gated. On-air proof owed: D4 K=3 compact → RAK decode → RELAY `route_len 1→2` → XIAO.
