@@ -27,17 +27,17 @@ D4's compact frame at `handle_rx_frame:864`, no relay. Finding: the compact re-v
 landed at core `6c8c0d44` (2026-07-18, #71; `main.rs:834 set_wire_format(Compact)`), ancestor of
 RAK worktree HEAD `7011934e` — only the shipped artifact was stale.
 
-Built compact hex `field-dfu/rak-repeater-compact.hex` sha256 `8215b52a…` (ELF `320560b9…` entry
-`0x26101`, features `dev,blespike,uf2,baked_persona,benchsf7`, persona `8d5d099f`). SECRET-bearing →
-gitignored. **That hex fixes DECODE only, NOT relay.**
+Two-part fix landed: DECODE (`set_wire_format(Compact)`, core `6c8c0d44`) + RELAY egress
+(`dp.set_relay_egress(RelayEgress::SameCarrier)`, core `70f442b9`, `main.rs:844` — CrossCarrier default
+had masked LoRa out so `relay_on==0`, `route_len` stuck at 1).
 
-Supervisor correction (2026-07-21): rak4630 `src/main.rs` never calls `set_relay_egress` → CrossCarrier
-default → `relay_on==0` on LoRa (only reads `disp.relay_on:994`) → `route_len` stays 1, no relay.
-Verified absent. Core is landing `dp.set_relay_egress(SameCarrier)` on `rak4630-fw`.
+Final artifact (Alfred, HEAD `70f442b9`): `field-dfu/rak-repeater-compact.hex` sha256 `858bc638…`
+(ELF `d1aeefdc…` entry `0x26101`, features `dev,blespike,uf2,baked_persona,benchsf7`, persona
+`8d5d099f`). SECRET-bearing → gitignored/scp-only. Supersedes decode-only `8215b52a`. Handed composer
+for genpkg; reported to supervisor. RAK has no partition table (nRF UF2, app@0x26000).
 
-## Next action — HOLD on core
+## Next action
 
-Wait for core to push new `rak4630-fw` HEAD (past `7011934e`). Then rebuild the compact hex from it
-(same features + baked persona `8d5d099f`), keep gitignored/scp-only, hand composer for genpkg. RAK
-has no partition table (nRF resident UF2, app@0x26000). Stage-proof: D4 K=3 compact → RAK decode →
-RELAY `route_len 1→2` → XIAO.
+Await composer staging result (on-air: D4 K=3 compact → RAK decode → RELAY `route_len 1→2` → XIAO).
+genpkg + serial-DFU write are fleet-gated → composer/Roy. Then a new objective; fetch, verify branch +
+clean tree, run Hive tests + public-hygiene gate before any commit or push.
