@@ -50,8 +50,29 @@ proves RELAY not persona (same-TG members relay regardless); persona rests on `#
 Owed by COMPOSER (not hive): correct criteria + trace origin of `0x3eb54833` (HALT to Roy if
 deliberate). Harness kept: `scratchpad/persona-attest`.
 
-## Next action
+## Active: LoRa mesh not forming (blocks the on-air relay proof)
 
-Nothing outstanding on hive's side; P0 complete pending Roy's STEP3 flash + on-air `route_len 1→2`
-observation. Then await a new objective — fetch, verify branch + clean tree, run Hive tests +
-public-hygiene gate before any commit or push.
+Supervisor 2026-07-21: `#d001` relay not on-air, broader than RAK — mesh isn't forming. Capture: D4
+emits 4 apiary `64cedb11` compact frames (ENQUEUED→LoRa) but XIAO forwards ZERO and hears NOTHING
+direct from D4 (count=0); DFRs leaderless role=STA, nbrs~0, synced=false; no `route_len` anywhere.
+Get the DIRECT D4→XIAO `route_len=1` working FIRST; RAK relay can't be tested until the mesh is up.
+Firmware/radio = hive; physical (antenna/range/SF) = Roy.
+
+**First deliverable — SF map — DELIVERED (sup7):** base `as923_nz()` = 916.8/BW125/SF12/+20dBm/
+sync0x21 (`r2-sx1262/src/lib.rs:124`). Both DFRs run `lora_route_task` (not the SF12-only `lora_task`)
+— `fakesensor` AND `xiaobridge` both pull `loraroute` (`Cargo:139/:294`), spawn gate `main.rs:853`.
+All three SF7 by construction (benchsf7: DFR `main.rs:5312`, RAK `main.rs:1224`) — so SF is NOT the
+likely D4↔XIAO cause. Ground-truth SF = DFR boot log `LORA-ROUTE up (SF{sf} …)` (`main.rs:5320`).
+
+Open leads (need composer/Roy — no TTY here): (1) read D4+XIAO boot-log SF (SF12 there = benchsf7
+missing = deaf); (2) exact flash feature-list per board to rule **labrig** — `#[cfg(labrig)]`
+shifts freq to 919.8MHz (`main.rs:5301`) and the boot log HARDCODES "916.8" so it hides the shift;
+(3) if SF+freq check out, chase the RX path. Separate real asymmetry (threatens RAK relay, not
+D4↔XIAO): **RAK tx_power = +20dBm** (as923_nz default; benchsf7 only touches SF) vs both DFRs' −9dBm
+— at 30cm +20 saturates the RX (CRC-fail). RAK needs −9 for the bench.
+
+## RAK artifact (parked, flash-ready)
+
+Relay-fixed image done: hex `858bc638`/ELF `d1aeefdc` (HEAD `70f442b9`), image_digest `e5c7073e`,
+flash_package_digest `d51b5b86`. Persona TG ruled canonical (D-20260721-02). Awaits mesh-up + Roy
+STEP3.
