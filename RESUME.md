@@ -70,17 +70,26 @@ refuted it → a non-benchsf7 (stale) ELF had been flashed; the board wins over 
 **Ruling D-20260721-03: bench canon = ALL-SF7** (airtime: SF12 = 16× over the 1/s apiary duty).
 Reflash the SF12 board(s) to benchsf7; do NOT downgrade the RAK.
 
-**D4 fix built + differential-proven:** `~/d4-fakesensor-benchsf7-dev-baked-cbd6bf67.elf` sha
-`cbd6bf67` (fakesensor,benchsf7,dev,baked_persona; HEAD `dca5d126`; persona `0ad4a84d` → tg
-`0x6E31DEC6`/hive_id `0xC434FAFC`, D4 identity unchanged). Differential: benchsf7 `cbd6bf67` ≠
-non-benchsf7 `a23c21ea` → benchsf7 is not a no-op; the SF12 board ran a non-benchsf7 image.
-SECRET-bearing → scp-only. Handed for reflash (Roy/composer, fleet-gated); reflash MUST verify the
-sha on-target + read boot `SF7`.
+**D4 fix built, differential-proven, brick-safe recipe handed:**
+- image `~/d4-fakesensor-benchsf7-dev-baked-cbd6bf67.elf` sha `cbd6bf67` (fakesensor,benchsf7,dev,
+  baked_persona; HEAD `dca5d126`; persona `0ad4a84d` → tg `0x6E31DEC6`/hive_id `0xC434FAFC`, D4
+  identity unchanged). Differential proof benchsf7 took: `cbd6bf67` ≠ non-benchsf7 `a23c21ea`.
+- partition table `~/d4-reflash-partitions-e0e49127.csv` sha `e0e49127` (platform r2cfg table; ota_0
+  app **@0x20000**). Recipe `~/d4-reflash-recipe.txt` (also in composer's thread).
+- **Brick avoided two ways:** (1) `--partition-table` forces app@0x20000 (espflash default 0x10000
+  = the D4 brick, over the 0x12000 config plane); (2) `baked_persona` → `read_persona()` returns the
+  compiled const (`main.rs:50`), NEVER touches flash 0x12000 → this reflash writes NO raw offsets,
+  app-only. Pre-write tripwire: confirm espflash's plan shows app@0x20000 not 0x10000, else ABORT;
+  no erase-flash. Post: boot must read `LORA-ROUTE up (SF7 …)`.
+- SECRET-bearing (baked persona) → scp-only, uncommitted. Roy writes the flash-auth; flashing is
+  fleet-gated from hive.
+- **Doc drift flagged:** AGENTS.md cites `docs/dfr1195-partitions.csv` (older phy_init); the build
+  uses `platforms/dfr1195/partitions.csv` (r2cfg). Both app@0x20000. Recommend AGENTS.md → r2cfg
+  table (owed, not yet edited — governance change).
 
 Open: (1) XIAO boot SF after Roy reset — if SF12, build matching `xiaobridge,benchsf7` ELF; (2) RAK
-tx_power `−9dBm` for 30cm (as923_nz default +20 saturates RX) — a **core** change to rak
-`lora_leaf_config` (`main.rs:1219`), then hive rebuilds; (3) `labrig` ruled out (not in any record,
-not pulled by fakesensor/xiaobridge → freq 916.8).
+tx_power `−9dBm` for 30cm — a **core** change to rak `lora_leaf_config` (`main.rs:1219`), then hive
+rebuilds; (3) `labrig` ruled out.
 
 ## RAK artifact (parked, flash-ready)
 
