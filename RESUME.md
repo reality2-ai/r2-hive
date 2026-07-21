@@ -38,9 +38,11 @@ for genpkg; reported to supervisor. RAK has no partition table (nRF UF2, app@0x2
 
 Image is correct. Two open blockers before flash/lift, both composer-owned:
 
-1. **Stale staging** — composer's staged candidate `a3c7791` bound the SUPERSEDED decode-only
-   artifact (ELF `320560b9`/hex `8215b52a`); verified before the rebuild overwrote the files.
-   Corrected: re-stage against on-disk `d1aeefdc`/`858bc638` (HEAD `70f442b9`).
+1. **Stale staging / filename collision** — composer's candidate `a3c7791` bound the SUPERSEDED
+   decode-only artifact (ELF `320560b9`/hex `8215b52a`); a reused generic filename
+   (`rak-repeater-compact.hex`) made composer scp the stale copy. Canonical handoff is now
+   sha-distinct: `field-dfu/rak-repeater-compact-70f442b9-858bc638.hex` sha256 `858bc638…`
+   (== ELF `d1aeefdc`, HEAD `70f442b9`) — pull by SHA, not path.
 2. **Persona-TG mismatch (lift-blocker)** — composer lift-criteria demand tg_hash `0x3eb54833` /
    wire_id `0xd256dc00`. Measured via `r2_trust::parse_persona` (scratchpad harness, fnv recompute
    agrees): baked persona `8d5d099f` = tg_id `730c29e7-209f-4d2e-c8fd-b68e71f5f73b`, tg_hash
