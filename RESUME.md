@@ -93,6 +93,26 @@ Open: (1) XIAO boot SF after Roy reset — if SF12, build matching `xiaobridge,b
 tx_power `−9dBm` for 30cm — a **core** change to rak `lora_leaf_config` (`main.rs:1219`), then hive
 rebuilds; (3) `labrig` ruled out.
 
+## Active: tri-bearer tn_base + D5 image (Roy-directed, 2026-07-22)
+
+Task: esp32-s3 tn_base running BLE+LoRa+ESP-NOW concurrently; PROVE coex RUNS (real traffic per
+bearer, presence != reachability). ALSO a D5-persona fakesensor,benchsf7 image (D5 own identity).
+
+Scoped (sup12/13): all 3 bearers already exist as tasks (`ble_task:748`, `espnow_task:764`,
+`lora_route_task:854`); combo **`bridge,ble`** spawns all three (bridge→loraroute+dev,
+ble→esp-radio/coex+esp-now+trouble-host; espnow re-enabled by bridge alongside LoRa, `:762`). Coex:
+BLE+ESP-NOW share one 2.4GHz radio (esp-radio/coex time-slice); LoRa independent SX1262. **Feasibility
+CONFIRMED:** `bridge,ble,benchsf7` links clean (exit 0, ELF 1357484B, HEAD `dca5d126`).
+
+Real work = the health proof: `build_health` key-10 "transports bitset" is HARDCODED `1`=WiFi
+(`:3548`); `BLE_UP`/`LORA_UP` are spawn flags not traffic. LoRa already has real-traffic
+instrumentation (`tx_hi_admitted`/`LORA_BEACON_TX`, `:5435`); BLE + ESP-NOW need admitted-frame
+counters; then drive key-10 from all three so each bit sets only on an admitted frame.
+
+**HELD** on: (a) supervisor shaping — tri-bearer = D5 image or separate node / identity / coex
+acceptance definition; (b) composer minting a **D5 persona** (none on Alfred; asked — TG `730c29e7`,
+distinct hive_id, role Sensor). Then build the health-bitset leg + metal coex proof.
+
 ## RAK artifact (parked, flash-ready)
 
 Relay-fixed image done: hex `858bc638`/ELF `d1aeefdc` (HEAD `70f442b9`), image_digest `e5c7073e`,
