@@ -57,9 +57,20 @@ had them via `fakesensor`/`xiaobridge`; I dropped them swapping to `bridge`. So 
 enum-ordinal), all 3 in ONE frame, sustained ≥10s continuous. Traffic: LoRa D4↔XIAO, ESP-NOW D4↔XIAO,
 BLE phone(nRF Connect) central→XIAO CoC. Dashboard decodes ordinal via key-18≥2.
 
-**Flashing (2026-07-22):** v1 flashed (XIAO+D4) → LoRa refuted → v2 corrected images handed for
-RE-flash. Awaiting v2 reflash + re-read: XIAO key-10=0x25, all 3 bits, ≥10s. ESP-NOW leg already works
-both directions (sparse admits ~45s vs 1.1s beat — worth a look); BLE awaits Roy's nRF Connect central.
+**Flashing (2026-07-22):** v1 → LoRa refuted → v2 corrected. Refreshed Roy grant LIVE
+(`.fleet/flash-authorization`, artifact coex.0722.1251, shas `d61ef967`/`8b93c3e5`); composer
+two-party-verified v2 + pre-staged; XIAO back on tuxedo; flash after composer's BLE watch. Awaiting
+re-read: XIAO key-10=0x25, all 3 bits, ≥10s. ESP-NOW works both ways; BLE awaits Roy's nRF Connect.
+
+**USB-Android bridge SYNC-silence (supervisor's "2nd coex bug") — RULED not-foldable, v2 proceeds.**
+The SYNC responder is `xiao_bridge_task`, `#[cfg(feature="xiaobridge")]` (`main.rs:727`); the coex
+image is `bridge`+`xiao`, NOT `xiaobridge`, so no responder — Roy's 'opening…' on the coex image is
+expected. It CANNOT fold into the coex image: `xiaobridge` requires `esp-println/no-op` (mutes EVERY
+println, incl `log_health`/key-10) for the clean binary pipe, but the coex proof READS key-10 on that
+**same single usb-serial-jtag CDC**. So coex-console-observation and USB-Android-clean-pipe are
+**mutually exclusive on one CDC** → separate images (matches the earlier arch ruling: bridge-leg
+validated apart from coex). A single unified image = real code work (health→UART while USB-CDC stays
+the clean pipe, or a framed CDC multiplex) — a follow-up, not a flag.
 
 ## Queued (Roy directives, AFTER the coex proof)
 
