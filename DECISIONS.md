@@ -171,6 +171,25 @@ It is not a task log and does not replace specifications, ADRs, or code.
   :5041/:224-226/:4588-4597/:7244`; supervisor A-prime-v5 ratification; [RESUME.md](RESUME.md).
 - **Supersedes:** None (refines the A-prime lean in RESUME; A-prime == C).
 
+### R-20260722-04 — D-20260722-01 acceptance MET: tri-bearer coex proof PASSES
+
+- **Kind:** Review
+- **Decision reviewed:** D-20260722-01 (key-10 real per-bearer admitted-frame liveness bitset; coex proof)
+- **Reviewer/date:** hive + composer (joint metal verdict), 2026-07-22
+- **Observed outcome:** On the `bee0e996` bit5-keepalive images (XIAO `d12ddcc8`, D4 `d818ffda`), composer's
+  soak showed key-10 **`0x25`** (BLE bit0 | LoRa bit2 | Mesh bit5) **SUSTAINED 41.6s contiguous / 7-of-7
+  HEALTH frames ≥ 10s = PASS**. bit2+bit5 solid (0x24 sustained 94.2s vs ~47% flicker pre-fix) from
+  `benchkeepalive` 4000 + LoRa cadence densify; bit0 via the CoC pump. Personas intact, app@0x20000, no NVS
+  writes. The D-20260722-01 acceptance criteria (all 3 bits in ONE frame, sustained ≥10s continuous, on a
+  real admitted-frame bitset) are MET.
+- **Campaign arc (what got it there):** Fix C (`hive:D-20260722-02`, lora_route_task on core1) unblocked
+  BLE advertise; the join-suppress (56d39498, harmless cleanup) + the metal-refuted WiFi-join-scan hunt
+  (owned) re-aimed onto the real bit5 root; `benchkeepalive` 8000→4000 + densify gave the LoRa/Mesh margin
+  under the 8s liveness window. The 0x17000-NVS-brick correction kept the fix on the bake-only path.
+- **Evidence:** composer soak 2026-07-22; images `d12ddcc8`/`d818ffda` from `bee0e996`; [RESUME.md](RESUME.md).
+- **Finding:** appropriate — the false-green key-10 (D-20260722-01 origin) is now a real, sustained
+  tri-bearer liveness signal. Proof CLOSED.
+
 ### D-20260722-03 — #d005 build-preflight gate (drain inbox, pinned sha, clean tree)
 
 - **Kind:** Decision

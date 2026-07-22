@@ -1,9 +1,13 @@
 # RESUME — r2-hive
 
-Updated 2026-07-22. `main` clean + pushed. Active work: tri-bearer coex proof. **bit0 CLOSED on metal**
-(root = composer pump framing, fixed pump-side; board canon-correct; C + v5 VALIDATED). v5 `23e17d1c`
-resident on XIAO. **STANDBY:** Roy ruled densify+re-run (gate unsoftened) for sustained-0x25; next build
-likely a D4 densify image (contingent on core's runtime-knob check), await order naming sha per #d006.
+Updated 2026-07-22. `main` clean + pushed. **✅ TRI-BEARER COEX PROOF PASSES — CAMPAIGN CLOSED.** key-10
+**`0x25`** (BLE bit0 | LoRa bit2 | Mesh bit5) SUSTAINED 41.6s contiguous / 7-of-7 HEALTH frames ≥10s on the
+`bee0e996` bit5-keepalive images (XIAO `d12ddcc8` / D4 `d818ffda`); composer metal-verified, personas intact,
+no NVS writes. Acceptance `hive:D-20260722-01` MET (`hive:R-20260722-04`). Arc: Fix C (core1 executor
+isolation) → join-suppress cleanup + the owned metal-refuted desense hunt → `benchkeepalive` 4000 + densify
+gave the LoRa/Mesh margin under the 8s window; bit0 via CoC pump. **Post-proof queued items UNLOCKED but
+Roy-gated + OUT-OF-SCOPE under #d007** (not started): canonical-base pin + GH #19, D5 provision, SEN0676
+radar, etc. STANDBY.
 **bit0 CLOSED on metal** via composer's pump prefix fix → 0x25 reachable; board canon-correct
 (prefix-always ratified). **NEXT: Roy ruled DENSIFY + RE-RUN, gate UNSOFTENED** (denser real LoRa admits
 so bit2 sustains within W≈8s, NOT a wider W). **D4 BUILD-ON-SHA STANDING ORDER (Roy pre-granted, no
