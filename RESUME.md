@@ -57,11 +57,13 @@ had them via `fakesensor`/`xiaobridge`; I dropped them swapping to `bridge`. So 
 enum-ordinal), all 3 in ONE frame, sustained ≥10s continuous. Traffic: LoRa D4↔XIAO, ESP-NOW D4↔XIAO,
 BLE phone(nRF Connect) central→XIAO CoC. Dashboard decodes ordinal via key-18≥2.
 
-**COEX PARTIALLY PROVEN ON METAL (2026-07-22):** v2 flashed → **XIAO key-10 = `0x24` repeatedly**
-= bit2 LoRa | bit5 WifiMesh CONCURRENT in one frame. The `loratcxo`/`xiao` v2 fix is **fully proven**
-— LoRa+ESP-NOW coex on the S3 is real. Only **bit0 (BLE) missing** for the full `0x25`; that's the
-BLE concurrency defect (deferred, D4 suffices per supervisor). Core validated: the bitset correctly
-showed a dead bearer dead (present≠reached), not a false-green.
+**COEX PARTIALLY PROVEN ON METAL (2026-07-22):** v2 → **XIAO key-10 = `0x24`** = bit2 LoRa | bit5
+WifiMesh CONCURRENT in one frame. `loratcxo`/`xiao` fix **proven** — LoRa+ESP-NOW coex on the S3 is
+real. bit0 (BLE) was missing because **`serve_coc` (coex inbound handler) never stamped `BLE_ADMIT_S`**
+— only blemesh's `serve_data_coc` did (core's find, the actual primary root; my scaffold trace was a
+real *secondary*). **v3** = core stamped `serve_coc` (`:4158`) + boot-addr print → dfr1195-fw
+`934426d5`. Built v3: D4 `47ad5200`@45284, XIAO `5cc8d835`@45304, BUILD_ID `coex.0722.1337`, fw_sha
+`0x54B574C7`; handed for reflash. If phone/laptop inbound reaches `serve_coc` → bit0 lights → `0x25`.
 
 **USB-Android bridge SYNC-silence (supervisor's "2nd coex bug") — RULED not-foldable, v2 proceeds.**
 The SYNC responder is `xiao_bridge_task`, `#[cfg(feature="xiaobridge")]` (`main.rs:727`); the coex
@@ -104,7 +106,12 @@ the clean pipe, or a framed CDC multiplex) — a follow-up, not a flag.
   real pair (lowest hive XIAO=provider, D4=joiner) + retire M7; **hive = scan-address plumb (DESIGN, core
   lands):** SCAN_OBS today carries only hive_id (`:4449` `(u32,bool,u8,Option<u8>)`), no BdAddr — a NEW
   capture (grab addr at `R2ScanHandler`, widen `SCAN_OBS`/`push_scan_obs`, joiner dials scanned addr,
-  drop the 3 synthetic `push_scan_obs`). Also: print own BLE addr at boot (`:3777`).
+  drop the 3 synthetic `push_scan_obs`). Boot-addr print landed (v3). **Scanner/rbid fork (answered):**
+  the coex board CANNOT resolve peer rbid→hive today — `resolve_rbid_windowed` matches `registry:&[]`
+  (empty, `:4033`); hk alone insufficient (no co-member roster). Role-fix path = (i) populate co-member
+  registry (field-correct) or (ii) dev-gated deterministic `BENCH_ADDR:4342` (simplest bench). Hive rec
+  = (ii). Contingent — only if v3 leaves bit0 dark (board-to-board). NOTE: the primary bit0 root was
+  the missing `serve_coc` stamp (fixed in v3); this scaffold is the *secondary* board-to-board path.
 - **RAK tx_power −9dBm** (30cm; as923_nz default +20 saturates RX) — a core change to rak
   `lora_leaf_config:1219`. **AGENTS.md doc-drift:** cites `docs/dfr1195-partitions.csv` (older); build
   uses `platforms/dfr1195/partitions.csv` (r2cfg) — both app@0x20000; recommend updating.
