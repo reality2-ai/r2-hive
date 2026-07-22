@@ -179,9 +179,11 @@ AUTHORED there ("commit:" entries) = it's a STANDALONE clone where CORE lands, s
 working live in the same clone I build in. **Supervisor RULED `~/dfr1195-fw-build` hive-exclusive for
 WRITES** (2026-07-22); my `git reset --hard <sha>` + byte-verify preflight stays (defense in depth,
 mutation treated as live hazard). Stashes `hive-preCbuild` (main.rs −1213 + r2-core/cbor.rs +
-tools/r2-bootstrap + 23 files) + `hive-preV5build` (33-line) LIKELY core's uncommitted WIP — RECOVERABLE.
-**Disposition (supervisor):** KEEP both stashes until core CONFIRMS reclaim, THEN drop; do not drop
-before. Core dispatched to reclaim + relocate to its own clone (land by commit+push only). Earlier "no baked_persona feature" was a DIRTY-TREE grep read as source
+tools/r2-bootstrap + 23 files) + `hive-preV5build` (33-line). **RESOLVED:** core inspected both read-only
+— NEITHER is core's (both destructive/stale: {0}=inverse of the health fix = a regression, {1}=mass
+deletion of already-committed content); core's fw is all committed+pushed, its own worktree
+`~/Development/R2/dfr1195-fw-wt` clean at tip. Both DROPPED (guarded by message). Only `rak-ota-park`
+(stash, rak lane — not hive's) remains, left untouched. Worktree clean at e4031efd. Earlier "no baked_persona feature" was a DIRTY-TREE grep read as source
 fact (composer caught via `git show HEAD:`); owned — [[positive-control-the-tree-not-just-the-tool]].
 esp GCC via `~/Development/homelab/export-esp.sh` (linker off-PATH in non-interactive ssh).
 
