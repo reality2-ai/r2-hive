@@ -36,9 +36,16 @@ C_recv gaps + NO burst → radio-level loss = COEX ARBITRATION (a); on-air + C_r
 resume → EXECUTOR STARVATION (b); C_recv steady + C_admit gaps → downstream. **Core0-occupancy scan (my
 pre-work): NO hard multi-second blocker found** (runner.run()+accept async-yield, io_task select-loop,
 SX1262 busy-spin on core1 post-Fix-C, flash event-not-ambient) → **tilts toward (a) coex-arbitration**
-(esp coex arbiter parks ESP-NOW RX at PHY level, below embassy) over (b). Sniff+counters decide. **D4
-`bb6565e6` (83a2a17f, cadence-only) attested — do NOT flash as a bit5 fix; HELD.** LESSON:
-[[dont-let-a-fix-land-on-an-unconfirmed-mechanism]].
+(esp coex arbiter parks ESP-NOW RX at PHY level, below embassy) over (b). Sniff+counters decide. **v7-DIAG PUSHED + hive-VERIFIED + PRIMED:
+`78177f50`** (= 56d39498 + `rxdiag` counters; child, single commit) — `ESPNOW_RECV_CT:236`/`MESH_ADMIT_CT:238`
+atomics, C_recv at `:6077` (earliest drain), C_admit `:6119`, "RXDIAG C_recv= C_admit=" print `:1849` on
+the ~2s beat; join-suppress + cadence intact. **Build sets (pre-confirmed to core), on an XIAO-RX sniff
+verdict + supervisor order:** XIAO `bridge,ble,benchsf7,baked_persona,loratcxo,xiao,rxdiag` (persona
+`0x8C15B0C2`); D4 `bridge,ble,benchsf7,baked_persona,fakesensor,loratcxo,rxdiag` (persona `0xC434FAFC`);
+both from 78177f50, #d005/#d006 preflight + full attest. **D4 `bb6565e6` (83a2a17f, cadence-only) attested
+— do NOT flash as a bit5 fix; HELD.** LESSON: [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]].
+**SEQUENCE LOCKED (all lanes):** Roy fires ch1 sniff → core counters authored (`78177f50`) → hive builds
+only on XIAO-RX verdict. Three signatures pre-registered in the prediction ledger.
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
