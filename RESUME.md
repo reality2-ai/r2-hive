@@ -53,6 +53,16 @@ apiary_bus_task=observer), masked `c3ef1aa6…`. D4 `3b412e548f3dfe3f…` (perso
 RXDIAG took, apiary_bus_task=fakesensor took, lora_route_task, C), masked `7fea3ea1…`. Both BUILD_ID
 `coex.v7.0722`, table `d4-reflash-partitions-e0e49127.csv`. **Flash ONLY on sniff=XIAO-RX + Roy grant;
 D4-TX-side → archive.** Reported to supervisor + composer.
+**bit5 FIX inventory (2026-07-22, #d007, no build):** v7-diag is DEAD; the fix = a keepalive-override role +
+maybe densify. FLASHED images: **v4 D4 `f2a32e20`** (src `aa939299`, `bridge,ble,benchsf7,baked_persona,fakesensor`)
+and **v5 XIAO `23e17d1c`** (src `e4031efd`, `…loratcxo,xiao`) — **both densify-ABSENT** (both are ancestors of
+`83a2a17f`). **Role mechanism: RoleProfile is NVS `0x17000`** (`read_role_profile`, `keepalive_period_ms`
+tunable §1A.1); **NO bake-role feature exists** (negative-controlled: 0 in Cargo.toml; only `baked_persona`
+bakes); `.role` blobs are NVS-0x17000-flashed. So **keepalive-only fix = a composer gen-role `.role` blob at
+0x17000, NO app rebuild** (existing apps read 0x17000); **densify-inclusion = rebuild from `56d39498`**
+(densify+join-suppress, NO rxdiag — NOT 78177f50). Missing inputs flagged: (a) clarify "baked .role" — NVS
+flash vs a NEW bake-into-app core feature (baked_persona-class fork); (b) composer's keepalive `.role` blob +
+value + board(s); (c) core's base sha. Await a #d005 pinned-sha order.
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
