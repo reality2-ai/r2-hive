@@ -6,9 +6,14 @@ resident on XIAO. **STANDBY:** Roy ruled densify+re-run (gate unsoftened) for su
 likely a D4 densify image (contingent on core's runtime-knob check), await order naming sha per #d006.
 **bit0 CLOSED on metal** via composer's pump prefix fix → 0x25 reachable; board canon-correct
 (prefix-always ratified). **NEXT: Roy ruled DENSIFY + RE-RUN, gate UNSOFTENED** (denser real LoRa admits
-so bit2 sustains within W≈8s, NOT a wider W). Likely a **D4 image** (e4031efd lineage + cadence densify),
-but **CONTINGENT on core's runtime-knob gap-check** — if a knob densifies cadence, NO build at all. Await
-a supervisor order naming the sha (#d006).
+so bit2 sustains within W≈8s, NOT a wider W). **D4 BUILD-ON-SHA STANDING ORDER (Roy pre-granted, no
+round-trip):** when core's densify sha lands (e4031efd lineage), build D4 immediately + attest → supervisor
+writes the flash grant on attestation. **CONTINGENT on core's runtime-knob gap-check** — if a knob densifies
+cadence, NO build. **D4 spec pre-confirmed to supervisor:** persona `d4-persona.bin`→`0xC434FAFC`;
+features `bridge,ble,benchsf7,baked_persona,fakesensor` (v4 D4 apiary set; fakesensor pulls
+loratcxo/loraroute/otaengine; NO `xiao`, NO explicit loratcxo); table `d4-reflash-partitions-e0e49127.csv`;
+attest = baked-persona `0xC434FAFC` + C-in-binary + fakesensor-took (apiary_bus_task) + loratcxo differential.
+Still #d005/#d006 preflight (drain+confirm+pinned-sha+byte-clean) at build time.
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
