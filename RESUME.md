@@ -124,8 +124,24 @@ the async executor. **A-vs-B feasibility answered (hive, the blocking input for 
   v5, B for backlog** (reverses the earlier B-lean once r2-sx1262 was confirmed fleet-shared). Core
   owns the call (owns both crates).
 
-**Bundle plan (supervisor):** v5-fix (B or C, core lands) + `e2bba673` (BLE+LoRa, no ESP-NOW, expects
-SILENT — the sufficiency fallback; d4-persona diag) in ONE Roy grant, v5 first. The drop-loraroute
+**Fix-B premise corrected (core, accepted):** the driver has NO long block — `wait_busy` is
+bounded/short, `LoRaTransport::service()` is a non-blocking poll (only one-time `configure` 5ms +
+`hw_reset` 1.2ms). So "async removes a long spin" targets nothing; B may fix nothing (owned the
+over-claim). This REINFORCES A-prime: a subtle/cumulative starver (aggregate service() frequency /
+one-time configure colliding with advertise-enable / SPI-RXEN interaction) is fixed by moving the
+whole LoRa task off core 0 regardless of granularity; async-ing μs-waits wouldn't help. **Fix scope
+HELD until `9e0b76de` lands** — it's the mechanism decider (adv works → lora_route_task is the whole
+cause, core bisects the subtle mechanism, A-prime fixes it; adv still hangs → not LoRa). Supervisor
+RATIFIED A-prime v5 + B backlog. **Canon-cite rule (Roy standing):** grep specs + cite `DOC §n` before
+architecture/contract findings — my "r2-sx1262 fleet-shared" was canon (unified-architecture), should
+have cited it. See [[cite-canon-before-claiming-a-finding]].
+
+**Bundle plan (supervisor):** v5-fix (A-prime, core lands) + fallback in ONE Roy grant, v5 first.
+`9e0b76de` (XIAO confirm) is **xiao-persona** (hive_id `0x8C15B0C2`) — collision-free, flashable.
+`e2bba673` (d4-persona) is **DEAD for XIAO** per Roy's ruling ("no two hives same hive_id"; §16.6
+rejects dup at JOIN, baking bypasses join → build discipline) — rebuild xiao-persona ONLY if/when the
+fallback is needed. Standing rule: every image for board X carries X's persona, no diagnostic
+exceptions. The drop-loraroute
 positive image (`9e0b76de`) order was RETRACTED (v5-fix is the positive test). Acceptance still:
 bit0 → `0x25`.
 
