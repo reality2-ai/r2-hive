@@ -57,7 +57,21 @@ had them via `fakesensor`/`xiaobridge`; I dropped them swapping to `bridge`. So 
 enum-ordinal), all 3 in ONE frame, sustained ≥10s continuous. Traffic: LoRa D4↔XIAO, ESP-NOW D4↔XIAO,
 BLE phone(nRF Connect) central→XIAO CoC. Dashboard decodes ordinal via key-18≥2.
 
-**COEX PARTIALLY PROVEN ON METAL (2026-07-22):** v2 → **XIAO key-10 = `0x24`** = bit2 LoRa | bit5
+**v4 BUILT + verified + handed (2026-07-22), awaiting Roy grant + reflash.** Core landed the persistent
+CoC listener at `aa939299` (RUN-3 root: the observer Scanner starved `peripheral.advertise()` —
+esp-radio can't advertise+scan at once; `:3884` never printed; NOT the NEG loop/ghost). Fix =
+default-off `bleobserver`; default/coex path = advertiser + always-pending L2CAP acceptor as the sole
+BLE role (`:4048` join3). #4 answered: no coex consumer needs the observer scan (R2ScanHandler only
+under `bleobserver`; engine uses the synthetic roster). aa939299 also carries the serve_coc stamp
+(934426d5) + LoRa beacon-admit (0b749eb3). **v4 images** (BUILD_ID `coex.0722.1411`, fw_sha
+`0x586622AE`): D4 (sensor+emitter) `f2a32e20` (`+fakesensor`→apiary_bus_task, hive_id `0xC434FAFC`,
+persona@45728, masked `2259fb22`); XIAO (observer) `7e7cd1e3` (v2-identical set, hive_id `0x8C15B0C2`,
+persona@44868, masked `f2a11e00`). **v1-guard verified on the binaries:** loratcxo differential DIFFER
+(took, not dropped by the fakesensor swap); D4 `apiary_bus_task` present (3 syms). Full per-board lists
+published (supervisor grant + composer provenance). Supersedes v1/v2/v3 (do-not-flash). Acceptance: bit0
+lights on laptop BlueZ inbound → `0x25`; sustained under D4 apiary traffic (core §4.3 confirm post-bit0).
+
+**Prior (v2) result:** XIAO key-10 = `0x24` = bit2 LoRa | bit5
 WifiMesh CONCURRENT in one frame. `loratcxo`/`xiao` fix **proven** — LoRa+ESP-NOW coex on the S3 is
 real. bit0 (BLE) was missing because **`serve_coc` (coex inbound handler) never stamped `BLE_ADMIT_S`**
 — only blemesh's `serve_data_coc` did (core's find, the actual primary root; my scaffold trace was a
