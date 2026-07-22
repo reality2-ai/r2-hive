@@ -108,10 +108,14 @@ the clean pipe, or a framed CDC multiplex) — a follow-up, not a flag.
   capture (grab addr at `R2ScanHandler`, widen `SCAN_OBS`/`push_scan_obs`, joiner dials scanned addr,
   drop the 3 synthetic `push_scan_obs`). Boot-addr print landed (v3). **Scanner/rbid fork (answered):**
   the coex board CANNOT resolve peer rbid→hive today — `resolve_rbid_windowed` matches `registry:&[]`
-  (empty, `:4033`); hk alone insufficient (no co-member roster). Role-fix path = (i) populate co-member
-  registry (field-correct) or (ii) dev-gated deterministic `BENCH_ADDR:4342` (simplest bench). Hive rec
-  = (ii). Contingent — only if v3 leaves bit0 dark (board-to-board). NOTE: the primary bit0 root was
-  the missing `serve_coc` stamp (fixed in v3); this scaffold is the *secondary* board-to-board path.
+  (empty, `:4033`); hk alone insufficient (no co-member roster). Role-fix path DECIDED (core): (ii)
+  dev-gated deterministic `BENCH_ADDR` (`:4342` precedent) for the deferred bench fix; (i) scan-learned
+  addr = field follow-up (needs co-member roster, likely spec-first). **Security guardrail (core owns):**
+  prod provably HWRNG-random; the deterministic addr strictly behind a dev/bench feature + a
+  compile-time assert `prod != deterministic`; no identity-derived addr ever in prod (§7.4.0). Core
+  lands CORE (retire M7 + real-pair lowest-live-id election, XIAO=provider/D4=joiner) + the (ii) addr;
+  hive hands the scan-plumb design. ALL PARKED — contingent on v3 bit0. The *primary* bit0 root was the
+  missing `serve_coc` stamp (fixed in v3); this scaffold is the *secondary* board-to-board path.
 - **RAK tx_power −9dBm** (30cm; as923_nz default +20 saturates RX) — a core change to rak
   `lora_leaf_config:1219`. **AGENTS.md doc-drift:** cites `docs/dfr1195-partitions.csv` (older); build
   uses `platforms/dfr1195/partitions.csv` (r2cfg) — both app@0x20000; recommend updating.
