@@ -34,7 +34,7 @@ It is not a task log and does not replace specifications, ADRs, or code.
 - **Kind:** Decision
 - **Date:** 2026-07-23
 - **Scope:** The single linkable base for the tri-bearer coex reference implementation
-- **Specs ledger:** D-20260722-02 (base canon; mirrored here on the PASS-proven set)
+- **Specs ledger:** D-20260722-02 (base canon) + confirm: specs ledger D-20260723-02 (Roy's confirm 2026-07-23) — mirrored here on the PASS-proven set
 - **Outcome:** Pin **`bee0e996`** (dfr1195-fw, branch `dfr1195-fw-bit5-keepalive`, off `56d39498`) as the single
   linkable base all coex images derive from (feature-set per board, NO forks). Per-board-type **base_digest**
   (persona-region-masked sha256, two-party recomputable): esp32-s3-xiao-wio-sx1262 (observer) image
