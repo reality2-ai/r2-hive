@@ -18,6 +18,14 @@ It is not a task log and does not replace specifications, ADRs, or code.
   Current means the latest applicable decision not superseded by a later one.
 - Newer explicit authority or normative material wins a conflict; append the correction.
 - IDs are `D-YYYYMMDD-NN` for decisions and `R-YYYYMMDD-NN` for reviews.
+- **Namespace (fleet rule 2026-07-22):** every `D-`/`R-` record in THIS file is the **`hive:` local
+  ledger** — cite it in cross-lane comms as `hive:D-YYYYMMDD-NN` (e.g. `hive:D-20260722-02`). A **bare**
+  `D-YYYYMMDD-NN` denotes the **specs ledger** (canon authority) by convention. Any hive record that
+  MIRRORS a specs-ledger ruling MUST carry an explicit `specs ledger: D-x` cross-ref line at creation.
+  Existing immutable records are not renamed; where a pre-rule mirror lacks a cross-ref, append one.
+  (D-20260721-03 mirrors the `benchsf7` PHY ruling by citing the normative spec section `R2-LORA §5`
+  directly — the canonical reference — not a bare specs-ledger ID; a specs-ledger `D-x` cross-ref is
+  owed only if specs maintains a ledger record for it — flagged to specs.)
 
 ## Records
 
