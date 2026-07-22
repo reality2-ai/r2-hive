@@ -28,21 +28,32 @@ liveness bitset + key-18 schema=2 + KATs (**dfr1195-fw HEAD `97175901`**, r2-cbo
 drift guard `31acf41a` hive-verified); composer cutover ready (key-18≥2 gate, `f74baf4`); **#d001
 CLOSED** (RAK relay counterfactual passed — boards free).
 
-**Coex images built + verified** from HEAD `97175901` (base `bridge,ble,benchsf7,baked_persona`,
-BUILD_ID `coex.0722.1225`, fw_sha `0x6616A287`):
-- XIAO (proof node) `~/xiao-coex-tribearer-coex.0722.1225.elf` sha `9031ffa2`, hive_id `0x8C15B0C2`
-- D4 (LoRa+ESP-NOW peer) `~/d4-coex-tribearer-coex.0722.1225.elf` sha `2cc2c2d6`, hive_id `0xC434FAFC`
-- both TG `0x6E31DEC6` (baked identities parse-verified); table `~/d4-reflash-partitions-e0e49127.csv`
-  (`e0e49127`, app@0x20000); recipe `~/coex-flash-recipe.txt`. SECRET-bearing → scp-only.
-- Brick-safe: `--partition-table` → app@0x20000 (default 0x10000 = the D4 brick); `baked_persona` →
-  no flash-0x12000 write (app-only). Pre-write tripwire: espflash plan must show app@0x20000 else ABORT.
+**v1 coex images (coex.0722.1225) were BROKEN → refuted on metal:** LoRa bit2 dark — XIAO silent,
+D4 drop-storm. Root cause: I built `bridge,ble,benchsf7` but **`bridge` pulls neither `loratcxo` (TCXO
+1.8V, REQUIRED, `main.rs:819`) nor `xiao` (LoRa SPI pin selector, `:841`)** — the proven SF7 images
+had them via `fakesensor`/`xiaobridge`; I dropped them swapping to `bridge`. So SX1262 unclocked (both)
++ XIAO on DFR pins (silent). Discard v1 + `ad9fc529`.
+
+**v2 CORRECTED (coex.0722.1251, fw_sha `0x6A27F1F4`), from HEAD 97175901:**
+- D4 (DFR, ESP-NOW+LoRa peer) `~/d4-coex-tribearer-coex.0722.1251.elf` sha `8b93c3e5`
+  (`bridge,ble,benchsf7,baked_persona,loratcxo`; hive_id `0xC434FAFC`; persona@45192; DFR-base masked
+  `be16b5c7`)
+- XIAO (Wio, proof node) `~/xiao-coex-tribearer-coex.0722.1251.elf` sha `d61ef967`
+  (`+loratcxo,xiao`; hive_id `0x8C15B0C2`; persona@45212; Wio-base masked `88e6cdd7`)
+- both TG `0x6E31DEC6`; table `~/d4-reflash-partitions-e0e49127.csv` (`e0e49127`, app@0x20000); recipe
+  `~/coex-flash-recipe.txt` (v2). Brick-safe (app@0x20000 tripwire; baked_persona = no 0x12000 write).
+- **Base is per-board:** DFR1195 and XIAO-S3 need DIFFERENT binaries (compile-time `xiao` pin cfg,
+  ~894KB diff) → "one base" = one SOURCE, two board-pin materializations (`be16b5c7`/`88e6cdd7`);
+  per-build persona offset drifts (45192 vs 45212) so the mask is per-build. A truly single binary
+  needs runtime board-pin detection (follow-up / #19 known-gap).
 
 **Acceptance (D-20260722-01):** XIAO health key-10 = **`0x25`** (bit0 BLE | bit2 LoRa | bit5 WifiMesh,
 enum-ordinal), all 3 in ONE frame, sustained ≥10s continuous. Traffic: LoRa D4↔XIAO, ESP-NOW D4↔XIAO,
 BLE phone(nRF Connect) central→XIAO CoC. Dashboard decodes ordinal via key-18≥2.
 
-**Flashing (2026-07-22):** XIAO flashed OK (MAC-verified, exit 0); D4 in flight. Proof read next —
-hive interprets XIAO key-10=0x25; if a bit stays dark, core traces its DATA_RX producer.
+**Flashing (2026-07-22):** v1 flashed (XIAO+D4) → LoRa refuted → v2 corrected images handed for
+RE-flash. Awaiting v2 reflash + re-read: XIAO key-10=0x25, all 3 bits, ≥10s. ESP-NOW leg already works
+both directions (sparse admits ~45s vs 1.1s beat — worth a look); BLE awaits Roy's nRF Connect central.
 
 ## Queued (Roy directives, AFTER the coex proof)
 
