@@ -9,7 +9,16 @@ gave the LoRa/Mesh margin under the 8s window; bit0 via CoC pump. **Canonical-ba
 base_digest table (XIAO masked `d884bba3…`, D4 masked `071b702d…`); landed on 3 surfaces — GH
 `reality2-ai/r2-core#19` (comment 5050303127), hive DECISIONS, recipe registry (`alfred:~/coex-flash-recipe.txt`);
 known-gap honesty (bit0 pump-driven, beacons unattributed, D4 BLE-C unproven). **Remaining post-proof items
-stay Roy-gated + out-of-scope** (D5 provision, SEN0676 radar). STANDBY.
+stay Roy-gated + out-of-scope** (D5 provision, SEN0676 radar).
+**BLEROLE slot (Roy GO 2026-07-23) — D4 initiator image, merge escalated to core:** blerole `c01c9db9` and
+pinned coex `bee0e996` are SIBLINGS off `e4031efd`; **c01c9db9 LACKS all 3 coex fixes** (densify, join-suppress,
+keepalive still 8000 `:3387`). **Ghost-removal (`3b7079f1` in c01c9db9) makes join-suppress LOAD-BEARING** — the
+ghost is why the WiFi-join-scan desense was unreachable; removing it lets a real election fire join_provider →
+scan → bit5 desense RE-OPENS unless 56d39498's no-op rides. Escalated the MERGE to core (never-edit-core +
+reproducible provenance + owner resolves the ghost/join-suppress composition). On core's merged sha: build D4
+initiator with `DFR_PERSONA_PATH` + `DFR_ROLE_PATH=~/d4-initiator.role` (sha `a55810f9…`, 48B RPF1
+b[6]=0x01 initiator/b[4]=0x02 Bridge, verified), attest (image sha + masked base + BAKED_ROLE_PROFILE present +
+persona `0xC434FAFC` + table `e0e49127`). XIAO unchanged (`d12ddcc8`). Flash waits for Roy per-op grant. STANDBY.
 **bit0 CLOSED on metal** via composer's pump prefix fix → 0x25 reachable; board canon-correct
 (prefix-always ratified). **NEXT: Roy ruled DENSIFY + RE-RUN, gate UNSOFTENED** (denser real LoRa admits
 so bit2 sustains within W≈8s, NOT a wider W). **D4 BUILD-ON-SHA STANDING ORDER (Roy pre-granted, no
