@@ -5,9 +5,11 @@ Updated 2026-07-22. `main` clean + pushed. **✅ TRI-BEARER COEX PROOF PASSES �
 `bee0e996` bit5-keepalive images (XIAO `d12ddcc8` / D4 `d818ffda`); composer metal-verified, personas intact,
 no NVS writes. Acceptance `hive:D-20260722-01` MET (`hive:R-20260722-04`). Arc: Fix C (core1 executor
 isolation) → join-suppress cleanup + the owned metal-refuted desense hunt → `benchkeepalive` 4000 + densify
-gave the LoRa/Mesh margin under the 8s window; bit0 via CoC pump. **Post-proof queued items UNLOCKED but
-Roy-gated + OUT-OF-SCOPE under #d007** (not started): canonical-base pin + GH #19, D5 provision, SEN0676
-radar, etc. STANDBY.
+gave the LoRa/Mesh margin under the 8s window; bit0 via CoC pump. **Canonical-base pin DONE (Roy-confirmed 2026-07-23, `hive:D-20260723-01`):** base = `bee0e996`; per-board
+base_digest table (XIAO masked `d884bba3…`, D4 masked `071b702d…`); landed on 3 surfaces — GH
+`reality2-ai/r2-core#19` (comment 5050303127), hive DECISIONS, recipe registry (`alfred:~/coex-flash-recipe.txt`);
+known-gap honesty (bit0 pump-driven, beacons unattributed, D4 BLE-C unproven). **Remaining post-proof items
+stay Roy-gated + out-of-scope** (D5 provision, SEN0676 radar). STANDBY.
 **bit0 CLOSED on metal** via composer's pump prefix fix → 0x25 reachable; board canon-correct
 (prefix-always ratified). **NEXT: Roy ruled DENSIFY + RE-RUN, gate UNSOFTENED** (denser real LoRa admits
 so bit2 sustains within W≈8s, NOT a wider W). **D4 BUILD-ON-SHA STANDING ORDER (Roy pre-granted, no
