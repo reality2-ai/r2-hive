@@ -29,6 +29,32 @@ It is not a task log and does not replace specifications, ADRs, or code.
 
 ## Records
 
+### D-20260723-01 — Canonical tri-bearer coex base pinned (base-digest pin)
+
+- **Kind:** Decision
+- **Date:** 2026-07-23
+- **Scope:** The single linkable base for the tri-bearer coex reference implementation
+- **Specs ledger:** D-20260722-02 (base canon; mirrored here on the PASS-proven set)
+- **Outcome:** Pin **`bee0e996`** (dfr1195-fw, branch `dfr1195-fw-bit5-keepalive`, off `56d39498`) as the single
+  linkable base all coex images derive from (feature-set per board, NO forks). Per-board-type **base_digest**
+  (persona-region-masked sha256, two-party recomputable): esp32-s3-xiao-wio-sx1262 (observer) image
+  `d12ddcc8…` → masked `d884bba35e8298d12301798d0797dca1e764d49560c107188a279565c1a482b7` (mask `[44984,45320)`),
+  persona `0x8C15B0C2`; esp32-s3-dfr1195 (superset/emitter) image `d818ffda…` → masked
+  `071b702dad94338ff8910b9b7bcfb4fde54ba1d64b666916e995075b0104abd4` (mask `[45796,46132)`), persona
+  `0xC434FAFC`. Table `d4-reflash-partitions-e0e49127.csv` (app@0x20000; baked_persona ⇒ no 0x12000/0x17000).
+- **Decision-maker:** Roy (confirmed 2026-07-23, via supervisor).
+- **Authority basis:** Roy confirmation; the base-canon (ensemble-composition, no per-target forks) is
+  established policy (AGENTS.md No-Go) + specs base-canon.
+- **Mechanism:** Fix C (`hive:D-20260722-02`, lora_route_task on core1) + join-suppress + LoRa densify 30s→4s +
+  `benchkeepalive` 8000→4000 — puts LoRa/Mesh emit inside the 8s liveness window.
+- **Evidence:** key-10 `0x25` sustained 41.6s / 7-of-7 HEALTH frames 2026-07-23 (+ `0x24` 94.2s); acceptance
+  `hive:D-20260722-01` MET (`hive:R-20260722-04`). Personas intact, banner app@0x20000, no NVS writes.
+- **Known gaps (honest):** bit0 pump-driven (no persistent BLE peer); LoRa beacons unattributed (unkeyed-origin
+  admit still stamps bit2); D4 BLE-central/provider election unproven (M7 ghost scaffold, deferred).
+- **Surfaces landed:** GH `reality2-ai/r2-core#19` (reference-impl green cell, comment 5050303127); recipe
+  registry (`alfred:~/coex-flash-recipe.txt`, canonical bit5-keepalive entry); this record.
+- **Supersedes:** None (builds on hive:D-20260722-01).
+
 ### D-20260721-01 — Repository decision log
 
 - **Kind:** Decision
