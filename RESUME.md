@@ -105,10 +105,25 @@ validates the listener/bit0. Handed for grant.
 **esp-rtos fix read (hive advises, core lands):** splitting join3 across executors is FORBIDDEN
 (peripheral/central/runner share one `stack.build()` borrow) — move the whole `ble_task` instead.
 esp-rtos 0.3.0 has NO esp-hal InterruptExecutor (it's threads + a 2nd-core main thread); the
-thread/2nd-core move risks BLE-controller affinity. **Hive rec: fix the block at the source** — make
-`lora.service()`'s SX1262 BUSY-pin busy-wait ASYNC (r2-sx1262/r2-transport = core), removing the
-executor-hog entirely, no controller-affinity risk. Fallback = whole-ble_task on the 2nd core.
-Acceptance still: bit0 → `0x25`.
+thread/2nd-core move risks BLE-controller affinity. **Hive rec: fix the block at the source.**
+Core located the block at instruction level: `r2-sx1262::wait_busy()` (`lib.rs:322-330`) busy-spins
+`while busy.is_high() { delay.delay_us(20) }` after every SX1262 command; sync `lora.service()` blocks
+the async executor. **A-vs-B feasibility answered (hive, the blocking input for v5):**
+- **Fix A (split trouble-host runner to a priority InterruptExecutor): INFEASIBLE** — (1) the Stack
+  can't be shared across executors (peripheral/central/runner share one `stack.build()` borrow); (2)
+  BleConnector unsafe/risky in interrupt context; (3) esp-rtos 0.3.0 exposes NO InterruptExecutor
+  (threads/2nd-core only). Dead end; goes to backlog as a general pattern.
+- **Fix B (async r2-sx1262): ROOT CURE (core lands)** — await BUSY-low (async GPIO / `Timer::after`)
+  vs the busy-spin; ripples sync→async through cmd/service/LoRaTransport + `lora.service():5507`
+  (lora_route_task is already async). Bigger but contained; SPI byte-transfers stay sync (fast).
+- **Fix C (smaller alt): move `lora_route_task` (the offender) to the esp-rtos 2nd core** (`:348`),
+  BLE stack + BleConnector stay on main — no stack-split/async-rewrite; DATA_TX_LORA/DATA_RX already
+  cross-core-safe; needs a 2nd-core SX1262/thread metal test.
+
+**Bundle plan (supervisor):** v5-fix (B or C, core lands) + `e2bba673` (BLE+LoRa, no ESP-NOW, expects
+SILENT — the sufficiency fallback; d4-persona diag) in ONE Roy grant, v5 first. The drop-loraroute
+positive image (`9e0b76de`) order was RETRACTED (v5-fix is the positive test). Acceptance still:
+bit0 → `0x25`.
 
 **Prior (v2) result:** XIAO key-10 = `0x24` = bit2 LoRa | bit5
 WifiMesh CONCURRENT in one frame. `loratcxo`/`xiao` fix **proven** — LoRa+ESP-NOW coex on the S3 is
