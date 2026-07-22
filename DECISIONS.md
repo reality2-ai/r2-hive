@@ -191,6 +191,32 @@ It is not a task log and does not replace specifications, ADRs, or code.
   `hive-preCbuild-20260722`/`hive-preV5build-20260722`; memory [[positive-control-the-tree-not-just-the-tool]].
 - **Supersedes:** None.
 
+### D-20260722-04 — #d006 fleet-wide tight-rein (drain-first, workspace ownership, report-don't-act)
+
+- **Kind:** Decision
+- **Date:** 2026-07-22
+- **Scope:** All lanes (recorded here as binding on hive); every consequential action
+- **Outcome:** Standing order, effective now until Roy lifts. (1) **Drain-first:** before ANY consequential
+  action (build, flash, commit/push to a shared tree, canon change, bench mutation) drain the inbox +
+  verify the latest supervisor order is still CURRENT; act only on a current order naming the exact
+  target/sha. (2) **Workspace ownership:** write only in declared owned paths; shared trees read-only
+  unless the named owner. (3) **Report, don't act:** findings are reported, not acted on; no self-expanded
+  scope without an order covering it; a crossed/stale-suspect order = ASK, don't act.
+- **Decision-maker:** Roy (standing directive, via supervisor relay).
+- **Authority basis:** Explicit Roy ruling (`#d006`), 2026-07-22.
+- **Context:** Extends `#d005` ([[DECISIONS#D-20260722-03]]) fleet-wide after avoidable races (hive built
+  a retracted then a superseded image; general risk of lanes acting on stale/crossed orders and writing
+  outside their paths).
+- **Hive write-paths declared:** (a) `/home/roycdavies/Development/R2/r2-hive` — the only repo hive
+  commits/pushes; (b) `~/dfr1195-fw-build` (r2-core linked worktree, hive-exclusive) — checkout/reset/build/
+  stash only, never a source commit to core, no gc (shared object store); (c) alfred `~/` build artifacts +
+  `/tmp` scratch; (d) local scratchpad + private agent-memory. Read-only everywhere else.
+- **Alternatives:** Looser per-lane discretion (rejected — produced the races).
+- **Expected consequences:** Fewer wasted/again-superseded actions and no cross-lane tree writes, at the
+  cost of an inbox-drain + order-currency check before each consequential step.
+- **Evidence:** supervisor relay 2026-07-22 (`#d006`); D-20260722-03 (`#d005`); parked `455ae47a`.
+- **Supersedes:** None (extends D-20260722-03).
+
 ### R-20260722-02 — correction to D-20260722-02: esp-rtos 0.3.0 HAS an InterruptExecutor
 
 - **Kind:** Review
