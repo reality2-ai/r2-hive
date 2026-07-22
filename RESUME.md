@@ -36,11 +36,13 @@ D5 persona (composer delivers, reuse-vs-mint theirs), fakesensor=COSINE at disti
 fakesensor was hardcoded (apiary.rs@bee0e996 `phase+=0.4` :88, `sinf` :92). Core first shipped an env-baked
 knob (`dfr1195-fw-wave af0bf87b`: DFR_WAVE=sin|cos + DFR_WAVE_STEP, D4=no-env byte-identical, D5=cos/step) —
 **but Roy RE-HOMED the waveform to the SENTANT layer (not an env-baked plugin knob); af0bf87b SUPERSEDED,
-do-not-build.** Core re-implementing at the sentant layer; **D5 recipe input WILL CHANGE (likely
-sentant-config, not DFR_WAVE)** — HELD for core's new sha + input spec. Other gate unchanged: composer D5
-persona blob (reuse-vs-mint theirs). D5 build fires when core's sentant sha + input spec + composer persona all
-land. BUILD_ID coex.d5cos.0723, table e0e49127 (same DFR1195 class, layout holds). D4 initiator unaffected.
-STANDBY.
+do-not-build.** Core re-layered to the sentant → **`7766f53c`** (dfr1195-fw-wave, supersedes af0bf87b; verified read-only:
+bee0e996 IS ancestor so coex fixes ride; `WaveSourceSentant` owns waveform gen apiary.rs:35/90/104,
+`TickSourcePlugin` = bare shim; **recipe input UNCHANGED** = D4 no-env sin/0.4 byte-identical, D5
+`DFR_WAVE=cos DFR_WAVE_STEP=<step>`). D5 build now gated ONLY on: (1) supervisor RELEASES the hold; (2) Roy's
+EXACT D5 step (core placeholder 0.25); (3) composer D5 persona blob. Reported ready to supervisor. BUILD_ID
+coex.d5cos.0723, table e0e49127 (same DFR1195 class), full rm -rf + differential attest. D4 initiator
+unaffected (ca00c094 delivered). STANDBY.
 **BUILD GOTCHA (owned + memory'd):** first builds gave `2804223c` = EMPTY role (derived acceptor mislabelled) —
 the shared target's incremental cache kept a stale empty `BAKED_ROLE_PROFILE`; 5 targeted cache-busts failed,
 only `rm -rf target` baked the env const. Role proven by the DIFFERENTIAL (`8f5c5701`≠`2804223c`) since the
