@@ -120,8 +120,12 @@ the async executor. **A-vs-B feasibility answered (hive, the blocking input for 
 **FIX = C (core-RATIFIED), = A-prime renamed: move `lora_route_task` to an esp-rtos core1 executor.**
 LoRa stays sync (RAK/LR2021 untouched); isolates the WHOLE LoRa task so it fixes advertise-START AND
 CoC-connect AND ongoing runner-starvation, mechanism-agnostic (a startup-sequencing fix would fix only
-advertise-start, not ongoing CoC — my `:7244` precedent). **A = dead** (InterruptExecutor infeasible +
-absent in esp-rtos 0.3.0). **B (async r2-sx1262) = fleet migration backlog** (core owns the graph: DFR
+advertise-start, not ongoing CoC — my `:7244` precedent). **A = dead** — trouble-host runner shares one
+`stack.build()` borrow with peripheral/central + BleConnector unsafe in ISR. (CORRECTION, owned:
+esp-rtos 0.3.0 DOES have `embassy::InterruptExecutor` `mod.rs:310`; the earlier "no InterruptExecutor"
+claim was wrong. A's death is the Stack-sharing ground, NOT executor absence — and a core0
+InterruptExecutor for LoRa would PREEMPT the runner = worse; the blocker MUST cross to a different CORE
+→ C.) **B (async r2-sx1262) = fleet migration backlog** (core owns the graph: DFR
 xtensa + nrf54-lr2021 + rak4630 + r2-ble, ALL sync embedded-hal 1.0 → async ripples cross-runtime;
 needed for C6 single-core portability).
 
@@ -142,14 +146,16 @@ spawns on a 2nd-core executor, no bound violation; (3) EVERY core0↔lora static
 stall, NOT the starve); confirm esp-rtos 0.3.0 embassy time-driver is multicore. **C ratified for v5,
 B backlog, A dead.**
 
-**GATE (core's, hive AGREES): C-commit HELD until the 2nd-half `9e0b76de` CoC→bit0 lands.** First-half
-CONFIRMED (`:3884` adv prints without `lora_route_task` → loraroute IS the blocker). 2nd-half = laptop
-CoC → does key-10 bit0 light (ceiling 0x21)? **bit0 LIGHTS** → serve_coc/stamp chain proven end-to-end
-minus LoRa → C (keeps that chain on core0) delivers bit0. **bit0 DARK** → a separate serve_coc defect C
-alone won't fix (core fixes that too). **Hive does NOT hold this result** — needs 9e0b76de on metal +
-laptop CoC = Roy grant + composer console; ROUTED to supervisor. Core is spiking the `start_second_core`
-+ per-core embassy executor pattern in parallel (compile-verify + v5 sha + fallback bundle), not
-committing C until the 2nd-half validates the chain. **Canon-cite rule (Roy standing):** grep specs +
+**GATE — mostly GREEN (supervisor, under Roy's live grant): `9e0b76de` flashed on XIAO (sha verified
+both ends).** First-half PASSED (`:3884` adv prints without `lora_route_task` → loraroute IS the
+blocker). 2nd-half listener chain PASSED — composer pumped the TRUE addr (after catching core's
+byte-reversed boot-addr println, fixed `e6ae9cad`; runs 3-4 targeted MIRROR addrs so the listener was
+never validly tested before): `CoC up` + **60 PDUs served + clean close = listener+serve chain
+VERIFIED**. Only the **bit0 numeric read is in flight** (re-run with a 6s pump — CoC serving starves the
+health printer = a **3rd starvation instance, BLE-side**; supervisor relayed to core for a serve-loop
+yield in v5). bit0 lights → whole BLE inbound chain validated minus LoRa → C (keeps that core0 chain) is
+sufficient → core commits the dual-core spike.
+**Dual-core spawn pattern HANDED to core (grounded in esp-rtos-0.3.0 source):** `esp_rtos::start_second_core::<STACK>(p.CPU_CTRL, sw_int.software_interrupt1, stack, move|| Executor::run(spawn lora_route_task))` — int1+CPU_CTRL FREE (main uses only int0 `:406`); closure is `FnOnce+Send` (args Send-verified); ORDER = `esp_rtos::start()` then `start_second_core`; move ONLY lora_route_task, delete the core0 spawn `:869`; `esp_rtos::embassy::Executor` (NOT esp-hal-embassy). **Canon-cite rule (Roy standing):** grep specs +
 cite `DOC §n` before architecture/contract findings — my "r2-sx1262 fleet-shared" was canon
 (unified-architecture). See [[cite-canon-before-claiming-a-finding]].
 

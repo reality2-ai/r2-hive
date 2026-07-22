@@ -163,6 +163,26 @@ It is not a task log and does not replace specifications, ADRs, or code.
   :5041/:224-226/:4588-4597/:7244`; supervisor A-prime-v5 ratification; [RESUME.md](RESUME.md).
 - **Supersedes:** None (refines the A-prime lean in RESUME; A-prime == C).
 
+### R-20260722-02 — correction to D-20260722-02: esp-rtos 0.3.0 HAS an InterruptExecutor
+
+- **Kind:** Review
+- **Decision reviewed:** D-20260722-02
+- **Reviewer/date:** hive, 2026-07-22 (grounded in esp-rtos-0.3.0 source)
+- **Observed outcome:** D-20260722-02's A-death rationale stated "no InterruptExecutor in esp-rtos 0.3.0."
+  That is **wrong** — `esp-rtos-0.3.0/src/embassy/mod.rs:310` defines `pub struct InterruptExecutor<SWI>`
+  with `pub fn start(&'static mut self, priority: Priority) -> SendSpawner` (`:380`).
+- **Correction:** A stays **dead**, on the correct ground: the trouble-host runner shares one
+  `stack.build()` borrow with peripheral/central (can't split across executors) + BleConnector unsafe in
+  ISR. A core0 InterruptExecutor for LoRa would PREEMPT the runner (worse, not better) — the block must
+  cross to a different CORE, which is exactly C. Conclusion unchanged; only the sub-reason corrected.
+- **Dual-core pattern handed to core (grounded):** `start_second_core::<STACK>(p.CPU_CTRL,
+  sw_int.software_interrupt1, &'static mut Stack, FnOnce()+Send)` running an `esp_rtos::embassy::Executor`
+  that spawns only `lora_route_task`; int1+CPU_CTRL free (`main.rs:406` uses int0 only); scheduler-start
+  before second-core; core0 BLE/wifi/espnow/io unchanged.
+- **Evidence:** `esp-rtos-0.3.0/src/lib.rs:355` (`start_second_core`), `src/embassy/mod.rs:185/217/310/380`;
+  dfr1195 `main.rs:406` (int0 only), `:869` (core0 lora spawn to delete).
+- **Finding:** revise (A-death sub-reason corrected). D-20260722-02 outcome (C for v5, A dead, B backlog) stands.
+
 ### R-20260722-01 — review of D-20260722-01: bit layout should be enum-ordinal
 
 - **Kind:** Review
