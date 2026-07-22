@@ -155,6 +155,22 @@ VERIFIED**. Only the **bit0 numeric read is in flight** (re-run with a 6s pump �
 health printer = a **3rd starvation instance, BLE-side**; supervisor relayed to core for a serve-loop
 yield in v5). bit0 lights → whole BLE inbound chain validated minus LoRa → C (keeps that core0 chain) is
 sufficient → core commits the dual-core spike.
+**FIX C LANDED + xtensa-compile-verified by core = dfr1195-fw `9c08c89f`** (hive source-verified the C
+block clean: `lora_route_task` spawned ONLY in the core1 `esp_rtos::embassy::Executor` at `main.rs:893`
+under `#[cfg(loraroute)]`; old core0 spawn GONE; non-loraroute `lora_task` stays core0; order
+`esp_rtos::start()` `:406` before `start_second_core`; args Send). Stack path was MY paraphrase error —
+`esp_hal::system::Stack`, not `esp_rtos::Stack` (core caught + corrected; owned). **Early C-only flash
+RECOMMENDED (hive call) + grant routed to supervisor** — decisive falsifier for the highest-risk change
+(virgin dual-core): `:3884` prints WITH loraroute present = first metal test of C's real mechanism;
+orthogonal to the health defect (`:3884` is a startup print, pre-CoC); same board+laptop-CoC captures
+core's HELD DATA_RX-flood datum. v5 = `9c08c89f` + `e6ae9cad` (println) + an OWED health-emitter-survival
+fix (core traced to `io_task` select(Timer50ms, DATA_RX.receive()) starving under a DATA_RX flood; held
+for the metal datum, no 4th guess). **C-image build BLOCKED on the persona-bake recipe:** on alfred
+`~/dfr1195-fw-build@9c08c89f`, positive-controlled greps show NO `baked_persona` cargo feature (my v4
+recipe mislabelled it), no `include_bytes`, no baked ELF symbol — the per-board persona is a POST-BUILD
+inject (persona@45728 + masked base_digest) I can't reproduce from the worktree alone. Asked composer
+(provenance owner, reproduced v4 3 ways) for the exact reproducible build+inject recipe; will NOT
+blind-rebuild the D4 `0x12000` persona-offset brick path. Grant-fetch runs parallel (no net delay).
 **Dual-core spawn pattern HANDED to core (grounded in esp-rtos-0.3.0 source):** `esp_rtos::start_second_core::<STACK>(p.CPU_CTRL, sw_int.software_interrupt1, stack, move|| Executor::run(spawn lora_route_task))` — int1+CPU_CTRL FREE (main uses only int0 `:406`); closure is `FnOnce+Send` (args Send-verified); ORDER = `esp_rtos::start()` then `start_second_core`; move ONLY lora_route_task, delete the core0 spawn `:869`; `esp_rtos::embassy::Executor` (NOT esp-hal-embassy). **Canon-cite rule (Roy standing):** grep specs +
 cite `DOC §n` before architecture/contract findings — my "r2-sx1262 fleet-shared" was canon
 (unified-architecture). See [[cite-canon-before-claiming-a-finding]].
