@@ -100,8 +100,12 @@ admit ~30s ≫ W=8s; sustained-continuous LoRa needs a DENSE bench LoRa data str
 nbrs>0, not a stamp change. (3) ESP-NOW ~45s — core CORRECTED "raise the interval": NO safe knob.
 `HB_PERIOD_MS=2000` (`:1402`) is the load-bearing conductor-PLL/PCO period (must divide the 60s window),
 MUST NOT shorten for a display. But the HB already broadcasts on ESP-NOW every 2s
-(io_task→DATA_TX→espnow, `:1677`) — 2s ≪ W=8s — so the 45s is likely a `can_hear`/`hive_for_mac`
-NEIGHBOUR-LEARNING gate (XIAO drops D4's ESP-NOW until it learns D4's MAC↔hive), not cadence. Density
+(io_task→DATA_TX→espnow, `:1677`) — 2s ≪ W=8s. My neighbour-learning-gate hypothesis was REFUTED by
+core: `can_hear` is a no-op on the coex set (`#[cfg(all(not(meshmask),not(routetest)))]`→true, `:4857`),
+`MESH_ADMIT` stamps every recv. So the 45s is a **RECEPTION/coex-airtime** question (is XIAO actually
+receiving D4's 2s HB over the air?) — possibly the 2.4GHz coex contention the proof exists to surface
+(present≠reached one layer down: emitted@2s ≠ received@2s under BLE+WiFi-coex+LoRa-RX desense). Metal
+resolves: XIAO ESP-NOW recv cadence vs D4 TX cadence (OTA_ACTIVE `:5973` / coex TX relief). Not cadence. Density
 lever = D4 `fakesensor`; if cadences still don't fit W=8s WITH fakesensor → per-bearer W (Roy-visible),
 NOT spamming the conductor. Core confirms §4.3 LoRa floor + per-bearer-W once bit0 lights.
 v4 = core listener + beacon-stamp; hive drives dense LoRa traffic. **LoRa-floor RULING (supervisor): option (a)
