@@ -155,6 +155,25 @@ VERIFIED**. Only the **bit0 numeric read is in flight** (re-run with a 6s pump �
 health printer = a **3rd starvation instance, BLE-side**; supervisor relayed to core for a serve-loop
 yield in v5). bit0 lights → whole BLE inbound chain validated minus LoRa → C (keeps that core0 chain) is
 sufficient → core commits the dual-core spike.
+**XIAO C-ONLY IMAGE BUILT + ATTESTED + HANDED (2026-07-22) — awaiting Roy-pre-granted flash.** Roy
+pre-granted "flash the XIAO with C-only"; supervisor writes the grant citing it, composer flashes, XIAO
+only (D4 stays v4 control + apiary source). Built from PINNED `9c08c89f` (detached; e6ae9cad ancestor =
+C+println). **ELF sha256 `455ae47a634ddae7f23e515d8c00f4514e9aff2f40eee537a687c1132beac753`**, alfred
+`~/xiao-Conly-9c08c89f-455ae47a.elf`; BUILD_ID `coex.Conly.0722`; features
+`bridge,ble,benchsf7,baked_persona,loratcxo,xiao`; table `d4-reflash-partitions-e0e49127.csv`
+(app@0x20000). **Persona attested on BAKED bytes ex-ELF @44896/336B (baked==input):** tg_hash
+`0x6E31DEC6` / hive_id **`0x8C15B0C2` = XIAO, collision-safe** (≠ D4 `0xC434FAFC`); recompute agrees;
+baked = no 0x12000 write. **C PROVEN IN-BINARY (nm):** `start_core1_run::<start_second_core_with_stack_guard_offset<16384,__embassy_main_task…>>`
+spawns `lora_route_task` on CPU core1; espnow_task present; R2ScanHandler absent (observer gated). masked
+base_digest `2618ce01…`. **Caveat (core, EXPECTED):** health dies post-CoC (96B frame, no buffer fix) →
+bit0/0x25 UNREADABLE on this image; it validates :3884-with-LoRa + cross-core LoRa RX + CoC-listener —
+the C de-risk. bit0/0x25 = the v5 (`105eb4aa` = C+println+health-buffer 96→160) flash next.
+**Build-env note:** stashed a badly-dirty alfred worktree (r2-usb-pair deleted, baked_persona stripped —
+NOT mine; label `hive-preCbuild-20260722`, recoverable) before a pinned detached checkout. My earlier
+"no baked_persona feature" was a DIRTY-TREE grep read as a source fact (composer caught it via
+`git show HEAD:`); owned — see [[positive-control-the-tree-not-just-the-tool]]. Sourced the esp GCC via
+`~/Development/homelab/export-esp.sh` (linker `xtensa-esp32s3-elf-gcc` off-PATH in non-interactive ssh).
+
 **FIX C LANDED + xtensa-compile-verified by core = dfr1195-fw `9c08c89f`** (hive source-verified the C
 block clean: `lora_route_task` spawned ONLY in the core1 `esp_rtos::embassy::Executor` at `main.rs:893`
 under `#[cfg(loraroute)]`; old core0 spawn GONE; non-loraroute `lora_task` stays core0; order
