@@ -41,10 +41,13 @@ bee0e996 IS ancestor so coex fixes ride; `WaveSourceSentant` owns waveform gen a
 `TickSourcePlugin` = bare shim; **recipe input UNCHANGED** = D4 no-env sin/0.4 byte-identical, D5
 `DFR_WAVE=cos DFR_WAVE_STEP=<step>`). **Supervisor UNHELD D5** (7766f53c satisfies Roy's layer
 ruling). D5 build now gated ONLY on **composer D5 persona blob** (custody question in flight); fires on its
-delivery. Open value: **exact DFR_WAVE_STEP** — supervisor wrote `<other>`, #d014 says Roy sets it, core
-placeholder 0.25 (1.6× D4 period); absent a Roy-named step by persona time I default to 0.25 (surfaced to
-supervisor for override, not silently filled). BUILD_ID coex.d5cos.0723, table e0e49127 (same DFR1195 class),
-full rm -rf + differential attest. D4 initiator unaffected (ca00c094 delivered, flash #d011). STANDBY.
+delivery. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+(supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
+alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
+differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
+moment composer hands the D5 persona. BUILD_ID coex.d5cos.0723, table e0e49127 (same DFR1195 class), full attest
+(persona baked==input + identity, masked base_digest, C-in-binary, fakesensor, cos-vs-sin differential). D4
+initiator unaffected (ca00c094 delivered, flash #d011). STANDBY — persona is the last gate.
 **BUILD GOTCHA (owned + memory'd):** first builds gave `2804223c` = EMPTY role (derived acceptor mislabelled) —
 the shared target's incremental cache kept a stale empty `BAKED_ROLE_PROFILE`; 5 targeted cache-busts failed,
 only `rm -rf target` baked the env const. Role proven by the DIFFERENTIAL (`8f5c5701`≠`2804223c`) since the
