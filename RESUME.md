@@ -1,11 +1,16 @@
 # RESUME — r2-hive
 
-Updated 2026-07-22. `main` clean + pushed. Active work: tri-bearer coex proof. v5 `23e17d1c` resident on
-XIAO (composer btmon at v5). **v6-DIAG next:** core pushed `36811c9b` (child of e4031efd; cocdiag CoC-rx
-instrumentation + fail-open Err for the bit0 hunt), read-only VERIFIED. **HELD per #d006:** (1) awaiting
-supervisor's build order + Roy grant naming `36811c9b`; (2) ASKED core to confirm the XIAO feature set —
-core's list adds `fakesensor` (observer→emitter, pulls otaengine/loraroute) vs the v5 observer set; won't
-build on the role change unconfirmed. Then same attest pipeline as v5. Key rulings in `DECISIONS.md` (D-20260721-01..03, D-20260722-01, R-20260722-01).
+Updated 2026-07-22. `main` clean + pushed. Active work: tri-bearer coex proof. **bit0 ROOT-CAUSED = composer's
+pump framing** (missing 2-byte length prefix) — board/firmware canon-compliant → C + v5 VALIDATED. v5
+`23e17d1c` resident on XIAO; composer re-pumping v5 with fixed framing (if 0x25 greens, no run-6 flash).
+**v6-DIAG BUILT + ATTESTED + HELD:** XIAO `2c5d41ef` from PINNED `36811c9b` (byte-identical) = e4031efd +
+cocdiag CoC-rx instrumentation + fail-open Err. Feature set **B** (supervisor-ruled minimal-delta) =
+`bridge,ble,benchsf7,baked_persona,loratcxo,xiao,cocdiag` — NO fakesensor (that was D4-flavored carry-over;
+XIAO stays observer). Attest: persona baked @49552 hive `0x8C15B0C2` (collision-safe); C-in-binary
+(`start_core1_run<start_second_core<16384>>`); cocdiag TOOK (4 `DIAG-RX` strings); masked `a8df6619…`.
+**ARTIFACT HELD** — do NOT stage for flash without a new order (backup diag if the v5 re-pump fails to
+green 0x25). Worktree re-dirtied AGAIN pre-checkout despite the hive-exclusive ruling (mutation source
+still active, not a lane) — `git reset --hard` + byte-verify handled it; re-flagged. Key rulings in `DECISIONS.md` (D-20260721-01..03, D-20260722-01, R-20260722-01).
 
 ## Safety
 
