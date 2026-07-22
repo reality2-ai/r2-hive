@@ -94,14 +94,17 @@ the clean pipe, or a framed CDC multiplex) — a follow-up, not a flag.
   exclude prod; heartbeat LED untouched. Low priority.
 - **DFR1195 display mislabel (low/cosmetic):** screen title shows 'hive' on two lines w/ different
   values — relabel each field (hive_id / TG / wire); report the actual two values.
-- **BLE bit0 concurrency defect (deferred, D4-suffices) — root nailed, core's fix:** blocks the full
-  `0x25`. Two parts: (A) single slot `HostResources<DefaultPacketPool,1,1>` (`main.rs:3759`); (B) the
-  provider election is a HARDCODED 2-board M8b scaffold `M7_PROVIDER_HIVE=0x0dcadbf8` (ACM11, `:4337`)
-  — neither coex board matches, so both are non-providers and the engine injects `0x0dcadbf8` as a
-  synthetic peer (`:3833`), cycling NEG toward a ghost provider not on the bench. `advertise_beacon=
-  true` so accept IS on, yet inbound never stamps bit0 — the live-console accept→serve_coc→admit trace
-  is core's (its tty). Fix (core): retire the M7 hardcoded election (real election / always-accept
-  phone path) + bump slots + esp-radio multi-conn (RAM). Also: print own BLE addr at boot (`:3777`).
+- **BLE bit0 defect (deferred, D4-suffices) — root corrected by core; RAM bump DROPPED:** blocks the
+  full `0x25`. NOT the slot sizing (`HostResources<_,1,1>` suffices with 1-dials/1-accepts). Real root:
+  (BUG1) provider election hardcoded to the M8b scaffold `M7_PROVIDER_HIVE=0x0dcadbf8` (`:4337`) —
+  neither coex board matches → both non-providers → both inject the ghost (`:3833`) → both JOINER →
+  both `central.connect` an absent board → endless retry, nobody accepts. (BUG2) joiner dials a
+  hive-derived addr `[hive_bytes,0x52,0xC0]` (`:4030`), incompatible with the now-HWRNG-random BLE
+  addr (`:3768`) — must dial the SCANNED BdAddr. **Fix split:** core = engine election + role over the
+  real pair (lowest hive XIAO=provider, D4=joiner) + retire M7; **hive = scan-address plumb (DESIGN, core
+  lands):** SCAN_OBS today carries only hive_id (`:4449` `(u32,bool,u8,Option<u8>)`), no BdAddr — a NEW
+  capture (grab addr at `R2ScanHandler`, widen `SCAN_OBS`/`push_scan_obs`, joiner dials scanned addr,
+  drop the 3 synthetic `push_scan_obs`). Also: print own BLE addr at boot (`:3777`).
 - **RAK tx_power −9dBm** (30cm; as923_nz default +20 saturates RX) — a core change to rak
   `lora_leaf_config:1219`. **AGENTS.md doc-drift:** cites `docs/dfr1195-partitions.csv` (older); build
   uses `platforms/dfr1195/partitions.csv` (r2cfg) — both app@0x20000; recommend updating.
