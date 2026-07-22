@@ -32,10 +32,15 @@ FULLY ATTESTED: `ef26d7d0…`** (BUILD_ID coex.d4init3.0723, from ede6ccf3 + DFR
 initiator; DIFFERENTIAL ef26d7d0 ≠ empty 1e58ff74, both from-scratch = clean; persona 0xC434FAFC baked==input
 0ad4a84d @46596 unique; masked base_digest `e13fa273…` mask [46596,46932); C-in-binary core1 + lora_route_task
 + espnow_task; fakesensor apiary×3, RXDIAG=0; list-gap fix + falsifier string positive-controlled in binary).
-**SUPERSEDES ca00c094 + 8f5c5701** (do-not-flash). alfred:`~/d4-init3-ede6ccf3.elf`. Delivered
-supervisor+composer; **flash = #d011, composer two-party verify then flash, bit0-BOTH retest** (expect console
-"expects hive 8c15b0c2 -> rbid 55ca" = gap closed → 55ca resolves → SCAN_RESOLVED → L3 admit → bit0). XIAO
-acceptor unchanged (`d12ddcc8`).
+Iter3 ef26d7d0 superseded by **iter-4a
+`9e9ddb35…`** (from `a592ae70`, (a) fix: capture GATED on SCAN_RESOLVED :4419/:4681 + resolved-hive CoC label
+:4635 — no capture against a stale/empty registry; diff vs ede6ccf3 = 33ins/22del main.rs only). Full attest:
+b[6]=1 initiator; differential 9e9ddb35 ≠ empty 78c15133 (both from-scratch); persona 0xC434FAFC baked==input
+0ad4a84d @46612 unique; masked base_digest `9463a4a7…` mask [46612,46948); C-in-binary core1 + lora_route_task
++ espnow_task; apiary×3; RXDIAG=0; falsifier string present; (a) fix positive-controlled pre-build.
+**SUPERSEDES ef26d7d0/ca00c094/8f5c5701** (do-not-flash). alfred:`~/d4-init4a-a592ae70.elf`. Delivered
+composer+supervisor; **flash #d011, composer two-party verify, bit0-BOTH retest.** XIAO acceptor unchanged
+(`d12ddcc8`).
 **#d014 D5 COSINE second-sensor (Roy, parallel — D4 FIRST):** base bee0e996, D4 sensor set minus role blob,
 D5 persona (composer delivers, reuse-vs-mint theirs), fakesensor=COSINE at distinct freq. **HELD — recipe approach FLIPPED by Roy:**
 fakesensor was hardcoded (apiary.rs@bee0e996 `phase+=0.4` :88, `sinf` :92). Core first shipped an env-baked
