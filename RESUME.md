@@ -90,10 +90,18 @@ UNIFY (supervisor ruled):** core landed value-print (4f66adf4) + then CONSOLIDAT
 7766f53c merged into iter-5 line). **All 5 families + da73508e positive-controlled on 471f0cf7:** push_scan_obs×3
 (was 0), SCAN_RESOLVED×7, domain-sep r2-coc-ctrl-v1, value-print `APIARY value={value}` (signed **i16** — parse
 `value=-?\d+`), WaveSourceSentant×8 + DFR_WAVE×7, da73508e in KNOWN_HIVE_IDS (pair now resolves D5 = receiver-side
-gap closed by construction, my argument). **BUILDING ALL THREE from 471f0cf7** (b21zv5lqc, 7-build: D4+XIAO
-role-diffs, D5 wave-diff cos≠sin [guards the cosine→sine regression trap] + role-diff). Discarded the in-flight
-4f66adf4 pair (OPT-1 = one provenance line, kills branch-skew). D4 sine = wave-sentant default. Delivering 3 shas
-to composer on completion. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED from 471f0cf7**
+(BUILD_ID coex.iter5.0723, 7 builds from-scratch, all 4 differentials pass):
+- **D4 initiator `c51ad8a6…`** (`~/d4-init5.elf`): b[6]=1 init ≠empty 725ae1ff; 0xC434FAFC @46912; masked
+  `bb98625d…`; apiary+espnow+lora+core1; value-print `APIARY value=`; sine-default.
+- **XIAO acceptor `90d3f489…`** (`~/xiao-acc5.elf`): b[4]=0/b[6]=0 acc ≠empty f5666376; 0x8C15B0C2 @46048; masked
+  `518722c7…`; espnow+lora+core1 (observer, no apiary/WaveSentant = correct); value-print N/A.
+- **D5 cosine `11f2d2ef…`** (`~/d5-cos5.elf`, SUPERSEDES 656cab50): b[4]=1/b[6]=0 sensor ≠empty 25398c06; **WAVE
+  cos≠sin 8ccaf1f6 = cosine took NOT regressed**; da73508e @47016; masked `d8b56c86…`; WaveSourceSentant×6;
+  value-print `APIARY value=`.
+- ALL: domain-sep + falsifier baked, da73508e in KNOWN_HIVE_IDS (pair resolves D5), table e0e49127. value-print
+  SIGNED i16 (log parse `value=-?\d+`). Delivered composer+supervisor. **Flash: PAIR (D4+XIAO) #d011 standing;
+  D5 awaits fresh Roy word** (#d014 grant consumed by 656cab50). Discarded 4f66adf4 pair (one provenance line). **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
