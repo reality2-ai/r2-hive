@@ -80,7 +80,15 @@ FLOOR: LoRa emit is airtime-duty-bound (SF7 nbrs=0 ~10% → ~1/16-30s) → even 
 admit ~30s ≫ W=8s; sustained-continuous LoRa needs a DENSE bench LoRa data stream (hive drives) or
 nbrs>0, not a stamp change. (3) ESP-NOW ~45s = peer emit cadence (per-RX stamp faithful) — confirm/raise
 the espnow HB TX interval (not airtime-bound). v4 = core lands persistent listener + un-gate beacon
-stamp + espnow cadence; hive drives dense LoRa traffic if needed.
+stamp + espnow cadence; hive drives dense LoRa traffic. **LoRa-floor RULING (supervisor): option (a)
+— dense real apiary data** (#d003 sine sensor ~1.5/s), W=8s stays honest. Build gap found:
+`apiary_bus_task` is `#[cfg(fakesensor)]` (`:715`); the coex `bridge,ble` build never emits apiary →
+**v4 D4 must add `fakesensor`** (pulls loratcxo/loraroute; espnow stays via bridge; apiary replaces
+engine_bus_task); XIAO stays observer. Duty math (hive calc): SF7/29B ToA ≈87ms → 10% duty nbrs=0 →
+max ≈1.15/s (~870ms) ≪ W=8s → bit2 sustains; verifying exact ToA + §4.3 throttle with core (if max-legal
+< 1/8s the floor is real → escalate per-bearer W, Roy-visible). **Honest claim scope:** PASS =
+"0x25 sustained under bench apiary traffic", NOT "idle LoRa sustains 8s" (field-idle bit2 flickers =
+known+accepted). nbrs>0 (post-D5/#d004) = free bonus, not a dependency.
 
 **USB-Android bridge SYNC-silence (supervisor's "2nd coex bug") — RULED not-foldable, v2 proceeds.**
 The SYNC responder is `xiao_bridge_task`, `#[cfg(feature="xiaobridge")]` (`main.rs:727`); the coex
