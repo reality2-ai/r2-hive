@@ -13,10 +13,12 @@ at the CoC boundary — this BlueZ SEQPACKET is RAW-PDU passthrough (no sdu_len 
 returned `Ok(n=1)`, serve_coc `n<2` silent-dropped. FIX = composer pump sends SDU `03 00 01 00 41`
 (sdu_len 3 + R2 [01 00 41]) → `Ok(n=3)` → stamp → bit0 → 0x25. **PUMP-SIDE, no hive/firmware change.**
 Canon: R2-BLE-CONFORMANCE CT-L2CAP vectors + §6.4 (normative) beat MANUFACTURER-GUIDE:241 (informative) —
-bare SEQPACKET was conformant; a **prefix-always** spec proposal is Roy-gated (dfr1195 already prefix-always
-→ NO core change if ratified). v6 flashes ONLY if composer's `coc-sdulen.py` re-test on resident v5 fails
-to stamp (then it localizes Ok(n)) or the radio-domain branch fires. C + v5 VALIDATED (bit0 never a
-firmware/dual-core bug). Worktree re-dirtied AGAIN pre-checkout despite the hive-exclusive ruling
+bare SEQPACKET was conformant; **prefix-always RATIFIED by Roy** (link-level, both modes, reject-bare) →
+dfr1195 already prefix-always (serve_coc sends+parses) so board is now canon-CORRECT, NO core change. v6
+flashes ONLY if composer's `coc-sdulen.py` re-test on resident v5 fails to stamp — and the **radio-domain
+branch is NEAR-EXCLUDED** (btmon proved 6 inbound credit INDs = 6 app-drains reached the host stack;
+rx.receive returns `Ok(n<2)`), so "neither host.rs:422 nor DIAG-RX" is very unlikely. C + v5 VALIDATED
+(bit0 never a firmware/dual-core bug). Worktree re-dirtied AGAIN pre-checkout despite the hive-exclusive ruling
 (mutation source still active) — `git reset --hard` + byte-verify handled it; re-flagged. Key rulings in `DECISIONS.md` (D-20260721-01..03, D-20260722-01, R-20260722-01).
 
 ## Safety
