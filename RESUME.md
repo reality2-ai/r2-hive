@@ -50,9 +50,14 @@ sha e6108006 336B verified; wire da73508e / hive_id 4d49b381 collision-free; ens
 blocked ONLY on a supervisor ruling:** composer ALSO shipped `d5-persona.bin.role` (48B RPF1 b[4]=1 b[6]=0 =
 role=sensor) — but #d014 ratified "sensor set MINUS role blob" (derived, like D4 fakesensor d818ffda). Supervisor
 **RULED BAKE** (#d014 "minus role blob" meant no INITIATOR blob; b[6]=0 keeps D5 acceptor-only, no scan-dial).
-**D5 BUILDING** (bo7x18a1m, 3-build differential: A=cos/0.25+persona+sensor-role deliverable, B=sin+role wave
-control, C=cos+no-role role control; A≠B proves DFR_WAVE took, A≠C proves role took). Delivering sha + full
-attest on completion; flash after blerole clears + Roy grant. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+**D5 COSINE SENSOR BUILT + FULLY ATTESTED: `656cab50…`** (from 7766f53c, BUILD_ID coex.d5cos.0723; features
++DFR_WAVE=cos DFR_WAVE_STEP=0.25 +persona +sensor role). **WAVE differential** A(cos)656cab50 ≠ B(sin)61a5578d
+→ DFR_WAVE took (cosine, not sine). **ROLE differential** A ≠ C(no-role)3d6e9ec1 → role took; BAKED_ROLE_PROFILE
+`[RPF1,1,2,0]` b[6]=0 sensor/acceptor. All 3 from-scratch = clean. Persona baked==input e6108006 @45916 unique =
+wire da73508e/hive_id 4d49b381. Masked base_digest `14db136e…` mask [45916,46252). C-in-binary core1 +
+lora_route_task + espnow_task; WaveSourceSentant×6 (cosine gen at sentant layer); apiary×3; RXDIAG=0. table
+e0e49127. alfred:`~/d5-cos-role.elf`. Delivered composer+supervisor; **flash post-blerole-clear + Roy grant**
+(composer two-party verify). Core flagged: KNOWN_HIVE_IDS receiver-side needs da73508e for D5 mesh resolve. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
