@@ -14,12 +14,20 @@ features `bridge,ble,benchsf7,baked_persona,fakesensor` (v4 D4 apiary set; fakes
 loratcxo/loraroute/otaengine; NO `xiao`, NO explicit loratcxo); table `d4-reflash-partitions-e0e49127.csv`;
 attest = baked-persona `0xC434FAFC` + C-in-binary + fakesensor-took (apiary_bus_task) + loratcxo differential.
 Still #d005/#d006 preflight (drain+confirm+pinned-sha+byte-clean) at build time.
-**CONDITIONAL HIVE RADIO-DOMAIN workitem (armed, pending verdict):** composer extracting XIAO mesh-admit
-gap stats from run-5b. IF systematic >8s ESP-NOW RX gaps show while D4 HB emits @2s → 2.4GHz coex reception
-desense = hive domain. Scope: LoRa is sub-GHz (SX1262, NOT the contender); BLE+ESP-NOW share the one
-2.4GHz esp-radio → coex scheduler starves ESP-NOW RX under BLE (adv+CoC+runner). Candidates: coex
-time-slice policy, WiFi modem power-save, ESP-NOW listen-interval, BLE adv/conn interval. Need composer's
-split (XIAO RX-Δ vs D4 TX-Δ) to confirm reception-miss not emission-gap. HOLD until the verdict (Roy/supervisor).
+**HIVE RADIO-DOMAIN desense — MECHANISM DELIVERED (2026-07-22, critical path).** Composer run-5b confirmed
+XIAO RX-blind bursts (all-or-nothing whole-window, quantized 7/14/21/28s, ~29s under CoC, ambient no-BLE
+39-53%). **ROOT (code-grounded, NOT power-save): the vestigial M8c WiFi-SoftAP data-plane JOIN scans the
+shared 2.4GHz radio off ESP-NOW's ch1.** Chain: `negotiation.rs:608` join_provider → `main.rs:5035`
+DATA_PLANE_JOIN → `wifi_task:7655` connect_async("r2-tn-form") → `serve_ap=false` unconditional (`:611`,
+nobody serves it) → esp-radio ACTIVE-SCANS all channels (`wifi_start_scan`) → fail → retry 2s → radio off
+ch1 (`set_channel(1):6017`) → periodic ESP-NOW RX-blind. Ambient explained: M7-ghost self-injection makes
+both boards joiners → join fires with no real peer/CoC. **REFUTED (verified):** modem power-save
+(esp-radio 0.18 default `PowerSaveMode::None`, `wifi/mod.rs:41`; firmware never sets Modem). **Decisive
+confirm (composer):** XIAO console spamming `"data plane join failed … retry 2s"` — same check on D4 =
+the D4-TX-gap hypothesis (same firmware → same root, symmetric). **FIX (design-with-core, core lands):**
+suppress the WiFi data-plane join in the ESP-NOW-mesh coex build (join_provider a no-op / never fire
+DATA_PLANE_JOIN — the true mesh has no SoftAP by design, `:607`) so the radio stays on ch1. HOLD for the
+console confirm + core co-design.
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
