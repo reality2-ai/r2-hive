@@ -78,9 +78,18 @@ confirms the gate is active. (False-positive trap flagged: a raw substring COUNT
 those are `DummyHandler` drop symbols, not R2ScanHandler — the demangled NAME is decisive, same
 verify-what-it-instantiates discipline as loratcxo.) **So scan-starvation is REFUTED for the shipped
 image → advertise is blocked BEYOND the scan** (advertise() HANGS — no "NEG provider adv ERR" print).
-Core re-traces adv-start wiring (`peripheral.advertise().await` in the join3 arm `:4051` — runner
-polling / controller-not-ready / coex resource at advertise-start). Acceptance still: bit0 → `0x25`
-under D4 apiary traffic (core §4.3 post-bit0).
+Advertise blocked beyond the scan.
+**Hive coex read (my domain) — REFRAME: likely EXECUTOR starvation, not 2.4GHz radio coex.** Evidence:
+(1) coex build is STA with `wifi_task` idle (waits on `DATA_PLANE_JOIN` `:7580`, never fires) — WiFi
+not the contender; (2) esp-radio 0.18 exposes NO runtime BLE-adv-priority knob (coex-config fix
+unavailable); (3) advertise-with-coex was M3-verified (`:3735`) = not a hard limit; (4) the
+cocbench(advertises)-vs-coex(silent) differentiator is **`loraroute`**, and LoRa is sub-GHz (no 2.4GHz
+BLE contention); (5) `:7244` documents the trouble-host BLE runner starved on the ONE esp-rtos executor
+(`:327`) by a blocking op → `lora_route_task`'s blocking SX1262 SPI hogs it → `runner.run()` never polls
+→ advertise never STARTS (silent, both v3+v4). **Discriminator:** composer's `:3879` — HANG (silent) =
+executor starvation; ERR print = radio coex. **Fix if executor** (core lands, hive advises): BLE runner
+on a higher-priority esp-rtos InterruptExecutor / de-block the SX1262 SPI / yield in the LoRa RX loop —
+NOT an esp-radio knob. Offered a drop-loraroute diagnostic build. Acceptance still: bit0 → `0x25`.
 
 **Prior (v2) result:** XIAO key-10 = `0x24` = bit2 LoRa | bit5
 WifiMesh CONCURRENT in one frame. `loratcxo`/`xiao` fix **proven** — LoRa+ESP-NOW coex on the S3 is
