@@ -8,9 +8,16 @@ cocdiag CoC-rx instrumentation + fail-open Err. Feature set **B** (supervisor-ru
 `bridge,ble,benchsf7,baked_persona,loratcxo,xiao,cocdiag` — NO fakesensor (that was D4-flavored carry-over;
 XIAO stays observer). Attest: persona baked @49552 hive `0x8C15B0C2` (collision-safe); C-in-binary
 (`start_core1_run<start_second_core<16384>>`); cocdiag TOOK (4 `DIAG-RX` strings); masked `a8df6619…`.
-**ARTIFACT HELD** — do NOT stage for flash without a new order (backup diag if the v5 re-pump fails to
-green 0x25). Worktree re-dirtied AGAIN pre-checkout despite the hive-exclusive ruling (mutation source
-still active, not a lane) — `git reset --hard` + byte-verify handled it; re-flagged. Key rulings in `DECISIONS.md` (D-20260721-01..03, D-20260722-01, R-20260722-01).
+**ARTIFACT HELD → LIKELY STAND-DOWN.** bit0 root refined (core, corrections owned): **double length-framing**
+at the CoC boundary — this BlueZ SEQPACKET is RAW-PDU passthrough (no sdu_len add/strip); rx.receive
+returned `Ok(n=1)`, serve_coc `n<2` silent-dropped. FIX = composer pump sends SDU `03 00 01 00 41`
+(sdu_len 3 + R2 [01 00 41]) → `Ok(n=3)` → stamp → bit0 → 0x25. **PUMP-SIDE, no hive/firmware change.**
+Canon: R2-BLE-CONFORMANCE CT-L2CAP vectors + §6.4 (normative) beat MANUFACTURER-GUIDE:241 (informative) —
+bare SEQPACKET was conformant; a **prefix-always** spec proposal is Roy-gated (dfr1195 already prefix-always
+→ NO core change if ratified). v6 flashes ONLY if composer's `coc-sdulen.py` re-test on resident v5 fails
+to stamp (then it localizes Ok(n)) or the radio-domain branch fires. C + v5 VALIDATED (bit0 never a
+firmware/dual-core bug). Worktree re-dirtied AGAIN pre-checkout despite the hive-exclusive ruling
+(mutation source still active) — `git reset --hard` + byte-verify handled it; re-flagged. Key rulings in `DECISIONS.md` (D-20260721-01..03, D-20260722-01, R-20260722-01).
 
 ## Safety
 
