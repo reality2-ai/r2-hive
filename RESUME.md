@@ -93,6 +93,10 @@ the clean pipe, or a framed CDC multiplex) — a follow-up, not a flag.
   exclude prod; heartbeat LED untouched. Low priority.
 - **DFR1195 display mislabel (low/cosmetic):** screen title shows 'hive' on two lines w/ different
   values — relabel each field (hive_id / TG / wire); report the actual two values.
+- **BLE concurrent central+peripheral (deferred, D4-suffices):** XIAO refuses inbound BLE centrals
+  while its NEG engine runs central-out. Root = `main.rs:3759 HostResources<DefaultPacketPool, 1, 1>`
+  (trouble-host, 1 conn/1 channel) — single slot consumed by central-out. Fix = bump conn+channel
+  counts (core edit) + esp-radio controller N-conn config + RAM check on the coex build.
 - **RAK tx_power −9dBm** (30cm; as923_nz default +20 saturates RX) — a core change to rak
   `lora_leaf_config:1219`. **AGENTS.md doc-drift:** cites `docs/dfr1195-partitions.csv` (older); build
   uses `platforms/dfr1195/partitions.csv` (r2cfg) — both app@0x20000; recommend updating.
