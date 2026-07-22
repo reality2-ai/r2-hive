@@ -179,8 +179,9 @@ AUTHORED there ("commit:" entries) = it's a STANDALONE clone where CORE lands, s
 working live in the same clone I build in. **Supervisor RULED `~/dfr1195-fw-build` hive-exclusive for
 WRITES** (2026-07-22); my `git reset --hard <sha>` + byte-verify preflight stays (defense in depth,
 mutation treated as live hazard). Stashes `hive-preCbuild` (main.rs −1213 + r2-core/cbor.rs +
-tools/r2-bootstrap + 23 files) + `hive-preV5build` (33-line) LIKELY core's uncommitted WIP — RECOVERABLE,
-NOT dropped; asked core to reclaim (core may need a separate landing clone). Earlier "no baked_persona feature" was a DIRTY-TREE grep read as source
+tools/r2-bootstrap + 23 files) + `hive-preV5build` (33-line) LIKELY core's uncommitted WIP — RECOVERABLE.
+**Disposition (supervisor):** KEEP both stashes until core CONFIRMS reclaim, THEN drop; do not drop
+before. Core dispatched to reclaim + relocate to its own clone (land by commit+push only). Earlier "no baked_persona feature" was a DIRTY-TREE grep read as source
 fact (composer caught via `git show HEAD:`); owned — [[positive-control-the-tree-not-just-the-tool]].
 esp GCC via `~/Development/homelab/export-esp.sh` (linker off-PATH in non-interactive ssh).
 
