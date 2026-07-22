@@ -60,9 +60,9 @@ e0e49127. alfred:`~/d5-cos-role.elf`. Delivered composer+supervisor; **flash pos
 (composer two-party verify). Core flagged: KNOWN_HIVE_IDS receiver-side needs da73508e for D5 mesh resolve.
 **Core appended da73508e → wave `5c13a3c5` (supersedes 7766f53c).** Verified diff = ONLY that const-append.
 **656cab50 stays functionally complete** — da73508e is D5's OWN hive, resolver filters `h != my_hive` → no-op
-for the emitter; the append is receiver-side (D1/D4/RAK resolve D5). REC to supervisor = KEEP 656cab50
-(rebuild = zero D5 behavior change + churns verify; core said minimal, baked roster coming). Provenance-rebuild
-from 5c13a3c5 = supervisor's call if strict branch-tip wanted. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+for the emitter; the append is receiver-side (D1/D4/RAK resolve D5). **Supervisor RATIFIED KEEP 656cab50** (rebuild = zero
+behavior + churns verify; const-appends dying if gate-6 baked roster adopts). Receiver-side 5c13a3c5 coverage =
+separate, owned by core enumeration + the next receiver-image builder, not hive. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
