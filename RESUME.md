@@ -16,21 +16,29 @@ attest = baked-persona `0xC434FAFC` + C-in-binary + fakesensor-took (apiary_bus_
 Still #d005/#d006 preflight (drain+confirm+pinned-sha+byte-clean) at build time.
 **HIVE RADIO-DOMAIN desense — my WiFi-scan mechanism REFUTED ON METAL; root RE-OPEN (2026-07-22, critical
 path).** Composer run-5b: XIAO RX-blind bursts (all-or-nothing, quantized 7/14/21/28s, ~29s under CoC,
-ambient no-BLE 39-53%); D4-TX FALSIFIED (80 beats, 0 pauses). **My WiFi-join-scan root was REFUTED by
-composer's positive-control: the join strings NEVER printed on either board → `DATA_PLANE_JOIN` never
-signaled → wifi_task parked → no scan.** OWNED — I + core both verified the chain FROM join_provider but
-not that it is REACHED (the WifiReq→WifiOffer handshake never completes → join_provider never called).
+ambient no-BLE 39-53%); D4-TX FALSIFIED (80 beats, 0 pauses). **My WiFi-join-scan root was REFUTED (metal positive-control + code):** join strings NEVER printed → the
+handshake never reached join_provider. Root of the unreach (core traced its own state machine): on the
+bench BOTH boards elect the GHOST `0x0DCADBF8` → neither is provider → WifiReq goes to a phantom → no
+WifiOffer → join_provider never called. `bring_up_provider`-always-true is a real landmine but only reached
+if a board WINS provider — the ghost gates it out one level up. OWNED (I + core both verified the chain
+FROM join_provider, not that it's REACHED — a reachability miss; see [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]).
 **Consequence: `56d39498` "suppress M8c WiFi-join" (core landed on my mechanism) LIKELY DOES NOTHING for
 bit5** — it suppresses a path metal proves is never taken; it's a harmless CLEANUP (signed off as such),
 NOT the cure. **Leading root now (grounded): core0 executor-starvation overflowing the 10-deep esp_now RX
 queue** (`RECEIVE_QUEUE_SIZE=10`, `esp_now/mod.rs:33`; drop at `:890`) — espnow_task (core0 `:786`) +
 io_task (core0) both on the one executor; 10 frames @2s HB = 20s buffer → a ~20-27s core0 stall overflows
-→ drop-burst = the 27s blind span; Fix-C precedent fits. **v7-DIAG proposed (co-design, core lands on
-56d39498):** C_recv (espnow_task.rx receive() count) vs C_admit (MESH_ADMIT count) — starvation → C_recv
-flat then ≤10 catch-up BURST on resume (+ C_admit lockstep); arbitration → C_recv gaps with NO burst;
-downstream → C_recv steady, C_admit alone gaps. One image splits it. **D4 `bb6565e6` (83a2a17f, cadence-only)
-attested (persona `0xC434FAFC`, fakesensor, C) — do NOT flash as a bit5 fix. HELD; the real fix awaits the
-v7-diag localization.** LESSON: [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]].
+→ drop-burst = the 27s blind span; Fix-C precedent fits. **v7-DIAG co-designed (core lands on 56d39498):**
+C_recv (espnow_task.rx `receive_async()` count) vs C_admit (MESH_ADMIT). **Reachability correction:** the
+esp-radio `:890` overflow is a SILENT `pop_front()` (drop-oldest ring, RECEIVE_QUEUE_SIZE=10, no counter,
+private STATE) → the raw-callback count + drop-count are NOT firmware-reachable; C_recv is the lowest
+readable RX point. **Split (with composer's ch1 SNIFF as radio ground-truth, sniff FIRST):** on-air +
+C_recv gaps + NO burst → radio-level loss = COEX ARBITRATION (a); on-air + C_recv ≤10 catch-up burst on
+resume → EXECUTOR STARVATION (b); C_recv steady + C_admit gaps → downstream. **Core0-occupancy scan (my
+pre-work): NO hard multi-second blocker found** (runner.run()+accept async-yield, io_task select-loop,
+SX1262 busy-spin on core1 post-Fix-C, flash event-not-ambient) → **tilts toward (a) coex-arbitration**
+(esp coex arbiter parks ESP-NOW RX at PHY level, below embassy) over (b). Sniff+counters decide. **D4
+`bb6565e6` (83a2a17f, cadence-only) attested — do NOT flash as a bit5 fix; HELD.** LESSON:
+[[dont-let-a-fix-land-on-an-unconfirmed-mechanism]].
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
