@@ -63,10 +63,14 @@ role partition on the default table → a raw NVS `0x17000` write lands INSIDE t
 incident, build.rs:41). So a role override MUST be BAKED (rebuild), NEVER NVS-0x17000-flashed.** My earlier
 "keepalive = NVS flash, no rebuild" was brick-unsafe (owned; wrong instrument = Cargo features + stale
 dirty-tree build.rs; 2nd instance — see [[positive-control-the-tree-not-just-the-tool]]). **RATIFIED FIX
-(supervisor): `benchkeepalive` FEATURE (const 8000→4000, core-landing) ADDED to both current sets, rebuild
-from a `56d39498`-based branch (NOT 78177f50, dead rxdiag); NO role blob.** = rebuild D4 (`…,fakesensor` +
-benchkeepalive) + XIAO (`…,loratcxo,xiao` + benchkeepalive) from core's landed sha. Await a #d005 pinned-sha
-order + core's confirmed sha.
+(supervisor): `benchkeepalive` FEATURE (const 8000→4000, core-landing) + rebuild; NO role blob** (a blob
+freezes the derive tail = mirror-error hazard; benchkeepalive is uniform). **BASE = `78177f50`-branch**
+(core proved densify `83a2a17f` is its ANCESTOR → 78177f50 = densify+join-suppress+health-overflow+rxdiag;
+my earlier "use 56d39498, not 78177f50" is SUPERSEDED — **rxdiag rides as free observability**, if bit5
+stays dark the counters are already on metal). **Feature sets PENDING core's rxdiag-interaction check** —
+either v7-attested sets + benchkeepalive (rxdiag rides) or v4/v5 sets + benchkeepalive; the #d005 order
+names FINAL sha + FINAL sets, build exactly that. NVS `0x17000` role-flash vs baked_persona = NO-OP, never
+stage. Await core's benchkeepalive-4000 sha (off 78177f50) + a #d005 pinned-sha order.
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
