@@ -1,8 +1,11 @@
 # RESUME — r2-hive
 
-Updated 2026-07-22. `main` clean + pushed. Active work: tri-bearer coex proof — XIAO v5 `23e17d1c`
-handed + Roy-granted; composer flashing; STANDBY for run-5 metal (:3884-LoRa-on-core1 + cross-core LoRa
-RX + CoC listener + health-survives + real 0x25). Key rulings in `DECISIONS.md` (D-20260721-01..03, D-20260722-01, R-20260722-01).
+Updated 2026-07-22. `main` clean + pushed. Active work: tri-bearer coex proof. v5 `23e17d1c` resident on
+XIAO (composer btmon at v5). **v6-DIAG next:** core pushed `36811c9b` (child of e4031efd; cocdiag CoC-rx
+instrumentation + fail-open Err for the bit0 hunt), read-only VERIFIED. **HELD per #d006:** (1) awaiting
+supervisor's build order + Roy grant naming `36811c9b`; (2) ASKED core to confirm the XIAO feature set —
+core's list adds `fakesensor` (observer→emitter, pulls otaengine/loraroute) vs the v5 observer set; won't
+build on the role change unconfirmed. Then same attest pipeline as v5. Key rulings in `DECISIONS.md` (D-20260721-01..03, D-20260722-01, R-20260722-01).
 
 ## Safety
 
