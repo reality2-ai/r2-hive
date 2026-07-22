@@ -46,6 +46,13 @@ both from 78177f50, #d005/#d006 preflight + full attest. **D4 `bb6565e6` (83a2a1
 — do NOT flash as a bit5 fix; HELD.** LESSON: [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]].
 **SEQUENCE LOCKED (all lanes):** Roy fires ch1 sniff → core counters authored (`78177f50`) → hive builds
 only on XIAO-RX verdict. Three signatures pre-registered in the prediction ledger.
+**BOTH v7-DIAG IMAGES PRE-BUILT + ATTESTED (2026-07-22, supervisor order — Roy offline ~2h; FLASH still
+hard-gated) — HELD-NOT-FLASHABLE:** from PINNED `78177f50` (byte-identical). XIAO
+`8a6dea89e9d2a45d…` (persona `0x8C15B0C2` @45024, RXDIAG-print took, lora_route_task, C-in-binary, no
+apiary_bus_task=observer), masked `c3ef1aa6…`. D4 `3b412e548f3dfe3f…` (persona `0xC434FAFC` @45832,
+RXDIAG took, apiary_bus_task=fakesensor took, lora_route_task, C), masked `7fea3ea1…`. Both BUILD_ID
+`coex.v7.0722`, table `d4-reflash-partitions-e0e49127.csv`. **Flash ONLY on sniff=XIAO-RX + Roy grant;
+D4-TX-side → archive.** Reported to supervisor + composer.
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
