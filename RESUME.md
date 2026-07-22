@@ -86,10 +86,20 @@ unavailable); (3) advertise-with-coex was M3-verified (`:3735`) = not a hard lim
 cocbench(advertises)-vs-coex(silent) differentiator is **`loraroute`**, and LoRa is sub-GHz (no 2.4GHz
 BLE contention); (5) `:7244` documents the trouble-host BLE runner starved on the ONE esp-rtos executor
 (`:327`) by a blocking op → `lora_route_task`'s blocking SX1262 SPI hogs it → `runner.run()` never polls
-→ advertise never STARTS (silent, both v3+v4). **Discriminator:** composer's `:3879` — HANG (silent) =
-executor starvation; ERR print = radio coex. **Fix if executor** (core lands, hive advises): BLE runner
-on a higher-priority esp-rtos InterruptExecutor / de-block the SX1262 SPI / yield in the LoRa RX loop —
-NOT an esp-radio knob. Offered a drop-loraroute diagnostic build. Acceptance still: bit0 → `0x25`.
+→ advertise never STARTS (silent, both v3+v4). Composer's `:3879`: advertise HANGS (no ERR).
+**POSITIVE CONTROL found (refutes the ESP-NOW-radio hypothesis, core's + mine-earlier):** cocbench is
+NOT BLE-alone — `cocbench=ble,dev`, the espnow gate `(not-loraroute OR bridge)` passes → espnow_task
+spawned → cocbench = BLE + continuous ESP-NOW RX + it ADVERTISES. So ESP-NOW-RX + advertise coexist
+today → ESP-NOW is not the starver. The sole cocbench→coex differentiator is **`loraroute`** (sub-GHz,
+no 2.4GHz contention) → **executor starvation** of the trouble-host runner by `lora_route_task`'s
+blocking SX1262 SPI (`:7244` documents it). **Isolation diag built + nm-verified:**
+`~/d4-DIAG-noespnow-coexdiag.0722.1444.elf` sha `e2bba673` = `ble,loraroute,benchsf7,loratcxo,
+baked_persona` (espnow_task=0 syms, lora_route_task=3) → BLE+LoRa, no ESP-NOW. Flash + watch `:3884`:
+silent = LoRa-executor confirmed (predicted); prints = LoRa+ESP-NOW combination (still executor, not
+ESP-NOW-radio, since cocbench proves ESP-NOW alone is fine). **Fix if confirmed** (core lands, hive
+advises): trouble-host BLE runner on a higher-priority esp-rtos InterruptExecutor / async SX1262 SPI /
+yield in the LoRa RX loop — NOT an esp-radio knob (esp-radio 0.18 has no runtime coex-priority setter).
+Acceptance still: bit0 → `0x25`.
 
 **Prior (v2) result:** XIAO key-10 = `0x24` = bit2 LoRa | bit5
 WifiMesh CONCURRENT in one frame. `loratcxo`/`xiao` fix **proven** — LoRa+ESP-NOW coex on the S3 is
