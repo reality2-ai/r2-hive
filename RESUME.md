@@ -67,10 +67,16 @@ dirty-tree build.rs; 2nd instance — see [[positive-control-the-tree-not-just-t
 freezes the derive tail = mirror-error hazard; benchkeepalive is uniform). **BASE = `78177f50`-branch**
 (core proved densify `83a2a17f` is its ANCESTOR → 78177f50 = densify+join-suppress+health-overflow+rxdiag;
 my earlier "use 56d39498, not 78177f50" is SUPERSEDED — **rxdiag rides as free observability**, if bit5
-stays dark the counters are already on metal). **Feature sets PENDING core's rxdiag-interaction check** —
-either v7-attested sets + benchkeepalive (rxdiag rides) or v4/v5 sets + benchkeepalive; the #d005 order
-names FINAL sha + FINAL sets, build exactly that. NVS `0x17000` role-flash vs baked_persona = NO-OP, never
-stage. Await core's benchkeepalive-4000 sha (off 78177f50) + a #d005 pinned-sha order.
+stays dark the counters are already on metal). NVS `0x17000` role-flash vs baked_persona = NO-OP (core-confirmed: baked arm compiles out the read), never
+stage. **#d005 ORDER EXECUTED — bit5-keepalive images BUILT + ATTESTED (2026-07-22), for #d007 flash.**
+Base = `bee0e996` (branch dfr1195-fw-bit5-keepalive, off 56d39498; = densify+join-suppress+benchkeepalive
+8000→4000, NO rxdiag — composer's decider killed rxdiag: bit5 ever-lit ×1033, 0x25 ×3). Byte-identical.
+**XIAO `d12ddcc8…`** (`…loratcxo,xiao,benchkeepalive`, persona `0x8C15B0C2` @44984, no apiary_bus_task,
+RXDIAG=0, C-in-binary), masked `d884bba3…`. **D4 `d818ffda…`** (`…fakesensor,benchkeepalive`, persona
+`0xC434FAFC` @45796, apiary_bus_task, RXDIAG=0, C), masked `071b702d…`. No DFR_ROLE_PATH (derived-role
+fallback = current behavior), no 0x12000/0x17000 writes, table `d4-reflash-partitions-e0e49127.csv`
+(app@0x20000). benchkeepalive cfg-const in resolve_role_profile (`:3360`, core-verified). Delivered to
+supervisor + composer for two-party SHA verify; composer flashes under #d007.
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
