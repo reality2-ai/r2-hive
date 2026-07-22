@@ -47,8 +47,9 @@ D-20260723-16):**
   `50c49946…`; C espnow+lora_route+core1 (observer, no apiary). Established recipe `...loratcxo,xiao,benchkeepalive`.
 - BOTH: domain-sep string baked, falsifier present, BUILD_ID coex.iter4b.0723, table e0e49127 (both esp32-s3,
   app@0x20000 — supervisor confirmed no separate XIAO table, my flag caught the misconception). All 4 builds
-  from-scratch. Delivered composer+supervisor; **flash PAIR #d011, two-party verify, bit0-BOTH retest** (D4 dials,
-  XIAO accepts, both carry the D-16 MAC). Supersedes 9e9ddb35 + all prior D4 initiators + d12ddcc8.
+  from-scratch. **BOTH FLASHED + retested on metal** — result: **roster-unfed root confirmed** (board-to-board
+  still blocked pending a fed member-set/roster; **iter-5 = core's member-set work**). No flash pending. Supersedes
+  9e9ddb35 + all prior D4 initiators + d12ddcc8.
 **#d014 D5 COSINE second-sensor (Roy, parallel — D4 FIRST):** base bee0e996, D4 sensor set minus role blob,
 D5 persona (composer delivers, reuse-vs-mint theirs), fakesensor=COSINE at distinct freq. **HELD — recipe approach FLIPPED by Roy:**
 fakesensor was hardcoded (apiary.rs@bee0e996 `phase+=0.4` :88, `sinf` :92). Core first shipped an env-baked
@@ -75,7 +76,9 @@ e0e49127. alfred:`~/d5-cos-role.elf`. Delivered composer+supervisor; **flash pos
 **656cab50 stays functionally complete** — da73508e is D5's OWN hive, resolver filters `h != my_hive` → no-op
 for the emitter; the append is receiver-side (D1/D4/RAK resolve D5). **Supervisor RATIFIED KEEP 656cab50** (rebuild = zero
 behavior + churns verify; const-appends dying if gate-6 baked roster adopts). Receiver-side 5c13a3c5 coverage =
-separate, owned by core enumeration + the next receiver-image builder, not hive. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+separate, owned by core enumeration + the next receiver-image builder, not hive.
+**656cab50 FLASHED — 3rd node LIVE, cosine origin-verified ×307** (the DFR_WAVE=cos differential proven on
+metal). No flash pending on any hive artifact. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
