@@ -85,10 +85,15 @@ positive-controlled: (1) **value-print ABSENT** (apiary.rs:92 computes `value` b
 print main.rs:7023 has no value) = CORE source edit, NOT hive-addable (a println, never edit core); (2) **D5
 cosine can't build from 4165f675** — NO wave-sentant (apiary.rs = old SineSourcePlugin, no DFR_WAVE; `git
 merge-base` wave 7766f53c NOT ancestor of 4165f675 = blerole line, wave never merged). Buildable NOW from
-4165f675: XIAO acceptor (ready, value-print N/A) + D4 initiator (member-set/bit0-BOTH, no value-print). Flagged
-composer+supervisor (sequencing: OPT-A build-pair-now-unblock-bit0 vs OPT-B wait-for-print; REC OPT-A) + core
-(owes value-print println + a CONSOLIDATED merge sha = member-set + wave-sentant + value-print for D5). Awaiting
-sequencing call + core sha(s). **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+4165f675: XIAO acceptor (ready, value-print N/A) + D4 initiator (member-set/bit0-BOTH, no value-print). **RESOLVED → OPT-1
+UNIFY (supervisor ruled):** core landed value-print (4f66adf4) + then CONSOLIDATED merge **`471f0cf7`** (wave
+7766f53c merged into iter-5 line). **All 5 families + da73508e positive-controlled on 471f0cf7:** push_scan_obs×3
+(was 0), SCAN_RESOLVED×7, domain-sep r2-coc-ctrl-v1, value-print `APIARY value={value}` (signed **i16** — parse
+`value=-?\d+`), WaveSourceSentant×8 + DFR_WAVE×7, da73508e in KNOWN_HIVE_IDS (pair now resolves D5 = receiver-side
+gap closed by construction, my argument). **BUILDING ALL THREE from 471f0cf7** (b21zv5lqc, 7-build: D4+XIAO
+role-diffs, D5 wave-diff cos≠sin [guards the cosine→sine regression trap] + role-diff). Discarded the in-flight
+4f66adf4 pair (OPT-1 = one provenance line, kills branch-skew). D4 sine = wave-sentant default. Delivering 3 shas
+to composer on completion. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
