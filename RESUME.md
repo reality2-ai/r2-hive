@@ -56,13 +56,17 @@ D4-TX-side → archive.** Reported to supervisor + composer.
 **bit5 FIX inventory (2026-07-22, #d007, no build):** v7-diag is DEAD; the fix = a keepalive-override role +
 maybe densify. FLASHED images: **v4 D4 `f2a32e20`** (src `aa939299`, `bridge,ble,benchsf7,baked_persona,fakesensor`)
 and **v5 XIAO `23e17d1c`** (src `e4031efd`, `…loratcxo,xiao`) — **both densify-ABSENT** (both are ancestors of
-`83a2a17f`). **Role mechanism: RoleProfile is NVS `0x17000`** (`read_role_profile`, `keepalive_period_ms`
-tunable §1A.1); **NO bake-role feature exists** (negative-controlled: 0 in Cargo.toml; only `baked_persona`
-bakes); `.role` blobs are NVS-0x17000-flashed. So **keepalive-only fix = a composer gen-role `.role` blob at
-0x17000, NO app rebuild** (existing apps read 0x17000); **densify-inclusion = rebuild from `56d39498`**
-(densify+join-suppress, NO rxdiag — NOT 78177f50). Missing inputs flagged: (a) clarify "baked .role" — NVS
-flash vs a NEW bake-into-app core feature (baked_persona-class fork); (b) composer's keepalive `.role` blob +
-value + board(s); (c) core's base sha. Await a #d005 pinned-sha order.
+`83a2a17f`). **Role mechanism (CORRECTED — my first read was WRONG + brick-unsafe):** the role IS BAKED. Committed
+build.rs @56d39498 (81 lines; I'd relied on the 44-line DIRTY-TREE-stripped version) bakes `BAKED_ROLE_PROFILE`
+from `DFR_ROLE_PATH` (`:47/:67/:76`) under the `baked_persona` feature, alongside the persona. **dfr1195 has NO
+role partition on the default table → a raw NVS `0x17000` write lands INSIDE the app + CORRUPTS it (D4 brick
+incident, build.rs:41). So a role override MUST be BAKED (rebuild), NEVER NVS-0x17000-flashed.** My earlier
+"keepalive = NVS flash, no rebuild" was brick-unsafe (owned; wrong instrument = Cargo features + stale
+dirty-tree build.rs; 2nd instance — see [[positive-control-the-tree-not-just-the-tool]]). **RATIFIED FIX
+(supervisor): `benchkeepalive` FEATURE (const 8000→4000, core-landing) ADDED to both current sets, rebuild
+from a `56d39498`-based branch (NOT 78177f50, dead rxdiag); NO role blob.** = rebuild D4 (`…,fakesensor` +
+benchkeepalive) + XIAO (`…,loratcxo,xiao` + benchkeepalive) from core's landed sha. Await a #d005 pinned-sha
+order + core's confirmed sha.
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
