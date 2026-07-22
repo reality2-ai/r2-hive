@@ -97,9 +97,14 @@ stamps are faithful (per-RX, no dedup). (1) FIXABLE: LoRa §8.1 beacon-branch `L
 (`:5552`) is `#[cfg(xiaobridge)]`-only → coex misses beacon admits; un-gate it (core, v4). (2) HARD
 FLOOR: LoRa emit is airtime-duty-bound (SF7 nbrs=0 ~10% → ~1/16-30s) → even beacon-stamped, LoRa
 admit ~30s ≫ W=8s; sustained-continuous LoRa needs a DENSE bench LoRa data stream (hive drives) or
-nbrs>0, not a stamp change. (3) ESP-NOW ~45s = peer emit cadence (per-RX stamp faithful) — confirm/raise
-the espnow HB TX interval (not airtime-bound). v4 = core lands persistent listener + un-gate beacon
-stamp + espnow cadence; hive drives dense LoRa traffic. **LoRa-floor RULING (supervisor): option (a)
+nbrs>0, not a stamp change. (3) ESP-NOW ~45s — core CORRECTED "raise the interval": NO safe knob.
+`HB_PERIOD_MS=2000` (`:1402`) is the load-bearing conductor-PLL/PCO period (must divide the 60s window),
+MUST NOT shorten for a display. But the HB already broadcasts on ESP-NOW every 2s
+(io_task→DATA_TX→espnow, `:1677`) — 2s ≪ W=8s — so the 45s is likely a `can_hear`/`hive_for_mac`
+NEIGHBOUR-LEARNING gate (XIAO drops D4's ESP-NOW until it learns D4's MAC↔hive), not cadence. Density
+lever = D4 `fakesensor`; if cadences still don't fit W=8s WITH fakesensor → per-bearer W (Roy-visible),
+NOT spamming the conductor. Core confirms §4.3 LoRa floor + per-bearer-W once bit0 lights.
+v4 = core listener + beacon-stamp; hive drives dense LoRa traffic. **LoRa-floor RULING (supervisor): option (a)
 — dense real apiary data** (#d003 sine sensor ~1.5/s), W=8s stays honest. Build gap found:
 `apiary_bus_task` is `#[cfg(fakesensor)]` (`:715`); the coex `bridge,ble` build never emits apiary →
 **v4 D4 must add `fakesensor`** (pulls loratcxo/loraroute; espnow stays via bridge; apiary replaces
