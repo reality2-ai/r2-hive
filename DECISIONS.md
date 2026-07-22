@@ -24,8 +24,8 @@ It is not a task log and does not replace specifications, ADRs, or code.
   MIRRORS a specs-ledger ruling MUST carry an explicit `specs ledger: D-x` cross-ref line at creation.
   Existing immutable records are not renamed; where a pre-rule mirror lacks a cross-ref, append one.
   (D-20260721-03 mirrors the `benchsf7` PHY ruling by citing the normative spec section `R2-LORA §5`
-  directly — the canonical reference — not a bare specs-ledger ID; a specs-ledger `D-x` cross-ref is
-  owed only if specs maintains a ledger record for it — flagged to specs.)
+  directly — the canonical reference — not a bare specs-ledger ID. specs confirmed (grepped) there is NO
+  specs-ledger record to cross-ref — see R-20260722-03.)
 
 ## Records
 
@@ -224,6 +224,22 @@ It is not a task log and does not replace specifications, ADRs, or code.
   cost of an inbox-drain + order-currency check before each consequential step.
 - **Evidence:** supervisor relay 2026-07-22 (`#d006`); D-20260722-03 (`#d005`); parked `455ae47a`.
 - **Supersedes:** None (extends D-20260722-03).
+
+### R-20260722-03 — no specs-ledger cross-ref exists for D-20260721-03 (benchsf7)
+
+- **Kind:** Review
+- **Decision reviewed:** D-20260721-03 (bench LoRa SF = ALL-SF7)
+- **Reviewer/date:** hive, 2026-07-22 (specs-answered, per the 2026-07-22 namespace rule)
+- **Observed outcome:** Under the namespace rule, a hive record mirroring a specs-ledger ruling owes a
+  `specs ledger: D-x` cross-ref. specs grepped its ledger: **no `D-x` exists for benchsf7** — the specs
+  ledger began 2026-07-21 (first record D-20260721-01) whereas the benchsf7 ruling is 2026-07-10, recorded
+  spec-section-only. So there is no ledger ID to append (fabricating one is forbidden).
+- **Canonical cites (specs-affirmed, precise):** R2-LORA §3.0 changelog v0.4.23 (RAK-beacon RESOLVED, Roy
+  2026-07-10) + the §5.1:170 allow-list entry (SF7 bench-arm conditions, incl. graduation-MUST-adopt-SF12).
+  D-20260721-03's generic `R2-LORA §5` cite stands canonical as-is.
+- **Evidence:** specs fleet msg 2026-07-22 (grepped, not recalled); [DECISIONS.md](DECISIONS.md) Rules preamble.
+- **Finding:** appropriate — the mirror correctly cites the normative section; no cross-ref record is owed
+  because no specs-ledger record exists. Flag closed.
 
 ### R-20260722-02 — correction to D-20260722-02: esp-rtos 0.3.0 HAS an InterruptExecutor
 
