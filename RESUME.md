@@ -96,9 +96,18 @@ blocking SX1262 SPI (`:7244` documents it). **Isolation diag built + nm-verified
 `~/d4-DIAG-noespnow-coexdiag.0722.1444.elf` sha `e2bba673` = `ble,loraroute,benchsf7,loratcxo,
 baked_persona` (espnow_task=0 syms, lora_route_task=3) → BLE+LoRa, no ESP-NOW. Flash + watch `:3884`:
 silent = LoRa-executor confirmed (predicted); prints = LoRa+ESP-NOW combination (still executor, not
-ESP-NOW-radio, since cocbench proves ESP-NOW alone is fine). **Fix if confirmed** (core lands, hive
-advises): trouble-host BLE runner on a higher-priority esp-rtos InterruptExecutor / async SX1262 SPI /
-yield in the LoRa RX loop — NOT an esp-radio knob (esp-radio 0.18 has no runtime coex-priority setter).
+ESP-NOW-radio, since cocbench proves ESP-NOW alone is fine). Core ACCEPTED the executor-starvation hypothesis (its
+ESP-NOW guess refuted by the cocbench control, owned); composer's `:3879` = HANG confirms it.
+**Confirm image built + nm-verified:** `~/xiao-DIAG-noloraroute-coexdiag-noloraroute.0722.1451.elf` sha
+`9e0b76de` = `ble,benchsf7,baked_persona,xiao` (lora_route_task=0, espnow_task=3, ble_task=7) = XIAO
+BLE+ESP-NOW, no LoRa. XIAO-only test; D4 stays v4. `:3884` prints → LoRa-executor locked + CoC pump
+validates the listener/bit0. Handed for grant.
+**esp-rtos fix read (hive advises, core lands):** splitting join3 across executors is FORBIDDEN
+(peripheral/central/runner share one `stack.build()` borrow) — move the whole `ble_task` instead.
+esp-rtos 0.3.0 has NO esp-hal InterruptExecutor (it's threads + a 2nd-core main thread); the
+thread/2nd-core move risks BLE-controller affinity. **Hive rec: fix the block at the source** — make
+`lora.service()`'s SX1262 BUSY-pin busy-wait ASYNC (r2-sx1262/r2-transport = core), removing the
+executor-hog entirely, no controller-affinity risk. Fallback = whole-ble_task on the 2nd core.
 Acceptance still: bit0 → `0x25`.
 
 **Prior (v2) result:** XIAO key-10 = `0x24` = bit2 LoRa | bit5
