@@ -51,6 +51,10 @@ Then hive metal-verifies key-10=0x25 and hands back the result.
   reality2-ai #1 item **#19** (green cell + pinned sha + mechanism + inheritance + known gaps). File
   in DECISIONS. Build ONE base identically for D4/D5/XIAO; XIAO adds the bridge-leg (USB-Android)
   ensemble, not a fork. **DFR1195 = superset reference board** (coex + sensor + bridge).
+  **base_digest definition (flagged to composer):** the XIAO/D4 coex ELFs are byte-identical except
+  131 bytes, all inside the baked-persona region — so `base_digest` must be persona-INDEPENDENT (the
+  provenance tuple HEAD 97175901 + features + toolchain, or a persona-excluded hash), NOT a per-board
+  raw-ELF sha. Composer's provenance call (D-20260722-02..06).
 - **D5 back on path:** all 3 S3 boards run ESP-NOW (each other's peers). D5 = 3rd ESP-NOW node —
   needs Roy-gated persona mint (existing `D5.bin` is a DIFFERENT TG `0x89BFBD4C`, not bench
   `0x6E31DEC6`) + MAC/board-identity resolution (rig-map vs ttyACM1 disagree). Sequenced after proof.
