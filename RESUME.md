@@ -143,8 +143,11 @@ rec = B + separate key-10 honesty-fix; **ruling owed (Roy/supervisor).** Core pr
 **Bit layout revised to enum-ordinal (R-20260722-01, composer proposal, hive-verified):** anchor on the
 `Transport` enum (Ble0 Wifi1 Lora2 Internet3 Usb4 WifiMesh5 Udp6) — bit_i = ordinal i live; ESP32
 tri-radio = `0x25`; one layout spans the whole heterogeneous TN. Both prior layouts (mine + composer's)
-were non-ordinal. Drift guard owed: `r2-route::Transport` and `r2-transport::TransportId` are two enums
-with matching ordinals — pin one/test they agree. Composer updates its contract + `health_reader.rs`.
+were non-ordinal. Drift guard LANDED + hive-verified: core `31acf41a`
+(r2-core-consolidation) locks both enums to the §2.2 ids + the `0x25` witness; hive ran
+`cargo test -p r2-route transport_ordinals_agree` = PASS (129 total). Anchor = emit + byte-exact CBOR
+KAT on `r2-route::Transport` ordinal (guard makes `TransportId` interchangeable). Composer updates its
+contract + `health_reader.rs`.
 
 **HELD** on: (a) the key-10-vs-key-11 ruling, then core landing the patch (KAT + composer cutover);
 (b) D5 provision authority + board-identity (separate track). XIAO flash waits on #d001 close.
