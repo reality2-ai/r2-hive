@@ -1,7 +1,8 @@
 # RESUME — r2-hive
 
-Updated 2026-07-22. `main` clean + pushed. Active work: tri-bearer coex proof (images built,
-awaiting flash-auth). Key rulings in `DECISIONS.md` (D-20260721-01..03, D-20260722-01, R-20260722-01).
+Updated 2026-07-22. `main` clean + pushed. Active work: tri-bearer coex proof — XIAO v5 `23e17d1c`
+handed + Roy-granted; composer flashing; STANDBY for run-5 metal (:3884-LoRa-on-core1 + cross-core LoRa
+RX + CoC listener + health-survives + real 0x25). Key rulings in `DECISIONS.md` (D-20260721-01..03, D-20260722-01, R-20260722-01).
 
 ## Safety
 
@@ -173,10 +174,13 @@ apiary) + CoC listener + HEALTH-survives-CoC + real 0x25 watch.
 **#d005 build gate (Roy standing, ledger):** before ANY flashable build — (1) DRAIN inbox for
 supersedes, (2) explicit current supervisor order + pinned sha, (3) clean detached checkout, tree-state
 byte-verified. Applied on this build. Pinned-sha refusal of ambient HEAD is RIGHT (kept). **Worktree-dirt
-hazard flagged:** the shared `~/dfr1195-fw-build` RE-DIRTIED between checkouts (a 33-line main.rs strip
-after the earlier 1148-line one, not mine) — concurrent mutation; I `git reset --hard <sha>` + verify
-byte-identical per build (stashes `hive-preCbuild`/`hive-preV5build`, recoverable); recommended a
-hive-exclusive build worktree. Earlier "no baked_persona feature" was a DIRTY-TREE grep read as source
+SOURCE FOUND:** `~/dfr1195-fw-build` reflog shows the firmware commits `934426d5→105eb4aa→e4031efd` were
+AUTHORED there ("commit:" entries) = it's a STANDALONE clone where CORE lands, so the re-dirty = core
+working live in the same clone I build in. **Supervisor RULED `~/dfr1195-fw-build` hive-exclusive for
+WRITES** (2026-07-22); my `git reset --hard <sha>` + byte-verify preflight stays (defense in depth,
+mutation treated as live hazard). Stashes `hive-preCbuild` (main.rs −1213 + r2-core/cbor.rs +
+tools/r2-bootstrap + 23 files) + `hive-preV5build` (33-line) LIKELY core's uncommitted WIP — RECOVERABLE,
+NOT dropped; asked core to reclaim (core may need a separate landing clone). Earlier "no baked_persona feature" was a DIRTY-TREE grep read as source
 fact (composer caught via `git show HEAD:`); owned — [[positive-control-the-tree-not-just-the-tool]].
 esp GCC via `~/Development/homelab/export-esp.sh` (linker off-PATH in non-interactive ssh).
 
