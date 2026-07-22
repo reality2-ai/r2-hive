@@ -102,8 +102,10 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
 - ALL: domain-sep + falsifier baked, da73508e in KNOWN_HIVE_IDS (pair resolves D5), table e0e49127. value-print
   SIGNED i16 (log parse `value=-?\d+`). Delivered composer+supervisor. **Composer TWO-PARTY
   VERIFY PASS all 3 — hash-match on BOTH alfred + tuxedo**; value-print i16 decoder confirmed (readInt16BE +
-  `value=-?\d+`). **Flash: PAIR (D4+XIAO) #d011 — composer flashes on supervisor's pair grants; D5 awaits fresh
-  Roy word** (#d014 grant consumed by 656cab50). Discarded 4f66adf4 pair (one provenance line). **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+  `value=-?\d+`). **iter-5 receipt ACCEPTED
+  (supervisor): all 3 attests, unified 471f0cf7 confirmed. ROY AUTHORIZED D5 reflash. Composer flashing
+  D4→XIAO→D5 on rolling grants.** Discarded 4f66adf4 pair (one provenance line). **NEXT (post-metal): classify
+  InvalidRouteLen per queue** — nothing owed until metal results land. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
