@@ -72,9 +72,15 @@ and the accept (`:3912`→`serve_coc:3928`) is UNCONDITIONAL in the `advertise_b
 advertise→accept→serve loop isn't a persistent listener** (holds one conn at a time; an inbound L2CAP
 open between iterations / while the NEG engine holds the single slot gets refused). **Core's
 persistent-listener restructure (dedicated always-pending 0x00D2 acceptor, independent of advertise/NEG)
-is the right fix — core edit, escalation correct.** Secondary (window tuning, not the blocker):
-sustained `0x25` (all-3, ≥10s continuous) needs denser per-bearer traffic or a longer liveness `W` —
-bits currently alternate (ESP-NOW admits ~45s apart vs W=8s).
+is the right fix — core edit, escalation correct.** Secondary — sustained-`0x25` cadence (supervisor:
+prefer denser real admits, NOT a wider W; W-widen weakens the truthful gate, Roy-visible). Traced:
+stamps are faithful (per-RX, no dedup). (1) FIXABLE: LoRa §8.1 beacon-branch `LORA_ADMIT` stamp
+(`:5552`) is `#[cfg(xiaobridge)]`-only → coex misses beacon admits; un-gate it (core, v4). (2) HARD
+FLOOR: LoRa emit is airtime-duty-bound (SF7 nbrs=0 ~10% → ~1/16-30s) → even beacon-stamped, LoRa
+admit ~30s ≫ W=8s; sustained-continuous LoRa needs a DENSE bench LoRa data stream (hive drives) or
+nbrs>0, not a stamp change. (3) ESP-NOW ~45s = peer emit cadence (per-RX stamp faithful) — confirm/raise
+the espnow HB TX interval (not airtime-bound). v4 = core lands persistent listener + un-gate beacon
+stamp + espnow cadence; hive drives dense LoRa traffic if needed.
 
 **USB-Android bridge SYNC-silence (supervisor's "2nd coex bug") — RULED not-foldable, v2 proceeds.**
 The SYNC responder is `xiao_bridge_task`, `#[cfg(feature="xiaobridge")]` (`main.rs:727`); the coex
