@@ -14,6 +14,12 @@ features `bridge,ble,benchsf7,baked_persona,fakesensor` (v4 D4 apiary set; fakes
 loratcxo/loraroute/otaengine; NO `xiao`, NO explicit loratcxo); table `d4-reflash-partitions-e0e49127.csv`;
 attest = baked-persona `0xC434FAFC` + C-in-binary + fakesensor-took (apiary_bus_task) + loratcxo differential.
 Still #d005/#d006 preflight (drain+confirm+pinned-sha+byte-clean) at build time.
+**CONDITIONAL HIVE RADIO-DOMAIN workitem (armed, pending verdict):** composer extracting XIAO mesh-admit
+gap stats from run-5b. IF systematic >8s ESP-NOW RX gaps show while D4 HB emits @2s → 2.4GHz coex reception
+desense = hive domain. Scope: LoRa is sub-GHz (SX1262, NOT the contender); BLE+ESP-NOW share the one
+2.4GHz esp-radio → coex scheduler starves ESP-NOW RX under BLE (adv+CoC+runner). Candidates: coex
+time-slice policy, WiFi modem power-save, ESP-NOW listen-interval, BLE adv/conn interval. Need composer's
+split (XIAO RX-Δ vs D4 TX-Δ) to confirm reception-miss not emission-gap. HOLD until the verdict (Roy/supervisor).
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
