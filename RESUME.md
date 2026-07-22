@@ -48,9 +48,11 @@ bee0e996 IS ancestor so coex fixes ride; `WaveSourceSentant` owns waveform gen a
 ruling). **Composer DELIVERED the D5 persona** (alfred:`~/d5-persona.bin`
 sha e6108006 336B verified; wire da73508e / hive_id 4d49b381 collision-free; ensemble mariko-sensor). **Now
 blocked ONLY on a supervisor ruling:** composer ALSO shipped `d5-persona.bin.role` (48B RPF1 b[4]=1 b[6]=0 =
-role=sensor) — but #d014 ratified "sensor set MINUS role blob" (derived, like D4 fakesensor d818ffda). Flagged
-supervisor: bake DFR_ROLE_PATH=d5-persona.bin.role (explicit sensor) OR omit (derived)? Recommended BAKE
-(composer owns provisioning, delivered as a pair). Build fires on the bake|omit ruling. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+role=sensor) — but #d014 ratified "sensor set MINUS role blob" (derived, like D4 fakesensor d818ffda). Supervisor
+**RULED BAKE** (#d014 "minus role blob" meant no INITIATOR blob; b[6]=0 keeps D5 acceptor-only, no scan-dial).
+**D5 BUILDING** (bo7x18a1m, 3-build differential: A=cos/0.25+persona+sensor-role deliverable, B=sin+role wave
+control, C=cos+no-role role control; A≠B proves DFR_WAVE took, A≠C proves role took). Delivering sha + full
+attest on completion; flash after blerole clears + Roy grant. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
