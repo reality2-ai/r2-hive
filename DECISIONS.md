@@ -163,6 +163,34 @@ It is not a task log and does not replace specifications, ADRs, or code.
   :5041/:224-226/:4588-4597/:7244`; supervisor A-prime-v5 ratification; [RESUME.md](RESUME.md).
 - **Supersedes:** None (refines the A-prime lean in RESUME; A-prime == C).
 
+### D-20260722-03 — #d005 build-preflight gate (drain inbox, pinned sha, clean tree)
+
+- **Kind:** Decision
+- **Date:** 2026-07-22
+- **Scope:** Any flashable-artifact build in this repo (firmware images)
+- **Outcome:** Before starting ANY flashable-artifact build, hive MUST: (1) DRAIN its inbox and check for
+  supersedes/retractions of the build order FIRST; (2) have an explicit CURRENT supervisor build order
+  naming the pinned sha; (3) do a clean detached checkout of that sha with tree-state verified
+  byte-identical to the commit (`git diff <sha>` empty), never ambient HEAD. Advice/analysis/source-reads
+  are ungated. Gate active until Roy lifts it.
+- **Decision-maker:** Roy (standing directive, via supervisor relay).
+- **Authority basis:** Explicit Roy ruling (`#d005`).
+- **Context:** Two avoidable races on 2026-07-22 — hive built the retracted drop-loraroute confirm image,
+  then built the superseded `9c08c89f` C-only (`455ae47a`) while Roy's "Go — v5 on XIAO" upgrade stood
+  unread in the queue. Both avoidable by reading the queue before spinning cargo. Separately, a shared
+  build worktree kept re-dirtying (a 1148-line then a 33-line main.rs strip) — a dirty-tree build voids
+  sha provenance (flashing neither HEAD nor any known state = the brick-history class).
+- **Rationale:** Order-currency + tree hygiene are cheap preflight checks that prevent flashing a
+  superseded or unprovenanced artifact. The pinned-sha discipline (refusing ambient HEAD) was already
+  correct and is retained; this adds the two guards around it.
+- **Alternatives:** Relying on push-propagation of supersedes (rejected — races; pull/drain-verify beats
+  it). Building on ambient HEAD (rejected — the branch advanced `9c08c89f→105eb4aa→e4031efd` mid-session).
+- **Expected consequences:** Slightly slower build start (one inbox drain + a tree-verify), far fewer
+  wasted/again-superseded builds and zero dirty-tree provenance voids.
+- **Evidence:** supervisor relay 2026-07-22 (`#d005`); parked `455ae47a` (do-not-flash); stashes
+  `hive-preCbuild-20260722`/`hive-preV5build-20260722`; memory [[positive-control-the-tree-not-just-the-tool]].
+- **Supersedes:** None.
+
 ### R-20260722-02 — correction to D-20260722-02: esp-rtos 0.3.0 HAS an InterruptExecutor
 
 - **Kind:** Review
