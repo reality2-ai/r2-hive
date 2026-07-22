@@ -72,7 +72,12 @@ and the accept (`:3912`→`serve_coc:3928`) is UNCONDITIONAL in the `advertise_b
 advertise→accept→serve loop isn't a persistent listener** (holds one conn at a time; an inbound L2CAP
 open between iterations / while the NEG engine holds the single slot gets refused). **Core's
 persistent-listener restructure (dedicated always-pending 0x00D2 acceptor, independent of advertise/NEG)
-is the right fix — core edit, escalation correct.** Secondary — sustained-`0x25` cadence (supervisor:
+is the right fix — core edit, escalation correct.** Core landed the v4 SECONDARY (LoRa beacon-stamp
+un-gate, my finding, confirmed) at `0b749eb3`. Listener (primary) HELD on ONE composer serial line
+(after `:3884 BEACON adv up`: `:3914 accept ERR` / `:3919 CoC up` / SILENCE? → acceptor-never-pending
+[persistent acceptor] vs resources/coex refuse). Core hands the v4 sha; **hive does NOT build v4 until
+then.** Core also owns raising the ESP-NOW HB-TX interval (no tty).
+Secondary — sustained-`0x25` cadence (supervisor:
 prefer denser real admits, NOT a wider W; W-widen weakens the truthful gate, Roy-visible). Traced:
 stamps are faithful (per-RX, no dedup). (1) FIXABLE: LoRa §8.1 beacon-branch `LORA_ADMIT` stamp
 (`:5552`) is `#[cfg(xiaobridge)]`-only → coex misses beacon admits; un-gate it (core, v4). (2) HARD
