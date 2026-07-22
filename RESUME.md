@@ -39,8 +39,10 @@ b[6]=1 initiator; differential 9e9ddb35 ≠ empty 78c15133 (both from-scratch); 
 0ad4a84d @46612 unique; masked base_digest `9463a4a7…` mask [46612,46948); C-in-binary core1 + lora_route_task
 + espnow_task; apiary×3; RXDIAG=0; falsifier string present; (a) fix positive-controlled pre-build.
 **SUPERSEDES ef26d7d0/ca00c094/8f5c5701** (do-not-flash). alfred:`~/d4-init4a-a592ae70.elf`. Delivered
-composer+supervisor; **flash #d011, composer two-party verify, bit0-BOTH retest.** XIAO acceptor unchanged
-(`d12ddcc8`).
+composer+supervisor; **flash #d011, composer two-party verify, bit0-BOTH retest** — composer flashing 9e9ddb35
+NOW. XIAO acceptor unchanged (`d12ddcc8`). **NEXT: iter-4b PAIR build HELD** (D4 initiator + a NEW XIAO acceptor
+image), from core `≥772c02d9`, held on 2 core flags (domain-separation string in (b) envelope + D-16 eligibility
+reconcile); build order follows core's confirm/re-land.
 **#d014 D5 COSINE second-sensor (Roy, parallel — D4 FIRST):** base bee0e996, D4 sensor set minus role blob,
 D5 persona (composer delivers, reuse-vs-mint theirs), fakesensor=COSINE at distinct freq. **HELD — recipe approach FLIPPED by Roy:**
 fakesensor was hardcoded (apiary.rs@bee0e996 `phase+=0.4` :88, `sinf` :92). Core first shipped an env-baked
