@@ -63,7 +63,18 @@ real. bit0 (BLE) was missing because **`serve_coc` (coex inbound handler) never 
 — only blemesh's `serve_data_coc` did (core's find, the actual primary root; my scaffold trace was a
 real *secondary*). **v3** = core stamped `serve_coc` (`:4158`) + boot-addr print → dfr1195-fw
 `934426d5`. Built v3: D4 `47ad5200`@45284, XIAO `5cc8d835`@45304, BUILD_ID `coex.0722.1337`, fw_sha
-`0x54B574C7`; handed for reflash. If phone/laptop inbound reaches `serve_coc` → bit0 lights → `0x25`.
+`0x54B574C7`; reflashed. **v3 metal result:** LoRa+ESP-NOW admit healthy (key-10 `0x04`/`0x20`
+cycling); boot-addr println works (exposed runs 1-2 never touched a real board). **But bit0 still
+dark — the stamp is UNREACHABLE: L2CAP refuses PSM 0x00D2 (ECONNREFUSED), no persistent CoC listener.**
+Source-corrected composer's "NEG-role-gated" read: `COC_PSM=R2_PSM=0x00D2` (`:4327`) matches the pump,
+and the accept (`:3912`→`serve_coc:3928`) is UNCONDITIONAL in the `advertise_beacon=true` branch
+(`:3845`), NOT NEG-gated — the stamp is correctly placed. The gap: the **sequential
+advertise→accept→serve loop isn't a persistent listener** (holds one conn at a time; an inbound L2CAP
+open between iterations / while the NEG engine holds the single slot gets refused). **Core's
+persistent-listener restructure (dedicated always-pending 0x00D2 acceptor, independent of advertise/NEG)
+is the right fix — core edit, escalation correct.** Secondary (window tuning, not the blocker):
+sustained `0x25` (all-3, ≥10s continuous) needs denser per-bearer traffic or a longer liveness `W` —
+bits currently alternate (ESP-NOW admits ~45s apart vs W=8s).
 
 **USB-Android bridge SYNC-silence (supervisor's "2nd coex bug") — RULED not-foldable, v2 proceeds.**
 The SYNC responder is `xiao_bridge_task`, `#[cfg(feature="xiaobridge")]` (`main.rs:727`); the coex
