@@ -68,8 +68,19 @@ under `bleobserver`; engine uses the synthetic roster). aa939299 also carries th
 persona@45728, masked `2259fb22`); XIAO (observer) `7e7cd1e3` (v2-identical set, hive_id `0x8C15B0C2`,
 persona@44868, masked `f2a11e00`). **v1-guard verified on the binaries:** loratcxo differential DIFFER
 (took, not dropped by the fakesensor swap); D4 `apiary_bus_task` present (3 syms). Full per-board lists
-published (supervisor grant + composer provenance). Supersedes v1/v2/v3 (do-not-flash). Acceptance: bit0
-lights on laptop BlueZ inbound → `0x25`; sustained under D4 apiary traffic (core §4.3 confirm post-bit0).
+published (supervisor grant + composer provenance). Supersedes v1/v2/v3 (do-not-flash).
+
+**Run-4 result: `:3884 BEACON adv up` STILL SILENT** — the listener fix didn't unblock advertise.
+**v1-class binary check (supervisor asked) — DONE, decisive:** the observer scanner is GENUINELY
+compiled out of shipped v4. Exact nm: shipped OFF = `run_with_handler<DummyHandler>` + join3 only;
+**R2ScanHandler / Join4 / Scanner ABSENT**; bleobserver-ON control has them present; OFF≠ON differential
+confirms the gate is active. (False-positive trap flagged: a raw substring COUNT showed 2 in OFF, but
+those are `DummyHandler` drop symbols, not R2ScanHandler — the demangled NAME is decisive, same
+verify-what-it-instantiates discipline as loratcxo.) **So scan-starvation is REFUTED for the shipped
+image → advertise is blocked BEYOND the scan** (advertise() HANGS — no "NEG provider adv ERR" print).
+Core re-traces adv-start wiring (`peripheral.advertise().await` in the join3 arm `:4051` — runner
+polling / controller-not-ready / coex resource at advertise-start). Acceptance still: bit0 → `0x25`
+under D4 apiary traffic (core §4.3 post-bit0).
 
 **Prior (v2) result:** XIAO key-10 = `0x24` = bit2 LoRa | bit5
 WifiMesh CONCURRENT in one frame. `loratcxo`/`xiao` fix **proven** — LoRa+ESP-NOW coex on the S3 is
