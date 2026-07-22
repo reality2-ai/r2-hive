@@ -57,10 +57,11 @@ had them via `fakesensor`/`xiaobridge`; I dropped them swapping to `bridge`. So 
 enum-ordinal), all 3 in ONE frame, sustained ≥10s continuous. Traffic: LoRa D4↔XIAO, ESP-NOW D4↔XIAO,
 BLE phone(nRF Connect) central→XIAO CoC. Dashboard decodes ordinal via key-18≥2.
 
-**Flashing (2026-07-22):** v1 → LoRa refuted → v2 corrected. Refreshed Roy grant LIVE
-(`.fleet/flash-authorization`, artifact coex.0722.1251, shas `d61ef967`/`8b93c3e5`); composer
-two-party-verified v2 + pre-staged; XIAO back on tuxedo; flash after composer's BLE watch. Awaiting
-re-read: XIAO key-10=0x25, all 3 bits, ≥10s. ESP-NOW works both ways; BLE awaits Roy's nRF Connect.
+**COEX PARTIALLY PROVEN ON METAL (2026-07-22):** v2 flashed → **XIAO key-10 = `0x24` repeatedly**
+= bit2 LoRa | bit5 WifiMesh CONCURRENT in one frame. The `loratcxo`/`xiao` v2 fix is **fully proven**
+— LoRa+ESP-NOW coex on the S3 is real. Only **bit0 (BLE) missing** for the full `0x25`; that's the
+BLE concurrency defect (deferred, D4 suffices per supervisor). Core validated: the bitset correctly
+showed a dead bearer dead (present≠reached), not a false-green.
 
 **USB-Android bridge SYNC-silence (supervisor's "2nd coex bug") — RULED not-foldable, v2 proceeds.**
 The SYNC responder is `xiao_bridge_task`, `#[cfg(feature="xiaobridge")]` (`main.rs:727`); the coex
@@ -93,10 +94,14 @@ the clean pipe, or a framed CDC multiplex) — a follow-up, not a flag.
   exclude prod; heartbeat LED untouched. Low priority.
 - **DFR1195 display mislabel (low/cosmetic):** screen title shows 'hive' on two lines w/ different
   values — relabel each field (hive_id / TG / wire); report the actual two values.
-- **BLE concurrent central+peripheral (deferred, D4-suffices):** XIAO refuses inbound BLE centrals
-  while its NEG engine runs central-out. Root = `main.rs:3759 HostResources<DefaultPacketPool, 1, 1>`
-  (trouble-host, 1 conn/1 channel) — single slot consumed by central-out. Fix = bump conn+channel
-  counts (core edit) + esp-radio controller N-conn config + RAM check on the coex build.
+- **BLE bit0 concurrency defect (deferred, D4-suffices) — root nailed, core's fix:** blocks the full
+  `0x25`. Two parts: (A) single slot `HostResources<DefaultPacketPool,1,1>` (`main.rs:3759`); (B) the
+  provider election is a HARDCODED 2-board M8b scaffold `M7_PROVIDER_HIVE=0x0dcadbf8` (ACM11, `:4337`)
+  — neither coex board matches, so both are non-providers and the engine injects `0x0dcadbf8` as a
+  synthetic peer (`:3833`), cycling NEG toward a ghost provider not on the bench. `advertise_beacon=
+  true` so accept IS on, yet inbound never stamps bit0 — the live-console accept→serve_coc→admit trace
+  is core's (its tty). Fix (core): retire the M7 hardcoded election (real election / always-accept
+  phone path) + bump slots + esp-radio multi-conn (RAM). Also: print own BLE addr at boot (`:3777`).
 - **RAK tx_power −9dBm** (30cm; as923_nz default +20 saturates RX) — a core change to rak
   `lora_leaf_config:1219`. **AGENTS.md doc-drift:** cites `docs/dfr1195-partitions.csv` (older); build
   uses `platforms/dfr1195/partitions.csv` (r2cfg) — both app@0x20000; recommend updating.
