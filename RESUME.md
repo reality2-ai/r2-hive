@@ -102,10 +102,16 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
 - ALL: domain-sep + falsifier baked, da73508e in KNOWN_HIVE_IDS (pair resolves D5), table e0e49127. value-print
   SIGNED i16 (log parse `value=-?\d+`). Delivered composer+supervisor. **Composer TWO-PARTY
   VERIFY PASS all 3 — hash-match on BOTH alfred + tuxedo**; value-print i16 decoder confirmed (readInt16BE +
-  `value=-?\d+`). **iter-5 receipt ACCEPTED
-  (supervisor): all 3 attests, unified 471f0cf7 confirmed. ROY AUTHORIZED D5 reflash. Composer flashing
-  D4→XIAO→D5 on rolling grants.** Discarded 4f66adf4 pair (one provenance line). **NEXT (post-metal): classify
-  InvalidRouteLen per queue** — nothing owed until metal results land. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+  `value=-?\d+`). **bit0-BOTH FAILED on the 471f0cf7 pair
+  — my da73508e-in-pair miss (OWNED):** KNOWN_HIVE_IDS is DOUBLE-DUTY (resolve-for-admit AND the initiator's
+  DIAL POOL); adding D5's da73508e made D4 dial D5-sensor not XIAO. I verified the resolve angle, missed the
+  dial angle. See [[shared-list-serves-multiple-consumers]]. **FIX: PAIR REBUILT from `4f66adf4`** (positive-
+  controlled: KNOWN_HIVE_IDS 4-entry, ZERO da73508e → D4 dials XIAO via BLE_PEER_HIVE chain; FAM1-4 present)
+  — `bd9sl4c5i`, distinct names d4-init5p-4f66adf4/xiao-acc5p-4f66adf4, BUILD_ID coex.iter5p.0723. **471f0cf7
+  pair (c51ad8a6/90d3f489) SUPERSEDED (do-not-reflash).** **D5 `11f2d2ef` (471f0cf7) UNAFFECTED + correct**
+  (D5 NEEDS D5 in its own registry; only the initiator's dial pool must exclude other sensors — different shas
+  BY DESIGN). Delivering new pair shas + attest on build completion. **NEXT (post-metal): classify
+  InvalidRouteLen per queue.** **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
