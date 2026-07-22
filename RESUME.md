@@ -23,14 +23,19 @@ bee0e996) — my load-bearing interaction CONFIRMED on the merged tree (join-sup
 Board-to-board hit the v0.10 L3 rbid→identity gap (D4 dropped XIAO's NEG as identity-less = the bit0 scaffold
 gap I flagged, `resolve_rbid_windowed` empty `registry:&[]`). **CORE FIXED IT → `3ed2f818`** (initiator
 R2ScanHandler now carries the keyed member registry, `main.rs:4342` `derive_beacon_session_key` per
-KNOWN_HIVE_IDS≠self → SCAN_RESOLVED → L3 admits; mirrors LoRa resolver :5668). **D4 INITIATOR REBUILT +
-FULLY ATTESTED: `ca00c094…`** (BUILD_ID coex.d4init2.0723, from 3ed2f818 + DFR_ROLE_PATH d4-initiator.role;
-role b[6]=1 initiator; DIFFERENTIAL ca00c094 ≠ empty 589a1b74, both from-scratch = clean confirmed; persona
-0xC434FAFC baked==input 0ad4a84d @46512 unique; masked base_digest `a4815e6a…` mask [46512,46848);
-C-in-binary core1 executor + lora_route_task + espnow_task; fakesensor apiary×3, RXDIAG=0; L3 fix
-positive-controlled in tree pre-build). **SUPERSEDES 8f5c5701** (do-not-flash). alfred:`~/d4-init2-role.elf`.
-Delivered supervisor+composer; **flash = #d011 slot-scoped (Roy confirmed 2×), composer two-party verify then
-flash, bit0-BOTH retest.** XIAO acceptor unchanged (`d12ddcc8`).
+KNOWN_HIVE_IDS≠self → SCAN_RESOLVED → L3 admits; mirrors LoRa resolver :5668). Iter2 `ca00c094` (from 3ed2f818)
+flashed + retested → **still bit0-dark: enumerated LIST gap** — the registry loop iterated `KNOWN_HIVE_IDS`
+which did NOT contain XIAO's `0x8C15B0C2` (heard rbid 55ca UNRESOLVED → NEG-CTRL-DROP). Core fixed →
+**`ede6ccf3`** (main.rs:4345 `KNOWN_HIVE_IDS.iter().chain(once(&BLE_PEER_HIVE))`, `BLE_PEER_HIVE:4612 =
+0x8C15_B0C2`; + falsifier print :4363 "BLE resolver expects hive {h}->rbid"). **D4 INITIATOR iter3 REBUILT +
+FULLY ATTESTED: `ef26d7d0…`** (BUILD_ID coex.d4init3.0723, from ede6ccf3 + DFR_ROLE_PATH; role b[6]=1
+initiator; DIFFERENTIAL ef26d7d0 ≠ empty 1e58ff74, both from-scratch = clean; persona 0xC434FAFC baked==input
+0ad4a84d @46596 unique; masked base_digest `e13fa273…` mask [46596,46932); C-in-binary core1 + lora_route_task
++ espnow_task; fakesensor apiary×3, RXDIAG=0; list-gap fix + falsifier string positive-controlled in binary).
+**SUPERSEDES ca00c094 + 8f5c5701** (do-not-flash). alfred:`~/d4-init3-ede6ccf3.elf`. Delivered
+supervisor+composer; **flash = #d011, composer two-party verify then flash, bit0-BOTH retest** (expect console
+"expects hive 8c15b0c2 -> rbid 55ca" = gap closed → 55ca resolves → SCAN_RESOLVED → L3 admit → bit0). XIAO
+acceptor unchanged (`d12ddcc8`).
 **#d014 D5 COSINE second-sensor (Roy, parallel — D4 FIRST):** base bee0e996, D4 sensor set minus role blob,
 D5 persona (composer delivers, reuse-vs-mint theirs), fakesensor=COSINE at distinct freq. **HELD — recipe approach FLIPPED by Roy:**
 fakesensor was hardcoded (apiary.rs@bee0e996 `phase+=0.4` :88, `sinf` :92). Core first shipped an env-baked
