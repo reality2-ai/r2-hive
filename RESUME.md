@@ -32,13 +32,15 @@ positive-controlled in tree pre-build). **SUPERSEDES 8f5c5701** (do-not-flash). 
 Delivered supervisor+composer; **flash = #d011 slot-scoped (Roy confirmed 2×), composer two-party verify then
 flash, bit0-BOTH retest.** XIAO acceptor unchanged (`d12ddcc8`).
 **#d014 D5 COSINE second-sensor (Roy, parallel — D4 FIRST):** base bee0e996, D4 sensor set minus role blob,
-D5 persona (composer delivers, reuse-vs-mint theirs), fakesensor=COSINE at distinct freq. **BLOCKED on 2
-upstreams:** (1) fakesensor NOT waveform-configurable (apiary.rs@bee0e996 hardcoded `phase+=0.4` :88, `sinf`
-:92) → core-owned code change; core-FORK fully spec'd it (env-baked DFR_WAVE=sin|cos default sin +
-DFR_WAVE_STEP f32 default 0.4 → D4 byte-identical; D5=cos/0.25; build.rs emits WAVE_IS_COS+WAVE_STEP; apiary
-:88/:92 2-line; verify by DIFFERENTIAL; full clean) BUT it's read-only, can't land — **needs core-LIVE to cut
-branch off bee0e996 + hand sha** (escalated to supervisor). (2) composer D5 persona blob. D5 build fires when
-both land. BUILD_ID coex.d5cos.0723, table e0e49127 (same DFR1195 class, layout holds). STANDBY.
+D5 persona (composer delivers, reuse-vs-mint theirs), fakesensor=COSINE at distinct freq. **HELD — recipe approach FLIPPED by Roy:**
+fakesensor was hardcoded (apiary.rs@bee0e996 `phase+=0.4` :88, `sinf` :92). Core first shipped an env-baked
+knob (`dfr1195-fw-wave af0bf87b`: DFR_WAVE=sin|cos + DFR_WAVE_STEP, D4=no-env byte-identical, D5=cos/step) —
+**but Roy RE-HOMED the waveform to the SENTANT layer (not an env-baked plugin knob); af0bf87b SUPERSEDED,
+do-not-build.** Core re-implementing at the sentant layer; **D5 recipe input WILL CHANGE (likely
+sentant-config, not DFR_WAVE)** — HELD for core's new sha + input spec. Other gate unchanged: composer D5
+persona blob (reuse-vs-mint theirs). D5 build fires when core's sentant sha + input spec + composer persona all
+land. BUILD_ID coex.d5cos.0723, table e0e49127 (same DFR1195 class, layout holds). D4 initiator unaffected.
+STANDBY.
 **BUILD GOTCHA (owned + memory'd):** first builds gave `2804223c` = EMPTY role (derived acceptor mislabelled) —
 the shared target's incremental cache kept a stale empty `BAKED_ROLE_PROFILE`; 5 targeted cache-busts failed,
 only `rm -rf target` baked the env const. Role proven by the DIFFERENTIAL (`8f5c5701`≠`2804223c`) since the
