@@ -113,12 +113,16 @@ the async executor. **A-vs-B feasibility answered (hive, the blocking input for 
   can't be shared across executors (peripheral/central/runner share one `stack.build()` borrow); (2)
   BleConnector unsafe/risky in interrupt context; (3) esp-rtos 0.3.0 exposes NO InterruptExecutor
   (threads/2nd-core only). Dead end; goes to backlog as a general pattern.
-- **Fix B (async r2-sx1262): ROOT CURE (core lands)** — await BUSY-low (async GPIO / `Timer::after`)
-  vs the busy-spin; ripples sync→async through cmd/service/LoRaTransport + `lora.service():5507`
-  (lora_route_task is already async). Bigger but contained; SPI byte-transfers stay sync (fast).
-- **Fix C (smaller alt): move `lora_route_task` (the offender) to the esp-rtos 2nd core** (`:348`),
-  BLE stack + BleConnector stay on main — no stack-split/async-rewrite; DATA_TX_LORA/DATA_RX already
-  cross-core-safe; needs a 2nd-core SX1262/thread metal test.
+- **Fix B (async r2-sx1262): root cure BUT fleet-wide.** r2-sx1262 is SHARED (RAK thumbv7em + DFR
+  xtensa + nrf54-lr2021), generic over sync `DelayNs`+`InputPin` → async = embedded-hal→async bounds +
+  sync→async ripple through EVERY consumer, cross-runtime. Big coordinated migration → backlog, not
+  v5-quick.
+- **Fix A-prime (esp-rtos 2nd core): dfr1195-CONTAINED, hive rec for v5.** esp-rtos 0.3.0 has no
+  InterruptExecutor — only `start_second_core` (`:348`, virgin/0-hits). Move the **LoRa task** (the
+  blocker, NOT the BLE stack — controller/coex are core-0-affine) to core 1; LoRa stays sync,
+  RAK/LR2021 untouched. Risk = virgin dual-core bring-up, isolated + metal-testable. **Rec: A-prime for
+  v5, B for backlog** (reverses the earlier B-lean once r2-sx1262 was confirmed fleet-shared). Core
+  owns the call (owns both crates).
 
 **Bundle plan (supervisor):** v5-fix (B or C, core lands) + `e2bba673` (BLE+LoRa, no ESP-NOW, expects
 SILENT — the sufficiency fallback; d4-persona diag) in ONE Roy grant, v5 first. The drop-loraroute
