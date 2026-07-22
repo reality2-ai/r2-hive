@@ -78,7 +78,17 @@ for the emitter; the append is receiver-side (D1/D4/RAK resolve D5). **Superviso
 behavior + churns verify; const-appends dying if gate-6 baked roster adopts). Receiver-side 5c13a3c5 coverage =
 separate, owned by core enumeration + the next receiver-image builder, not hive.
 **656cab50 FLASHED — 3rd node LIVE, cosine origin-verified ×307** (the DFR_WAVE=cos differential proven on
-metal). No flash pending on any hive artifact. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+metal). No flash pending on any hive artifact.
+**iter-5 WAVE (3 images: D4 init + XIAO acc + D5 cosine, + value-print fold) — 2 CORE-OWNED BLOCKERS found on
+`4165f675`** (member-set teachers landed: push_scan_obs T1 :4751 / T2 :4465, was 0-caller = metal root). Both
+positive-controlled: (1) **value-print ABSENT** (apiary.rs:92 computes `value` but nothing prints it; ENQUEUED
+print main.rs:7023 has no value) = CORE source edit, NOT hive-addable (a println, never edit core); (2) **D5
+cosine can't build from 4165f675** — NO wave-sentant (apiary.rs = old SineSourcePlugin, no DFR_WAVE; `git
+merge-base` wave 7766f53c NOT ancestor of 4165f675 = blerole line, wave never merged). Buildable NOW from
+4165f675: XIAO acceptor (ready, value-print N/A) + D4 initiator (member-set/bit0-BOTH, no value-print). Flagged
+composer+supervisor (sequencing: OPT-A build-pair-now-unblock-bit0 vs OPT-B wait-for-print; REC OPT-A) + core
+(owes value-print println + a CONSOLIDATED merge sha = member-set + wave-sentant + value-print for D5). Awaiting
+sequencing call + core sha(s). **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
