@@ -19,12 +19,26 @@ reproducible provenance + owner resolves the ghost/join-suppress composition). C
 bee0e996) — my load-bearing interaction CONFIRMED on the merged tree (join-suppress rides, `DATA_PLANE_JOIN.signal`=0
 → ghost-removal doesn't re-open desense). **D4 INITIATOR BUILT + ATTESTED: `8f5c5701`** (from 54a8a1f3,
 `bridge,ble,benchsf7,baked_persona,fakesensor,benchkeepalive` + `DFR_ROLE_PATH=~/d4-initiator.role`); persona
-`0xC434FAFC`, masked `0a8ad024…`, BAKED_ROLE_PROFILE=RPF1 b[6]=0x01 INITIATOR (role baked), RXDIAG=0. XIAO
-unchanged (`d12ddcc8`). **FLASH PASS (supervisor 2026-07-23): role=initiator on metal, differential attest
-VINDICATED (banner confirmed).** **Board-to-board BLOCKED at rbid→identity resolution** — D4 drops XIAO's NEG
-as identity-less (v0.10 L3); = the deferred bit0 scaffold gap I flagged (`resolve_rbid_windowed` matches empty
-`registry:&[]`). Core diagnosing (pre-provisioning gap vs scan-path code gap); possible rebuild, base stays
-**54a8a1f3 lineage**. HELD — no hive build until core hands a sha. STANDBY.
+`0xC434FAFC`, masked `0a8ad024…`, BAKED_ROLE_PROFILE=RPF1 b[6]=0x01 INITIATOR (role baked), RXDIAG=0. **FLASH PASS (2026-07-23): role=initiator on metal, differential attest VINDICATED.**
+Board-to-board hit the v0.10 L3 rbid→identity gap (D4 dropped XIAO's NEG as identity-less = the bit0 scaffold
+gap I flagged, `resolve_rbid_windowed` empty `registry:&[]`). **CORE FIXED IT → `3ed2f818`** (initiator
+R2ScanHandler now carries the keyed member registry, `main.rs:4342` `derive_beacon_session_key` per
+KNOWN_HIVE_IDS≠self → SCAN_RESOLVED → L3 admits; mirrors LoRa resolver :5668). **D4 INITIATOR REBUILT +
+FULLY ATTESTED: `ca00c094…`** (BUILD_ID coex.d4init2.0723, from 3ed2f818 + DFR_ROLE_PATH d4-initiator.role;
+role b[6]=1 initiator; DIFFERENTIAL ca00c094 ≠ empty 589a1b74, both from-scratch = clean confirmed; persona
+0xC434FAFC baked==input 0ad4a84d @46512 unique; masked base_digest `a4815e6a…` mask [46512,46848);
+C-in-binary core1 executor + lora_route_task + espnow_task; fakesensor apiary×3, RXDIAG=0; L3 fix
+positive-controlled in tree pre-build). **SUPERSEDES 8f5c5701** (do-not-flash). alfred:`~/d4-init2-role.elf`.
+Delivered supervisor+composer; **flash = #d011 slot-scoped (Roy confirmed 2×), composer two-party verify then
+flash, bit0-BOTH retest.** XIAO acceptor unchanged (`d12ddcc8`).
+**#d014 D5 COSINE second-sensor (Roy, parallel — D4 FIRST):** base bee0e996, D4 sensor set minus role blob,
+D5 persona (composer delivers, reuse-vs-mint theirs), fakesensor=COSINE at distinct freq. **BLOCKED on 2
+upstreams:** (1) fakesensor NOT waveform-configurable (apiary.rs@bee0e996 hardcoded `phase+=0.4` :88, `sinf`
+:92) → core-owned code change; core-FORK fully spec'd it (env-baked DFR_WAVE=sin|cos default sin +
+DFR_WAVE_STEP f32 default 0.4 → D4 byte-identical; D5=cos/0.25; build.rs emits WAVE_IS_COS+WAVE_STEP; apiary
+:88/:92 2-line; verify by DIFFERENTIAL; full clean) BUT it's read-only, can't land — **needs core-LIVE to cut
+branch off bee0e996 + hand sha** (escalated to supervisor). (2) composer D5 persona blob. D5 build fires when
+both land. BUILD_ID coex.d5cos.0723, table e0e49127 (same DFR1195 class, layout holds). STANDBY.
 **BUILD GOTCHA (owned + memory'd):** first builds gave `2804223c` = EMPTY role (derived acceptor mislabelled) —
 the shared target's incremental cache kept a stale empty `BAKED_ROLE_PROFILE`; 5 targeted cache-busts failed,
 only `rm -rf target` baked the env const. Role proven by the DIFFERENTIAL (`8f5c5701`≠`2804223c`) since the
