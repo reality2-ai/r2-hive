@@ -452,6 +452,11 @@ the clean pipe, or a framed CDC multiplex) — a follow-up, not a flag.
 
 ## Queued (Roy directives, AFTER the coex proof)
 
+- **iter-5 sensor value-print (supervisor, queued — NOT a build order yet; awaits core member-set land):**
+  rate-limited `APIARY value={value:u16}` print at emission (every Nth reading OR 1/min) alongside the ENQUEUED
+  line — the 29-B compact body's value is printed NOWHERE, blocking waveform-sample verification. Applies to
+  D4+D5 sensor images. **Core lands the print** (emit path); hive builds. Hand core the exact spec when iter-5 fires.
+
 - **Canonical base (MUST):** once coex-proven, pin the tn_base sha as the single linkable base ALL
   images derive from (ensemble-composition, no forks); record REFERENCE-IMPLEMENTATION in GH project
   reality2-ai #1 item **#19** (green cell + pinned sha + mechanism + inheritance + known gaps). File
