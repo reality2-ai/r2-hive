@@ -105,13 +105,16 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   `value=-?\d+`). **bit0-BOTH FAILED on the 471f0cf7 pair
   — my da73508e-in-pair miss (OWNED):** KNOWN_HIVE_IDS is DOUBLE-DUTY (resolve-for-admit AND the initiator's
   DIAL POOL); adding D5's da73508e made D4 dial D5-sensor not XIAO. I verified the resolve angle, missed the
-  dial angle. See [[shared-list-serves-multiple-consumers]]. **FIX: PAIR REBUILT from `4f66adf4`** (positive-
-  controlled: KNOWN_HIVE_IDS 4-entry, ZERO da73508e → D4 dials XIAO via BLE_PEER_HIVE chain; FAM1-4 present)
-  — `bd9sl4c5i`, distinct names d4-init5p-4f66adf4/xiao-acc5p-4f66adf4, BUILD_ID coex.iter5p.0723. **471f0cf7
-  pair (c51ad8a6/90d3f489) SUPERSEDED (do-not-reflash).** **D5 `11f2d2ef` (471f0cf7) UNAFFECTED + correct**
-  (D5 NEEDS D5 in its own registry; only the initiator's dial pool must exclude other sensors — different shas
-  BY DESIGN). Delivering new pair shas + attest on build completion. **NEXT (post-metal): classify
-  InvalidRouteLen per queue.** **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+  dial angle. See [[shared-list-serves-multiple-consumers]]. **iter-6 FIX (core `ca198a5a`):**
+  initiator dials the LOWEST-ELIGIBLE resolved acceptor (= NEG-elected provider), NOT freshest → D4 dials XIAO
+  EVEN WITH D5 in KNOWN_HIVE_IDS. Supersedes the 4f66adf4/471f0cf7 split (D5-in-registry now safe for the
+  initiator). **Supervisor RULED: build PAIR from `ca198a5a`** (BUILD_ID coex.iter6.0723) — STRONGER test than
+  4f66adf4 isolation (D5 stays a live distractor; pass = D4 dials XIAO DESPITE resolvable D5 = validates the
+  FIX not just absence-of-trigger; root already metal-observed iter-5 boot + static :4744). **4f66adf4 pair
+  (D4 `03d4e677` / XIAO `41108c28`, BUILD_ID coex.iter5p.0723) = attested FALLBACK, do-not-flash** unless
+  ca198a5a retest fails weird. **471f0cf7 pair (c51ad8a6/90d3f489) SUPERSEDED.** **D5 `11f2d2ef` STAYS**
+  (acceptor-only sensor, no dial path; cosine proven ×307). Building ca198a5a pair next. **NEXT (post-metal):
+  classify InvalidRouteLen per queue.** Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
