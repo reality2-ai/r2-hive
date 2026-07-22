@@ -120,7 +120,8 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   KNOWN_HIVE_IDS = live distractor (pass = D4 dials XIAO DESPITE resolvable D5). Both falsifiers baked. **Boot
   falsifier (composer reads D4, main.rs:4229):** `INITIATOR captured acceptor <mac> (hive X) — dialing` →
   hive=8c15b0c2=fix works (bit0 lights=DONE / dark=2nd root past dial); hive=da73508e=fix failed→fallback.
-  Delivered composer+supervisor; flash per supervisor grants. **Fallback 4f66adf4p** (03d4e677/41108c28,
+  Delivered composer+supervisor; **composer TWO-PARTY VERIFY PASS both hosts (alfred+tuxedo)**; flash + :4229
+  monitor-read on supervisor grants. **Fallback 4f66adf4p** (03d4e677/41108c28,
   coex.iter5p.0723) do-not-flash unless da73508e recurs. **D5 `11f2d2ef` unchanged** (not re-issued). All lanes
   converged on B (supervisor sequences; core conceded). **NEXT (post-metal): classify InvalidRouteLen per
   queue.** Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
