@@ -42,10 +42,16 @@ had them via `fakesensor`/`xiaobridge`; I dropped them swapping to `bridge`. So 
   (`+loratcxo,xiao`; hive_id `0x8C15B0C2`; persona@45212; Wio-base masked `88e6cdd7`)
 - both TG `0x6E31DEC6`; table `~/d4-reflash-partitions-e0e49127.csv` (`e0e49127`, app@0x20000); recipe
   `~/coex-flash-recipe.txt` (v2). Brick-safe (app@0x20000 tripwire; baked_persona = no 0x12000 write).
-- **Base is per-board:** DFR1195 and XIAO-S3 need DIFFERENT binaries (compile-time `xiao` pin cfg,
-  ~894KB diff) → "one base" = one SOURCE, two board-pin materializations (`be16b5c7`/`88e6cdd7`);
-  per-build persona offset drifts (45192 vs 45212) so the mask is per-build. A truly single binary
-  needs runtime board-pin detection (follow-up / #19 known-gap).
+- **Base is per-board (composer base_digest ruling):** canonical base = ONE provenance tuple
+  (HEAD + features + toolchain) instantiated per board-type; base_digest = a per-board-type
+  persona-masked sha256 TABLE — `esp32-s3-dfr1195=be16b5c7` (mask 45192), `esp32-s3-xiao-wio-sx1262=
+  88e6cdd7` (mask 45212), each two-party recomputable. "One base" stays machine-checkable = same tuple
+  + each board's masked sha matches its row (pin-cfg = a carrier fact, D-20260722-03/04). Runtime
+  board-pin detection would give a truly single binary (#19 known-gap).
+- **Flash grant LAPSED** (was premised on v1 shas 9031ffa2/2cc2c2d6) → composer asked supervisor for a
+  refreshed grant naming the v2 shas; I gave supervisor the authoritative v2 facts. Core supersedes
+  v1 coex.0722.1225/0x6616A287 (do-not-flash). **Core insight:** the metal refutation VALIDATED the
+  key-10 bitset — a genuinely dead LoRa correctly showed dead (present!=reached), not a false-green.
 
 **Acceptance (D-20260722-01):** XIAO health key-10 = **`0x25`** (bit0 BLE | bit2 LoRa | bit5 WifiMesh,
 enum-ordinal), all 3 in ONE frame, sustained ≥10s continuous. Traffic: LoRa D4↔XIAO, ESP-NOW D4↔XIAO,
