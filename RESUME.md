@@ -113,8 +113,17 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   FIX not just absence-of-trigger; root already metal-observed iter-5 boot + static :4744). **4f66adf4 pair
   (D4 `03d4e677` / XIAO `41108c28`, BUILD_ID coex.iter5p.0723) = attested FALLBACK, do-not-flash** unless
   ca198a5a retest fails weird. **471f0cf7 pair (c51ad8a6/90d3f489) SUPERSEDED.** **D5 `11f2d2ef` STAYS**
-  (acceptor-only sensor, no dial path; cosine proven ×307). Building ca198a5a pair next. **NEXT (post-metal):
-  classify InvalidRouteLen per queue.** Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+  (acceptor-only sensor, no dial path; cosine proven ×307). **iter-6 PAIR BUILT + FULLY ATTESTED from `ca198a5a`**
+  (BUILD_ID coex.iter6.0723): **D4 initiator `dc071b41…`** (`~/d4-init6.elf`, b[6]=1 ≠empty a08a414f, 0xC434FAFC
+  @46912, masked f5db0736, apiary+espnow+lora+core1) + **XIAO acceptor `a961d808…`** (`~/xiao-acc6.elf`,
+  b[4]=0/b[6]=0 ≠empty 8083cdb1, 0x8C15B0C2 @46048, masked a6facac0, observer). D5 da73508e STAYS in
+  KNOWN_HIVE_IDS = live distractor (pass = D4 dials XIAO DESPITE resolvable D5). Both falsifiers baked. **Boot
+  falsifier (composer reads D4, main.rs:4229):** `INITIATOR captured acceptor <mac> (hive X) — dialing` →
+  hive=8c15b0c2=fix works (bit0 lights=DONE / dark=2nd root past dial); hive=da73508e=fix failed→fallback.
+  Delivered composer+supervisor; flash per supervisor grants. **Fallback 4f66adf4p** (03d4e677/41108c28,
+  coex.iter5p.0723) do-not-flash unless da73508e recurs. **D5 `11f2d2ef` unchanged** (not re-issued). All lanes
+  converged on B (supervisor sequences; core conceded). **NEXT (post-metal): classify InvalidRouteLen per
+  queue.** Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
