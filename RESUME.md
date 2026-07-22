@@ -89,6 +89,11 @@ max ≈1.15/s (~870ms) ≪ W=8s → bit2 sustains; verifying exact ToA + §4.3 t
 < 1/8s the floor is real → escalate per-bearer W, Roy-visible). **Honest claim scope:** PASS =
 "0x25 sustained under bench apiary traffic", NOT "idle LoRa sustains 8s" (field-idle bit2 flickers =
 known+accepted). nbrs>0 (post-D5/#d004) = free bonus, not a dependency.
+**v4 build guard (v1-lesson, divergent sets):** D4 = `bridge,ble,benchsf7,baked_persona,fakesensor`
+(cargo-tree-confirmed: fakesensor pulls loratcxo+loraroute; NOT dropped); XIAO =
+`bridge,ble,benchsf7,baked_persona,loratcxo,xiao` (v2-identical, no regression). On hand-off: publish
+the FULL per-board list (explicit + pulled) with the shas for the grant + composer provenance, and
+DIFFERENTIAL-verify loratcxo compiled in the binary (not just the def).
 
 **USB-Android bridge SYNC-silence (supervisor's "2nd coex bug") — RULED not-foldable, v2 proceeds.**
 The SYNC responder is `xiao_bridge_task`, `#[cfg(feature="xiaobridge")]` (`main.rs:727`); the coex
