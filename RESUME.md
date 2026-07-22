@@ -14,22 +14,23 @@ features `bridge,ble,benchsf7,baked_persona,fakesensor` (v4 D4 apiary set; fakes
 loratcxo/loraroute/otaengine; NO `xiao`, NO explicit loratcxo); table `d4-reflash-partitions-e0e49127.csv`;
 attest = baked-persona `0xC434FAFC` + C-in-binary + fakesensor-took (apiary_bus_task) + loratcxo differential.
 Still #d005/#d006 preflight (drain+confirm+pinned-sha+byte-clean) at build time.
-**HIVE RADIO-DOMAIN desense — MECHANISM VINDICATED + FIXED (2026-07-22, critical path).** Composer run-5b:
-XIAO RX-blind bursts (all-or-nothing, quantized 7/14/21/28s, ~29s under CoC, ambient no-BLE 39-53%);
-D4-TX-pause FALSIFIED (80 beats, 0 pauses). **ROOT (mine, code-grounded, NOT power-save): the vestigial
-M8c WiFi-SoftAP join scans the shared 2.4GHz radio off ESP-NOW's ch1.** The link core's "DATA_PLANE_JOIN
-never fires" MISSED: `bring_up_provider` (`main.rs:5029`) ALWAYS returns `true` (stale M8c no-op) → provider
-sends WifiOffer → `join_provider` fires `DATA_PLANE_JOIN.signal()` → `wifi_task` `connect_async("r2-tn-form")`
-(`serve_ap=false` `:611`, nobody serves it) → esp-radio ACTIVE-SCANS all channels → retry 2s → radio off
-ch1 → periodic ESP-NOW RX-blind. Power-save REFUTED (esp-radio 0.18 default `None`, `wifi/mod.rs:41`).
-**CORE LANDED MY FIX: `56d39498` "suppress vestigial M8c WiFi-join — bit5 ESP-NOW desense"** (join_provider
-no-op, `DATA_PLANE_JOIN.signal` count 0; credited core+hive). Lineage: e4031efd → 83a2a17f (cadence
-30s→4s, signal-count 1) → 56d39498 (coex fix, count 0). **Predict (56d39498 re-run):** bit5 gaps ~40-53%
-→ ~0, radio stays ch1 → 0x25 SUSTAINED (cadence gives bit2, bit0 proven). **Ghost-election desense harm
-RETIRED** by 56d39498; restructure backlog rescopes to BLE-election correctness only (lower priority).
-**D4 `bb6565e6` built from 83a2a17f per order (cadence-only) — attested (persona `0xC434FAFC`,
-fakesensor-took, C-in-binary) but SUPERSEDED: the combined D4+XIAO image = `56d39498` (cadence + coex
-fix). Await a supervisor order naming 56d39498; HELD meanwhile.**
+**HIVE RADIO-DOMAIN desense — my WiFi-scan mechanism REFUTED ON METAL; root RE-OPEN (2026-07-22, critical
+path).** Composer run-5b: XIAO RX-blind bursts (all-or-nothing, quantized 7/14/21/28s, ~29s under CoC,
+ambient no-BLE 39-53%); D4-TX FALSIFIED (80 beats, 0 pauses). **My WiFi-join-scan root was REFUTED by
+composer's positive-control: the join strings NEVER printed on either board → `DATA_PLANE_JOIN` never
+signaled → wifi_task parked → no scan.** OWNED — I + core both verified the chain FROM join_provider but
+not that it is REACHED (the WifiReq→WifiOffer handshake never completes → join_provider never called).
+**Consequence: `56d39498` "suppress M8c WiFi-join" (core landed on my mechanism) LIKELY DOES NOTHING for
+bit5** — it suppresses a path metal proves is never taken; it's a harmless CLEANUP (signed off as such),
+NOT the cure. **Leading root now (grounded): core0 executor-starvation overflowing the 10-deep esp_now RX
+queue** (`RECEIVE_QUEUE_SIZE=10`, `esp_now/mod.rs:33`; drop at `:890`) — espnow_task (core0 `:786`) +
+io_task (core0) both on the one executor; 10 frames @2s HB = 20s buffer → a ~20-27s core0 stall overflows
+→ drop-burst = the 27s blind span; Fix-C precedent fits. **v7-DIAG proposed (co-design, core lands on
+56d39498):** C_recv (espnow_task.rx receive() count) vs C_admit (MESH_ADMIT count) — starvation → C_recv
+flat then ≤10 catch-up BURST on resume (+ C_admit lockstep); arbitration → C_recv gaps with NO burst;
+downstream → C_recv steady, C_admit alone gaps. One image splits it. **D4 `bb6565e6` (83a2a17f, cadence-only)
+attested (persona `0xC434FAFC`, fakesensor, C) — do NOT flash as a bit5 fix. HELD; the real fix awaits the
+v7-diag localization.** LESSON: [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]].
 **v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
 `alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
 (byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
