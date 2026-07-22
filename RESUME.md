@@ -41,8 +41,8 @@ BUILD_ID `coex.0722.1225`, fw_sha `0x6616A287`):
 enum-ordinal), all 3 in ONE frame, sustained ≥10s continuous. Traffic: LoRa D4↔XIAO, ESP-NOW D4↔XIAO,
 BLE phone(nRF Connect) central→XIAO CoC. Dashboard decodes ordinal via key-18≥2.
 
-**Held:** flashing is fleet-gated → Roy writes flash-auth (2 boards, brick-history), composer flashes.
-Then hive metal-verifies key-10=0x25 and hands back the result.
+**Flashing (2026-07-22):** XIAO flashed OK (MAC-verified, exit 0); D4 in flight. Proof read next —
+hive interprets XIAO key-10=0x25; if a bit stays dark, core traces its DATA_RX producer.
 
 ## Queued (Roy directives, AFTER the coex proof)
 
@@ -51,10 +51,11 @@ Then hive metal-verifies key-10=0x25 and hands back the result.
   reality2-ai #1 item **#19** (green cell + pinned sha + mechanism + inheritance + known gaps). File
   in DECISIONS. Build ONE base identically for D4/D5/XIAO; XIAO adds the bridge-leg (USB-Android)
   ensemble, not a fork. **DFR1195 = superset reference board** (coex + sensor + bridge).
-  **base_digest definition (flagged to composer):** the XIAO/D4 coex ELFs are byte-identical except
-  131 bytes, all inside the baked-persona region — so `base_digest` must be persona-INDEPENDENT (the
-  provenance tuple HEAD 97175901 + features + toolchain, or a persona-excluded hash), NOT a per-board
-  raw-ELF sha. Composer's provenance call (D-20260722-02..06).
+  **base_digest RULED + verified:** composer ruled persona-EXCLUDED hash (my point confirmed); candidate
+  **`ad9fc529d03ea1fdefd77d9c6c2437ecb509edd5798fd2618b61d9ccf1ced531`** = sha256(coex ELF, mask
+  `[45192,45528)` zeroed) — hive independently recomputed, XIAO==D4 converge. Record with mask +
+  method + provenance tuple (dfr1195-fw 97175901 / bridge,ble,benchsf7,baked_persona / coex.0722.1225 /
+  fw_sha 0x6616A287). **Pins as canonical base on coex-proof PASS.**
 - **D5 back on path:** all 3 S3 boards run ESP-NOW (each other's peers). D5 = 3rd ESP-NOW node —
   needs Roy-gated persona mint (existing `D5.bin` is a DIFFERENT TG `0x89BFBD4C`, not bench
   `0x6E31DEC6`) + MAC/board-identity resolution (rig-map vs ttyACM1 disagree). Sequenced after proof.
