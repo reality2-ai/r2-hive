@@ -123,6 +123,46 @@ It is not a task log and does not replace specifications, ADRs, or code.
   `:5435` (LoRa admit); supervisor thread 2026-07-22; design `~/coex-health-design.txt`.
 - **Supersedes:** None.
 
+### D-20260722-02 — BLE-advertise executor-starvation fix = C (move lora_route_task to esp-rtos core1)
+
+- **Kind:** Decision
+- **Date:** 2026-07-22
+- **Scope:** dfr1195-fw coex build — the tri-bearer proof's BLE bit0 blocker (advertise never starts)
+- **Outcome:** Fix **C** = relocate `lora_route_task` to a dedicated esp-rtos core1 embassy executor
+  (LoRa stays sync; RAK/LR2021 untouched). C isolates the WHOLE LoRa task → fixes advertise-start AND
+  CoC-connect AND ongoing runner-starvation, mechanism-agnostic. **A** (split trouble-host runner to a
+  priority InterruptExecutor) = **dead** (Stack un-shareable across executors; no InterruptExecutor in
+  esp-rtos 0.3.0). **B** (async `r2-sx1262`) = **backlog** (fleet migration: DFR xtensa + nrf54-lr2021 +
+  rak4630 + r2-ble all sync embedded-hal 1.0 → cross-runtime ripple; needed for C6 single-core).
+- **Decision-maker:** core (owns `r2-sx1262` + the firmware); hive designed A-prime (= C) and VERIFIED
+  C's data-layer safety; supervisor ratified A-prime-v5 + B-backlog earlier.
+- **Authority basis:** core ownership of both crates; hive's Authority-Chain role = design + host/metal
+  verification, not landing (AGENTS.md "never edit r2-core").
+- **Context:** The coex build's `peripheral.advertise()` hangs forever (bit0 dark). Isolation diag
+  `9e0b76de` (BLE+ESP-NOW, no `lora_route_task`) → `:3884` adv prints → `loraroute` IS the blocker.
+  Mechanism (core, code-grounded): startup `LoRaTransport::new` SX1262 `configure` (`:5386`, hw_reset
+  1.2ms + 5ms calibrate) collides with advertise-enable → dropped HCI response → permanent hang. RX is
+  event-driven DIO1 (`:5366`).
+- **Rationale:** C is mechanism-agnostic — it fixes both the startup collision AND ongoing CoC-connect
+  starvation (`:7244` precedent) that a startup-sequencing fix would miss. Hive's earlier Fix-B premise
+  ("async removes a long spin") was WRONG (driver has no long block — `wait_busy` bounded, `service()`
+  non-blocking); owned, and it reinforces C over B.
+- **Hive data-safety verification (grounded, dfr1195 main.rs):** `LoRaTransport` owned wholly inside
+  `lora_route_task` (`:5391`); dedicated `lora_spi` (`:847`, separate from display `:796`); `LoraRadioTy`
+  (`:5041`) `ExclusiveDevice<Spi<Blocking>,Output,Delay>` + `[u8;32]`/u32 args = Send → 2nd-core spawn
+  legal; all core0↔lora statics `CriticalSectionRawMutex` (`:224-226`, `:4588-4597`) = multicore-safe.
+  Residual: cross-core CS stall (bounded); confirm esp-rtos time-driver is multicore.
+- **Gate (HELD):** C-commit HELD until the 2nd-half `9e0b76de` laptop-CoC→bit0 result. bit0 LIGHTS →
+  chain proven, C delivers bit0; bit0 DARK → separate serve_coc defect C alone won't fix. Result needs
+  metal (Roy grant + composer console); routed to supervisor.
+- **Alternatives:** A (dead — verified), B (deferred to backlog), a targeted startup-sequencing delay
+  (rejected — fixes advertise-start only, not ongoing CoC starvation).
+- **Expected consequences:** virgin dual-core bring-up (isolated, metal-testable); v5 = C + fallback in
+  one Roy grant. B remains owed for single-core portability.
+- **Evidence:** core fleet msg 2026-07-22; diag `9e0b76de` `:3884`; dfr1195 main.rs `:5386/:5391/:847/
+  :5041/:224-226/:4588-4597/:7244`; supervisor A-prime-v5 ratification; [RESUME.md](RESUME.md).
+- **Supersedes:** None (refines the A-prime lean in RESUME; A-prime == C).
+
 ### R-20260722-01 — review of D-20260722-01: bit layout should be enum-ordinal
 
 - **Kind:** Review

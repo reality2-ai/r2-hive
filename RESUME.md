@@ -117,26 +117,43 @@ the async executor. **A-vs-B feasibility answered (hive, the blocking input for 
   xtensa + nrf54-lr2021), generic over sync `DelayNs`+`InputPin` → async = embedded-hal→async bounds +
   sync→async ripple through EVERY consumer, cross-runtime. Big coordinated migration → backlog, not
   v5-quick.
-- **Fix A-prime (esp-rtos 2nd core): dfr1195-CONTAINED, hive rec for v5.** esp-rtos 0.3.0 has no
-  InterruptExecutor — only `start_second_core` (`:348`, virgin/0-hits). Move the **LoRa task** (the
-  blocker, NOT the BLE stack — controller/coex are core-0-affine) to core 1; LoRa stays sync,
-  RAK/LR2021 untouched. Risk = virgin dual-core bring-up, isolated + metal-testable. **Rec: A-prime for
-  v5, B for backlog** (reverses the earlier B-lean once r2-sx1262 was confirmed fleet-shared). Core
-  owns the call (owns both crates).
+**FIX = C (core-RATIFIED), = A-prime renamed: move `lora_route_task` to an esp-rtos core1 executor.**
+LoRa stays sync (RAK/LR2021 untouched); isolates the WHOLE LoRa task so it fixes advertise-START AND
+CoC-connect AND ongoing runner-starvation, mechanism-agnostic (a startup-sequencing fix would fix only
+advertise-start, not ongoing CoC — my `:7244` precedent). **A = dead** (InterruptExecutor infeasible +
+absent in esp-rtos 0.3.0). **B (async r2-sx1262) = fleet migration backlog** (core owns the graph: DFR
+xtensa + nrf54-lr2021 + rak4630 + r2-ble, ALL sync embedded-hal 1.0 → async ripples cross-runtime;
+needed for C6 single-core portability).
 
-**Fix-B premise corrected (core, accepted):** the driver has NO long block — `wait_busy` is
-bounded/short, `LoRaTransport::service()` is a non-blocking poll (only one-time `configure` 5ms +
-`hw_reset` 1.2ms). So "async removes a long spin" targets nothing; B may fix nothing (owned the
-over-claim). This REINFORCES A-prime: a subtle/cumulative starver (aggregate service() frequency /
-one-time configure colliding with advertise-enable / SPI-RXEN interaction) is fixed by moving the
-whole LoRa task off core 0 regardless of granularity; async-ing μs-waits wouldn't help. **Fix scope
-HELD until `9e0b76de` lands** — it's the mechanism decider (adv works → lora_route_task is the whole
-cause, core bisects the subtle mechanism, A-prime fixes it; adv still hangs → not LoRa). Supervisor
-RATIFIED A-prime v5 + B backlog. **Canon-cite rule (Roy standing):** grep specs + cite `DOC §n` before
-architecture/contract findings — my "r2-sx1262 fleet-shared" was canon (unified-architecture), should
-have cited it. See [[cite-canon-before-claiming-a-finding]].
+**Mechanism (core, code-grounded):** advertise HANGS FOREVER while the loop yields 5ms → NOT the
+ongoing loop (that would let advertise eventually complete) → a PERMANENT STARTUP break: `LoRaTransport::new`
+SX1262 `configure` (`:5386`, hw_reset 1.2ms + 5ms calibrate) collides with BLE advertise-enable →
+dropped HCI response → advertise waits forever. RX already event-driven DIO1 (`:5366`). (My Fix-B
+premise "async removes a long spin" was WRONG — driver has no long block; owned; C is mechanism-agnostic
+so it holds regardless.)
 
-**Bundle plan (supervisor):** v5-fix (A-prime, core lands) + fallback in ONE Roy grant, v5 first.
+**Hive VERIFIED C's data layer is SAFE (grounded, dfr1195 main.rs):** (1) `LoRaTransport::new` owned
+WHOLLY inside `lora_route_task` (`:5391`) — no cross-core SX1262 handle share; (2) `lora_spi` is a
+DEDICATED `Spi` (`:847`, separate from the display bus `:796`); `LoraRadioTy` (`:5041`) =
+`ExclusiveDevice<Spi<Blocking>,Output,Delay>` all Send + captured `[u8;32]`/u32 → task future is Send →
+spawns on a 2nd-core executor, no bound violation; (3) EVERY core0↔lora static already
+`CriticalSectionRawMutex` (DATA_RX/DATA_TX_LORA/DATA_TX `:4588-4597` + LORA/BLE/MESH_ADMIT_S atomics
+`:224-226`) = multicore-safe by construction. Residual (not blockers): CS now taken cross-core (bounded
+stall, NOT the starve); confirm esp-rtos 0.3.0 embassy time-driver is multicore. **C ratified for v5,
+B backlog, A dead.**
+
+**GATE (core's, hive AGREES): C-commit HELD until the 2nd-half `9e0b76de` CoC→bit0 lands.** First-half
+CONFIRMED (`:3884` adv prints without `lora_route_task` → loraroute IS the blocker). 2nd-half = laptop
+CoC → does key-10 bit0 light (ceiling 0x21)? **bit0 LIGHTS** → serve_coc/stamp chain proven end-to-end
+minus LoRa → C (keeps that chain on core0) delivers bit0. **bit0 DARK** → a separate serve_coc defect C
+alone won't fix (core fixes that too). **Hive does NOT hold this result** — needs 9e0b76de on metal +
+laptop CoC = Roy grant + composer console; ROUTED to supervisor. Core is spiking the `start_second_core`
++ per-core embassy executor pattern in parallel (compile-verify + v5 sha + fallback bundle), not
+committing C until the 2nd-half validates the chain. **Canon-cite rule (Roy standing):** grep specs +
+cite `DOC §n` before architecture/contract findings — my "r2-sx1262 fleet-shared" was canon
+(unified-architecture). See [[cite-canon-before-claiming-a-finding]].
+
+**Bundle plan (supervisor):** v5-fix (C, core lands) + fallback in ONE Roy grant, v5 first.
 `9e0b76de` (XIAO confirm) is **xiao-persona** (hive_id `0x8C15B0C2`) — collision-free, flashable.
 `e2bba673` (d4-persona) is **DEAD for XIAO** per Roy's ruling ("no two hives same hive_id"; §16.6
 rejects dup at JOIN, baking bypasses join → build discipline) — rebuild xiao-persona ONLY if/when the
