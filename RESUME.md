@@ -15,10 +15,16 @@ pinned coex `bee0e996` are SIBLINGS off `e4031efd`; **c01c9db9 LACKS all 3 coex 
 keepalive still 8000 `:3387`). **Ghost-removal (`3b7079f1` in c01c9db9) makes join-suppress LOAD-BEARING** — the
 ghost is why the WiFi-join-scan desense was unreachable; removing it lets a real election fire join_provider →
 scan → bit5 desense RE-OPENS unless 56d39498's no-op rides. Escalated the MERGE to core (never-edit-core +
-reproducible provenance + owner resolves the ghost/join-suppress composition). On core's merged sha: build D4
-initiator with `DFR_PERSONA_PATH` + `DFR_ROLE_PATH=~/d4-initiator.role` (sha `a55810f9…`, 48B RPF1
-b[6]=0x01 initiator/b[4]=0x02 Bridge, verified), attest (image sha + masked base + BAKED_ROLE_PROFILE present +
-persona `0xC434FAFC` + table `e0e49127`). XIAO unchanged (`d12ddcc8`). Flash waits for Roy per-op grant. STANDBY.
+reproducible provenance + owner resolves the ghost/join-suppress composition). Core did the merge: **`54a8a1f3`** (branch dfr1195-fw-blerole-coex, `merge --no-ff` of c01c9db9 onto
+bee0e996) — my load-bearing interaction CONFIRMED on the merged tree (join-suppress rides, `DATA_PLANE_JOIN.signal`=0
+→ ghost-removal doesn't re-open desense). **D4 INITIATOR BUILT + ATTESTED: `8f5c5701`** (from 54a8a1f3,
+`bridge,ble,benchsf7,baked_persona,fakesensor,benchkeepalive` + `DFR_ROLE_PATH=~/d4-initiator.role`); persona
+`0xC434FAFC`, masked `0a8ad024…`, BAKED_ROLE_PROFILE=RPF1 b[6]=0x01 INITIATOR (role baked), RXDIAG=0. XIAO
+unchanged (`d12ddcc8`). Delivered to supervisor+composer; **flash waits for Roy per-op grant.**
+**BUILD GOTCHA (owned + memory'd):** first builds gave `2804223c` = EMPTY role (derived acceptor mislabelled) —
+the shared target's incremental cache kept a stale empty `BAKED_ROLE_PROFILE`; 5 targeted cache-busts failed,
+only `rm -rf target` baked the env const. Role proven by the DIFFERENTIAL (`8f5c5701`≠`2804223c`) since the
+const is const-folded (not raw-in-ELF). See [[env-baked-const-needs-full-clean]]. STANDBY.
 **bit0 CLOSED on metal** via composer's pump prefix fix → 0x25 reachable; board canon-correct
 (prefix-always ratified). **NEXT: Roy ruled DENSIFY + RE-RUN, gate UNSOFTENED** (denser real LoRa admits
 so bit2 sustains within W≈8s, NOT a wider W). **D4 BUILD-ON-SHA STANDING ORDER (Roy pre-granted, no
