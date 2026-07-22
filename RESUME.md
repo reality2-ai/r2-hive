@@ -1,13 +1,18 @@
 # RESUME — r2-hive
 
-Updated 2026-07-22. `main` clean + pushed. Active work: tri-bearer coex proof. **bit0 ROOT-CAUSED = composer's
-pump framing** (missing 2-byte length prefix) — board/firmware canon-compliant → C + v5 VALIDATED. v5
-`23e17d1c` resident on XIAO; composer re-pumping v5 with fixed framing (if 0x25 greens, no run-6 flash).
-**v6-DIAG BUILT + ATTESTED + HELD:** XIAO `2c5d41ef` from PINNED `36811c9b` (byte-identical) = e4031efd +
-cocdiag CoC-rx instrumentation + fail-open Err. Feature set **B** (supervisor-ruled minimal-delta) =
-`bridge,ble,benchsf7,baked_persona,loratcxo,xiao,cocdiag` — NO fakesensor (that was D4-flavored carry-over;
-XIAO stays observer). Attest: persona baked @49552 hive `0x8C15B0C2` (collision-safe); C-in-binary
-(`start_core1_run<start_second_core<16384>>`); cocdiag TOOK (4 `DIAG-RX` strings); masked `a8df6619…`.
+Updated 2026-07-22. `main` clean + pushed. Active work: tri-bearer coex proof. **bit0 CLOSED on metal**
+(root = composer pump framing, fixed pump-side; board canon-correct; C + v5 VALIDATED). v5 `23e17d1c`
+resident on XIAO. **STANDBY:** Roy ruled densify+re-run (gate unsoftened) for sustained-0x25; next build
+likely a D4 densify image (contingent on core's runtime-knob check), await order naming sha per #d006.
+**bit0 CLOSED on metal** via composer's pump prefix fix → 0x25 reachable; board canon-correct
+(prefix-always ratified). **NEXT: Roy ruled DENSIFY + RE-RUN, gate UNSOFTENED** (denser real LoRa admits
+so bit2 sustains within W≈8s, NOT a wider W). Likely a **D4 image** (e4031efd lineage + cadence densify),
+but **CONTINGENT on core's runtime-knob gap-check** — if a knob densifies cadence, NO build at all. Await
+a supervisor order naming the sha (#d006).
+**v6-DIAG `2c5d41ef` = PERMANENT STAND-DOWN** (framing root proven on metal; archived
+`alfred:~/xiao-v6diag-36811c9b-2c5d41ef.elf`, NEVER flash). It was XIAO from PINNED `36811c9b`
+(byte-identical), feature set **B** (minimal-delta, no fakesensor); fully attested (persona `0x8C15B0C2`,
+C-in-binary `start_core1_run<start_second_core<16384>>`, cocdiag TOOK 4×`DIAG-RX`, masked `a8df6619…`).
 **ARTIFACT HELD → LIKELY STAND-DOWN.** bit0 root refined (core, corrections owned): **double length-framing**
 at the CoC boundary — this BlueZ SEQPACKET is RAW-PDU passthrough (no sdu_len add/strip); rx.receive
 returned `Ok(n=1)`, serve_coc `n<2` silent-dropped. FIX = composer pump sends SDU `03 00 01 00 41`
