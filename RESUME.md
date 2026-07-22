@@ -20,7 +20,11 @@ bee0e996) — my load-bearing interaction CONFIRMED on the merged tree (join-sup
 → ghost-removal doesn't re-open desense). **D4 INITIATOR BUILT + ATTESTED: `8f5c5701`** (from 54a8a1f3,
 `bridge,ble,benchsf7,baked_persona,fakesensor,benchkeepalive` + `DFR_ROLE_PATH=~/d4-initiator.role`); persona
 `0xC434FAFC`, masked `0a8ad024…`, BAKED_ROLE_PROFILE=RPF1 b[6]=0x01 INITIATOR (role baked), RXDIAG=0. XIAO
-unchanged (`d12ddcc8`). Delivered to supervisor+composer; **flash waits for Roy per-op grant.**
+unchanged (`d12ddcc8`). **FLASH PASS (supervisor 2026-07-23): role=initiator on metal, differential attest
+VINDICATED (banner confirmed).** **Board-to-board BLOCKED at rbid→identity resolution** — D4 drops XIAO's NEG
+as identity-less (v0.10 L3); = the deferred bit0 scaffold gap I flagged (`resolve_rbid_windowed` matches empty
+`registry:&[]`). Core diagnosing (pre-provisioning gap vs scan-path code gap); possible rebuild, base stays
+**54a8a1f3 lineage**. HELD — no hive build until core hands a sha. STANDBY.
 **BUILD GOTCHA (owned + memory'd):** first builds gave `2804223c` = EMPTY role (derived acceptor mislabelled) —
 the shared target's incremental cache kept a stale empty `BAKED_ROLE_PROFILE`; 5 targeted cache-busts failed,
 only `rm -rf target` baked the env const. Role proven by the DIFFERENTIAL (`8f5c5701`≠`2804223c`) since the
