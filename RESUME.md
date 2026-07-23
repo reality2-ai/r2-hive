@@ -32,8 +32,9 @@ monotonic-max + epoch=coarse/T_rotate) + §5.4 rollback persist record **@0x1E00
   - d5-ota-d5-v5.bin `3f88fd04897d9f2c3635cca4e805958a2d3cc45a00be993471ee508ce2c84f00` (894976 B)
   - d5-ota-d4-v5.bin `bb4f50b53949ef87767c275238936a101647e81c85c248afd80b8ec8887ade46` (878096 B)
   - d5-ota-xiao-v5.bin `d06826e45448d963c239c6b70a58df97c56f56aab0fedcd893865c9a4c930711` (863936 B)
-  - 3 distinct. Composer two-party independent-derives = MATCH or ABORT. NO flash/sign — grant v5 after
-    two-party match + OTA P1-P3 completes. (R2_OTA_TARGET gate-token carries a device tail → off-tree only.)
+  - 3 distinct. **TWO-PARTY MATCH 3/3 CONFIRMED (composer == hive) — v5 triplet validated end-to-end.**
+    **Grant v5 STAGED (3 per-board sections), issued after OTA P1-P3 completes under v4.** No hive action until
+    then. (R2_OTA_TARGET gate-token carries a device tail → off-tree only.)
 - Recipes (iter-9 anchored): D5 `bridge,ble,benchsf7,baked_persona,fakesensor,benchkeepalive`+cos / D4 same
   +d4-initiator.role / XIAO `bridge,ble,benchsf7,baked_persona,loratcxo,xiao,benchkeepalive`+xiao-role.
 - Build hazard: `nohup` detach kills export-esp.sh (empty log); use attached ssh (harness background).
