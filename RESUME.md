@@ -5,24 +5,37 @@ DELIVERED — awaiting two-party verify + re-score.**
 
 ## Current state
 
-iter-9 pair delivered, two-party verified. Conformance artifacts stand. **Co-boot re-score RUNNING under the
-REVISED bar** (composer). No build now. STANDBY for the co-boot verdict.
+**✅ iter-9 CONFORMANCE PASS (composer co-boot re-score 2026-07-23) — sustain GREEN unchanged, capture-decouple
+intact, #d013 conformance confirmed on metal.** Only Roy-optional D5 reflash remains. No build. STANDBY.
 
-**iter-9 REVISED BAR (supervisor, pre-declared in the XIAO grant NOTE — I first scored a STALE bar, owned):**
-election `Some(D5)` = ACCEPTED canon-correct (NO elect-None clause). PASS = (1) D4 DIAL target = XIAO
-`8c15b0c2` (:4818 decoupled); (2) `0x25` ≥10s BOTH + bidirectional keepalive; (3) XIAO reads bit2=0 in D4's
-view. Co-boot is decisive under this bar.
+**iter-9 co-boot PASS (revised bar, all 5 met):**
+1. **D4 DIALS XIAO** `8c15b0c2` (lowest-resolvable), NOT D5 — `captured acceptor (hive 8c15b0c2) — dialing` +
+   `BLE resolver expects hive 8c15b0c2 -> rbid 6084`. Capture :4818 decoupled works. Earlier D4-dials-D5 =
+   XIAO-down-at-boot confound, removed by co-boot (NOT a resolution bug). FAIL-arm did not trigger.
+2. **0x25 SUSTAINED BOTH** — D4 ×4, XIAO ×7; accept completes (ACL → L2CAP CoC accept ENTRY → CoC up serving);
+   wedge=0.
+3. **Bidirectional keepalive** — D4 RECV from 8c15b0c2 ×10, XIAO RECV from c434fafc ×21, ~2.5s both ways.
+4. **Election Some(D5) ACCEPTED** canon-correct (D5-old `11f2d2ef` = sole eligible provider).
+5. **Conformance bit2=0** — XIAO elects None + D4 does NOT elect XIAO ⇒ XIAO advertised bit2=0 confirmed;
+   D4 resolves XIAO for the CoC DIAL but not for provider-ELECTION (the decouple, metal-proven).
 
-**Metal first-pass (composer, against the stale bar):** ✓ self-election GONE; XIAO elects None (acceptor = no
-scan = empty roster); D4 elects `Some(D5)` = §4A-CORRECT (D5-old `11f2d2ef` UNFIXED advertises
-provider_capable=TRUE ⇒ sole eligible). Both new boards verified `NodeCaps::new(false,..)` :5427 + beacon
-`provider_capable:false` :3913. D4-dialed-D5 = non-co-boot artifact; D4-quiescent = serve_coc holding its CoC,
-not a wedge. Dial ≠ election (decoupled), lowest-CONNECTABLE = XIAO — mine=supervisor's=core's read.
+Both new boards verified `NodeCaps::new(false,..)` :5427 + beacon `provider_capable:false` :3913. My mechanism
+reads all metal-vindicated (mine=supervisor's=core's): dial≠election decoupled, D4-dials-D5=confound,
+quiescent=serve_coc-sticky. **REVISED BAR (owned: I first scored a STALE bar):** Some(D5)=accepted, no
+elect-None clause — pre-declared in the XIAO grant NOTE.
 
-**Closed, not open:** sensor-bit2 canon ALREADY RATIFIED (specs #d013: MCU boards MUST advertise bit2=0; D5's
-true = old-image nonconformance — the ruling that iter-9 IMPLEMENTS). I wrongly reframed it as an open Q +
-scored a stale bar — should have positive-controlled the #d013 verdict + the grant NOTE first
-([[cite-canon-before-claiming-a-finding]] + directive-date discipline).
+**Secondary CONFIRMED (core+supervisor ruled INTENDED, not-bar):** the earlier D4-quiescence = D4 sticky in
+the D5 CoC (keepalive-sticky, no re-dial to a newer-lower peer); co-boot removed the confound. = a robustness
+enhancement (re-dial-on-lower-peer), parked as an iter-10 candidate only if a mixed live bench needs it.
+
+**Closed, not open (core grep-verified 70960dbc-era specs):** sensor-bit2 canon ALREADY RATIFIED —
+**R2-ARCH §3.1.3 v0.17 (D-20260723-05 = #d013)** (MCU-class radios serve SOLELY the TN substrate; infra-WiFi
+STA/AP is a host-half duty, not MCU) + **R2-BEACON §7.2** (bit2 = fixed-AP for the NON-transient gateway
+profile; transient flow elects nothing). ⇒ every MCU board incl a SENSOR (D5 = DFR1195 ESP32 = MCU) MUST
+advertise bit2=0. D5-old bit2=true = pre-#d013 legacy artifact (cf TV6 R2-BEACON conf v0.31 flags 0x04 legacy
+DEV beacon) = the SAME wrong-axis bug iter-9 fixed for D4/XIAO, D5 just un-reflashed. I wrongly reframed it as
+open + scored a stale bar — should have positive-controlled the #d013 verdict + the grant NOTE first
+([[cite-canon-before-claiming-a-finding]] currency corollary).
 
 **Parked (not blockers):** D5 reflash→70960dbc (for the elect-None end-state) surfaced to Roy, OPTIONAL,
 awaiting word — D5-off interim NOT needed under the revised bar. iter-10 capture-tiebreak = core-ruled
