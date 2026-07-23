@@ -1,7 +1,14 @@
 # RESUME — r2-hive
 
-Updated 2026-07-24. `main` clean + pushed. **v6 4-artifact set BUILT+ELF-attested on `05dba4f3` (set_phy
-removal + re-adv timer). OTA adv-wedge pair grant-v4 running. v5 triplet two-party-matched, grant-v5 staged.**
+Updated 2026-07-24. `main` clean + pushed. **v6 DOA (deterministic boot-hang) → v7 rebuild pending on core's
+push of `6eec53d5` (not yet on origin) + a #d005 order. v5 grant-v5 staged; v4 OTA pair grant-v4 running.**
+
+**⚠ v6 (05dba4f3) DOA:** core found a deterministic boot-hang — coarse-checkpoint flash-write cache-suspend
+deadlock in the boot-settling window (coarse_time_init doesn't seed COARSE_LAST_CKPT_S → checkpoint_tick fires
+a flash write immediately). **v6 4-bin two-party is MOOT** (don't flash a hanging image). Fix = v7 @ `6eec53d5`
+(one-line: coarse_time_init seeds COARSE_LAST_CKPT_S=base). **BLOCKED:** 6eec53d5 not pushed
+(origin/dfr1195-fw-blerole-coex tip still 05dba4f3, cat-file "Not a valid object name"). Asked core to push;
+awaiting a #d005 build order. On both → rebuild the 4 artifacts BUILD_ID `coex.v7.0724`, same recipes.
 
 ## Current build order — v6 4-artifact set (BUILT+ELF-attested, 2026-07-24)
 
