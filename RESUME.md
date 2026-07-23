@@ -156,8 +156,12 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   registers L2capChannel::accept → dropped; BlueZ-pump worked because it paces slower), HC conn-not-serviced. **CONVERGED
   iter-7 = ONE build: core H2-fix (Initiator ap_capable=false) + XIAO accept step-log (ACL-accepted :4018 +
   L2CAP-accept entry/return) + election-timing markers** → splits H2 vs BRANCH-2 (ACL vs L2CAP layer) in one flash.
-  **Core writes the spec → hive builds.** Sent core+composer+supervisor. **NEXT (post-metal): classify
-  InvalidRouteLen per queue.** Ops hazard:
+  **Core writes the spec → hive builds.** **★ NULL-GATE (hive, diagnostic-critical):** the XIAO accept step-log
+  fires in the boot-flush-wedge window → a passive post-boot logger truncates it → a silent accept-line would
+  FALSELY read as accept-hang. A silent boot-window line is conclusive ONLY with the positive control (`Loaded app
+  0x20000` + `BEACON adv up`) in the SAME from-boot capture; else wedge-truncation → re-capture. Composer captures
+  XIAO from-boot via espflash monitor (wedge-proof); D4 passive-OK. See [[reference-xiao-boot-flush-wedge]]. Sent
+  core+composer+supervisor. **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
