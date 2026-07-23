@@ -68,11 +68,13 @@ iter-9 #d013 conformance (bit2=0, #d025).
 - **conn-liveness watchdog** (my `conn.next()`/`is_connected()` primitive): NOT needed — keepalive
   `tx.send.is_err()→break` covers the common case, metal showed zero half-open. Parked as backstop; core wires
   only IF metal ever shows a tx.send-succeeds half-open (session neither sustains nor returns).
-- **InvalidRouteLen CLOSED benign**: triple-confirmed foreign SF7 beacon noise (2 classes 43895e89/bafe8ac1,
-  ~1000/2158) mis-parsed by the EXTENDED decoder (:2729, n~29 not n~54); apiary (READING=64cedb11) decodes at
-  :2101 = safe by construction. Verdict (canon-correct drops per R2-WIRE L244/L250, not strictness, not
-  real-DATA-loss) HELD; owned a mechanism-direction inversion (extended-mis-parses-compact, not the reverse).
-  Optional :2729 log rate-limit parked with core (iter-9+, LOW/cosmetic).
+- **InvalidRouteLen CLOSED benign** (attribution corrected 2026-07-23): the 2 beacon classes are **OURS**
+  (5511 FNV table; supervisor REFUTED the earlier "foreign noise" attribution I carried). The :2729
+  EXTENDED-decoder drops (n~29) = OUR beacon frames on the extended path; apiary DATA (READING=64cedb11)
+  decodes at :2101 = safe by construction, so the benign verdict HOLDS (canon-correct drops per R2-WIRE
+  L244/L250, not strictness, not real-DATA-loss) — only the source label changed (ours, not foreign). Owned a
+  mechanism-direction inversion earlier (extended-mis-parses-compact). Optional :2729 log rate-limit parked
+  with core (LOW/cosmetic).
 
 ## Backlog (Roy-gated, not started)
 
