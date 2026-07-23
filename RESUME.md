@@ -6,7 +6,8 @@ DELIVERED — awaiting two-party verify + re-score.**
 ## Current state
 
 **✅ iter-9 CONFORMANCE PASS (composer co-boot re-score 2026-07-23) — sustain GREEN unchanged, capture-decouple
-intact, #d013 conformance confirmed on metal.** Only Roy-optional D5 reflash remains. No build. STANDBY.
+intact, #d013 conformance confirmed on metal. Campaign CLOSED pair-only (supervisor `#d025`).** Only
+Roy-optional D5 reflash remains. No build. STANDBY.
 
 **iter-9 co-boot PASS (revised bar, all 5 met):**
 1. **D4 DIALS XIAO** `8c15b0c2` (lowest-resolvable), NOT D5 — `captured acceptor (hive 8c15b0c2) — dialing` +
