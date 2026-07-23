@@ -22,10 +22,18 @@ a0157eb2, all bit2=0), D4 monitor-reset co-boot.
   reconnect blip, self-recovered (validates iter-8 keepalive disconnect→break→re-dial→re-establish), NOT a
   sustained wedge. Relevant to the parked re-dial/conn-watchdog thread only if it RECURS.
 
-**Overnight posture (`#d026`, Roy: green the remaining matrix overnight):** STANDBY-READY. Anticipated build
-orders — beacon-plane diffs (only if core finds emit gaps), extended-wire test image, OTA-enabled image
-(pending specs canon + core readiness). Discipline: NO build until an explicit order names a sha; #d005/#d006
-preflight (drain → pinned-sha detached byte-clean → `rm -rf target` → attest) on each. Stay drained.
+**Overnight posture (`#d026`, Roy: green the remaining matrix overnight):** STANDBY-READY. Discipline: NO
+build until an explicit order names a sha; #d005/#d006 preflight (drain → pinned-sha detached byte-clean →
+`rm -rf target` → attest) on each.
+
+- **OTA D5-receiver PENDING (core-ready `418c7934`, parent 70960dbc — HOLD for supervisor order):** read-only
+  pre-verified — otal2cap=["ble"] :156 present, dev-unsigned-ota separate (MUST NOT enable, signature
+  required), ota_receive/PSM-0x00D3 ×18, diff main.rs 88+/11-. Recipe on GO = d5-cos9 feature set + otal2cap,
+  persona da73508e + role b[4]=1 PRESERVED (otal2cap changes PSM/handler not persona/role). ★ This REPURPOSES
+  D5 to a dedicated OTA receiver (PSM 0x00D3, no bit0) — replaces d5-cos9/a0157eb2 on the bench; 3-board bit0
+  already banked (#d025) so OK, but flagged supervisor to confirm the repurpose. Brick-safety P1-first flash =
+  composer/Roy. [[ota-per-platform-sink]]
+- Other anticipated: beacon-plane diffs (only if core finds emit gaps), extended-wire test image.
 
 **D5 iter-9 conformant (from PINNED `70960dbc`, BUILD_ID coex.iter9.0723): DELIVERED 2026-07-23.** Roy
 authorized the reflash; supersedes d5-cos5/`11f2d2ef`. 3 clean builds.
