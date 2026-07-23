@@ -123,8 +123,18 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   Delivered composer+supervisor; **composer TWO-PARTY VERIFY PASS both hosts (alfred+tuxedo)**; flash + :4229
   monitor-read on supervisor grants. **Fallback 4f66adf4p** (03d4e677/41108c28,
   coex.iter5p.0723) do-not-flash unless da73508e recurs. **D5 `11f2d2ef` unchanged** (not re-issued). All lanes
-  converged on B (supervisor sequences; core conceded). **NEXT (post-metal): classify InvalidRouteLen per
-  queue.** Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
+  converged on B. **METAL RESULT: dial-fix PASSES** (:4229 `INITIATOR captured acceptor … hive 8c15b0c2 —
+  dialing` — D4 dials XIAO DESPITE resolvable D5 = my prediction met), **but bit0-BOTH NO = 2nd root past dial**
+  (no CoC RECV / membership-verified either side; XIAO self-elects provider→Data, bit0 stays 0x24). iter-6 pair
+  flashed+verified; 4f66adf4p fallback not needed. **2nd-root LOCALIZED (hive read-only, ca198a5a):** BLE_ADMIT
+  stamps at serve_coc :4426 on ANY inbound CoC PDU → bit0 needs a CoC control frame to FLOW board-to-board; the
+  0x25 PASS used an EXTERNAL laptop pump, board-to-board has none → needs the NEG to push a WifiReq/Offer over
+  the CoC (send_control :5304 → CTRL_OUT → serve_coc send :4487 → recv → BLE_ADMIT). Code comment :4767 names
+  the class ("both self-elect ⇒ neither sends WifiReq ⇒ bit0 dark"). 3 splits: H1 CoC-never-up (create ERR :4297),
+  H2 CoC-up-but-no-WifiReq (self-election completes sans CoC — likely), H3 WifiReq-sent-but-CoC-half-open (:7663).
+  Asked composer for the decisive metal fact: did "CoC up" print (:4303/:4042)? Core owns the NEG/serve_coc fix.
+  Reported composer+core+supervisor. **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
+  [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
 differential control (same persona) to prove the DFR_WAVE env took, saves `~/d5-cos-role.elf`. Fires the
