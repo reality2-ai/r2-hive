@@ -168,7 +168,13 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
       bd22d272/ce76ea9e NOT retired — they're the on-board occupancy DISCRIMINATOR** (A/B: tuned image must
       SURVIVE the ODT burst where b79b4f7a dropped at 1/4488) — I over-stated "retired," corrected; (3)
       connect-drop 8/8 = SEPARATE coex connect-race (tuning is post-connect, can't fix; central-retry owns).
-      Nothing hive-side until btmon 0x08 ⇒ grant v3 ⇒ flash.
+    **v3 GRANT ISSUED — composer FLASHING the tuned pair (supervisor OVERRULED btmon-first: instrument
+    unavailable [setcap+flaky ssh] ⇒ blocking on it inverts test-first; the A/B IS the experiment, reflash
+    cheap/reversible; occupancy = best-evidence: OAK-per-ODT :7974 refutes protocol-mismatch, cum 400<4096
+    refutes flash-sector ⇒ radio-level drop).** b79b4f7a bins = ARCHIVED discriminator baseline (kept, NOT
+    v3-flashable — sha-lock = tuned pair only). **FALSIFIER LOCKED (advance-gate): tuned SURVIVES past 1/4488 ⇒
+    occupancy CONFIRMED, cycle proceeds; tuned DROPS same early-burst ⇒ occupancy REFUTED ⇒ btmon 0x08 MANDATORY
+    + re-scope (credits/RESP-parse). My next action fires ONLY on that falsifier.** Standby for the A/B verdict.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
