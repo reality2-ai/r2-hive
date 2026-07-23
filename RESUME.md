@@ -1,86 +1,57 @@
 # RESUME — r2-hive
 
-Updated 2026-07-23. `main` clean + pushed. **✅ bit0 SUSTAIN RUNG GREEN (iter-8). iter-9 conformance PAIR
-DELIVERED — awaiting two-party verify + re-score.**
+Updated 2026-07-23. `main` clean + pushed. **✅ iter-9 conformance pair PASS (`#d025`). D5 conformant reflash
+DELIVERED + attested (Roy-authorized) — awaiting two-party verify + 3-board re-score.**
 
 ## Current state
 
-**✅ iter-9 CONFORMANCE PASS (composer co-boot re-score 2026-07-23) — sustain GREEN unchanged, capture-decouple
-intact, #d013 conformance confirmed on metal. Campaign CLOSED pair-only (supervisor `#d025`).** Only
-Roy-optional D5 reflash remains. No build. STANDBY.
+**✅ iter-9 conformance PAIR PASS (`#d025`, campaign closed). D5 CONFORMANT REFLASH DELIVERED + ATTESTED
+(Roy-authorized) — awaiting two-party verify + 3-board re-score.** No build pending.
 
-**iter-9 co-boot PASS (revised bar, all 5 met):**
-1. **D4 DIALS XIAO** `8c15b0c2` (lowest-resolvable), NOT D5 — `captured acceptor (hive 8c15b0c2) — dialing` +
-   `BLE resolver expects hive 8c15b0c2 -> rbid 6084`. Capture :4818 decoupled works. Earlier D4-dials-D5 =
-   XIAO-down-at-boot confound, removed by co-boot (NOT a resolution bug). FAIL-arm did not trigger.
-2. **0x25 SUSTAINED BOTH** — D4 ×4, XIAO ×7; accept completes (ACL → L2CAP CoC accept ENTRY → CoC up serving);
-   wedge=0.
-3. **Bidirectional keepalive** — D4 RECV from 8c15b0c2 ×10, XIAO RECV from c434fafc ×21, ~2.5s both ways.
-4. **Election Some(D5) ACCEPTED** canon-correct (D5-old `11f2d2ef` = sole eligible provider).
-5. **Conformance bit2=0** — XIAO elects None + D4 does NOT elect XIAO ⇒ XIAO advertised bit2=0 confirmed;
-   D4 resolves XIAO for the CoC DIAL but not for provider-ELECTION (the decouple, metal-proven).
+**D5 iter-9 conformant (from PINNED `70960dbc`, BUILD_ID coex.iter9.0723): DELIVERED 2026-07-23.** Roy
+authorized the reflash; supersedes d5-cos5/`11f2d2ef`. 3 clean builds.
+- d5-cos9 `a0157eb2095e960f081dd43a8b47d70770af86ea65928886ade4a04e1e271e0f` (`~/d5-cos9.elf`).
+- Persona baked==input `e6108006` @47216 = wire **0xDA73508E PRESERVED UNCHANGED**; masked base `305377b5`.
+- Role BAKED_ROLE_PROFILE = RPF1 b[4]=1 Sensor, **b[6]=0 AcceptorOnly** (no initiator) + role≠norole diff
+  `aa71d687`. Role byte = the 48B .role record (read_role_profile :3322), NOT the 336B persona. **bit2=0 rides
+  70960dbc** engine_task `NodeCaps::new(false)` — the point of the reflash.
+- Wave cos≠sin diff (cos `a0157eb2` ≠ sin `57648717`) + `k_cosf` linked + WaveSourceSentant×6 = cosine at
+  sentant layer. C: core1×2 + lora_route×6 + espnow×6 + apiary×6 (fakesensor). Markers: BUILD_ID + domain-sep
+  + APIARY value=.
 
-Both new boards verified `NodeCaps::new(false,..)` :5427 + beacon `provider_capable:false` :3913. My mechanism
-reads all metal-vindicated (mine=supervisor's=core's): dial≠election decoupled, D4-dials-D5=confound,
-quiescent=serve_coc-sticky. **REVISED BAR (owned: I first scored a STALE bar):** Some(D5)=accepted, no
-elect-None clause — pre-declared in the XIAO grant NOTE.
+**3-BOARD BAR (core declared, supervisor locked — analyze metal against THIS):** all elect None; D4 dials XIAO
+(lowest of TWO live resolvable acceptors = stronger tiebreak test, directly exercises my sticky-capture
+secondary — D4-dials-XIAO ⇒ tiebreak robust/iter-10 unneeded, D4-dials-D5 ⇒ sticky-capture bug real); D4↔XIAO
+`0x25` ≥10s + keepalive; D5 resolvable + bit0 DARK = EXPECTED. Falsifiers: elect-Some leak / D4-dials-D5-both-
+resolvable / pair drop / D5-disrupts-pair.
 
-**Secondary CONFIRMED (core+supervisor ruled INTENDED, not-bar):** the earlier D4-quiescence = D4 sticky in
-the D5 CoC (keepalive-sticky, no re-dial to a newer-lower peer); co-boot removed the confound. = a robustness
-enhancement (re-dial-on-lower-peer), parked as an iter-10 candidate only if a mixed live bench needs it.
+**Pair PASS recap (`#d025`, composer co-boot 2026-07-23):** D4 dials XIAO `8c15b0c2` (capture-decouple works;
+D4-dials-D5 was a boot-order confound), `0x25` sustained both (D4 ×4/XIAO ×7), bidirectional keepalive 10/21
+~2.5s, election Some(D5) canon-correct, XIAO bit2=0. Mechanism reads all metal-vindicated (dial≠election
+decoupled, quiescent=serve_coc-sticky). Pair `70960dbc`: D4 `724383ea`/`~/d4-init9.elf`, XIAO
+`5fb1565f`/`~/xiao-acc9.elf` (both two-party verified). Sticky-capture secondary = core+supervisor ruled
+INTENDED (re-dial-on-lower-peer robustness, iter-10 only if a mixed live bench needs it).
 
-**Closed, not open (core grep-verified 70960dbc-era specs):** sensor-bit2 canon ALREADY RATIFIED —
-**R2-ARCH §3.1.3 v0.17 (D-20260723-05 = #d013)** (MCU-class radios serve SOLELY the TN substrate; infra-WiFi
-STA/AP is a host-half duty, not MCU) + **R2-BEACON §7.2** (bit2 = fixed-AP for the NON-transient gateway
-profile; transient flow elects nothing). ⇒ every MCU board incl a SENSOR (D5 = DFR1195 ESP32 = MCU) MUST
-advertise bit2=0. D5-old bit2=true = pre-#d013 legacy artifact (cf TV6 R2-BEACON conf v0.31 flags 0x04 legacy
-DEV beacon) = the SAME wrong-axis bug iter-9 fixed for D4/XIAO, D5 just un-reflashed. I wrongly reframed it as
-open + scored a stale bar — should have positive-controlled the #d013 verdict + the grant NOTE first
-([[cite-canon-before-claiming-a-finding]] currency corollary).
+**Canon (closed, cited):** sensor-bit2 RATIFIED — R2-ARCH §3.1.3 v0.17 (D-20260723-05 = #d013) + R2-BEACON §7.2
+(bit2 = fixed-AP gateway only). Every MCU board incl a sensor MUST advertise bit2=0; D5-old bit2=true was a
+pre-#d013 legacy artifact. (I once scored a stale bar + reopened this closed ruling — owned;
+[[cite-canon-before-claiming-a-finding]] currency corollary.)
 
-**Parked (not blockers):** D5 reflash→70960dbc (for the elect-None end-state) surfaced to Roy, OPTIONAL,
-awaiting word — D5-off interim NOT needed under the revised bar. iter-10 capture-tiebreak = core-ruled
-INTENDED (formation tiebreak + self-heal on disconnect; bounded gap = healthy wrong-pairing reachable only via
-a nonconformant distractor; deployment sketch re-home-iff-strictly-lower-AND-cur!=elected, parked). (D4 board
-MAC off-tree per hygiene.)
+**Owned lesson:** pre-iter9 dirt in ~/dfr1195-fw-build = off-thread-consult write race (stashed main.rs
+byte-matched iter-8 `351a166e` exactly), dropped per supervisor ruling; the `rm -rf target` + detached
+byte-clean + positive-control preflight caught it (mandatory standing mitigation).
+[[offthread-consult-write-race]] [[positive-control-the-tree-not-just-the-tool]]
 
-**iter-9 conformance PAIR (core `70960dbc`, BUILD_ID coex.iter9.0723, #d013): DELIVERED 2026-07-23.**
-`70960dbc` = iter-8 `351a166e` + bit2=0 beacon + NodeCaps FALSE constant (supersedes iter-7 AcceptorOnly
-proxy) + :4807 capture-decoupled + request_data_plane inert-documented. 4 clean builds (1m48-2m01s).
-- D4 initiator `724383ea11194728c949c502e0724dba9e70031498bf3c47f9fba9f1f184a041` (`~/d4-init9.elf`,
-  b[4]=2/b[6]=1, ≠empty `2eb48979`, persona 0xC434FAFC baked==input 0ad4a84d @47108, masked `5fa838e6`,
-  C apiary+espnow+lora_route+core1).
-- XIAO acceptor `5fb1565f71b2efc5b06280f14057ddfb7715a106045cc1751a25a56e3cb542a9` (`~/xiao-acc9.elf`,
-  b[4]=0/b[6]=0, ≠empty `8aae9d8b`, persona 0x8C15B0C2 baked==input 43638da0 @46244, masked `fbfca876`,
-  C espnow+lora_route+core1 observer, no apiary).
-- Both: accept markers (ACL-accepted + L2CAP-ENTRY + CoC-up-serving) + keepalive= + membership-verified +
-  domain-sep `r2-coc-ctrl-v1` + dial-falsifier + BUILD_ID baked. Conformance source-verified at 70960dbc:
-  `provider_capable: false` :3913, capture `if connectable {` un-gated :4818, engine_task no-ble_role :5427.
-- **PAIR ONLY** — D5 stays `11f2d2ef` (distractor persists for re-score: elect-None must hold WITH D5
-  resolvable in roster). **RE-SCORE EXPECTATION: 0x25 sustained UNCHANGED both + D4 NEG elect None (no
-  'Negotiate provider=da73508e').**
-- **★ 2026-07-23 pre-iter9 dirt, unattributed, likely off-thread-consult write race, DROPPED** (supervisor
-  ruling, core disclaimed). ~/dfr1195-fw-build carried an uncommitted main.rs presenting as REVERSED #d013;
-  did NOT build it — stashed non-destructively, byte-verified clean at 70960dbc, built the pinned commit.
-  Evidence: stashed main.rs byte-matches iter-8 `351a166e` EXACTLY (both sha `3ee577c410d18a10`; 70960dbc HEAD =
-  `b79a140e`) = pre-iter-9-era content, the recorded off-thread-consult live-checkout write hazard, not a rogue
-  actor. Committed HEAD wins → stash dropped. Preflight `rm -rf target` + detached byte-clean + positive-control
-  is the standing mitigation (mandatory) — it caught this.
-  [[offthread-consult-write-race]] [[positive-control-the-tree-not-just-the-tool]]
-
-**Prior rung GREEN (iter-8 `351a166e`, composer metal 2026-07-23):** 0x25 sustained ≥22s both, bidirectional
-CoC keepalive ~2.5s, zero wedge. Board-to-board CoC replaced the external pump. Campaign #d024 closed
-(iter-6 dial → iter-7 eligibility+accept → iter-8 sustain).
-
-Arc (history in DECISIONS.md/git): Fix C (core1 executor isolation) → tri-bearer coex `0x25` sustained on
-`bee0e996` → blerole/D4-initiator merge (`54a8a1f3`) → board-to-board iters 3-8 (L3 rbid resolve, list-gap,
-capture-gate, domain-sep, lowest-eligible dial, ap_capable=false H2-fix, accept step-log, keepalive sustain).
+Arc (history in DECISIONS.md/git): Fix C (core1 executor isolation) → tri-bearer coex `0x25` on `bee0e996` →
+blerole/D4-initiator merge (`54a8a1f3`) → board-to-board iters 3-8 (#d024: rbid resolve, list-gap,
+capture-gate, domain-sep, lowest-eligible dial, ap_capable=false H2-fix, accept step-log, keepalive sustain) →
+iter-9 #d013 conformance (bit2=0, #d025).
 
 ## Open threads (post-campaign, not blockers)
 
-- **sensor-provider_capable canon** (core+specs own): D4 still elects D5 (0xDA73508E) as DATA-provider at boot
-  (`Negotiate provider=da73508e`) — orthogonal cosmetic wrinkle, CoC/bit0 SUSTAINS regardless. Question relayed:
-  should a SENSOR be `provider_capable` at all (same class as Initiator `ap_capable=false`)?
+- **sensor-provider_capable canon = CLOSED** (R2-ARCH §3.1.3 v0.17 / R2-BEACON §7.2 = #d013): MCU sensor MUST
+  bit2=0. D5 reflashed to `70960dbc` (a0157eb2) closes the D4-elects-D5 wrinkle by construction (all boards
+  bit2=0 ⇒ elect None). Pending only the 3-board metal re-score.
 - **conn-liveness watchdog** (my `conn.next()`/`is_connected()` primitive): NOT needed — keepalive
   `tx.send.is_err()→break` covers the common case, metal showed zero half-open. Parked as backstop; core wires
   only IF metal ever shows a tx.send-succeeds half-open (session neither sustains nor returns).
