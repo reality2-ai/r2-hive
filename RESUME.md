@@ -108,18 +108,17 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     .bin extraction → **fresh 3-way .bin cross-check** (composer+core); b79b4f7a bins bd22d272/ce76ea9e RETIRED.
     Composer central-retries = stopgap only. Stale-hk (weave-hk/bench-D5.bin ≠ baked persona) = separate
     resolver drift, out-of-band.
-  - **★ REBUILD RE-GATED (supervisor) — mechanism NOT pinned; my occupancy diagnosis partially FALSIFIED.**
-    New datum (composer): central-fix made CONNECT reliable (8/8), but the b79b4f7a board (tuning NOT flashed)
-    drops INSTANTLY/deterministically 8/8 on first OST — "instant pre-data" ≠ a supervision timeout (which takes
-    the timeout window). **Leading hypothesis = FRAMING mismatch:** ota_receive_over_coc requires `[len u16 LE]
-    [message]` (:7846); if ota-push omits the 2-byte prefix, the first extraction reads len from `"OS"`=0x534F=
-    21327>4096 buf → `framing desync (len=21327)` + RESP_ERR 0x0E + RETURN → close → ENOTCONN (instant/det/pre-
-    data = exact match; dry-run passed on a loopback that doesn't enforce the prefix). Gave composer the D5
-    serial signature map (framing-desync / start-seq-then-ODT-drop / verify-REJECT / init-FAIL / silence /
-    15s-guard) + btmon reasons (0x08 supervision=my-tuning vs 0x13/0x16 terminate=handler). **My tuning
-    (3c8ea9e1) held as SECONDARY** — valid ONLY if serial shows `start seq=` then an ODT-burst drop; the instant
-    pre-data close points at framing (core firmware ↔ composer ota-push wire-contract), which tuning won't fix.
-    Don't build 3c8ea9e1 until serial+btmon pin it.
+  - **★ ROOT = OST FRAMING MISMATCH (my hypothesis, core-CONFIRMED at source :7866-7871). Fix = tool-side, NO
+    reflash.** Central-fix made CONNECT reliable (8/8), but the b79b4f7a board dropped INSTANTLY/det 8/8 on
+    first OST = NOT a supervision timeout. `ota_receive_over_coc` REQUIRES `[len u16 LE][message]` framing (:7814,
+    mirrors serve_coc :3187, needed for multi-SDU reassembly); ota-push omitted the prefix → first extraction
+    read len from `"OS"`=0x534F=21327>4096 → `framing desync (len=21327)` + RESP_ERR 0x0E + RETURN → close →
+    ENOTCONN (instant/det/pre-data, exact; dry-run passed on a loopback not enforcing the prefix). **FIX (core
+    contract call): ota-push adds the `[len u16 LE]` prefix (composer tool-side).** **NO REBUILD — b79b4f7a bins
+    bd22d272 (P1) / ce76ea9e (P3) STAY VALID** (wire-framing fix, not the image). **My 3c8ea9e1 occupancy tuning
+    HELD SECONDARY/armed** — deploy ONLY if a post-framing data-burst drop appears (`start seq=` then ODT-drop +
+    btmon 0x08); preflight primed, no build now. Both my diagnoses landed: occupancy→3c8ea9e1 (secondary),
+    framing→the actual root (tool-side). D5 serial confirms via `framing desync (len=21327)`.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
