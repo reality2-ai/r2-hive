@@ -131,6 +131,17 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     spec-first) — **when it runs, FOLD the 3c8ea9e1 CoC-tuning into that one rebuild.** 3c8ea9e1 tuning HELD/
     orthogonal meanwhile. Nothing hive-side now. Expect composer's v2 re-push → `OTA(L2CAP) start seq=1` +
     RESP_OK. [[shared-checkout-path-dep-coupling]]
+  - **★ NEXT LAYER (v2 header CLOSED → RESP-framing asymmetry): `start seq=1` prints, then central 10s-times-out
+    on the OST RESP.** NOT occupancy (pre-any-ODT-data). Confirmed at source: `ota_receive_over_coc` sends RAW
+    responses — `tx.send(&[RESP_OK])` (:7920), `&[RESP_ERR,0x0E]` (:7864), the OAK ack — **no [len] prefix**,
+    while the proven `serve_coc` (:4485 "Frame: [len_lo, len_hi, R2-frame]") is SYMMETRIC [len]-framed both ways
+    and the OTA INBOUND requires [len]. So the outbound RESP is un-framed vs the central's recv_framed(expects
+    [len]) → central stalls → 10s timeout. **3c8ea9e1 is NOT this fix** (data-burst occupancy, not reached).
+    **Fix = core's contract call:** (a) board [len]-prefixes the outbound RESP (match serve_coc :4485) = reflash
+    ⇒ **FOLD 3c8ea9e1 tuning into that one rebuild** (data burst follows immediately) ⇒ I rebuild d5-otarx; or
+    (b) composer's recv_framed accepts raw RESP (tool-side, no reflash, asymmetric). Recommend (a). Discriminator
+    (btmon): RESP_OK arrives-but-mis-parsed (framing) vs never-arrives+link-drop (occupancy). Standby for core's
+    call.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
