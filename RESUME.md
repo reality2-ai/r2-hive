@@ -80,6 +80,12 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
       disk) — I ENDORSED it over my earlier tmpfs-export (stronger custody). Ratified → step = `ota-push
       --signed-stream --dry-run` first (target_class=0, target_tg all-zero). No hive dependency (same .bin
       payload regardless of signer transport).
+  - **P1 dry-run STAGED byte-exact `bd22d272` (composer, path A in-memory unseal):** --signed-stream drove
+    OST/ODT/OCM e2e, receiver wrote 897504/897504B = my .bin extraction validated end-to-end. Metal push HELD
+    (tuxedo DOWN + operator-gated). **P2b (ClassMismatch r7) BLOCKED** on ota-sign hardcoding target_class=0
+    (wildcard ⇒ can't force a mismatch; needs a --target-class override to emit e.g. bridge B52C9F26) — core's
+    ota-sign + supervisor test-design, NO hive action (my §2.6 class gate is correct; the payload can't be
+    built). Offered a source-confirm of the accept/reject arm if useful.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
