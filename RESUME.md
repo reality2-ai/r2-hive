@@ -26,13 +26,20 @@ a0157eb2, all bit2=0), D4 monitor-reset co-boot.
 build until an explicit order names a sha; #d005/#d006 preflight (drain → pinned-sha detached byte-clean →
 `rm -rf target` → attest) on each.
 
-- **OTA D5-receiver PENDING (core-ready `418c7934`, parent 70960dbc — HOLD for supervisor order):** read-only
-  pre-verified — otal2cap=["ble"] :156 present, dev-unsigned-ota separate (MUST NOT enable, signature
-  required), ota_receive/PSM-0x00D3 ×18, diff main.rs 88+/11-. Recipe on GO = d5-cos9 feature set + otal2cap,
-  persona da73508e + role b[4]=1 PRESERVED (otal2cap changes PSM/handler not persona/role). ★ This REPURPOSES
-  D5 to a dedicated OTA receiver (PSM 0x00D3, no bit0) — replaces d5-cos9/a0157eb2 on the bench; 3-board bit0
-  already banked (#d025) so OK, but flagged supervisor to confirm the repurpose. Brick-safety P1-first flash =
-  composer/Roy. [[ota-per-platform-sink]]
+- **OTA D5-receiver — HOLDING for a b79b4f7a re-pin (sha-bump currency gate).** Supervisor ordered the build
+  on `418c7934`; I built P1-good there (`ef7b2d24`, role b[4]=1 Sensor, otal2cap-took diff vs control
+  `3b60f0ab`). **Recipe VALIDATED in-binary** (carries to b79b4f7a): otal2cap swap (ota_receive_over_coc + PSM
+  0x00D3), signature-required (ed25519 verify_strict + ets_secure_boot_verify_signature), dev-unsigned-ota
+  ABSENT, §5.2/§5.1 markers baked. **But core then bumped the base to `b79b4f7a`** (parent 418c7934, +8 lines =
+  `otafail` P3 feature) + wants BOTH variants on it (shared P1/P3 base). Flagged supervisor for the re-pin
+  (#d005 — core can't re-pin). On GO: build 2 variants on the HIVE-OWNED dir from b79b4f7a — **P1-GOOD**
+  (base+otal2cap, no otafail) + **P3 RADIO-DEAD** (+otafail: compiles out BLE_UP/LORA_UP ⇒ §5.2 min-2 fails ⇒
+  rollback, radios still init), both real-TG-signed seq cur+1; discard ef7b2d24. P1-good-FIRST brick order =
+  composer/Roy flash. [[ota-per-platform-sink]]
+- **Build-dir structural fix (supervisor):** future builds use hive-owned `~/dfr1195-fw-hive-build` (fresh
+  clone from origin, nobody else writes it) — removes the recurring stale-tree mutation source (2/2 cross-sha
+  checkouts dirtied ~/dfr1195-fw-build; both caught by preflight, byte-matched to the parent sha). Stashes
+  `hive-preOtaRx-staletree-418c7934` RETAINED until core IDs the writer. [[offthread-consult-write-race]]
 - Other anticipated: beacon-plane diffs (only if core finds emit gaps), extended-wire test image.
 
 **D5 iter-9 conformant (from PINNED `70960dbc`, BUILD_ID coex.iter9.0723): DELIVERED 2026-07-23.** Roy
