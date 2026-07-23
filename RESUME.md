@@ -5,7 +5,33 @@ DELIVERED — awaiting two-party verify + re-score.**
 
 ## Current state
 
-iter-9 pair delivered + attested. STANDBY for composer two-party verify + the metal re-score.
+iter-9 pair delivered, two-party verified, metal re-scored. **BLOCKED on the sensor-provider_capable canon
+(core+specs) + D5 disposition (Roy).** No build now — conformance artifacts stand. STANDBY for the ruling.
+
+**iter-9 RE-SCORE (composer metal 2026-07-23): conformance CORRECT + working; bar unsatisfiable pair-only.**
+- ✓ Self-election GONE (the iter-8 wrinkle). XIAO elects None (acceptor = no scan = empty roster).
+- ✗-but-CORRECT: D4 STILL elects D5 — but that is §4A-CORRECT, not a regression. D4 scans → roster fed
+  `push_scan_obs(b.flags.provider_capable)` → **D5-old (`11f2d2ef`, UNFIXED) advertises provider_capable=TRUE**
+  → sole eligible → §4A lowest-eligible=only-eligible=D5. Both new boards verified `NodeCaps::new(false,..)`
+  (:5427) + beacon `provider_capable:false` (:3913).
+- **BAR CONTRADICTION:** "D4 elect None WITH D5 resolvable" is unsatisfiable under PAIR-ONLY — D4 scans ⇒ D5
+  in roster; D5-old is eligible ⇒ D4 can't elect None unless D5 also advertises false (= D5 reflash to
+  70960dbc, breaks pair-only + needs Roy).
+- **Dial ≠ election (decoupled):** capture :4818 = un-gated lowest-CONNECTABLE (XIAO 0x8c < D5 0xda ⇒ XIAO
+  wins the dial). D4-dialed-D5 observed = non-co-boot artifact (D5 up first / XIAO not advertising in D4's
+  scan window); D4-quiescent = serve_coc holding its CoC (keepalive-alive), not a wedge. bit0 D4↔XIAO
+  sustain UNVERIFIED on this bench.
+- **ROOT DEPENDENCY = sensor-provider_capable canon** (Q with core+specs): should a SENSOR advertise
+  provider_capable=true? #d013 = bit2 is fixed-AP-gateway ONLY ⇒ D5's true is itself a conformance bug. This
+  re-score is the metal proof the canon Q is LOAD-BEARING, not cosmetic.
+- **RECOMMEND (decision = supervisor+Roy):** (1) resolve canon; if sensors=bit2=0, reflash D5→70960dbc (Roy)
+  → 3-board conformance re-score = the TRUE test (all elect None, D4 dials XIAO, bit0 sustain). (2) INTERIM
+  no-reflash: D5 POWERED OFF co-boot → D4 roster only XIAO(bit2=0) → elect None → dial XIAO → verifies
+  conformance + bit0 sustain (drops the "D5 resolvable" clause). Composer's D4-monitor co-boot with D5-on
+  will still show D4-elects-D5 (informative, not a pass).
+- **Secondary (iter-10 candidate, non-blocking):** dial-capture may commit to a first-seen higher-hive
+  acceptor + keepalive pins it → lower-hive correct partner never displaced (hive<cur only pre-commit).
+  D5-off avoids it; needs co-boot to confirm. (D4 board MAC off-tree per hygiene.)
 
 **iter-9 conformance PAIR (core `70960dbc`, BUILD_ID coex.iter9.0723, #d013): DELIVERED 2026-07-23.**
 `70960dbc` = iter-8 `351a166e` + bit2=0 beacon + NodeCaps FALSE constant (supersedes iter-7 AcceptorOnly
