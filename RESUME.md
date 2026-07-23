@@ -213,9 +213,14 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   (periodic CoC keepalive sustain fix — KEEPALIVE_MS=2500 < 5s-prune & 8s-bit0-window, membership-enveloped,
   tx.send.is_err()→break = return-on-disconnect; SUBSUMES my serve_coc-wedge fix for the common case).** My
   conn.next()/is_connected() watchdog HELD as backstop for the tx.send-succeeds half-open (core wires it only IF
-  metal shows a session that neither sustains nor returns — right not to wire speculatively). **BUILDING pair
-  `b7vfvp8f9`** (D4-init8 + XIAO-acc8, coex.iter8.0723); keepalive + (A) + accept markers positive-controlled. D5
-  stays 11f2d2ef. Delivering shas on completion → composer flashes → sustain retest (0x25 ≥10s = rung GREEN).
+  metal shows a session that neither sustains nor returns — right not to wire speculatively). **iter-8 PAIR BUILT + FULLY
+  ATTESTED (351a166e, coex.iter8.0723): D4 `1b0186db…`** (`~/d4-init8.elf`, b[6]=1 ≠empty 0d14c684, 0xC434FAFC
+  @47108, masked 2a42e058) + **XIAO `74857e1c…`** (`~/xiao-acc8.elf`, b[4]=0/b[6]=0 ≠empty 25be41aa, 0x8C15B0C2
+  @46244, masked 0c1394a9). Both: accept markers + domain-sep + dial-falsifier baked, KEEPALIVE_MS=2500 source-
+  verified. **PAIR ONLY — supervisor ruled (A)** (D5 stays 11f2d2ef: reflash needs fresh Roy word, powered-old-
+  image distractor = stronger test, unflashable artifact = drift). Delivered composer+supervisor → flash + from-
+  boot capture → sustain retest (0x25 ≥10s = rung GREEN) + keepalive RECVs both. Residuals if not-sustained: my
+  conn watchdog backstop (tx.send-succeeds half-open) / sensor-provider_capable canon (D4-elects-D5).
   **InvalidRouteLen FINALIZED (composer sized x2158):** verdict HOLDS (canon-correct drops, not strictness, not
   real-DATA-loss) — but I OWNED a mechanism-direction inversion: it's the EXTENDED decoder (:2729) mis-parsing
   COMPACT-sized (n~29, ZERO n~54) frames, NOT compact-on-extended; my (i) extended-leak REFUTED. Dominant = 2
