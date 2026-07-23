@@ -1,24 +1,36 @@
 # RESUME — r2-hive
 
-Updated 2026-07-23. `main` clean + pushed. **✅ BOARD-TO-BOARD bit0 SUSTAIN RUNG GREEN — CAMPAIGN CLOSED.**
+Updated 2026-07-23. `main` clean + pushed. **✅ bit0 SUSTAIN RUNG GREEN (iter-8). iter-9 conformance PAIR
+DELIVERED — awaiting two-party verify + re-score.**
 
 ## Current state
 
-Nothing owed, nothing building. STANDBY for the next supervisor order (+ pinned sha per #d005).
+iter-9 pair delivered + attested. STANDBY for composer two-party verify + the metal re-score.
 
-**Board-to-board bit0 ladder rung = GREEN (composer metal, 2026-07-23):** iter-8 keepalive pair sustains
-`key0a = 0x25` (BLE bit0 | LoRa bit2 | Mesh bit5) **≥22s both boards** (>> the ratified 10s sustain bar),
-bidirectional CoC keepalive ~2.5s (9-10 pings each way), zero wedge / no 120s-close / no half-open. Replaces
-the earlier external laptop-CoC-pump with a genuine board-to-board CoC handshake. Campaign closed.
+**iter-9 conformance PAIR (core `70960dbc`, BUILD_ID coex.iter9.0723, #d013): DELIVERED 2026-07-23.**
+`70960dbc` = iter-8 `351a166e` + bit2=0 beacon + NodeCaps FALSE constant (supersedes iter-7 AcceptorOnly
+proxy) + :4807 capture-decoupled + request_data_plane inert-documented. 4 clean builds (1m48-2m01s).
+- D4 initiator `724383ea11194728c949c502e0724dba9e70031498bf3c47f9fba9f1f184a041` (`~/d4-init9.elf`,
+  b[4]=2/b[6]=1, ≠empty `2eb48979`, persona 0xC434FAFC baked==input 0ad4a84d @47108, masked `5fa838e6`,
+  C apiary+espnow+lora_route+core1).
+- XIAO acceptor `5fb1565f71b2efc5b06280f14057ddfb7715a106045cc1751a25a56e3cb542a9` (`~/xiao-acc9.elf`,
+  b[4]=0/b[6]=0, ≠empty `8aae9d8b`, persona 0x8C15B0C2 baked==input 43638da0 @46244, masked `fbfca876`,
+  C espnow+lora_route+core1 observer, no apiary).
+- Both: accept markers (ACL-accepted + L2CAP-ENTRY + CoC-up-serving) + keepalive= + membership-verified +
+  domain-sep `r2-coc-ctrl-v1` + dial-falsifier + BUILD_ID baked. Conformance source-verified at 70960dbc:
+  `provider_capable: false` :3913, capture `if connectable {` un-gated :4818, engine_task no-ble_role :5427.
+- **PAIR ONLY** — D5 stays `11f2d2ef` (distractor persists for re-score: elect-None must hold WITH D5
+  resolvable in roster). **RE-SCORE EXPECTATION: 0x25 sustained UNCHANGED both + D4 NEG elect None (no
+  'Negotiate provider=da73508e').**
+- **★ WORKTREE-DIRT re-flagged (core+supervisor):** ~/dfr1195-fw-build (hive-write-exclusive) carried an
+  uncommitted main.rs edit at build time that REVERSED #d013 (provider_capable:true + gated capture +
+  engine_task ble_role). Did NOT build it — stashed non-destructively (`hive-preIter9-dirt-70960dbc
+  20260723T014300Z`), byte-verified clean at 70960dbc, built the pinned commit. Stash parked for core to
+  inspect (its work vs stale/rogue). Mutation source active again. [[positive-control-the-tree-not-just-the-tool]]
 
-**Delivered iter-8 pair (core `351a166e`, BUILD_ID coex.iter8.0723, KEEPALIVE_MS=2500):**
-- D4 initiator `1b0186dbd4278423ce41008acb089dedb4e2cbeb18c6a924a25071b00415743e` (`~/d4-init8.elf`,
-  b[6]=1, ≠empty `0d14c684`, persona 0xC434FAFC @47108, masked `2a42e058`).
-- XIAO acceptor `74857e1c3decb943260320e98235bd4c7f8245f57fc373d65a45388832afcd04` (`~/xiao-acc8.elf`,
-  b[4]=0/b[6]=0, ≠empty `25be41aa`, persona 0x8C15B0C2 @46244, masked `0c1394a9`).
-- Both: accept markers + domain-sep `r2-coc-ctrl-v1` + dial-falsifier baked, KEEPALIVE_MS=2500 source-verified.
-  Composer TWO-PARTY VERIFY PASS both hosts (alfred+tuxedo). **PAIR ONLY** (supervisor ruling A) — D5 stays
-  `11f2d2ef` powered distractor (stronger test: XIAO held provider WITH D5 live in roster, never pruned).
+**Prior rung GREEN (iter-8 `351a166e`, composer metal 2026-07-23):** 0x25 sustained ≥22s both, bidirectional
+CoC keepalive ~2.5s, zero wedge. Board-to-board CoC replaced the external pump. Campaign #d024 closed
+(iter-6 dial → iter-7 eligibility+accept → iter-8 sustain).
 
 Arc (history in DECISIONS.md/git): Fix C (core1 executor isolation) → tri-bearer coex `0x25` sustained on
 `bee0e996` → blerole/D4-initiator merge (`54a8a1f3`) → board-to-board iters 3-8 (L3 rbid resolve, list-gap,
