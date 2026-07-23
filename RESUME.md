@@ -62,14 +62,18 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     keyword-gated), then two-party cross-check the .bin sha256 BEFORE signing (attest the delivered bytes).
     persona da73508e baked in the .bin too. Seq: fresh D5 floor=0 ⇒ P1 seq=1 (base never wrote a floor — `_`
     arm). TG_SK: ephemeral unseal + immediate shred, off-tree (composer/Roy custody).
-  - **.bin extraction: my espflash is keyword-GATED → 2-party = composer + core (core ungated), gate-block
-    MOOT.** Supervisor ordered `espflash save-image` extraction; it trips the fleet FIRMWARE/KEY GATE (fires on
-    the `espflash` keyword even for non-flashing save-image — [[espflash-trips-firmware-gate]]); did NOT bypass.
-    Core OFFERED to be the 2nd .bin party (has ungated espflash) → the two independent .bin-sha parties =
-    composer (from its verified ELF) + core; my esptool-install proposal WITHDRAWN. I hold the pinned ELF
-    provenance (P1 `54dddb16` / P3 `2a4f3308`) as the source both derive from. Awaiting supervisor confirm of
-    the substitution. Security (core): payload=.bin is critical — PayloadVerifier.finish hashes streamed chunks
-    ⇒ header.payload_hash MUST == SHA256(.bin); ELF sha ≠ delivered bytes.
+  - **.bin EXTRACTED + attested (grant-shape auto-approved):** the espflash keyword-gate was cleared by the
+    sanctioned per-op grant shape (`R2_OTA_TARGET=<target> espflash save-image …`, artifact `d5-ota` + target
+    named ⇒ gate auto-approves; esptool fallback not needed). These are the SIGNED-PAYLOAD bytes
+    (header.payload_hash == SHA256(.bin); ELF sha ≠ delivered bytes).
+    - **P1 d5-otarx-p1.bin `bd22d272d6c7fd1179a03b18e97de84c5a6fe8ace13fd259b1793f70c41e8cee`** (897504 B, from
+      ELF 54dddb16; esp_image 0xE9; persona da73508e @44168).
+    - **P3 d5-otafail-p3.bin `ce76ea9e3c08c8bc828ae81c8a5473f5c38bae8d6b67b24db031e4cf6e133c39`** (895968 B,
+      from ELF 2a4f3308; esp_image 0xE9; persona da73508e @44072). P1≠P3 (otafail diff preserved).
+    - save-image: chip esp32s3, merge=false (app image only). TWO-PARTY: composer + core (ungated espflash)
+      derive from the verified ELFs (54dddb16 / 2a4f3308) + cross-check vs these hive shas before signing.
+      **Never route the gate for actual flash/sign — those stay grant-gated** (supervisor). MAC in the target
+      path stays off-tree.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
