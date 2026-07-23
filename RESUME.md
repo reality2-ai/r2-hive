@@ -24,7 +24,14 @@ re-adv timer + 05dba4f3 set_phy removal.** 4 artifacts (-v6 names preserve v4/v5
   PASSES on correct scope. [[never-conclude-from-a-null]] [[four-reachability-instruments]]
 - **Preflight PASS (05dba4f3):** partition e0e49127; offsets link_key 0x1C000 / checkpoint 0x1D000 / rollback
   0x1E000 (collision-free); re-adv `READV_INTERVAL_S=10` :4219; §5.4 :1453; key-19 gate `schema>=2` :2441.
-- **PENDING: bin extraction** for the 4 → extract amendment awaited (same gate as v5 amendment-3). NO flash.
+- **BINS EXTRACTED (amendment-4, dual-prefix + explicit partition e0e49127; ELF sha verified pre-extract;
+  app-image only, esp_image 0xE9, 4 distinct):**
+  - d5-ota-d5-otarx-v6.bin `971dfae282b2f450ea86d1a4da52305bd85b89e5ce44182a39e5f756c36c116d` (872448 B)
+  - d5-ota-d5-otafail-v6.bin `95ae74089bfcd34ae7fe6bc991a81deb7ceda5c035cae49d7580f8a5f66926a7` (871008 B)
+  - d5-ota-d4-v6.bin `d299010cb3bf0a8f277f0a084bdc8e5c603bdbb5ab8600eef2df07c969801aab` (878240 B)
+  - d5-ota-xiao-v6.bin `bd58d0760fdd78dcea0a340894b974f3aee6c340a3a47fbdcb0dc38a3853da43` (864112 B)
+  - Composer two-party independent-derives = MATCH or ABORT. NO flash/sign. (R2_OTA_TARGET gate-token carries a
+    device tail → off-tree only.)
 
 ## Prior build — v5 fix triplet (BUILT+two-party-matched, grant-v5 staged)
 
