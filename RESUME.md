@@ -142,9 +142,15 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     regardless of any base fix ⇒ only (b) covers old+new uniformly; (a) tonight = full chain redo (rebuild+
     re-attest+re-sign 4 pkgs+new grant) for zero gain on the installed image. **(a) canonical board-fix
     ([len]-frame RESP, agreed asymmetry vs serve_coc :4485) + 3c8ea9e1 tuning fold = ONE post-campaign
-    v2→v3-re-vendor rebuild** (spec-first, backlogged together). **Discriminator = composer's raw reader itself:
-    works ⇒ framing confirmed; still stalls ⇒ occupancy re-opens (then 3c8ea9e1 + btmon).** Nothing hive-side
-    tonight.
+    v2→v3-re-vendor rebuild** (spec-first, backlogged together). **TEST-FIRST gate (core, evidence-driven — I
+    endorse; = [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]):** do NOT pre-arm 3c8ea9e1 — occupancy is
+    UNPROVEN (no ODT has ever flowed; framing/header/RESP each refuted it as the current layer). (b) unblocks →
+    the 897KB ODT stream ACTUALLY RUNS → THEN btmon 0x08 during the ODT burst / ODT-drops PROVES occupancy →
+    only then the bundled reflash (frame-RESP + 3c8ea9e1 tuning [+ v3-bump]) that **I rebuild d5-otarx on**. IF
+    ODT flows clean ⇒ NO reflash at all (best case, fully tool-side). Discriminator: RESP arrives-but-misparse ⇒
+    (b) done, proceed; ODT-burst never-completes + 0x08 ⇒ occupancy ⇒ bundled reflash. Connect-window drops
+    (1-7 of 8) = separate coex connect-race (composer central-retry); 3c8ea9e1 is post-connect, touches neither
+    that nor the RESP layer. Nothing hive-side tonight.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
