@@ -188,7 +188,17 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   the primitive:** trouble-host 0.6 exposes `conn.next()` (:461 async Disconnected) + `conn.is_connected()`
   (:476 sync) → precise liveness (recv `select(rx.receive, conn.next())` + send-tick `if !is_connected()`), NOT a
   short idle-Timer (would tear down an alive-idle CoC → drop bit0, the trap); long Timer(30s+) only as half-open
-  backstop. **NEXT: co-boot metal → score BRANCH-2 (then iter-8 if real); post-metal classify InvalidRouteLen.** Ops hazard:
+  backstop. **★★ bit0-BOTH GREEN ON METAL (co-boot, positive-control MET):** D4 really dialed+connected XIAO → XIAO accept
+  COMPLETES (ACL-accepted→L2CAP-ENTRY→CoC-up-serving, accept-ERR=0) → membership-verified BOTH directions →
+  **key0a=0x25 both boards, drops=0.** **BRANCH-2 (my HB accept-race) REFUTED** — the earlier no-markers was the
+  positive-control gap, held unscored by the null-gate (process won: no false accept-hang finding). My (A) H2-fix
+  + accept-diag + null-gate + iter-8 primitive ALL landed on metal. **WRINKLE (transient, not a bit0 blocker):**
+  post-handshake D4 elects D5 (0xDA73508E) as DATA-provider → bit0 one-shot not sustained. = my da73508e shared-
+  list lesson extending to the data-plane election (D5-in-KNOWN_HIVE_IDS is also a data-provider candidate; D5>XIAO
+  so lowest-eligible SHOULD pick XIAO → roster-freshness at re-election; deeper: should a SENSOR be provider_capable
+  at all — same class as Initiator ap_capable=false). Core's NEG look IF sustained required. **DONE bar (one-shot
+  GREEN vs sustained) = supervisor/Roy's call.** iter-8 serve_coc watchdog (core owns, my primitive locked) batched
+  after this. **NEXT: DONE-bar ruling; then post-milestone classify InvalidRouteLen per queue.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
