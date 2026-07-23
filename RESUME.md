@@ -70,10 +70,16 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
       ELF 54dddb16; esp_image 0xE9; persona da73508e @44168).
     - **P3 d5-otafail-p3.bin `ce76ea9e3c08c8bc828ae81c8a5473f5c38bae8d6b67b24db031e4cf6e133c39`** (895968 B,
       from ELF 2a4f3308; esp_image 0xE9; persona da73508e @44072). P1≠P3 (otafail diff preserved).
-    - save-image: chip esp32s3, merge=false (app image only). TWO-PARTY: composer + core (ungated espflash)
-      derive from the verified ELFs (54dddb16 / 2a4f3308) + cross-check vs these hive shas before signing.
-      **Never route the gate for actual flash/sign — those stay grant-gated** (supervisor). MAC in the target
-      path stays off-tree.
+    - save-image: chip esp32s3, merge=false (app image only). **TWO-PARTY .bin MATCH CONFIRMED** — composer's
+      independent extraction == my hive shas (bd22d272 P1 / ce76ea9e P3); signed-payload bytes cross-validated.
+      Core = 3rd derivation on request (ELF paths handed: `/home/roycdavies/d5-otarx-p1.elf` 54dddb16 /
+      `d5-otafail-p3.elf` 2a4f3308, b79b4f7a-built — the 418c7934 P1 was ef7b2d24, discarded). **Never route the
+      gate for actual flash/sign — grant-gated** (supervisor). MAC in the target path off-tree.
+    - **Signer mechanism (composer, HELD on supervisor):** sealed TG 730c29e7 has no raw tg.txt; composer
+      recommends `tg OtaSign` in-memory unseal + a new `ota-push --signed-stream` branch (NO plaintext key on
+      disk) — I ENDORSED it over my earlier tmpfs-export (stronger custody). Ratified → step = `ota-push
+      --signed-stream --dry-run` first (target_class=0, target_tg all-zero). No hive dependency (same .bin
+      payload regardless of signer transport).
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
