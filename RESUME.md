@@ -139,10 +139,16 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   blocked between `adv up` :4007 and `CoC up serving` :4045 = at `advertiser.accept()` :4017 OR
   `L2capChannel::accept` :4038; runner IS polled (join3 :4175, not a Fix-C starve). Asymmetry (D4 create-Ok, XIAO
   accept-stuck) + D4's 271ms create → **lead hypothesis = accept-listener RACE** (D4's L2CAP connect-req lands
-  before XIAO registers the accept listener → dropped → one-sided 120s channel). **Decisive iter-7 diag = 1 print
-  at :4018** (`ACL conn accepted`): prints→block at L2CAP-accept :4038; silent→block at ACL-accept :4017. Sent
-  core+composer+supervisor; ready to build iter-7 on core's ask. **NEXT (post-metal): classify InvalidRouteLen
-  per queue.** Ops hazard:
+  before XIAO registers the accept listener → dropped → one-sided 120s channel). **ROOT CONFIRMED (core+composer, my H2):
+  self-elect RACES the roster feed** — `request_data_plane` fires fixed ~3s (:5373) but capture-scan only STARTS
+  at 3s (:4185) → roster EMPTY at election → both boards self-elect (D4=0xC434FAFC, XIAO=0x8C15B0C2), Data has no
+  re-elect (negotiation.rs:526), teachers feed too late → no WifiReq → no CoC frame → bit0 dark. H1(conn)/H3(half-
+  open) RULED OUT (D4 CoC-up x2, create ERR=0, WifiReq=0). **FIX (core owns, hive concurred + VERIFIED
+  SUFFICIENT): thread ble_role→engine_task + Initiator `ap_capable=false`.** State-machine walk (negotiation.rs):
+  Initiator ineligible → `elect()` drops self → at 3s empty-roster `elect()`=None → **stays in Discover** (:494,
+  never strands in Data:526) → re-ticks until capture-scan rosters XIAO → elects XIAO → WifiReq → bit0 BOTH.
+  Flagged the one dependency: Discover must re-tick after roster fills. Confirm-before-fix MET. **Core lands the
+  fix → hive builds iter-7 on its sha.** **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
