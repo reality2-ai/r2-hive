@@ -55,6 +55,13 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     slot). (a) self-confirm-on-healthy-boot would be WRONG (no staged seq to commit). PROCEED: ota-push P1
     --dry-run then Roy-gated metal push. PASS-BAR already revised (base-flash no-confirm = EXPECTED). Composer's
     positive-control localized it right (no false "confirm FAILED"). Core + supervisor concur.
+  - **★ Signed OTA payload = the app .bin, NOT the ELF** (composer pre-push Q). ota-push --image checks esp_image
+    (magic 0xE9@0, chip_id@off12); the ELF (0x7F magic) is not it. Extract via `espflash save-image --chip
+    esp32s3 <elf> <bin>` / esptool elf2image (deterministic → two-party reproducible). **The signed+pinned sha =
+    the .bin sha, ≠ ELF `54dddb16`/`2a4f3308`** — composer extracts (my alfred lacks esptool + espflash is
+    keyword-gated), then two-party cross-check the .bin sha256 BEFORE signing (attest the delivered bytes).
+    persona da73508e baked in the .bin too. Seq: fresh D5 floor=0 ⇒ P1 seq=1 (base never wrote a floor — `_`
+    arm). TG_SK: ephemeral unseal + immediate shred, off-tree (composer/Roy custody).
 - **Stale-tree trap RESOLVED + killed (root closed by core+supervisor):** ~/dfr1195-fw-build was an ORPHANED
   linked worktree sharing the branch ref with core's dfr1195-fw-wt — every core commit advanced the shared ref
   under the stale tree ⇒ byte-exact-PARENT "reverse-edits" (nobody wrote my files; my byte-match diagnosis was
