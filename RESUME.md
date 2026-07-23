@@ -181,8 +181,14 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   ACCEPTOR_ADDR, re-scans) so D4 is coded to re-dial — but 0 re-captures → D4 WEDGED in serve_coc on a half-open
   CoC (:7663 seam), loop never re-iterates. Field note (non-blocking): peer addr-change strands D4 similarly;
   core check serve_coc return-on-disconnect. **UNBLOCK = co-boot** (fresh D4 election + XIAO-iter7 advertising,
-  both from boot) — needs D4 monitor/reset grant (supervisor; D4 board = persona 0xC434FAFC, MAC off-tree). No hive build needed (iter-7
-  images correct+verified). **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
+  both from boot) — D4 no-flash/reset allowance now LIVE (supervisor). No hive build needed (iter-7 images
+  correct+verified). **Core CONFIRMED my serve_coc idle-wedge finding by code read + owned the under-call:** recv
+  (:4438) stays pending on half-open, send (:4507) idles on Timer(50ms) with CTRL_OUT empty → serve_coc never
+  returns → dial loop starves. **iter-8 fix (core owns, non-blocking, after branch-2 score) — hive recommended
+  the primitive:** trouble-host 0.6 exposes `conn.next()` (:461 async Disconnected) + `conn.is_connected()`
+  (:476 sync) → precise liveness (recv `select(rx.receive, conn.next())` + send-tick `if !is_connected()`), NOT a
+  short idle-Timer (would tear down an alive-idle CoC → drop bit0, the trap); long Timer(30s+) only as half-open
+  backstop. **NEXT: co-boot metal → score BRANCH-2 (then iter-8 if real); post-metal classify InvalidRouteLen.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
