@@ -164,11 +164,16 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   **iter-7 SPEC FINAL (core `b5de845c`): (A) `provider_capable=matches!(ble_role,AcceptorOnly)` [D4 Initiator
   ap_capable=FALSE, my verified fix] + (B) XIAO accept step-log [:4027 ACL-accepted, :4056 L2CAP-ENTRY, :4064
   CoC-up-serving].** Core verified Discover re-ticks elect() every 200ms (my flagged dependency — RESOLVED); H2
-  fixed by construction (no timing race to measure). **BUILDING pair `bltlgqjkr`** (D4-init7 + XIAO-acc7, BUILD_ID
-  coex.iter7.0723, distinct names -b5de845c). D5 optional (stays 11f2d2ef). **Readout matrix (gate-1 = null-gate):**
-  D4 Negotiate=XIAO(not self)⇒(A) works; XIAO ACL+ENTRY+CoC-up+bit0⇒GREEN; ACL+ENTRY no-CoC-up⇒L2CAP accept HUNG
-  =BRANCH-2 real⇒iter-8; no-ACL(pos-ctrl present)⇒ACL layer. Delivering shas on completion; composer flashes
-  #d011 + captures XIAO from-boot. **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
+  fixed by construction (no timing race to measure). **iter-7 PAIR BUILT + FULLY ATTESTED
+  (pinned `b5de845c`, BUILD_ID coex.iter7.0723):** **D4 initiator `59de5979…`** (`~/d4-init7-b5de845c.elf`,
+  b[6]=1 ≠empty efe5212c, 0xC434FAFC @47100, masked 9b347a16, apiary+espnow+lora+core1) + **XIAO acceptor
+  `42300f6e…`** (`~/xiao-acc7-b5de845c.elf`, b[4]=0/b[6]=0 ≠empty ceb59b73, 0x8C15B0C2 @46236, masked 2c1a95d0,
+  observer). Both: 3 accept markers baked (ACL-accepted + L2CAP-ENTRY + CoC-up-serving), domain-sep + dial-
+  falsifier, table e0e49127. (A) provider_capable=matches!(AcceptorOnly) source-verified :5401. D5 stays 11f2d2ef;
+  4f66adf4p no longer needed. Delivered composer+supervisor. **Readout matrix (gate-1 = null-gate):** D4
+  Negotiate=XIAO(not self)⇒(A) works; XIAO ACL+ENTRY+CoC-up+bit0⇒GREEN; ACL+ENTRY no-CoC-up⇒L2CAP accept HUNG
+  =BRANCH-2 real⇒iter-8; no-ACL(pos-ctrl present)⇒ACL layer. Composer flashes #d011 + captures XIAO from-boot.
+  **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
