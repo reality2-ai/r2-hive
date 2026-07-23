@@ -209,8 +209,14 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   decodable as compact → MIS-PARSES into garbage route" (:5025) → garbage route-len 0/>8 → InvalidRouteLen
   (compact.rs:117). Sources to size (asked composer for n+source+SF): (i) extended-leak on SF7 (54B fits, SF12
   blocks by MTU), (ii) foreign/cross-TG CRC-pass, (iii) real corruption (rare, HW-CRC). Fix direction (not
-  hive's): single-tier LoRa TX (canon L40); drops are benign. Delivered core+supervisor. **NEXT: hive builds
-  iter-8 on core's sha (sustain); await composer's log split to finalize InvalidRouteLen (i)/(ii)/(iii) sizing.** Ops hazard:
+  hive's): single-tier LoRa TX (canon L40); drops are benign. Delivered core+supervisor. **iter-8 = core `351a166e`
+  (periodic CoC keepalive sustain fix — KEEPALIVE_MS=2500 < 5s-prune & 8s-bit0-window, membership-enveloped,
+  tx.send.is_err()→break = return-on-disconnect; SUBSUMES my serve_coc-wedge fix for the common case).** My
+  conn.next()/is_connected() watchdog HELD as backstop for the tx.send-succeeds half-open (core wires it only IF
+  metal shows a session that neither sustains nor returns — right not to wire speculatively). **BUILDING pair
+  `b7vfvp8f9`** (D4-init8 + XIAO-acc8, coex.iter8.0723); keepalive + (A) + accept markers positive-controlled. D5
+  stays 11f2d2ef. Delivering shas on completion → composer flashes → sustain retest (0x25 ≥10s = rung GREEN).
+  **NEXT: iter-8 metal (sustain verdict); await composer's log split for InvalidRouteLen (i)/(ii)/(iii) sizing.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
