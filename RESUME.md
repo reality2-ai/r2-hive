@@ -172,9 +172,17 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   falsifier, table e0e49127. (A) provider_capable=matches!(AcceptorOnly) source-verified :5401. D5 stays 11f2d2ef;
   4f66adf4p no longer needed. Delivered composer+supervisor. **Readout matrix (gate-1 = null-gate):** D4
   Negotiate=XIAO(not self)⇒(A) works; XIAO ACL+ENTRY+CoC-up+bit0⇒GREEN; ACL+ENTRY no-CoC-up⇒L2CAP accept HUNG
-  =BRANCH-2 real⇒iter-8; no-ACL(pos-ctrl present)⇒ACL layer. **Composer TWO-PARTY VERIFY PASS both hosts
-  (alfred+tuxedo)**; flash #d011 + XIAO from-boot capture (wedge-proof) on grants → readout matrix decides
-  GREEN-vs-iter8. **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
+  =BRANCH-2 real⇒iter-8; no-ACL(pos-ctrl present)⇒ACL layer. verified both hosts, flashed. **METAL
+  RESULT:** ✅ **(A) H2-fix VINDICATED** — D4 `Negotiate=XIAO`(not self) + `CoC SENT c434fafc→8c15b0c2` (was
+  SENT=0 iter-6). **H2 CLOSED** (my concurred+verified ap_capable=false fix works). ⏸ **XIAO accept matrix
+  UNSCOREABLE (correct hold, not a null):** positive-control FAILED — D4 never dialed XIAO-iter7 over 32s+75s
+  (zero captures/SENT/Negotiate) → accept-null = "no connection arrived" ≠ "accept failed"; scoring BRANCH-2 now
+  = the false-null trap (avoided). **Grounded D4-quiescent flag (hive):** dial is a LOOP :4208 (resets
+  ACCEPTOR_ADDR, re-scans) so D4 is coded to re-dial — but 0 re-captures → D4 WEDGED in serve_coc on a half-open
+  CoC (:7663 seam), loop never re-iterates. Field note (non-blocking): peer addr-change strands D4 similarly;
+  core check serve_coc return-on-disconnect. **UNBLOCK = co-boot** (fresh D4 election + XIAO-iter7 advertising,
+  both from boot) — needs D4 monitor/reset grant (supervisor; D4 board = persona 0xC434FAFC, MAC off-tree). No hive build needed (iter-7
+  images correct+verified). **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
