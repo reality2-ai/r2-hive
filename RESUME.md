@@ -1,9 +1,34 @@
 # RESUME — r2-hive
 
-Updated 2026-07-24. `main` clean + pushed. **iter-9 conformance COMPLETE (`#d025` + 3-board). OTA `#d026`:
-adv-wedge-watchdog pair BUILT+attested on `e6ff5198`; bin-extraction BLOCKED at gate, awaiting grant v4.**
+Updated 2026-07-24. `main` clean + pushed. **OTA adv-wedge pair grant-v4 LIVE (composer flashing). v5-fix
+triplet HELD — collision fix at source first, fires on core's post-relocation sha over `7131fb9f`.**
 
-## Current OTA build (2026-07-24)
+## Current build order — v5 fix triplet (HELD, 2026-07-24)
+
+**BUILD ORDER #d005: D5/D4/XIAO bench triplet, BUILD_ID `coex.v5fix.0724` — HELD pending core source fix.**
+v5-fix bundle = beacon adv 1000ms + HB origination ttl=2 + rbid clockless coarse-time (bake anchor + uptime +
+NVS checkpoint @0x1D000/225s + boot-resume-max + key-19 monotonic-max + epoch=coarse/T_rotate) + §5.4 rollback
+persist record @0x1C000 + `r2.update.rollback` CBOR emit from io_task next boot.
+- **Pinned sha SUPERSEDED twice:** `e1172e9f` (my started build, KILLED mid-D5, partial ELFs removed) →
+  `7131fb9f` (core final: rollback step-2 = CLEAR only on send-handoff) → **awaiting core's 0x1C000→0x1E000
+  relocation sha ON TOP of 7131fb9f.** Build fires on that new sha.
+- **★ LATENT COLLISION I caught (supervisor: "good catch, fix at source first; no attested artifact should
+  carry a known-latent collision"):** `ROLLBACK_REC_OFFSET=0x1C000` (:7592) double-claims
+  `LINK_KEY_OFFSET=0x1C000` (:3097). esp-storage erases the full 4KB sector → whichever writes last wipes the
+  other's magic ("RBK1" vs "R2LK"). Dormant on the triplet (no v5 image compiles link_key — all bare `xiao`,
+  not `xiaobridge`), but latent for any future xiaobridge+OTA image (pair→rollback = device unpaired; or
+  pending rollback clobbered by a pair = §5.4 event lost). Fix = relocate to **0x1E000** (verified free: no
+  const, only the stale ":3095 0x1C000..0x1F000 unused" comment; in r2cfg data). Core owns the source edit.
+- **Preflight (done on e1172e9f, re-run on the new sha):** partition sha e0e49127 ✓; 0x1C000+0x1D000 both in
+  r2cfg DATA (0x11000..0x20000), no overlap with persona/TG/0x17000/app ✓; (a) adv 1000ms :4175 · (b) HB ttl=2
+  :1428 · (c) coarse-time init:365+checkpoint225s:1107+key-19:3838+monotonic-max:2436 · (d) rollback
+  read:1418+§5.4 CBOR:1449+write:3762. EXTRA confirm owed on rebuild: key-19 emit gated on key-18 schema≥2.
+- Recipes (iter-9 anchored): D5 `bridge,ble,benchsf7,baked_persona,fakesensor,benchkeepalive`+cos / D4 same
+  +d4-initiator.role / XIAO `bridge,ble,benchsf7,baked_persona,loratcxo,xiao,benchkeepalive`+xiao-role.
+  Personas verified: d5 e6108006, d4 0ad4a84d, xiao 43638da0 (+roles 4565c535/a55810f9/8deefb77).
+- Build hazard: `nohup` detach kills export-esp.sh (empty log); use attached ssh (harness background).
+
+## OTA adv-wedge build (2026-07-24, grant v4 LIVE)
 
 **ADV-WEDGE-WATCHDOG pair BUILT + ELF-attested (supervisor BUILD ORDER #d005, PINNED `e6ff5198` verbatim,
 BUILD_ID `coex.advwd.0724`).** Lineage rolls up: `3c8ea9e1` CoC-tuning + `86a8b8c3` otal2cap fakesensor-gate +
