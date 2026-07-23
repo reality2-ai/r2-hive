@@ -1,16 +1,30 @@
 # RESUME — r2-hive
 
-Updated 2026-07-24. `main` clean + pushed. **v6 DOA (deterministic boot-hang) → v7 rebuild pending on core's
-push of `6eec53d5` (not yet on origin) + a #d005 order. v5 grant-v5 staged; v4 OTA pair grant-v4 running.**
+Updated 2026-07-24. `main` clean + pushed. **v7 4-artifact set BUILT+ELF-attested on `6eec53d5` (v6 boot-hang
+fix). v6 DOA + superseded. v5 grant-v5 staged; v4 OTA pair grant-v4 running.**
 
-**⚠ v6 (05dba4f3) DOA:** core found a deterministic boot-hang — coarse-checkpoint flash-write cache-suspend
-deadlock in the boot-settling window (coarse_time_init doesn't seed COARSE_LAST_CKPT_S → checkpoint_tick fires
-a flash write immediately). **v6 4-bin two-party is MOOT** (don't flash a hanging image). Fix = v7 @ `6eec53d5`
-(one-line: coarse_time_init seeds COARSE_LAST_CKPT_S=base). **BLOCKED:** 6eec53d5 not pushed
-(origin/dfr1195-fw-blerole-coex tip still 05dba4f3, cat-file "Not a valid object name"). Asked core to push;
-awaiting a #d005 build order. On both → rebuild the 4 artifacts BUILD_ID `coex.v7.0724`, same recipes.
+## Current build order — v7 4-artifact set (BUILT+ELF-attested, 2026-07-24)
 
-## Current build order — v6 4-artifact set (BUILT+ELF-attested, 2026-07-24)
+**BUILD ORDER #d005: PINNED `6eec53d5`, BUILD_ID `coex.v7.0724` = v6 + boot-deadlock fix.** v6 (05dba4f3) was
+DOA — deterministic boot-hang: coarse-checkpoint flash-write cache-suspend deadlock (coarse_time_init didn't
+seed COARSE_LAST_CKPT_S → checkpoint_tick fired a flash write on the first main-loop tick, in the boot-settling
+window). v7 fix = `coarse_time_init` seeds `COARSE_LAST_CKPT_S=base` (+12 lines), deferring the first
+checkpoint write a full 225s out of the boot window. **v6 bins SUPERSEDED (never flash a hanging image).**
+- **4 ELFs (~alfred, off-tree):** d5-otarx-v7 `89d79329131645f476f13028f37ae6bae83bab4cb43f84a073aaa48934c5ce0d`
+  · d5-otafail-v7 `7b071ff5a764cbc850a49befa41a49f0c99d290c0b70240a7efb564df63a0937` · d4-v7
+  `5d6ba59ddf066f0a7a5a4991861d5a5d2298bcf8106c6befa70a9127e5530996` · xiao-v7
+  `31f6b466613d50465b82c8482a84daada0ea9351b429f006be28461a3c5c63c7`.
+- **Attest PASS:** persona baked==input (e6108006×2/0ad4a84d/43638da0); masked distinct
+  2b9ff062/dc4baac1/f1a21abd/fc946c2a; roles Sensor/Sensor/Bridge-Init/Hive; **BUILD_ID coex.v7.0724 baked all
+  4, 0 v6 leftover** (serial/HEALTH shows v7); re-adv "CoC half-open/idle, re-advertising"; §5.4 rollback marker
+  all 4; otafail differential. Preflight: v7 delta confirmed (LAST_CKPT_S=base seed :5827); partition e0e49127
+  + app@0x20000; set_phy source-scope 0 live call sites.
+- **PENDING: bin extraction** for the 4 → extract amendment awaited (same gate as v5/v6). NO flash — 3-way
+  attest (hive+composer+core) after extract, then re-sign → grant v7.
+- Push-timing note: core's push of 6eec53d5 crossed my first fetch (branch tip briefly read 05dba4f3); re-fetch
+  resolved it, HEAD verified 6eec53d5 before build. [[positive-control-the-tree-not-just-the-tool]]
+
+## Prior build — v6 4-artifact set (05dba4f3, DOA boot-hang, SUPERSEDED by v7)
 
 **BUILD ORDER #d005: PINNED `05dba4f3`, BUILD_ID `coex.v6.0724` = f52a0f98 v5 fixes + af17e83d unconnected
 re-adv timer + 05dba4f3 set_phy removal.** 4 artifacts (-v6 names preserve v4/v5 baselines):
