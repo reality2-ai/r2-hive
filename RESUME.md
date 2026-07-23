@@ -42,6 +42,14 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
   - Composer signs both real-TG seq cur+1 (P1 = same bytes re-signed). **P1-GOOD FIRST** on a fresh D5 (boot →
     8s → health PASS → OTA CONFIRMED; no-confirm/reset-loop ⇒ STOP, do NOT proceed to P3) = composer/Roy flash.
     ef7b2d24 (418c7934) DISCARDED. [[ota-per-platform-sink]]
+  - **P1 flash result (composer 2026-07-23): boots CLEAN + HEALTHY (flash-base role OK), but NO confirm strings
+    — NOT a P1 defect.** Source-confirmed (b79b4f7a `ota_confirm_or_rollback_on_boot` :3647): the health-gate
+    runs ONLY when ota_state ∈ {New, PendingVerify}; a normal boot (Valid/Undefined) = NO-OP (:3644). espflash-
+    DIRECT to ota_0 doesn't set PENDING_VERIFY ⇒ confirm no-ops by design. **The confirm test = the OTA-PUSH of
+    the P1 payload** (writes the INACTIVE slot → boots PendingVerify → health-gate → confirm), NOT the espflash
+    base-flash. PROCEED via ota-push --dry-run (proves signed stream + confirm sequence); metal push = Roy-gated.
+    Composer's positive-control localized it right (no false "confirm FAILED"). Awaiting core/supervisor confirm
+    of the ota-push P1-good test path.
 - **Stale-tree trap RESOLVED + killed (root closed by core+supervisor):** ~/dfr1195-fw-build was an ORPHANED
   linked worktree sharing the branch ref with core's dfr1195-fw-wt — every core commit advanced the shared ref
   under the stale tree ⇒ byte-exact-PARENT "reverse-edits" (nobody wrote my files; my byte-match diagnosis was
