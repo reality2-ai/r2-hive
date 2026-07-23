@@ -147,8 +147,17 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   SUFFICIENT): thread ble_role→engine_task + Initiator `ap_capable=false`.** State-machine walk (negotiation.rs):
   Initiator ineligible → `elect()` drops self → at 3s empty-roster `elect()`=None → **stays in Discover** (:494,
   never strands in Data:526) → re-ticks until capture-scan rosters XIAO → elects XIAO → WifiReq → bit0 BOTH.
-  Flagged the one dependency: Discover must re-tick after roster fills. Confirm-before-fix MET. **Core lands the
-  fix → hive builds iter-7 on its sha.** **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
+  Flagged the one dependency: Discover must re-tick after roster fills. Confirm-before-fix MET. **BUT a 2nd break is STACKED (hive proved
+  independent):** BRANCH-2 = XIAO's `L2capChannel::accept` never returns (`CoC up serving` :4045 prints the instant
+  accept returns, BEFORE any traffic → its absence = genuine accept-hang, not a no-traffic artifact). H2-fix alone
+  won't light bit0 — D4's WifiReq routes over the CoC, needs XIAO's serve_coc receiving = accept complete. **esp-
+  radio hypotheses (hive lane):** HA create-optimistic (D4 CoC-up doesn't prove XIAO accepted), **HB (lead)
+  accept-registration window-race exposed by esp-central timing** (D4's REQ 271ms after connect lands before XIAO
+  registers L2capChannel::accept → dropped; BlueZ-pump worked because it paces slower), HC conn-not-serviced. **CONVERGED
+  iter-7 = ONE build: core H2-fix (Initiator ap_capable=false) + XIAO accept step-log (ACL-accepted :4018 +
+  L2CAP-accept entry/return) + election-timing markers** → splits H2 vs BRANCH-2 (ACL vs L2CAP layer) in one flash.
+  **Core writes the spec → hive builds.** Sent core+composer+supervisor. **NEXT (post-metal): classify
+  InvalidRouteLen per queue.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
