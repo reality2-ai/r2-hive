@@ -150,7 +150,19 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     ODT flows clean ⇒ NO reflash at all (best case, fully tool-side). Discriminator: RESP arrives-but-misparse ⇒
     (b) done, proceed; ODT-burst never-completes + 0x08 ⇒ occupancy ⇒ bundled reflash. Connect-window drops
     (1-7 of 8) = separate coex connect-race (composer central-retry); 3c8ea9e1 is post-connect, touches neither
-    that nor the RESP layer. Nothing hive-side tonight.
+    that nor the RESP layer.
+  - **★ OCCUPANCY PROVEN on metal → 3c8ea9e1 UN-HELD → tuned pair BUILT + attested (supervisor build order
+    #d005).** Composer's held run: OST→RESP_OK-raw→ODT#1→OAK(cum=200) then mid-burst drop at 1/4488 chunks =
+    the occupancy layer surfaced on the actual ODT burst, exactly as diagnosed. Built 2 variants on PINNED
+    `3c8ea9e1` VERBATIM (no new commits, no frame-RESP — composer's raw reader intact; BUILD_ID coex.otatune.0724):
+    - **d5-otarx** ELF `fe758e415c7ab29eed15928aedca38e79d53ded00770cd90b8f7c2711d043fe1` / BIN
+      `1afb641c9ad35fe444453e669d83b74332f9a1ec72b95290c64cec3c5415af39` (900208 B, esp_image 0xE9).
+    - **d5-otafail** ELF `5bc94781bdc9a6d318a7ecb8af467e59112cc7db4ccbcad43bae1eec0fa3fd0e` / BIN
+      `892504b179e4d957112377bf18978b964f1ce7cbca09a608d539b7954432d86b` (898656 B, esp_image 0xE9).
+    - **★ tuning COMPILED IN** (set_phy×3 + update_data_length×1 both, ABSENT on b79b4f7a otal2cap = the fix
+      took). persona da73508e baked==input both (otarx masked df3c1bca / otafail 3417c497), role b[4]=1 Sensor,
+      OTAFAIL_OK P1≠P3, PSM 0x00D3, verify_strict, dev-unsigned=0, no frame-RESP. **Supersedes b79b4f7a bins
+      bd22d272/ce76ea9e (RETIRED).** Two-party (composer+core) on the NEW bins → grant v3 → flash. NO flash yet.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
