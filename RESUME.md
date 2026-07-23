@@ -86,6 +86,15 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     (wildcard ⇒ can't force a mismatch; needs a --target-class override to emit e.g. bridge B52C9F26) — core's
     ota-sign + supervisor test-design, NO hive action (my §2.6 class gate is correct; the payload can't be
     built). Offered a source-confirm of the accept/reject arm if useful.
+  - **P1 metal push BLOCKED at BLE CoC connect (composer): 4× le-connection-abort/In-Progress. Root = 2.4GHz
+    COEX starvation, NOT adv-during-CoC or adv-interval.** Source (main.rs:4068-4162): the advertise→accept→
+    ota_receive_over_coc loop is SEQUENTIAL ⇒ adv is ALREADY suppressed during the CoC serve; the aborts are at
+    the INITIAL connect (during advertise). Adv params = `AdvertisementParameters::default()` = 160ms interval,
+    Le1M, 0dBm (trouble-host advertise.rs:110) — fast nominal, but the 8s-miss/12s-catch = INTERMITTENT =
+    ESP-NOW (core0, shared 2.4GHz w/ BLE; LoRa is core1) steals adv/connect slots. Fix (not hive rebuild): (1)
+    central-side first — active scan + connect-on-fresh-sighting + retries + clear stale BlueZ In-Progress
+    (composer, no reflash); (2) board-side ESP-NOW-HB-backoff during push (core, reflash) only if (1) fails.
+    Stale-hk note (weave-hk/bench-D5.bin ≠ baked persona) = separate resolver drift, out-of-band.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
