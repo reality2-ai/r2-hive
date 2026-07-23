@@ -5,8 +5,13 @@ DELIVERED + attested (Roy-authorized) — awaiting two-party verify + 3-board re
 
 ## Current state
 
-**✅ iter-9 conformance PAIR PASS (`#d025`, campaign closed). D5 CONFORMANT REFLASH DELIVERED + ATTESTED
-(Roy-authorized) — awaiting two-party verify + 3-board re-score.** No build pending.
+**✅ iter-9 conformance PAIR PASS (`#d025`, campaign closed). D5 CONFORMANT REFLASH DELIVERED + two-party
+verified (composer, both hosts) — awaiting D5 grant + 3-board co-boot re-score.** No build pending.
+
+**Overnight posture (`#d026`, Roy: green the remaining matrix overnight):** STANDBY-READY. Anticipated build
+orders — beacon-plane diffs (only if core finds emit gaps), extended-wire test image, OTA-enabled image
+(pending specs canon + core readiness). Discipline: NO build until an explicit order names a sha; #d005/#d006
+preflight (drain → pinned-sha detached byte-clean → `rm -rf target` → attest) on each. Stay drained.
 
 **D5 iter-9 conformant (from PINNED `70960dbc`, BUILD_ID coex.iter9.0723): DELIVERED 2026-07-23.** Roy
 authorized the reflash; supersedes d5-cos5/`11f2d2ef`. 3 clean builds.
