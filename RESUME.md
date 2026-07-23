@@ -202,8 +202,15 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   full-green matrix) = **MET one-shot → iter-7 DONE**; (2) ladder rung (board-to-board bit0 replacing the pump)
   inherits the coex **SUSTAIN** standard (0x25 ≥10s ratified) → **rung OPEN until sustained → iter-8** (D5-data-
   provider wrinkle + serve_coc-return-on-disconnect watchdog, core owns, my primitive locked; I build on core's
-  sha). Sensor-provider_capable canon question → core+specs. **NEXT: hive builds iter-8 on core's sha (sustain);
-  InvalidRouteLen classify remains queued (ready when sequenced).** Ops hazard:
+  sha). Sensor-provider_capable canon question → core+specs. **InvalidRouteLen x389 classify DELIVERED (analysis-only, supervisor GO):** verdict = **canon-correct
+  decode-drops of NON-compact-DATA on the compact LoRa bearer** (the :5025 mis-tier hazard), NOT decoder
+  strictness (rlen 1-8/>8-drop is R2-WIRE.md L244/L250 MANDATED), NOT real-malformed-DATA. Mechanism: LoRa RX
+  applies decode_compact to every frame (main.rs:2100, not tier-dispatched); a non-compact frame "is structurally
+  decodable as compact → MIS-PARSES into garbage route" (:5025) → garbage route-len 0/>8 → InvalidRouteLen
+  (compact.rs:117). Sources to size (asked composer for n+source+SF): (i) extended-leak on SF7 (54B fits, SF12
+  blocks by MTU), (ii) foreign/cross-TG CRC-pass, (iii) real corruption (rare, HW-CRC). Fix direction (not
+  hive's): single-tier LoRa TX (canon L40); drops are benign. Delivered core+supervisor. **NEXT: hive builds
+  iter-8 on core's sha (sustain); await composer's log split to finalize InvalidRouteLen (i)/(ii)/(iii) sizing.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
