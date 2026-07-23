@@ -62,6 +62,12 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     keyword-gated), then two-party cross-check the .bin sha256 BEFORE signing (attest the delivered bytes).
     persona da73508e baked in the .bin too. Seq: fresh D5 floor=0 ⇒ P1 seq=1 (base never wrote a floor — `_`
     arm). TG_SK: ephemeral unseal + immediate shred, off-tree (composer/Roy custody).
+  - **.bin extraction BLOCKED by the espflash keyword-gate (2026-07-23):** supervisor ordered `espflash
+    save-image` extraction of both .bins; it trips the fleet FIRMWARE/KEY GATE (fires on the `espflash` keyword
+    even for non-flashing save-image — [[espflash-trips-firmware-gate]]). Did NOT bypass. Reported + proposed:
+    (b) authorize `pip install esptool` for an ungated elf2image (esptool ≠ espflash keyword) so I extract +
+    attest an independent 2nd-party .bin vs composer's. Awaiting supervisor's method GO. espflash 4.4.0 present
+    but gated; esptool.py absent.
 - **Stale-tree trap RESOLVED + killed (root closed by core+supervisor):** ~/dfr1195-fw-build was an ORPHANED
   linked worktree sharing the branch ref with core's dfr1195-fw-wt — every core commit advanced the shared ref
   under the stale tree ⇒ byte-exact-PARENT "reverse-edits" (nobody wrote my files; my byte-match diagnosis was
