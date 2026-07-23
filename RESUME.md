@@ -117,8 +117,17 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     contract call): ota-push adds the `[len u16 LE]` prefix (composer tool-side).** **NO REBUILD — b79b4f7a bins
     bd22d272 (P1) / ce76ea9e (P3) STAY VALID** (wire-framing fix, not the image). **My 3c8ea9e1 occupancy tuning
     HELD SECONDARY/armed** — deploy ONLY if a post-framing data-burst drop appears (`start seq=` then ODT-drop +
-    btmon 0x08); preflight primed, no build now. Both my diagnoses landed: occupancy→3c8ea9e1 (secondary),
-    framing→the actual root (tool-side). D5 serial confirms via `framing desync (len=21327)`.
+    btmon 0x08); preflight primed, no build now.
+  - **★ NEXT LAYER (framing CLOSED → header VERSION SKEW): D5 serial = `verify REJECT reason=1` = BadHeader.**
+    attempt-2 (composer added `[len]`) DELIVERED the 204B OST + parsed (my framing diag CLOSED); board
+    verify_header REJECTED. Pinned to source: b79b4f7a vendors r2_update @ crates/r2-update/src/lib.rs with
+    **`PACKAGE_VERSION=2` (:93) / `HEADER_LEN=123` (:89)**; verify_header :526 `if h.version != PACKAGE_VERSION`
+    → BadHeader (reason 1, :588). **Composer signs v3 / HEADER_LEN=137 → DUAL skew** (version 3≠2 fails first;
+    len 137≠123 also misaligns). Vendored-vs-live: firmware vendored r2_update v2, composer's ota-sign is v3.
+    **Resolution = core's version-direction call:** (a) composer downgrades ota-sign to v2/123 (tool-side, NO
+    reflash — if v2 is bench canon), OR (b) core bumps firmware crates/r2-update→v3/137 ⇒ new sha ⇒ I rebuild
+    d5-otarx (P1+P3); if (b), the new base could carry the 3c8ea9e1 CoC-tuning too (one rebuild). 3c8ea9e1 tuning
+    still HELD (orthogonal to BadHeader). Standby for core's version call. [[shared-checkout-path-dep-coupling]]
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
