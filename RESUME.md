@@ -18,9 +18,11 @@ real.
   took); (c) OTA_PROGRESS watchdog symbol + strings "OTA(L2CAP) idle-watchdog abort (no SDU" / "CoC
   half-open/idle, re-advertising". persona baked==input e6108006 (wire 0xDA73508E), role b[4]=1 Sensor;
   otafail differential elf da70ee0e≠10ae4dd6 + masked ba99ad1c(P1)≠08d271eb(P3).
-- **BLOCKED:** espflash save-image tripped the fleet firmware/key gate (grant v4 not issued; tuned pair
-  extracted under the then-live v3 grant). NOT bypassing. Escalated to supervisor: extract my side under an
-  extract grant OR composer independent-derives bins two-party from these ELFs. Awaiting ruling.
+- **BINS EXTRACTED (amendment-2 grant, `R2_OTA_ARTIFACT=d5-ota`, input ELF sha verified pre-extract):**
+  - **d5-ota-otarx-wd.bin** `0aadecc62db7a277354274880a47003fb3ac83c3fb704df24a350b17483ee581` (869824 B, esp_image 0xE9).
+  - **d5-ota-otafail-wd.bin** `7880f5335f5ece698407bbcfb3c165248e23334256254dc28d04262270dfc468` (868272 B, esp_image 0xE9).
+  - differential P1≠P3 OK. Composer independent-extracts in parallel = two-party MATCH or ABORT. NO sign/flash
+    — grant v4 after match.
 - Build hazard SOLVED: `nohup` detach kills export-esp.sh (no tty + set -e exits before cargo → empty log ×2);
   attached ssh (harness background) keeps the tty. Build only via attached ssh.
 - otatune baselines d5-otarx.elf/d5-otafail.elf + b79b4f7a bins UNTOUCHED (archived discriminators).
