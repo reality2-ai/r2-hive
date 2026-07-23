@@ -1,12 +1,26 @@
 # RESUME — r2-hive
 
-Updated 2026-07-23. `main` clean + pushed. **✅ iter-9 conformance pair PASS (`#d025`). D5 conformant reflash
-DELIVERED + attested (Roy-authorized) — awaiting two-party verify + 3-board re-score.**
+Updated 2026-07-23. `main` clean + pushed. **✅✅ iter-9 conformance COMPLETE — pair (`#d025`) + D5 3-board
+bar both PASS on metal. Overnight matrix-greening (`#d026`) STANDBY-READY.**
 
 ## Current state
 
-**✅ iter-9 conformance PAIR PASS (`#d025`, campaign closed). D5 CONFORMANT REFLASH DELIVERED + two-party
-verified (composer, both hosts) — awaiting D5 grant + 3-board co-boot re-score.** No build pending.
+**✅✅ iter-9 CONFORMANCE COMPLETE — 3-BOARD BAR PASS (composer co-boot 2026-07-23).** Pair `#d025` + D5
+conformant reflash both green on metal. No build pending.
+
+**3-board PASS (all 4 falsifiers clear):** 3 iter-9 conformant boards (D4 724383ea + XIAO 5fb1565f + D5-cos
+a0157eb2, all bit2=0), D4 monitor-reset co-boot.
+- **FA2 PASS (THE key tiebreak — my sticky-capture finding's live test, iter-9 couldn't run it):** D4 resolves
+  BOTH acceptors (8c15b0c2 + da73508e) then capture-dials XIAO `8c15b0c2` = LOWEST of 2 resolvable, NOT D5.
+  Two-live-acceptor lowest-hive tiebreak WORKS ⇒ NO capture bug ⇒ **iter-10 sticky-capture candidate confirmed
+  NOT load-bearing** (the earlier sticky was a first-seen-single-acceptor artifact only).
+- **FA1 PASS:** all elect None (D4/D5/XIAO provider=None) — zero bit2=1 leak. Conformance holds 3-board.
+- D4↔XIAO sustain: D4 0x25 ×4 + keepalive ×10; XIAO 0x25 ×11 + keepalive ×31 (~2.5s bidir); accept completes.
+- **FA4 PASS:** D5 unpaired — 0x25=0 (bit0 DARK, EXPECTED) + still resolvable/advertising + cosine emitting
+  (APIARY ×20) + accept=0. D5 did NOT disrupt the pair.
+- **FA3 note:** 1 transient XIAO 'Disrupted' in ~120s → session RE-ESTABLISHED (31 keepalives after) =
+  reconnect blip, self-recovered (validates iter-8 keepalive disconnect→break→re-dial→re-establish), NOT a
+  sustained wedge. Relevant to the parked re-dial/conn-watchdog thread only if it RECURS.
 
 **Overnight posture (`#d026`, Roy: green the remaining matrix overnight):** STANDBY-READY. Anticipated build
 orders — beacon-plane diffs (only if core finds emit gaps), extended-wire test image, OTA-enabled image
@@ -23,12 +37,6 @@ authorized the reflash; supersedes d5-cos5/`11f2d2ef`. 3 clean builds.
 - Wave cos≠sin diff (cos `a0157eb2` ≠ sin `57648717`) + `k_cosf` linked + WaveSourceSentant×6 = cosine at
   sentant layer. C: core1×2 + lora_route×6 + espnow×6 + apiary×6 (fakesensor). Markers: BUILD_ID + domain-sep
   + APIARY value=.
-
-**3-BOARD BAR (core declared, supervisor locked — analyze metal against THIS):** all elect None; D4 dials XIAO
-(lowest of TWO live resolvable acceptors = stronger tiebreak test, directly exercises my sticky-capture
-secondary — D4-dials-XIAO ⇒ tiebreak robust/iter-10 unneeded, D4-dials-D5 ⇒ sticky-capture bug real); D4↔XIAO
-`0x25` ≥10s + keepalive; D5 resolvable + bit0 DARK = EXPECTED. Falsifiers: elect-Some leak / D4-dials-D5-both-
-resolvable / pair drop / D5-disrupts-pair.
 
 **Pair PASS recap (`#d025`, composer co-boot 2026-07-23):** D4 dials XIAO `8c15b0c2` (capture-decouple works;
 D4-dials-D5 was a boot-order confound), `0x25` sustained both (D4 ×4/XIAO ×7), bidirectional keepalive 10/21
