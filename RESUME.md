@@ -86,19 +86,23 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     (wildcard ⇒ can't force a mismatch; needs a --target-class override to emit e.g. bridge B52C9F26) — core's
     ota-sign + supervisor test-design, NO hive action (my §2.6 class gate is correct; the payload can't be
     built). Offered a source-confirm of the accept/reject arm if useful.
-  - **P1 metal push BLOCKED at BLE CoC connect (composer): 4× le-connection-abort/In-Progress. Root =
-    BlueZ-central-timing; 2.4GHz coex is a CONTRIBUTOR, NOT a hard blocker (corrected w/ core).** Source
-    (main.rs:4068-4162): the advertise→accept→ota_receive_over_coc loop is SEQUENTIAL ⇒ adv is ALREADY
-    suppressed during the CoC serve; aborts are at the INITIAL connect (during advertise). Adv =
-    `AdvertisementParameters::default()` = 160ms/Le1M/0dBm (trouble-host advertise.rs:110) — fast nominal; the
-    8s-miss/12s-catch = ESP-NOW (core0, shared 2.4GHz) makes adv INTERMITTENT. **★ Positive control I first
-    under-invoked: the bit0 campaign proved adv+connect WORKS under ESP-NOW** (D4↔XIAO connected reliably,
-    bit0+bit5 sustained) ⇒ coex isn't the hard blocker; the abort is BlueZ-central In-Progress/timing (pusher is
-    BlueZ, not an ESP32). Fix: (1) central-side first — active scan + connect-on-fresh-sighting + retries +
-    clear stale BlueZ In-Progress (composer, no reflash); (2) has NO clean pre-CoC trigger (OTA_ACTIVE sets only
-    post-CoC-up :7798) ⇒ board-side fallback = reduce fakesensor/HB emission on the OTA-receiver build (core
-    reflash) ONLY if (1) fails (D5 fakesensor+benchkeepalive may starve adv more than XIAO's plain acceptor).
-    Stale-hk note (weave-hk/bench-D5.bin ≠ baked persona) = separate resolver drift, out-of-band.
+  - **P1 metal push BLOCKED — RECONCILED to core's HALF-OPEN seam; clean board fix found.** Empirical
+    (composer): CoC CONNECTS (0x00D3, link up) then drops on the FIRST OST write — `ENOTCONN os error 107`, 4/4
+    identical, co-located (not range). **4/4 deterministic = NOT stochastic coex contention.** Matches core's
+    OWN documented seam at `ota_receive_over_coc` :7819: *"'CoC up'+'receiver up' then the client hits ENOTCONN,
+    board link-layer never surfaces the drop"* = ACL goes HALF-OPEN (supervision timeout) in the first-OST
+    window; board blocks in rx.receive to the 15s guard. NOT adv-during-CoC (adv suppressed, :4068 sequential
+    loop) and NOT a handler-close. **★ Root of the still-firing timeout: the otal2cap CoC uses
+    `L2capChannelConfig::default()` (:4123) + NO 2M-PHY/DLE — while the cocbench path TUNES `set_phy(Le2M)` +
+    `update_data_length(251,2120)` + `{Every(1), 32 credits}` (:4117-4128) "to stream without credit-starvation."**
+    A ~900KB stream on the untuned 1M/default CoC = slow round-trip-heavy first OST = long occupancy in the
+    fragile window = supervision timeout (coex-aggravated). bit0 survived coex (1-byte/2.5s keepalive = trivial
+    occupancy); a 900KB burst doesn't. **CLEAN BOARD FIX (core reflash, corrects our "no clean lever"):** port
+    the cocbench L2CAP tuning to the otal2cap serve arm (:4114-4128, widen cfg(cocbench) → include otal2cap).
+    cocbench PROVES it streams reliably. Hive rebuilds d5-otarx once core lands it. Positive-control first:
+    btmon on the central = confirm LL supervision-timeout (0x08) vs explicit terminate. Composer's central-
+    retries = stopgap only (a deterministic first-OST half-open won't yield to retries). Stale-hk
+    (weave-hk/bench-D5.bin ≠ baked persona) = separate resolver drift, out-of-band.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
