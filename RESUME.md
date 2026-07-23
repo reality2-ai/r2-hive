@@ -161,8 +161,14 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
       `892504b179e4d957112377bf18978b964f1ce7cbca09a608d539b7954432d86b` (898656 B, esp_image 0xE9).
     - **★ tuning COMPILED IN** (set_phy×3 + update_data_length×1 both, ABSENT on b79b4f7a otal2cap = the fix
       took). persona da73508e baked==input both (otarx masked df3c1bca / otafail 3417c497), role b[4]=1 Sensor,
-      OTAFAIL_OK P1≠P3, PSM 0x00D3, verify_strict, dev-unsigned=0, no frame-RESP. **Supersedes b79b4f7a bins
-      bd22d272/ce76ea9e (RETIRED).** Two-party (composer+core) on the NEW bins → grant v3 → flash. NO flash yet.
+      OTAFAIL_OK P1≠P3, PSM 0x00D3, verify_strict, dev-unsigned=0, no frame-RESP. **3-way attest PASS**
+      (hive+composer+core match). **HELD unflashed:** (1) grant v3 gated on composer in-flight btmon **0x08**
+      confirming the data-phase stall IS supervision-timeout occupancy (mid-burst drop = symptom; 0x08 =
+      mechanism the tuning fixes) — test-first, don't land the reflash on a symptom; (2) **b79b4f7a bins
+      bd22d272/ce76ea9e NOT retired — they're the on-board occupancy DISCRIMINATOR** (A/B: tuned image must
+      SURVIVE the ODT burst where b79b4f7a dropped at 1/4488) — I over-stated "retired," corrected; (3)
+      connect-drop 8/8 = SEPARATE coex connect-race (tuning is post-connect, can't fix; central-retry owns).
+      Nothing hive-side until btmon 0x08 ⇒ grant v3 ⇒ flash.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
