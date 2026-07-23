@@ -133,9 +133,16 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   the class ("both self-elect ⇒ neither sends WifiReq ⇒ bit0 dark"). 3 splits: H1 CoC-never-up (create ERR :4297),
   H2 CoC-up-but-no-WifiReq (self-election completes sans CoC — likely), H3 WifiReq-sent-but-CoC-half-open (:7663).
   Asked composer for the decisive metal fact: did "CoC up" print (:4303/:4042)? **Supervisor RULED: CORE LEADS the
-  2nd-root, HIVE SUPPORTS** (BLE-connect knowledge + iter-7 build instrumentation on core's ask — e.g. CoC-up
-  reachability print, CTRL_OUT drain count, WifiReq emit trace). NO BUILD ORDER YET. Reported composer+core+
-  supervisor. **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
+  2nd-root, HIVE SUPPORTS.** **Composer 4-way split → BRANCH-2 ASYMMETRIC** (clean un-wedged capture): D4
+  opens the CoC (`CoC up` 120s, SENT=0, then closes→falls back to D5) but **XIAO's provider-accept NEVER fires**
+  (`CoC up, serving`=0, accept-ERR=0, adv-ERR=0). **Hive localized (BLE-connect support):** XIAO AcceptorOnly
+  blocked between `adv up` :4007 and `CoC up serving` :4045 = at `advertiser.accept()` :4017 OR
+  `L2capChannel::accept` :4038; runner IS polled (join3 :4175, not a Fix-C starve). Asymmetry (D4 create-Ok, XIAO
+  accept-stuck) + D4's 271ms create → **lead hypothesis = accept-listener RACE** (D4's L2CAP connect-req lands
+  before XIAO registers the accept listener → dropped → one-sided 120s channel). **Decisive iter-7 diag = 1 print
+  at :4018** (`ACL conn accepted`): prints→block at L2CAP-accept :4038; silent→block at ACL-accept :4017. Sent
+  core+composer+supervisor; ready to build iter-7 on core's ask. **NEXT (post-metal): classify InvalidRouteLen
+  per queue.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
