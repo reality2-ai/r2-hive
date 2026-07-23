@@ -26,20 +26,29 @@ a0157eb2, all bit2=0), D4 monitor-reset co-boot.
 build until an explicit order names a sha; #d005/#d006 preflight (drain → pinned-sha detached byte-clean →
 `rm -rf target` → attest) on each.
 
-- **OTA D5-receiver — HOLDING for a b79b4f7a re-pin (sha-bump currency gate).** Supervisor ordered the build
-  on `418c7934`; I built P1-good there (`ef7b2d24`, role b[4]=1 Sensor, otal2cap-took diff vs control
-  `3b60f0ab`). **Recipe VALIDATED in-binary** (carries to b79b4f7a): otal2cap swap (ota_receive_over_coc + PSM
-  0x00D3), signature-required (ed25519 verify_strict + ets_secure_boot_verify_signature), dev-unsigned-ota
-  ABSENT, §5.2/§5.1 markers baked. **But core then bumped the base to `b79b4f7a`** (parent 418c7934, +8 lines =
-  `otafail` P3 feature) + wants BOTH variants on it (shared P1/P3 base). Flagged supervisor for the re-pin
-  (#d005 — core can't re-pin). On GO: build 2 variants on the HIVE-OWNED dir from b79b4f7a — **P1-GOOD**
-  (base+otal2cap, no otafail) + **P3 RADIO-DEAD** (+otafail: compiles out BLE_UP/LORA_UP ⇒ §5.2 min-2 fails ⇒
-  rollback, radios still init), both real-TG-signed seq cur+1; discard ef7b2d24. P1-good-FIRST brick order =
-  composer/Roy flash. [[ota-per-platform-sink]]
-- **Build-dir structural fix (supervisor):** future builds use hive-owned `~/dfr1195-fw-hive-build` (fresh
-  clone from origin, nobody else writes it) — removes the recurring stale-tree mutation source (2/2 cross-sha
-  checkouts dirtied ~/dfr1195-fw-build; both caught by preflight, byte-matched to the parent sha). Stashes
-  `hive-preOtaRx-staletree-418c7934` RETAINED until core IDs the writer. [[offthread-consult-write-race]]
+- **OTA D5 P1+P3 DELIVERED + attested (from PINNED `b79b4f7a`, hive-owned dir, coex.iter9.0723) — awaiting
+  two-party verify + P1-good-first flash.** 2 clean builds, NO dev-unsigned-ota (0 hits), both role b[4]=1
+  Sensor/b[6]=0, persona da73508e preserved.
+  - **[1] d5-otarx-p1** `54dddb16df9f4bbf5f63fe6273975a05df2440a9e5287265831baf8895a66eba` (`~/d5-otarx-p1.elf`,
+    receiver flash-base + P1 payload): persona baked==input e6108006 @48264 masked `70e3ef93`; otal2cap swap
+    (ota_receive_over_coc×2 + PSM 0x00D3×2); signature-REQUIRED (verify_strict + ets_secure_boot); CONFIRM
+    path present (`health PASS` + `OTA CONFIRMED` + `image Valid; anti-rollback floor committed` = core's
+    P1-watch strings).
+  - **[2] d5-otafail-p3** `2a4f3308c7d606bd88b36ca09a3a7ddce0f55427215dfef8975841d8f9c71198`
+    (`~/d5-otafail-p3.elf`, P3 radio-dead): persona baked==input e6108006 @48168 masked `00016efb`; same swap +
+    signature-required; **otafail TOOK** — P1≠P3 differential + confirm/success path DCE'd (NO health-PASS/
+    OTA-CONFIRMED/image-Valid) = health min-2 provably-unmet ⇒ no confirm ⇒ bootloader auto-rollback; cfg gates
+    source-verified :775 BLE_UP / :912 LORA_UP (cfg(not otafail)).
+  - Composer signs both real-TG seq cur+1 (P1 = same bytes re-signed). **P1-GOOD FIRST** on a fresh D5 (boot →
+    8s → health PASS → OTA CONFIRMED; no-confirm/reset-loop ⇒ STOP, do NOT proceed to P3) = composer/Roy flash.
+    ef7b2d24 (418c7934) DISCARDED. [[ota-per-platform-sink]]
+- **Stale-tree trap RESOLVED + killed (root closed by core+supervisor):** ~/dfr1195-fw-build was an ORPHANED
+  linked worktree sharing the branch ref with core's dfr1195-fw-wt — every core commit advanced the shared ref
+  under the stale tree ⇒ byte-exact-PARENT "reverse-edits" (nobody wrote my files; my byte-match diagnosis was
+  right, mechanism = shared-ref-advance). **Structural fix DONE:** builds now use hive-owned
+  `~/dfr1195-fw-hive-build` (independent clone, `.git` = real dir verified, `git checkout --force --detach
+  <sha>` always). Old dir rm'd (its pointer named core's `worktrees/dfr1195-fw-wt` admin — removed ONLY the
+  duplicate, core's real worktree untouched). Stash dropped. [[offthread-consult-write-race]]
 - Other anticipated: beacon-plane diffs (only if core finds emit gaps), extended-wire test image.
 
 **D5 iter-9 conformant (from PINNED `70960dbc`, BUILD_ID coex.iter9.0723): DELIVERED 2026-07-23.** Roy
