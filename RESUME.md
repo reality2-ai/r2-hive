@@ -1,9 +1,31 @@
 # RESUME — r2-hive
 
-Updated 2026-07-23. `main` clean + pushed. **✅✅ iter-9 conformance COMPLETE — pair (`#d025`) + D5 3-board
-bar both PASS on metal. Overnight matrix-greening (`#d026`) STANDBY-READY.**
+Updated 2026-07-24. `main` clean + pushed. **iter-9 conformance COMPLETE (`#d025` + 3-board). OTA `#d026`:
+adv-wedge-watchdog pair BUILT+attested on `e6ff5198`; bin-extraction BLOCKED at gate, awaiting grant v4.**
 
-## Current state
+## Current OTA build (2026-07-24)
+
+**ADV-WEDGE-WATCHDOG pair BUILT + ELF-attested (supervisor BUILD ORDER #d005, PINNED `e6ff5198` verbatim,
+BUILD_ID `coex.advwd.0724`).** Lineage rolls up: `3c8ea9e1` CoC-tuning + `86a8b8c3` otal2cap fakesensor-gate +
+`e6ff5198` ADV-WEDGE idle-watchdog. Round-2 root = adv-wedge (one aborted CoC permanently silenced D5 ADV);
+watchdog re-advertises within 8s of any idle abort. Independent clone, detached HEAD=`e6ff5198`, clean, gitdir
+real.
+- **d5-otarx-wd.elf** `da70ee0eb822356b6f349a9bd1d7d84a78cd9fe2fb47f2e63988753681593b21` (1379948 B).
+- **d5-otafail-wd.elf** `10ae4dd6e2df4f14cf0de9306088d7a317c2ae2bd1ae3460fc237568cbdc5533` (1378636 B).
+- **All 3 markers binary-attested:** (a) tuning trio set_phy Le2M+update_data_length 251,2120+credits 32
+  (source :4143-4151/:4439-4448; ota_receive_over_coc+serve_coc symbols present); (b) fakesensor-gate :734
+  `not(otal2cap)` — DIFFERENTIAL `apiary_bus_task`=0 sym in wd vs =3 in otatune baseline (spawn DCE'd = gate
+  took); (c) OTA_PROGRESS watchdog symbol + strings "OTA(L2CAP) idle-watchdog abort (no SDU" / "CoC
+  half-open/idle, re-advertising". persona baked==input e6108006 (wire 0xDA73508E), role b[4]=1 Sensor;
+  otafail differential elf da70ee0e≠10ae4dd6 + masked ba99ad1c(P1)≠08d271eb(P3).
+- **BLOCKED:** espflash save-image tripped the fleet firmware/key gate (grant v4 not issued; tuned pair
+  extracted under the then-live v3 grant). NOT bypassing. Escalated to supervisor: extract my side under an
+  extract grant OR composer independent-derives bins two-party from these ELFs. Awaiting ruling.
+- Build hazard SOLVED: `nohup` detach kills export-esp.sh (no tty + set -e exits before cargo → empty log ×2);
+  attached ssh (harness background) keeps the tty. Build only via attached ssh.
+- otatune baselines d5-otarx.elf/d5-otafail.elf + b79b4f7a bins UNTOUCHED (archived discriminators).
+
+## Prior state (iter-9)
 
 **✅✅ iter-9 CONFORMANCE COMPLETE — 3-BOARD BAR PASS (composer co-boot 2026-07-23).** Pair `#d025` + D5
 conformant reflash both green on metal. No build pending.
