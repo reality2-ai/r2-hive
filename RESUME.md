@@ -22,14 +22,14 @@ proxy) + :4807 capture-decoupled + request_data_plane inert-documented. 4 clean 
 - **PAIR ONLY** — D5 stays `11f2d2ef` (distractor persists for re-score: elect-None must hold WITH D5
   resolvable in roster). **RE-SCORE EXPECTATION: 0x25 sustained UNCHANGED both + D4 NEG elect None (no
   'Negotiate provider=da73508e').**
-- **★ WORKTREE-DIRT resolved + DROPPED (core disclaimed, supervisor ratified):** ~/dfr1195-fw-build carried
-  an uncommitted main.rs at build time presenting as REVERSED #d013. Did NOT build it — stashed
-  non-destructively, byte-verified clean at 70960dbc, built the pinned commit. **Root = mechanical stale-tree:**
-  the stashed working-tree main.rs byte-matches iter-8 `351a166e` main.rs EXACTLY (both sha `3ee577c410d18a10`)
-  = a checkout-without-reset from iter-8→iter-9 left the old file, presenting as reverse-edits over 70960dbc
-  HEAD (whose main.rs = `b79a140e...`). Core DISCLAIMED (never writes this dir; origin==its worktree==70960dbc
-  clean). Both drop-conditions MET → stash dropped. My preflight `rm -rf target` + git-clean byte-verify is why
-  the stale tree never entered the build. [[positive-control-the-tree-not-just-the-tool]]
+- **★ 2026-07-23 pre-iter9 dirt, unattributed, likely off-thread-consult write race, DROPPED** (supervisor
+  ruling, core disclaimed). ~/dfr1195-fw-build carried an uncommitted main.rs presenting as REVERSED #d013;
+  did NOT build it — stashed non-destructively, byte-verified clean at 70960dbc, built the pinned commit.
+  Evidence: stashed main.rs byte-matches iter-8 `351a166e` EXACTLY (both sha `3ee577c410d18a10`; 70960dbc HEAD =
+  `b79a140e`) = pre-iter-9-era content, the recorded off-thread-consult live-checkout write hazard, not a rogue
+  actor. Committed HEAD wins → stash dropped. Preflight `rm -rf target` + detached byte-clean + positive-control
+  is the standing mitigation (mandatory) — it caught this.
+  [[offthread-consult-write-race]] [[positive-control-the-tree-not-just-the-tool]]
 
 **Prior rung GREEN (iter-8 `351a166e`, composer metal 2026-07-23):** 0x25 sustained ≥22s both, bidirectional
 CoC keepalive ~2.5s, zero wedge. Board-to-board CoC replaced the external pump. Campaign #d024 closed
