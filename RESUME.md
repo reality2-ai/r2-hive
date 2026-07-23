@@ -137,11 +137,14 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     while the proven `serve_coc` (:4485 "Frame: [len_lo, len_hi, R2-frame]") is SYMMETRIC [len]-framed both ways
     and the OTA INBOUND requires [len]. So the outbound RESP is un-framed vs the central's recv_framed(expects
     [len]) → central stalls → 10s timeout. **3c8ea9e1 is NOT this fix** (data-burst occupancy, not reached).
-    **Fix = core's contract call:** (a) board [len]-prefixes the outbound RESP (match serve_coc :4485) = reflash
-    ⇒ **FOLD 3c8ea9e1 tuning into that one rebuild** (data burst follows immediately) ⇒ I rebuild d5-otarx; or
-    (b) composer's recv_framed accepts raw RESP (tool-side, no reflash, asymmetric). Recommend (a). Discriminator
-    (btmon): RESP_OK arrives-but-mis-parsed (framing) vs never-arrives+link-drop (occupancy). Standby for core's
-    call.
+    **RULED (b) tonight (supervisor): composer reads RAW RESP** (1B OK / 2B ERR+reason / OAK ack) — tool-side,
+    NO reflash, bins valid. Decisive fact: the INSTALLED P1 image (b79b4f7a) serves P2a/P2b/P3 with raw RESP
+    regardless of any base fix ⇒ only (b) covers old+new uniformly; (a) tonight = full chain redo (rebuild+
+    re-attest+re-sign 4 pkgs+new grant) for zero gain on the installed image. **(a) canonical board-fix
+    ([len]-frame RESP, agreed asymmetry vs serve_coc :4485) + 3c8ea9e1 tuning fold = ONE post-campaign
+    v2→v3-re-vendor rebuild** (spec-first, backlogged together). **Discriminator = composer's raw reader itself:
+    works ⇒ framing confirmed; still stalls ⇒ occupancy re-opens (then 3c8ea9e1 + btmon).** Nothing hive-side
+    tonight.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
