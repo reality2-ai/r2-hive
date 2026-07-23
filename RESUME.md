@@ -99,10 +99,15 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     fragile window = supervision timeout (coex-aggravated). bit0 survived coex (1-byte/2.5s keepalive = trivial
     occupancy); a 900KB burst doesn't. **CLEAN BOARD FIX (core reflash, corrects our "no clean lever"):** port
     the cocbench L2CAP tuning to the otal2cap serve arm (:4114-4128, widen cfg(cocbench) → include otal2cap).
-    cocbench PROVES it streams reliably. Hive rebuilds d5-otarx once core lands it. Positive-control first:
-    btmon on the central = confirm LL supervision-timeout (0x08) vs explicit terminate. Composer's central-
-    retries = stopgap only (a deterministic first-OST half-open won't yield to retries). Stale-hk
-    (weave-hk/bench-D5.bin ≠ baked persona) = separate resolver drift, out-of-band.
+    cocbench PROVES it streams reliably. **FIX LANDED (core `3c8ea9e1`, parent b79b4f7a):** :4117
+    `#[cfg(any(cocbench,otal2cap))]` → set_phy(Le2M) + update_data_length(251,2120) + {Every(1), 32 credits};
+    diff main.rs 10+/5-, comment credits the #d026 hive-diagnosis; verified read-only. **REBUILD DOUBLE-GATED:**
+    (1) composer btmon shows supervision-timeout reason **0x08** (positive control — don't build the fix on an
+    unconfirmed mechanism; if ≠0x08 → hold+re-scope) AND (2) supervisor build order (#d005). On both: rebuild
+    d5-otarx-p1 (3c8ea9e1+otal2cap) + d5-otafail-p3 (+otafail) in the hive-owned dir → new ELFs → grant-shape
+    .bin extraction → **fresh 3-way .bin cross-check** (composer+core); b79b4f7a bins bd22d272/ce76ea9e RETIRED.
+    Composer central-retries = stopgap only. Stale-hk (weave-hk/bench-D5.bin ≠ baked persona) = separate
+    resolver drift, out-of-band.
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
