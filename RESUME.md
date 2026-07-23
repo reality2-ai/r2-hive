@@ -216,7 +216,13 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   metal shows a session that neither sustains nor returns — right not to wire speculatively). **BUILDING pair
   `b7vfvp8f9`** (D4-init8 + XIAO-acc8, coex.iter8.0723); keepalive + (A) + accept markers positive-controlled. D5
   stays 11f2d2ef. Delivering shas on completion → composer flashes → sustain retest (0x25 ≥10s = rung GREEN).
-  **NEXT: iter-8 metal (sustain verdict); await composer's log split for InvalidRouteLen (i)/(ii)/(iii) sizing.** Ops hazard:
+  **InvalidRouteLen FINALIZED (composer sized x2158):** verdict HOLDS (canon-correct drops, not strictness, not
+  real-DATA-loss) — but I OWNED a mechanism-direction inversion: it's the EXTENDED decoder (:2729) mis-parsing
+  COMPACT-sized (n~29, ZERO n~54) frames, NOT compact-on-extended; my (i) extended-leak REFUTED. Dominant = 2
+  FOREIGN beacon classes (43895e89/bafe8ac1 ~1000/2158) on the shared SF7 channel = benign foreign noise. ONE
+  actionable (core demux + composer): confirm our apiary (READING=64cedb11) decodes at :2101 — if yes, 100%
+  foreign noise; if apiary is lost to :2729, that's a real compact→extended demux bug. Delivered core+supervisor+
+  composer. **NEXT: iter-8 metal (sustain verdict); apiary-at-:2101 check closes InvalidRouteLen.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
