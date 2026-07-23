@@ -198,7 +198,12 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   so lowest-eligible SHOULD pick XIAO → roster-freshness at re-election; deeper: should a SENSOR be provider_capable
   at all — same class as Initiator ap_capable=false). Core's NEG look IF sustained required. **DONE bar (one-shot
   GREEN vs sustained) = supervisor/Roy's call.** iter-8 serve_coc watchdog (core owns, my primitive locked) batched
-  after this. **NEXT: DONE-bar ruling; then post-milestone classify InvalidRouteLen per queue.** Ops hazard:
+  after this. **DONE-BAR RULING (supervisor, vs Roy coex ladder): TWO bars —** (1) iter-7 campaign bar (pre-declared
+  full-green matrix) = **MET one-shot → iter-7 DONE**; (2) ladder rung (board-to-board bit0 replacing the pump)
+  inherits the coex **SUSTAIN** standard (0x25 ≥10s ratified) → **rung OPEN until sustained → iter-8** (D5-data-
+  provider wrinkle + serve_coc-return-on-disconnect watchdog, core owns, my primitive locked; I build on core's
+  sha). Sensor-provider_capable canon question → core+specs. **NEXT: hive builds iter-8 on core's sha (sustain);
+  InvalidRouteLen classify remains queued (ready when sequenced).** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
