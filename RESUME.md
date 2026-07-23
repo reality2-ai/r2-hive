@@ -132,8 +132,10 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   the CoC (send_control :5304 → CTRL_OUT → serve_coc send :4487 → recv → BLE_ADMIT). Code comment :4767 names
   the class ("both self-elect ⇒ neither sends WifiReq ⇒ bit0 dark"). 3 splits: H1 CoC-never-up (create ERR :4297),
   H2 CoC-up-but-no-WifiReq (self-election completes sans CoC — likely), H3 WifiReq-sent-but-CoC-half-open (:7663).
-  Asked composer for the decisive metal fact: did "CoC up" print (:4303/:4042)? Core owns the NEG/serve_coc fix.
-  Reported composer+core+supervisor. **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
+  Asked composer for the decisive metal fact: did "CoC up" print (:4303/:4042)? **Supervisor RULED: CORE LEADS the
+  2nd-root, HIVE SUPPORTS** (BLE-connect knowledge + iter-7 build instrumentation on core's ask — e.g. CoC-up
+  reachability print, CTRL_OUT drain count, WifiReq emit trace). NO BUILD ORDER YET. Reported composer+core+
+  supervisor. **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
