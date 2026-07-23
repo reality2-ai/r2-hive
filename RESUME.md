@@ -124,10 +124,9 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
     **`PACKAGE_VERSION=2` (:93) / `HEADER_LEN=123` (:89)**; verify_header :526 `if h.version != PACKAGE_VERSION`
     → BadHeader (reason 1, :588). **Composer signs v3 / HEADER_LEN=137 → DUAL skew** (version 3≠2 fails first;
     len 137≠123 also misaligns). Vendored-vs-live: firmware vendored r2_update v2, composer's ota-sign is v3.
-    **Resolution = core's version-direction call:** (a) composer downgrades ota-sign to v2/123 (tool-side, NO
-    reflash — if v2 is bench canon), OR (b) core bumps firmware crates/r2-update→v3/137 ⇒ new sha ⇒ I rebuild
-    d5-otarx (P1+P3); if (b), the new base could carry the 3c8ea9e1 CoC-tuning too (one rebuild). 3c8ea9e1 tuning
-    still HELD (orthogonal to BadHeader). Standby for core's version call. [[shared-checkout-path-dep-coupling]]
+    **RULED (supervisor): (a) composer emits V2 headers this cycle** — tool-side, NO reflash; **my bins stay
+    valid**, 3c8ea9e1 tuning secondary/armed. Board v3 re-vendor (bump firmware crates/r2-update→v3/137) =
+    POST-CAMPAIGN backlog. Nothing hive-side. [[shared-checkout-path-dep-coupling]]
   - **★ OWNED correction (core):** my "verify floor via HEALTH key-6 ota_status" was WRONG — key-6 is hardcoded
     0 (:3717), NOT the floor. Correct path = read NVS **0x18000** = `[seq u32 LE][floor u32 LE]`, 0xFFFFFFFF→0
     (:7285, core owns). composer verifies seq/floor at 0x18000, not the HEALTH wire.
