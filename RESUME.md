@@ -1,9 +1,32 @@
 # RESUME — r2-hive
 
-Updated 2026-07-24. `main` clean + pushed. **OTA adv-wedge pair grant-v4 LIVE (composer flashing). v5-fix
-triplet HELD — collision fix at source first, fires on core's post-relocation sha over `7131fb9f`.**
+Updated 2026-07-24. `main` clean + pushed. **v6 4-artifact set BUILT+ELF-attested on `05dba4f3` (set_phy
+removal + re-adv timer). OTA adv-wedge pair grant-v4 running. v5 triplet two-party-matched, grant-v5 staged.**
 
-## Current build order — v5 fix triplet (BUILT+ELF-attested, 2026-07-24)
+## Current build order — v6 4-artifact set (BUILT+ELF-attested, 2026-07-24)
+
+**BUILD ORDER #d005: PINNED `05dba4f3`, BUILD_ID `coex.v6.0724` = f52a0f98 v5 fixes + af17e83d unconnected
+re-adv timer + 05dba4f3 set_phy removal.** 4 artifacts (-v6 names preserve v4/v5 baselines):
+- **d5-otarx-v6.elf** `4fbc36d0b9fe130599ec430e1a64fc96f5cb71fc79647df785aa89c173bbb020` (= supervisor's d5-otarx-wd @v6, otal2cap)
+- **d5-otafail-v6.elf** `d9398cb1a0ea05ca9e685a9169fccec2cdb6f303a54c6ab030bf01f96138699b` (= d5-otafail-wd @v6, otal2cap+otafail)
+- **d4-v6.elf** `98f9fdfbc6e3a8e0d5435b4527316421680c823adac32c167a0119c72cd32d42` (initiator)
+- **xiao-v6.elf** `7c7626427283f864ed45e9e50bd56700ab62223e647bfc8676a2d57897cc686d` (acceptor)
+- **Attest PASS:** persona baked==input (e6108006×2/0ad4a84d/43638da0); masked distinct
+  0fc99fd9/683a865c/7eed359c/887fc70d; roles Sensor/Sensor/Bridge-Init/Hive; re-adv strings "CoC
+  half-open/idle, re-advertising"; "§5.4 r2.update.rollback emitted"; otafail differential; DLE
+  update_data_length KEPT.
+- **★ set_phy-removal preflight — SCOPE finding (naive `nm|grep set_phy` FALSE-FAILS it):** grep=3 in every
+  image, but ALL 3 are non-firmware — `hci_le_set_phy_cmd_handler` (BLE controller HCI handler, in every BLE
+  image) + `ieee80211_set_phy_bw`/`_mode` (WiFi PHY, unrelated). ZERO `r2_dfr1195` set_phy. The removed
+  trouble_host `Connection::set_phy` is INLINED in release → not a standalone symbol in EITHER build (v4
+  da70ee0e pre-removal ALSO nm=0), so nm can't discriminate. Removal is source-authoritative (0 call sites; 3
+  hits = removal comments; 2M-PHY switch crashes esp-radio 0.18.0 `llc_phy_upd` assert→panic, DLE kept).
+  PASSES on correct scope. [[never-conclude-from-a-null]] [[four-reachability-instruments]]
+- **Preflight PASS (05dba4f3):** partition e0e49127; offsets link_key 0x1C000 / checkpoint 0x1D000 / rollback
+  0x1E000 (collision-free); re-adv `READV_INTERVAL_S=10` :4219; §5.4 :1453; key-19 gate `schema>=2` :2441.
+- **PENDING: bin extraction** for the 4 → extract amendment awaited (same gate as v5 amendment-3). NO flash.
+
+## Prior build — v5 fix triplet (BUILT+two-party-matched, grant-v5 staged)
 
 **BUILD ORDER #d005: D5/D4/XIAO bench triplet, BUILD_ID `coex.v5fix.0724`, PINNED `f52a0f98` — ELFs BUILT +
 attested; bins pending extract grant.** v5-fix bundle = beacon adv 1000ms + HB origination ttl=2 + rbid
