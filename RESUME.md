@@ -172,8 +172,9 @@ gap closed by construction, my argument). **ALL THREE BUILT + FULLY ATTESTED fro
   falsifier, table e0e49127. (A) provider_capable=matches!(AcceptorOnly) source-verified :5401. D5 stays 11f2d2ef;
   4f66adf4p no longer needed. Delivered composer+supervisor. **Readout matrix (gate-1 = null-gate):** D4
   Negotiate=XIAO(not self)⇒(A) works; XIAO ACL+ENTRY+CoC-up+bit0⇒GREEN; ACL+ENTRY no-CoC-up⇒L2CAP accept HUNG
-  =BRANCH-2 real⇒iter-8; no-ACL(pos-ctrl present)⇒ACL layer. Composer flashes #d011 + captures XIAO from-boot.
-  **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
+  =BRANCH-2 real⇒iter-8; no-ACL(pos-ctrl present)⇒ACL layer. **Composer TWO-PARTY VERIFY PASS both hosts
+  (alfred+tuxedo)**; flash #d011 + XIAO from-boot capture (wedge-proof) on grants → readout matrix decides
+  GREEN-vs-iter8. **NEXT (post-metal): classify InvalidRouteLen per queue.** Ops hazard:
   [[reference-xiao-boot-flush-wedge]]. Lesson: [[shared-list-serves-multiple-consumers]]. **Step `DFR_WAVE_STEP=0.25` RATIFIED FINAL**
 (supervisor, converged with my default; 1.6× D4's 0.4 period; Roy can override). **Build script pre-staged:
 alfred:`~/build-d5cos.sh <persona-path>`** — resets to 7766f53c, full rm -rf, builds cos/0.25 then a sin/0.4
