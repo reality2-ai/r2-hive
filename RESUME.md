@@ -3,29 +3,35 @@
 Updated 2026-07-24. `main` clean + pushed. **OTA adv-wedge pair grant-v4 LIVE (composer flashing). v5-fix
 triplet HELD — collision fix at source first, fires on core's post-relocation sha over `7131fb9f`.**
 
-## Current build order — v5 fix triplet (HELD, 2026-07-24)
+## Current build order — v5 fix triplet (BUILT+ELF-attested, 2026-07-24)
 
-**BUILD ORDER #d005: D5/D4/XIAO bench triplet, BUILD_ID `coex.v5fix.0724` — HELD pending core source fix.**
-v5-fix bundle = beacon adv 1000ms + HB origination ttl=2 + rbid clockless coarse-time (bake anchor + uptime +
-NVS checkpoint @0x1D000/225s + boot-resume-max + key-19 monotonic-max + epoch=coarse/T_rotate) + §5.4 rollback
-persist record @0x1C000 + `r2.update.rollback` CBOR emit from io_task next boot.
-- **Pinned sha SUPERSEDED twice:** `e1172e9f` (my started build, KILLED mid-D5, partial ELFs removed) →
-  `7131fb9f` (core final: rollback step-2 = CLEAR only on send-handoff) → **awaiting core's 0x1C000→0x1E000
-  relocation sha ON TOP of 7131fb9f.** Build fires on that new sha.
-- **★ LATENT COLLISION I caught (supervisor: "good catch, fix at source first; no attested artifact should
-  carry a known-latent collision"):** `ROLLBACK_REC_OFFSET=0x1C000` (:7592) double-claims
-  `LINK_KEY_OFFSET=0x1C000` (:3097). esp-storage erases the full 4KB sector → whichever writes last wipes the
-  other's magic ("RBK1" vs "R2LK"). Dormant on the triplet (no v5 image compiles link_key — all bare `xiao`,
-  not `xiaobridge`), but latent for any future xiaobridge+OTA image (pair→rollback = device unpaired; or
-  pending rollback clobbered by a pair = §5.4 event lost). Fix = relocate to **0x1E000** (verified free: no
-  const, only the stale ":3095 0x1C000..0x1F000 unused" comment; in r2cfg data). Core owns the source edit.
-- **Preflight (done on e1172e9f, re-run on the new sha):** partition sha e0e49127 ✓; 0x1C000+0x1D000 both in
-  r2cfg DATA (0x11000..0x20000), no overlap with persona/TG/0x17000/app ✓; (a) adv 1000ms :4175 · (b) HB ttl=2
-  :1428 · (c) coarse-time init:365+checkpoint225s:1107+key-19:3838+monotonic-max:2436 · (d) rollback
-  read:1418+§5.4 CBOR:1449+write:3762. EXTRA confirm owed on rebuild: key-19 emit gated on key-18 schema≥2.
+**BUILD ORDER #d005: D5/D4/XIAO bench triplet, BUILD_ID `coex.v5fix.0724`, PINNED `f52a0f98` — ELFs BUILT +
+attested; bins pending extract grant.** v5-fix bundle = beacon adv 1000ms + HB origination ttl=2 + rbid
+clockless coarse-time (bake anchor + uptime + NVS checkpoint @0x1D000/225s + boot-resume-max + key-19
+monotonic-max + epoch=coarse/T_rotate) + §5.4 rollback persist record **@0x1E000 (relocated)** +
+`r2.update.rollback` CBOR emit from io_task next boot.
+- **ELFs (~alfred, off-tree):** D5 `ca105f885ff4b8c98560a2c46dfc58604b5a0b8a13954eedd02baad296a83df7` · D4
+  `32d73d83c3fb83c8c5cba1554ea17bc456ba13d148a7db5f1042585f28b1e14e` · XIAO
+  `97cab1829174580c8470a1c14dff3672a04a777fbec8c92e57774488db5a9346`.
+- **Attest PASS:** persona baked==input D5 e6108006 / D4 0ad4a84d / XIAO 43638da0; masked digest distinct
+  7284eeb9/b0f2a288/f840957c; role RPF1 D5 b[4]=1 Sensor · D4 b[4]=2 Bridge b[6]=1 Initiator · XIAO b[4]=0
+  Hive; markers COARSE_BASE_S+UPTIME_S+LAST_CKPT_S syms + "§5.4 r2.update.rollback emitted" string.
+- **★ LATENT COLLISION I caught → FIXED AT SOURCE (core f52a0f98; supervisor "good catch"):** was
+  `ROLLBACK_REC_OFFSET=0x1C000` double-claiming `LINK_KEY_OFFSET=0x1C000` (4KB-sector erase mutual-clobber).
+  Relocated to **0x1E000** (verified free); sector map now 0x1C000 link_key(xiaobridge) / 0x1D000 checkpoint /
+  0x1E000 rollback / 0x1F000 free; 0x1C000 double-claim GONE (grep -c=1). Was dormant on the triplet (no image
+  compiles link_key) but latent for any xiaobridge+OTA image. Two stale shas carried it: `e1172e9f` (my killed
+  build) + `7131fb9f` — both superseded.
+- **Preflight PASS (f52a0f98):** partition e0e49127 ✓; 0x1C000/0x1D000/0x1E000 all in r2cfg DATA
+  (0x11000..0x20000), no overlap with persona/TG/0x17000/app ✓; (a) adv 1000ms :4175 · (b) HB ttl=2 :1428 ·
+  (c) coarse-time init:365+checkpoint225s:1107+key-19:3847+monotonic-max:2441 · (d) rollback read:1418+§5.4
+  CBOR:1449+write@0x1E000:7615. key-19/key-18 confirm: key-19 emit structurally paired w/ HEALTH_SCHEMA_VERSION=2
+  const (≥2 by construction) + receiver gate `if schema>=2` :2441.
+- **PENDING: bin extraction** — save-image trips the firmware/key gate; env prefix alone doesn't clear it
+  (amendment-2 cleared the OTA pair). Requested an extract grant for the 3 bench bins → then composer two-party
+  independent-derives. NO flash — grant v5 after two-party attest + OTA P1-P3 completes.
 - Recipes (iter-9 anchored): D5 `bridge,ble,benchsf7,baked_persona,fakesensor,benchkeepalive`+cos / D4 same
   +d4-initiator.role / XIAO `bridge,ble,benchsf7,baked_persona,loratcxo,xiao,benchkeepalive`+xiao-role.
-  Personas verified: d5 e6108006, d4 0ad4a84d, xiao 43638da0 (+roles 4565c535/a55810f9/8deefb77).
 - Build hazard: `nohup` detach kills export-esp.sh (empty log); use attached ssh (harness background).
 
 ## OTA adv-wedge build (2026-07-24, grant v4 LIVE)
