@@ -38,10 +38,15 @@ checkpoint write a full 225s out of the boot window. **v6 bins SUPERSEDED (never
   extracting v7 now would mint a superseded bin set beside the DOA v6s — the exact hazard I flagged. v7 flash
   already ran ELF-direct under grant v7; that cycle is **CLOSED at the coex boundary** (P2a/P2b PASS, P1/P3
   gated on v8).
-- **v6 DOA bins QUARANTINED** (supervisor-approved, no delete): all 4 moved to `~/doa-v6/`, sha-verified both
-  sides (971dfae2/95ae7408/d299010c/bd58d076 intact). Remaining `~/d5-ota-*.bin` = 5 exactly (v4×2 + v5×3), no
-  v6 in the flashable path. **SHA-PIN affirmed as grant law** — every grant sha-locked, filename never
-  authoritative; the v8 grant names sha + a quarantine-checked dir.
+- **ALL BINS QUARANTINED — flashable path is EMPTY until v8 attests** (supervisor-ordered, no delete, every
+  move sha-verified both sides). Grant v5 also RETIRED (`.SUPERSEDED`, never issues — its content rides the
+  v7/v8 lineage: rotation live on v7 metal, rollback@0x1E000 + §5.4 in the v7 grant).
+  - `~/doa-v6/` = 4 DOA boot-hang bins (971dfae2/95ae7408/d299010c/bd58d076)
+  - `~/superseded-bins/` = 5 (v5: 3f88fd04/bb4f50b5/d06826e4 · v4: 0aadecc6/7880f533)
+  - `~/d5-ota-*.bin` count = **0**. Completeness positive-control: 4+5 = 9 = the exact pre-quarantine inventory
+    total, nothing lost or stranded. ELFs left in place (only bins are flashable-by-glob).
+  - **SHA-PIN affirmed as grant law** — every grant sha-locked, filename never authoritative; the v8 grant
+    names sha + a quarantine-checked dir.
 - Push-timing note: core's push of 6eec53d5 crossed my first fetch (branch tip briefly read 05dba4f3); re-fetch
   resolved it, HEAD verified 6eec53d5 before build. [[positive-control-the-tree-not-just-the-tool]]
 
