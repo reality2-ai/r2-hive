@@ -4,7 +4,30 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## Current: v8.3 `b79789c4` — BUILT + ATTESTED, awaiting extract amendment
+## Next: v8.4 `14a1c3ff` — READY (core), HELD for supervisor #d005 + stand-down
+
+fw at `14a1c3ff` (ahead=0, pushed): 2 commits atop b79789c4 — `f596a414` v8.4 LoRa fix (wires §2.3A
+lease-consult into `lora_route_task`, where v8.3's gate was absent) + `14a1c3ff` MAC redactions (D-20260724-01,
+l2cap.rs + esp32-c5 README). Firmware-only (main.rs lora_route_task); no r2-transport / vendored edit.
+**v8.3 pins ALL STALE** — new ELF/bin/stream hashes will differ; FRESH attest chain required, nobody scores
+v8.4 against old pins. HELD: supervisor stand-down (~2h from 2026-07-24, D5 replug or word) + no #d005 order yet.
+
+**★ RIG COVERAGE HOLE (mine, confirmed by read-only review):** my 11-check rig PASSED v8.3, but v8.3's
+`lora_route_task` had **0 mask/lease refs** — LoRa could TX during OTA quiesce. Check (7) verified the route
+SELECTION path honours the mask and I let that stand for ALL TX paths; the spawned per-bearer TX tasks
+(lora_route_task / lora_task / espnow_task) don't go through selection. Same every-consumer class.
+**Rig extension before the v8.4 run:** for EACH masked bearer, verify its spawned TX path is suppressed by one
+of {consults TRANSPORT_EFFECTIVE_MASK / radio-standby / compile-gated under otal2cap}; a masked bearer with a
+spawned TX path that is none = bypass. [[marker-grep-cannot-see-comments]]
+
+**? OPEN (flagged to core, NOT closed):** lease masks LoRa **+ WifiMesh** (bearer=ESP-NOW). v8.4's visible
+enforcement is LoRa `set_rx_standby`; I could not locate the WifiMesh/ESP-NOW equivalent — `espnow_task:4445
+send_async` has no mask guard, is spawned in the OTA build (bridge cfg), fed by `mesh_broadcast` with no
+visible guard. If nothing suppresses it, v8.4 fixed LoRa but left a symmetric ESP-NOW gap (ACK reports WifiMesh
+masked while ESP-NOW TXs). NOT verified: whether relay paths fire during OTA, or an internal mask check in
+mesh_broadcast_extended. Core owns io_task/WifiMesh mapping — awaiting their resolution before the build.
+
+## Prior: v8.3 `b79789c4` — BUILT + ATTESTED (D5 cycle never ran; hardware absent)
 
 **Rig PASS (exit=0, all 11 checks) → standing conditional fired → BUILT.** `b79789c4672795ed40487d6cd28e482d731a4c63`,
 BUILD_ID `coex.v83.0724`, detached clean checkout, HEAD verified.
