@@ -70,6 +70,17 @@ rulings:**
   + add delta-3 (reset-reason). Flagged to supervisor+core. No build (order is supervisor's, after v8.4 dials; #d005
   needs explicit order + the checks green). [[cite-canon-before-claiming-a-finding]] [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]
 
+## PREP: v8.7 check(22) IRAM-safe fault-reset — DESIGNED + neg-locked (checks-first, no build order)
+
+Supervisor RIG DELTA (checks-first). v8.6 finding: `__user_exception` ended in `esp_hal::system::software_reset()`
+— a FLASH-resident (.text) call that RE-FAULTS in fault context (flash cache suspended), overwriting the real
+capture (all v8.6 captures were the SECONDARY fault @ software_reset entry 0x4204b628). v8.7 fix = handler spins in
+IRAM (`loop{}`) instead. **check(22)** (`~/check22.sh`): REQUIREMENT-not-shape = NO `software_reset` call inside
+the `__user_exception` body (the identified flash offender), + handler-present guard (absence ≠ IRAM-safe); assert
+the ABSENCE of the flash call, not a specific spin idiom. Anchor on bare `fn __user_exception` (NOT `extern "C"` —
+the strip lesson). Neg-lock: 30cb3d6d handler has software_reset @475 → **FAIL** (ovr=1, sr=1). Carries unchanged.
+On core's v8.7 sha: bind (confirm sr=0 → PASS, re-confirm 30cb3d6d still FAILs). [[marker-grep-cannot-see-comments]]
+
 ## v8.6 `30cb3d6d` = BUILT + attested + bins (RULING-A); rig 21/21 bound-PASS. #d005 EXECUTED
 
 **#d005 ORDER EXECUTED.** Inbox drained (no supersede). Clean detached checkout: HEAD=`30cb3d6daa0e2fd097042e0c41
