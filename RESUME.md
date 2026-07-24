@@ -4,7 +4,31 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## Next: v8.4 `14a1c3ff` — READY (core), HELD for supervisor #d005 + stand-down
+## Next: v8.4 `afaab9ab` — RIG FULLY GREEN, HELD for supervisor's explicit #d005 order
+
+**fw tip `afaab9ab` (supersedes 14a1c3ff)** — 3 commits atop b79789c4: `f596a414` LoRa gate + `14a1c3ff` MAC
+redactions + `afaab9ab` always-on RWDT. Core READY + 3rd-party-attest-on-report. **Build HELD:** core's "supervisor
+is re-pointing" is a RELAY, not the order — #d005 needs supervisor's explicit order naming afaab9ab.
+
+**RIG FULLY GREEN on afaab9ab (all ungated, pre-staged so READY is fast):**
+- per-bearer classifier: `LoRa[route]=2 WifiMesh[espnow]=1` + serve_data_coc def-blemesh-gated (both structural
+  asserts hold — mech ordered-gate + cfg-excluded).
+- full 11-check rig `preflight-v8.sh afaab9ab` = **PASS exit=0** (partition e0e49127, offsets, set_phy live=0, §5.4,
+  MTU checks 10/11).
+- **check(13) RE-LOCKED on core's REAL RWDT API** (was provisional): `rwdt_feed_task:419` (`rwdt.feed()`) +
+  `rtc.rwdt.set_timeout(RwdtStage::Stage0,RWDT_TIMEOUT_MS):442` + `rtc.rwdt.enable():443` +
+  `spawner.spawn(rwdt_feed_task):444`. 4 INDEPENDENT legs, ALL required (armed-but-unfed / fed-but-unarmed /
+  never-spawned don't self-recover). afaab9ab all 4 legs=1 **PASS**; **14a1c3ff + b79789c4 all=0 FAIL** (neg
+  controls locked after refinement — variant-(d) guard: asserted core's actual constructs, not an imagined shape).
+- **RWDT = a NEW metal observable (core):** always-on RTC WDT, stage0=ResetSystem 30s ⇒ every hang self-recovers
+  ≤30s and stamps RTCWDT reset-reason. Future rig leg: assert reset-reason on an induced hang.
+
+**BUILD RECIPE READY (fires on supervisor's explicit #d005 order naming afaab9ab):** d5-otarx-v84 + d5-otafail-v84,
+BUILD_ID `coex.v84.0725`, FEAT `bridge,ble,benchsf7,baked_persona,fakesensor,benchkeepalive,otal2cap[,otafail]`,
+clean detached byte-verified checkout of afaab9ab. **v8.3 AND 14a1c3ff pins all stale** — fresh attest chain; core
+3rd-party attests the new ELF shas on report. Rebuild = LoRa gate + RWDT only, NO WifiMesh gate (no gap).
+
+## Superseded target: v8.4 `14a1c3ff` — READY (core), HELD for supervisor #d005 + stand-down
 
 fw at `14a1c3ff` (ahead=0, pushed): 2 commits atop b79789c4 — `f596a414` v8.4 LoRa fix (wires §2.3A
 lease-consult into `lora_route_task`, where v8.3's gate was absent) + `14a1c3ff` MAC redactions (D-20260724-01,
