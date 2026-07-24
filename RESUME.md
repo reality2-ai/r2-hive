@@ -35,8 +35,15 @@ single abstraction at main.rs:312 every masked-bearer TX task consults):
 **Rig now carries check(12) generalized to the per-bearer classifier** (both LoRa paths + WifiMesh espnow),
 negative-controlled — closes the coverage hole that let v8.3 pass.
 
-**BUILD HELD** (supervisor amended order): fires when core CONFIRMS the WifiMesh read with its own line cites +
-supervisor re-issues. Build recipe ready: `14a1c3ff`, d5-otarx-v84 + d5-otafail-v84, BUILD_ID `coex.v84.0725`,
+**BUILD TARGET MOVED off 14a1c3ff** — core still owes the always-on RWDT fix (double-exception hang class;
+composer PC2 = `__naked_double_exception` definitive). Order re-issues at core's NEW sha (RWDT + the WifiMesh
+confirm), not 14a1c3ff. **check(13) added = RWDT mechanism** (hardware WDT init + executor-resident feed task):
+negative control LOCKED (FAILs 14a1c3ff — Rwdt=0, distinct from the sw OTA watchdog :4475 + CBOR/OTA `.feed()`
+decoys); **positive side PROVISIONAL** — identifiers are my guess at core's fix, to be verified-PASS + refined
+to core's real API when the sha lands (variant-(d) guard: assert the requirement, not the imagined shape), then
+re-confirm neg-control still FAILs 14a1c3ff.
+
+**BUILD FIRES ON:** core's WifiMesh line-cited confirm + core's RWDT sha + supervisor's re-issued order. Build recipe ready: `14a1c3ff`, d5-otarx-v84 + d5-otafail-v84, BUILD_ID `coex.v84.0725`,
 same recipes as v83. Carry-over 11-check rig PASS + check(12) PASS on 14a1c3ff; check(12) negative control
 FAILS b79789c4. v8.3 pins all stale — fresh attest chain on the new artifacts.
 
