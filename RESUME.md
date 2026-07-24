@@ -4,7 +4,30 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## Next: v8 (ORDER PENDING — do not build until supervisor names the sha)
+## Next: v8 (`41eb7af6` CONFORMANCE-HELD — do not build; awaiting a new sha)
+
+**⛔ v8 `41eb7af6` HELD — §2.3A is DOCUMENTED, NOT IMPLEMENTED** (specs refutation, core-confirmed, then
+verified by me against code). Comment-stripped grep: `transport_allow_mask` **5 hits full-file / 0 hits
+comments-stripped**; `lease_id` 0; `intersect|effective_mask` 0; `install_lease|lease_ack` 0;
+`ota_quiesce_active():298-303` = `deadline!=0 && OTA_ACTIVE && now<deadline` — a plain bool, no mask. If
+flashed: bearers stay canonically AVAILABLE while radios park ⇒ **R2-BEACON §3.3 + D-20260724-01 violation**,
+and ROUTE §5.2 still selects the parked LoRa ⇒ **silent drops**. Core is wiring the real lease; new sha coming.
+
+**★ MY PREFLIGHT MISS (owned) — it would have PASSED this image.** I grepped §2.3A markers, hit doc-comments,
+and reported *behaviour* off prose ("lease installed on OTA_ACTIVE after CoC-up", "refreshed per inbound SDU",
+"dual release incl no-progress hard timeout"). A marker grep cannot distinguish comment from code. What stopped
+a non-conformant image reaching metal was the **#d005 latch** (holding for an explicit supervisor sha order
+instead of core's relayed "supervisor-authorized"), not my technical check — second time that latch has paid.
+[[marker-grep-cannot-see-comments]]
+
+**HARDENED preflight for the next sha (code-level, run before reporting anything):** (1) comment-stripped vs
+full-file grep DIFFERENTIAL on every spec symbol — comment-only ⇒ FAIL; (2) an actual WRITE to
+`transport_allow_mask`; (3) `lease_id` issued + ACK path; (4) `effective = INTERSECTION(baseline, leases)`
+computed; (5) the quiesce predicate must consult the mask, not be a bare bool; (6) then the existing set
+(partition e0e49127 + app@0x20000, personas 0x12000/0x14000/0x17000 untouched, set_phy source-scope, §5.4,
+BUILD_ID baked + 0 prior-version leftover, persona baked==input, masked digests distinct, otafail differential).
+
+## v8 scope (unchanged, fires on a conformant sha + explicit supervisor order)
 
 **v8 = OTA-session radio quiesce** (leased mask {LoRa, ESP-NOW} + power-downs) — the general form of the
 coex-emission lever v6/v7 carried as the 1-line `not(otal2cap)` fakesensor gate. Roy blessed g10; core
