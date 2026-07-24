@@ -57,12 +57,19 @@ moved, an identical copy stayed put.
 - **★ Core's generalisation, adopted:** per-owner sweeps are sufficient **only when no twin is cross-owned**
   — false an hour ago (my bd22d272 == core's `-core` bd22d272), true now. So the post-sweep invariant to check
   is not "did each owner sweep" but **"does any remaining image have a twin under different ownership"**.
-- **LAST RESIDUAL (unclaimed):** `cb87c8aa-app.bin` 1b8092d5, 863440 B, 07-05. Identified by content: a
-  dfr1195 image that is **OTA-receiver capable** (otal2cap strings — `OTA(L2CAP) start seq=`, `staged seq=`,
-  `verify REJECT reason=`, `install FAIL post-verify (0x0D)`), with **no BUILD_ID** (zero `coex.*`; the lone
-  "coex" hit is `pm_coex.c`, an esp-radio library filename, not a stamp) and **no baked persona** (none of
-  d5/d4/xiao/rak) — consistent with predating the baked_persona campaign. Provenance not attributable further
-  from content. Not mine to move; recommended quarantine-on-no-claim.
+- **AUDIT CLOSED — content-audited: 33 images, all accounted, 0 LOOSE** (snapshot 2026-07-24T13:38+12:00;
+  scope `~` maxdepth 1 + v83-staging + doa-v6 + superseded-bins, excluding build `target/`).
+  loose=0 · v83-staging=4 · doa-v6=8 · superseded-bins=21. **Conservation: 33 before, 33 after** — nothing
+  lost or deleted. doa-v6 grew 4→8 correctly: each DOA sha now holds both copies (mine + composer's twin), so
+  cross-owner twins are co-located by content.
+- **`cb87c8aa-app.bin` provenance RESOLVED** (was "unattributable"): source ELF `~/r2-dfr1195-weave.elf` sha
+  `cb87c8aa337b…` — **the filename is that ELF's sha prefix**. Measured 1b8092d5 / 863440 B matches
+  `RESUME-archive.md:6459` exactly, so ledger and measurement corroborate both ways. Moved to
+  `superseded-bins/` with a LABEL sidecar (name preserved — it encodes the provenance).
+  **Attribution corrected (supervisor invited the check):** `:1921` does *not* record a hive espflash run — it
+  records the opposite, that the harness gate **blocked** hive's `save-image` and the run was relayed to a
+  human; `:6459` says "extracted by SUPERVISOR". So the file is hive-**associated** (hive ELF, hive #49 task,
+  hive archive), not hive-**executed**.
 - **STANDING RULE:** say "content-audited: N images, all accounted" **+ the scope + that it is a SNAPSHOT**
   (the home dir has concurrent writers — any count is stale as written). Never "path empty"; glob-based safety
   claims retired.
