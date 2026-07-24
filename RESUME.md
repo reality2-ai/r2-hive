@@ -26,7 +26,20 @@ quarantined to `~/doa-v6/`.**
   of the v8 false-PASS, same root — the instrument assumed the shape instead of reading it. v2 spans
   main.rs+lease.rs+engine.rs+strategy.rs+lib.rs. [[marker-grep-cannot-see-comments]]
 
-**Still NOT a build order** — needs specs' sha-anchored re-stamp AND supervisor's explicit order.
+**⚠ ONE MORE SHA COMING — `1395269a` is NOT the build target.** Specs' re-stamp found `lease.rs:27
+pub accepted: bool`, but §2.3A:281 requires the **accepted MASK** (so a requester can distinguish a
+TRUNCATE-stripped bit from a BASELINE-stripped one; a bool can't carry that). Confirmed independently. Core has
+a one-field fix + a named KAT arm; new sha follows.
+- **My rig PASSED this defect — check (3) matched the field NAME, never its TYPE.** Third variant of one root
+  (instrument claims a property it never measured): v8 false-PASS by prose → v8.1 rig-v1 false-FAIL by scope →
+  this false-PASS by presence-without-shape. [[marker-grep-cannot-see-comments]]
+- **Check (3) hardened + discrimination proven BEFORE the fix lands** (a check written after the fix is never
+  tested against the defect): now requires `pub accepted: TransportSet` + `pub effective: TransportSet`, and
+  rejects `pub accepted: bool` citing §2.3A:281. `1395269a` now fails **exactly 1** check — that one, nothing
+  else regressed; `41eb7af6` negative control still fails 7.
+
+**Still NOT a build order** — needs core's new sha → my rig re-run → specs' sha-anchored re-stamp → supervisor's
+explicit order.
 
 ## Superseded: v8 `41eb7af6` (CONFORMANCE-DEAD — never build)
 
