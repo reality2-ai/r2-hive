@@ -51,11 +51,18 @@ moved, an identical copy stayed put.
   Scope: `~` maxdepth 1 + doa-v6 + superseded-bins + v83-staging; **excluded** build `target/` dirs (images by
   construction, regenerated). **Content-audited: 33 images, all accounted** — HOME-ROOT 12 (1 unowned
   `cb87c8aa-app.bin` 1b8092d5 from 07-05, + 11 composer `my-*`), V83-STAGING 4, DOA-V6 4, SUPERSEDED 13.
-- **OPEN — DOA twins still loose** pending composer's sweep: `my-d5-otarx-v6` 971dfae2 / `my-d5-otafail-v6`
-  95ae7408 / `my-d4-v6` d299010c / `my-xiao-v6` bd58d076 = byte-identical to the doa-v6 quarantine. Not mine
-  to move; flagged.
-- **OPEN — 4 v7 bins exist** (`my-*-v7`, home root) despite the ruling "v7 extract CANCELLED, no v7 bins get
-  made". I derived none. May predate the cancellation — reported as artifact, not as an allegation.
+- **SWEEP CLOSED (re-measured live, not quoted).** Composer swept its 11 concurrently; core swept its 2 and
+  their cross-owned twins. **Home root is now ONE image.** Verified my side: bd22d272 / ce76ea9e none loose;
+  all four DOA v6 twins quarantined; the single remainder has no byte-identical twin anywhere.
+- **★ Core's generalisation, adopted:** per-owner sweeps are sufficient **only when no twin is cross-owned**
+  — false an hour ago (my bd22d272 == core's `-core` bd22d272), true now. So the post-sweep invariant to check
+  is not "did each owner sweep" but **"does any remaining image have a twin under different ownership"**.
+- **LAST RESIDUAL (unclaimed):** `cb87c8aa-app.bin` 1b8092d5, 863440 B, 07-05. Identified by content: a
+  dfr1195 image that is **OTA-receiver capable** (otal2cap strings — `OTA(L2CAP) start seq=`, `staged seq=`,
+  `verify REJECT reason=`, `install FAIL post-verify (0x0D)`), with **no BUILD_ID** (zero `coex.*`; the lone
+  "coex" hit is `pm_coex.c`, an esp-radio library filename, not a stamp) and **no baked persona** (none of
+  d5/d4/xiao/rak) — consistent with predating the baked_persona campaign. Provenance not attributable further
+  from content. Not mine to move; recommended quarantine-on-no-claim.
 - **STANDING RULE:** say "content-audited: N images, all accounted" **+ the scope**, never "path empty".
   Glob-based safety claims retired. The sha-pinned grant remains the actual flash boundary; the sweep is
   defense-in-depth and honest bookkeeping, not the boundary.
