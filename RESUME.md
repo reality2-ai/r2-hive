@@ -4,10 +4,23 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## v8.5'' `9ebad32b` = FULL RIG GREEN (16/16), READY-scored — awaiting supervisor #d005 build order
+## v8.5 `9ebad32b` = BUILT + ATTESTED (2026-07-25); bins HELD for core 3rd-party attest
 
-Core READY sha `9ebad32b` (v8.5''; 91d90b9a SUPERSEDED — the forbidden rx-skip, reverted). 3 deltas, all line-cited,
-**all 16 rig checks PASS + all neg-locked. NO build yet** (READY, not a #d005 order).
+**#d005 ORDER EXECUTED.** Inbox drained (no supersede). Clean detached checkout: **HEAD=`9ebad32bda5b5b3c5ccf8e9ed596
+dbd900acf4d0`, tree empty, `rm -rf target`, deltas present (set_wake_window=3/reset_reason=3/remove(Ble)=1), gitdir
+real.** Rig record: 9ebad32b 16/16 PASS; negatives FAIL (91d90b9a 14+16, afaab9ab 14+16). Built BOTH D5 ELFs,
+BUILD_ID `coex.v85.0725`:
+- **d5-otarx-v85.elf** `717ca91b4483e80d61fc4a6e516f8821d470fd45f0a390f7edd8c724290ac12d` (otal2cap, cos)
+- **d5-otafail-v85.elf** `fb95c13f1df4af42a4115199b21929ab6dd16efd96bfe4ba091b31ce765062d8` (otal2cap+otafail)
+- **Attest PASS:** BUILD_ID coex.v85.0725=1 both, **0 prior-version leftover**, **set_wake_window sym=3 + "§2.3A
+  ESP-NOW set_wake_window" string=1** (delta-1 baked), **reset_reason banner=1** (delta-3), RWDT rwdt_feed_task=3,
+  role RPF1 Sensor b[4]=1, persona input e6108006 (baked from DFR_PERSONA_PATH). otafail differential = DISTINCT shas.
+- **v8.4 + all prior pins STALE.** **BINS NOT DERIVED** — MUST NOT until core's 3rd-party ELF attest (order [4]).
+  On core attest: derive under the MAC-free grant (`R2_OTA_TARGET=NONE-offline-derive`), 3-way, streams, flash.
+
+## v8.5'' `9ebad32b` rig-green record (16/16, all neg-locked)
+
+3 deltas, all line-cited, **all 16 rig checks PASS + all neg-locked.**
 - **check(14) PASS** — `set_wake_window`@7140 lease-driven: `!transport_available(WifiMesh)`@7137 in the lease_watch
   arm (QUIESCE 5ms / RESTORE 65535ms, join3@7152), **rx receive loop POINT-1 CLEAN** (0 WifiMesh-skip; specs §2.3A-1
   — inbound not dropped; RF-quiet = wake-window collapse). TX gate@7049 = legit egress (v8.4), NOT flagged.
