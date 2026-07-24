@@ -4,7 +4,42 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## Next: v8.3 — STANDING CONDITIONAL, extended rig ready + proven
+## Current: v8.3 `b79789c4` — BUILT + ATTESTED, awaiting extract amendment
+
+**Rig PASS (exit=0, all 11 checks) → standing conditional fired → BUILT.** `b79789c4672795ed40487d6cd28e482d731a4c63`,
+BUILD_ID `coex.v83.0724`, detached clean checkout, HEAD verified.
+- **d5-otarx-v83** `f1f31854e743705cceabf1967a7a130edef3739717fa309f0463665dd08e8c77`
+- **d5-otafail-v83** `4c59ae48c423e636555b0eacaeeee7299bb67290824218eda8e1d1f7db85557f`
+- **d4-v83** `3f42b5f721bd5e2519ba9eccd1dfa16e9a62e013bba47ad16102a065f1ba0eec`
+- **xiao-v83** `458402672a9d2a882e32d7330d3d471ee89dd5eb3d5fc579ca712ff480dc4261`
+
+**MEASURED marker matrix** (strings-level — the attest authority, not a prediction):
+
+| artifact | BEACON-adv-up | re-advertising | CoC-half-open | idle-watchdog | §5.4 |
+|---|---|---|---|---|---|
+| d5-otarx-v83 | 1 | 2 | 1 | 1 | 1 |
+| d5-otafail-v83 | 1 | 2 | 1 | 1 | 1 |
+| d4-v83 | 1 | 0 | 0 | 0 | 1 |
+| xiao-v83 | 1 | 0 | 0 | 0 | 1 |
+
+Attest: persona baked==input all 4 (e6108006×2/0ad4a84d/43638da0); masked distinct
+5efc8097/6476f9a3/e8b7a6cd/8b0961ae; roles Sensor/Sensor/Bridge-Init/Hive; BUILD_ID v83=1 with **zero
+leftovers** (v6/advwd/v7/v82 = 0 across all four); `r2_dfr1195` set_phy symbols = 0; otafail differential OK.
+Checks (10) zero stale MTU literals + (11) `assert 65535 == impl 65535`.
+
+**Next:** supervisor's extract amendment on the v83 shas → bins → 3-way attest. Core does third-party attest;
+neither of us derives bins without the amendment.
+
+**★ Marker-matrix lesson (both directions):** I warned core their "re-adv absent in d4/xiao" expectation was
+wrong. Half right: "acceptor-gated ⇒ absent" IS a category error (role is runtime `b[6]`, so `ble_task`
+compiles into all four — `BEACON adv up`=1 everywhere proves it). Half **wrong, mine**: I claimed a generic
+grep would hit the unconnected re-adv timer, without checking that `READV_INTERVAL_S`'s branch
+(`EitherReadv::Second`, :4404-4406) is comment + `continue` with **no println** — so it is invisible to a
+strings attest and my predicted false-discrepancy cannot fire. I aimed a source-level claim at a strings-level
+instrument, one message after pressing core on exactly that mismatch. **The check and the expectation must be
+about the same observable.** [[marker-grep-cannot-see-comments]]
+
+## Prior: v8.3 standing-conditional setup (extended rig built + proven pre-sha)
 
 **`9b5644f9` STOPPED mid-build (supervisor).** Known-failing test inside the candidate tree:
 `r2-route/tests.rs:535 assert_eq!(Transport::Udp.max_payload(), 65536)` vs `r2-transport/profile.rs:103 =>
