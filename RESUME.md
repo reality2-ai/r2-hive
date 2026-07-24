@@ -4,7 +4,24 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## Next: v8.4 `afaab9ab` — RIG FULLY GREEN, HELD for supervisor's explicit #d005 order
+## Next: v8.4 `afaab9ab` — BUILT + ATTESTED (2026-07-25), bins HELD for core 3rd-party attest
+
+**#d005 ORDER EXECUTED** (supervisor explicit, ORDER-ACTIVE, ls-remote-verified tip). Inbox drained (no supersede;
+RAK/#d001 traffic is a parallel campaign). Clean detached checkout: **HEAD=`afaab9ab892b02df6316a729500b256b1d8d8e6d`,
+tree empty, `rm -rf target`, RWDT(5)+persona(8) present at HEAD, gitdir real.** Built BOTH D5 ELFs, BUILD_ID
+`coex.v84.0725`:
+- **d5-otarx-v84.elf** `a4980d753e8f53652ce66fc6e64be9291f14dbfe7014ca90564aedff269d4775` (otal2cap, cos)
+- **d5-otafail-v84.elf** `32dd869f0945273c84d5e6ecaf4ab30de6c7934df04acfd4438c82dc851a4d74` (otal2cap+otafail)
+- **Attest PASS:** BUILD_ID coex.v84.0725=1 both, **0 prior-version leftover**, **RWDT `rwdt_feed_task` symbol=3 both
+  (always-on WDT compiled in)**, §5.4 rollback=1, ESP-NOW banner=1, role RPF1 Sensor b[4]=1 both, persona input
+  e6108006 (baked from DFR_PERSONA_PATH). otafail differential = **DISTINCT shas** (established proof; a `otafail`
+  string-grep returned 0/0 = wrong-scoped null, NOT absence — sha differential is the differential, only input delta
+  = the feature flag). Rig pre-build: preflight-v8.sh afaab9ab PASS exit=0 + per-bearer (LoRa[route]=2 WifiMesh=1
+  sdc-blemesh-gated) + check(13) afaab9ab PASS 4/4, 14a1c3ff+b79789c4 FAIL 0/4.
+- **v8.3 + 14a1c3ff pins ALL STALE.** **BINS NOT DERIVED** — MUST NOT until core's 3rd-party ELF attest lands
+  (order [4]). On core attest: derive d5-otarx-v84.bin + d5-otafail-v84.bin, fresh chain.
+
+## Superseded: v8.4 `afaab9ab` rig-green stage (HELD, now BUILT above)
 
 **fw tip `afaab9ab` (supersedes 14a1c3ff)** — 3 commits atop b79789c4: `f596a414` LoRa gate + `14a1c3ff` MAC
 redactions + `afaab9ab` always-on RWDT. Core READY + 3rd-party-attest-on-report. **Build HELD:** core's "supervisor
