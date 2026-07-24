@@ -70,9 +70,23 @@ rulings:**
   + add delta-3 (reset-reason). Flagged to supervisor+core. No build (order is supervisor's, after v8.4 dials; #d005
   needs explicit order + the checks green). [[cite-canon-before-claiming-a-finding]] [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]
 
-## v8.7 `33219370` = RIG BOUND + FULL PASS (22 checks), READY-scored — awaiting supervisor #d005
+## v8.7 `33219370` = BUILT + attested (call-free proven on metal); rig 22/22. #d005 EXECUTED, bins pending grant
 
-Core READY sha `33219370` (base 30cb3d6d). check(22) BOUND + full rig scored. **NO build yet** (READY, not #d005).
+**#d005 ORDER EXECUTED.** Inbox drained (no supersede). Clean detached checkout HEAD=`33219370105775e7e80e10e14b7ea6d
+84b055d65`, tree empty, `rm -rf target`, gitdir real. Built BOTH D5 ELFs, BUILD_ID `coex.v87.0725`:
+- **d5-otarx-v87.elf** `0400a6d7cf251d6ea6b777801cb8e46dc78ff7057aaaf72392a01f643bd12607` (otal2cap, cos)
+- **d5-otafail-v87.elf** `9d7db298994823b4bc4dff0b2270e4d00949a3897bccf1c0e6db3792e46ed0be` (otal2cap+otafail)
+- **★ CALL-FREE PROVEN ON METAL** (objdump, handler range 0x40378c44..0x40378c84): windowed-calls=0,
+  software_reset-refs=0, handler ends `j 40378c80 <__user_exception+0x3c>` = the IRAM `j <self>` spin. Both source
+  check(22) (sr=0 stripped) AND metal objdump confirm — the v8.6 flash re-fault path removed, primary fault#1 now
+  preserved. (My first objdump metric said 108 — a BROKEN instrument, awk span overran the handler; bounded to the
+  exact symbol range = 0. Never conclude from a broken instrument.)
+- **Attest:** BUILD_ID coex.v87.0725=1, v86 leftover=0, __user_exception sole strong `40378c44 T`, HANG-CAP 3-way
+  (1/1/1), reset_reason=1, set_wake_window=1, RWDT=3, role Sensor, otafail differential DISTINCT. Rig 22/22 bound-PASS.
+- **BINS PENDING:** offline grant stages on this ELF-pin report; then extract per RULING-A (espflash LITERAL in gated
+  command text, partition table e0e49127 explicit, **grant READ first** — the v86 discipline). Then 3-way + dial.
+
+## v8.7 `33219370` rig bound record (22/22, all neg-locked)
 v8.7 dial = instrumentation re-run for PRIMARY fault#1 (now preserved, not overwritten by the reset re-fault).
 - **33219370:** preflight(1-11) + check 12–22 **ALL PASS**.
 - **check(22) discriminates:** 33219370 PASS (`__user_exception` software_reset=0 — CALL-FREE IRAM spin, source
