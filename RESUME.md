@@ -18,9 +18,13 @@ Supervisor PREP (scope frozen, 2 deltas at next core sha; design now, score when
   OTA CoC path (serve_coc@4854 / ota_receive_over_coc@8381) — masking BLE while the OTA bearer consults its own
   mask = self-strangle. Caller-enumeration (supervisor's frame: every Ble consumer non-CoC or exempt). Neg-lock:
   afaab9ab legA=0 (BLE unmasked) → **FAIL**; legB=0 (0 Ble callers, trivially safe) — FAIL driven by legA.
-- Both FAIL afaab9ab for the RIGHT reason (delta absent). **Positive side PROVISIONAL** (v8.5 identifiers TBD):
-  refine-then-re-lock on the sha — verify PASS, refine to core's real API, re-confirm neg-control FAILs afaab9ab.
-  [[marker-grep-cannot-see-comments]]
+- **check(16) — reset-reason banner marker** (`~/check16.sh`): `esp_reset_reason()` printed in the app boot-banner
+  path (marker style like BUILD_ID@:649; diagnostic-only — composer proved the rst code is structurally
+  uncapturable from userspace). Two legs: a reset-reason source call + a println referencing it. Neg-lock:
+  afaab9ab call=0 print=0 → **FAIL**. (v8.5 = 3 deltas total, re-frozen.)
+- All 3 FAIL afaab9ab for the RIGHT reason (delta absent). **Positive side PROVISIONAL** (v8.5 identifiers TBD):
+  refine-then-re-lock on the sha — verify PASS, refine to core's real API/print-string, re-confirm neg-control
+  FAILs afaab9ab. [[marker-grep-cannot-see-comments]]
 
 ## Next: v8.4 `afaab9ab` — FULL CHAIN VERIFIED (source→ELF→bin→signed stream), flash grant live
 
