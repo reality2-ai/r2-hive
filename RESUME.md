@@ -24,12 +24,20 @@ a non-conformant image reaching metal was the **#d005 latch** (holding for an ex
 instead of core's relayed "supervisor-authorized"), not my technical check — second time that latch has paid.
 [[marker-grep-cannot-see-comments]]
 
-**HARDENED preflight for the next sha (code-level, run before reporting anything):** (1) comment-stripped vs
-full-file grep DIFFERENTIAL on every spec symbol — comment-only ⇒ FAIL; (2) an actual WRITE to
-`transport_allow_mask`; (3) `lease_id` issued + ACK path; (4) `effective = INTERSECTION(baseline, leases)`
-computed; (5) the quiesce predicate must consult the mask, not be a bare bool; (6) then the existing set
-(partition e0e49127 + app@0x20000, personas 0x12000/0x14000/0x17000 untouched, set_phy source-scope, §5.4,
-BUILD_ID baked + 0 prior-version leftover, persona baked==input, masked digests distinct, otafail differential).
+**HARDENED preflight = a RUNNABLE RIG, negative-control proven: `alfred:~/preflight-v8.sh <sha>`** (exit =
+number of failed checks). Checks: (1) comment-stripped vs full-file DIFFERENTIAL per spec symbol — comment-only
+⇒ FAIL; (2) an actual WRITE to `transport_allow_mask`; (3) `lease_id` + ACK carrying accepted+effective; (4)
+`effective = INTERSECTION(baseline, leases)`; (5) quiesce predicate must consult the mask, not be a bare bool;
+(6) clear restores BASELINE not 0x7F; (7) consumers (ROUTE §5.2) can read the effective mask; (8) carried-over
+set (partition e0e49127 + app@0x20000, offsets 0x12000/0x1C000/0x1D000/0x1E000, set_phy live=0, §5.4) — plus
+post-build BUILD_ID baked + 0 prior-version leftover, persona baked==input, masked digests distinct, otafail
+differential.
+- **Negative control:** FAILS 9 checks on known-bad `41eb7af6` while the genuinely-fine carried-over checks
+  still PASS on that same sha ⇒ it discriminates, not blanket-rejects. An unfired check is unproven.
+- **Self-audit caught a FALSE-PASS in my own rig (fixed):** v1 passed "ACK path present" on 41eb7af6 because
+  bare `accepted` matched the log string `"ACL conn accepted @ {}ms"`. Comment-stripping removes `//` lines but
+  **not string literals** — a claim inside `println!` is another documented-not-implemented vector. All terms
+  are now scoped identifiers (`lease_id`/`accepted_mask`/`effective_mask`/`baseline_mask`), never bare words.
 
 ## v8 scope (unchanged, fires on a conformant sha + explicit supervisor order)
 
