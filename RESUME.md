@@ -19,16 +19,18 @@ BUILD_ID `coex.v85.0725`:
   d5-otarx-v85.bin `90e984c423df060101a854350b0c81b872a2a75c146bfdaace7e0caddd173efb` (877744 B, 0xE9) ·
   d5-otafail-v85.bin `374c1ebc95f5cb6952b97183878cb8d0daf2208b05549a450fb78361f1311706` (876160 B, 0xE9). DISTINCT,
   ELF pre-hash==grant-pinned, e0e49127.
-- **⚠ v85 BINS NOT 3-WAY BYTE-REPRODUCIBLE across hive/core — DIAGNOSED, path-only, HOLD flash for canonical-bin
-  ruling.** Core's ELF shas differ (a69fcfd2/ba165c20 ≠ mine) — ESP embeds panic-location abspaths in `.rodata`
-  (carry ELF→bin). My bin has **136 abspath strings = 106 `~/.cargo/registry` (identical across lanes) + 15
-  `dfr1195-fw-hive-build/crates/*` package paths**. **v84 bin had the SAME 15 yet matched core byte-exact** ⇒ v84
-  core built in an identically-named dir; **v85 core used a worktree (different package path)** ⇒ those 15 strings
-  diverge. Root = core's build LOCATION, not code/hive; markers all reproduce (core's marker-matrix GREEN). Fix
-  options (supervisor's call): (a) core re-derive in a same-named path (repro like v84), or (b) marker-matrix 3-way
-  + ship hive's #d005-pinned canonical bin, or (c) future `--remap-path-prefix`/`trim-paths` rebuild (also removes
-  the shipped username path — v84 already shipped it, accepted-residual, parked improvement). NO flash until the
-  canonical bin + 3-way method is ruled.
+- **3-WAY = RULING (d) TRANSFORM-INDEPENDENCE (supervisor).** Bin independence lives in the TRANSFORM not the ELF
+  build: core + composer derive from HIVE's pinned ELFs (pre-hash gate == 717ca91b/fb95c13f, void otherwise); 3
+  independent `espflash save-image` runs over identical input bytes = byte 3-way restored (v8.4 shape). **My bins
+  STAND** — no rebuild/re-derive. The ELF-sha divergence (core worktree, 15 package-path strings) is moot once all
+  derive from ONE ELF. `--remap-path-prefix` BACKLOGGED (username-abspath-in-.rodata hygiene, v84 accepted-residual).
+  My hold-not-converge ruled correct.
+- **SHA-PINNED HANDOFF for the transform-3-way** (the reused-filename lesson): core/composer pull these EXACT bytes,
+  pre-hash gate before deriving:
+  - ELF d5-otarx-v85 `717ca91b4483e80d61fc4a6e516f8821d470fd45f0a390f7edd8c724290ac12d` → bin (hive) `90e984c4…173efb`
+  - ELF d5-otafail-v85 `fb95c13f1df4af42a4115199b21929ab6dd16efd96bfe4ba091b31ce765062d8` → bin (hive) `374c1ebc…311706`
+  - Expect core+composer bins == hive bins byte-exact (same-ELF transform). Any lane differing = the finding.
+    Then composer signs streams, flash. `~alfred:~/d5-*-v85.elf` + `~/v85-staging/*.bin`.
 
 ## v8.5'' `9ebad32b` rig-green record (16/16, all neg-locked)
 
