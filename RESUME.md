@@ -4,7 +4,31 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## Next: v8 (`41eb7af6` CONFORMANCE-HELD — do not build; awaiting a new sha)
+## Next: v8.1 `1395269a` — RIG PASS, awaiting specs re-stamp + supervisor order
+
+**v8.1 = `1395269a4059eab5e4ce2a9578db3949e63e21cc`** (+ r2-route lease layer `a46fc12d` cherry-picked).
+**`preflight-v8.sh` v2 PASS, exit=0** — the real §2.3A lease is implemented, not documented:
+- mask WRITE `main.rs:1224 engine.set_transport_allow_mask(transport_leases.merged(now_s))`; wiring `:845
+  LeaseTable<2>` · `:1180 install(LeaseSource::OtaSession)` · `:1199 renew` · `:1215 clear(held,
+  engine.transport_boot_baseline(), now_s)`
+- `LeaseAck{accepted, lease_id, effective}` on ALL paths incl rejections (lease.rs:96/100/112/117/129/136)
+- INTERSECTION `lease.rs:62 baseline.intersect(self.merged(now_s))`, merge `bits &= l.requested.bits()`
+  (disable-only — no lease can re-enable what baseline/another lease disabled)
+- **`ota_quiesce_active` REMOVED entirely** (the bare bool is gone, not patched)
+- §5.2 hard filter `strategy.rs:141 !transport_allow_mask.contains(t)` + `engine.rs:317
+  present.intersect(self.transport_allow_mask())`; `reap()` inside install/renew/clear (term-expiry)
+- KATs: `lease_terminal_clear_restores_boot_baseline:2435` · `lease_term_expiry_restores_boot_baseline:2451` ·
+  `lease_masked_bearer_is_filtered_by_route_selection:2521` · `lease_effective_is_intersection_and_ack_carries_it:2408`
+  · `transport_allow_mask_is_hard_filter_before_scoring:533`
+- Negative control re-run after the rig change: `41eb7af6` STILL fails 7 checks — loosening terms didn't defang it.
+- **★ Rig FALSE-FAIL I caught before reporting:** v1 was main.rs-ONLY and scored this correct impl as 4 FAILS,
+  because the lease landed in `crates/r2-route/`; my guessed identifiers (`*_mask`) didn't exist either. Mirror
+  of the v8 false-PASS, same root — the instrument assumed the shape instead of reading it. v2 spans
+  main.rs+lease.rs+engine.rs+strategy.rs+lib.rs. [[marker-grep-cannot-see-comments]]
+
+**Still NOT a build order** — needs specs' sha-anchored re-stamp AND supervisor's explicit order.
+
+## Superseded: v8 `41eb7af6` (CONFORMANCE-DEAD — never build)
 
 **⛔ v8 `41eb7af6` IS DEAD — NEVER BUILD IT, in this or any future session** (supervisor: "do NOT build
 41eb7af6, ever"; specs RETRACTED conformance — a private bool is not a §2.3A lease, supervisor verified canon
