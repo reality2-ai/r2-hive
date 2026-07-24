@@ -4,12 +4,28 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## v8.5 `91d90b9a` = CONFIRMED SUPERSEDED (supervisor); awaiting v8.5' sha to re-score
+## v8.5'' `9ebad32b` = FULL RIG GREEN (16/16), READY-scored — awaiting supervisor #d005 build order
 
-Supervisor CONFIRMED 91d90b9a superseded (ledgered pre-my-report; my independent catch corroborates — the rig
-working as built). **v8.5' rebuild in core's queue: radio-DOWN replaces rx-skip + delta-3 (reset-reason) added +
-BLE-lease carried.** No build order will name 91d90b9a. Re-score all 3 checks on core's new sha (+ refine check(14)
-positive legs to core's real radio stop/start ids). The scoring that caught it, for the record:
+Core READY sha `9ebad32b` (v8.5''; 91d90b9a SUPERSEDED — the forbidden rx-skip, reverted). 3 deltas, all line-cited,
+**all 16 rig checks PASS + all neg-locked. NO build yet** (READY, not a #d005 order).
+- **check(14) PASS** — `set_wake_window`@7140 lease-driven: `!transport_available(WifiMesh)`@7137 in the lease_watch
+  arm (QUIESCE 5ms / RESTORE 65535ms, join3@7152), **rx receive loop POINT-1 CLEAN** (0 WifiMesh-skip; specs §2.3A-1
+  — inbound not dropped; RF-quiet = wake-window collapse). TX gate@7049 = legit egress (v8.4), NOT flagged.
+  **Discriminates:** 91d90b9a FAILs legC (rx-skip=1, the forbidden shape), afaab9ab FAILs legA (set_wake_window=0).
+  Restore on clear@2098-2100 (TERM LAPSED) + @2112 (CLEARED) — both unmask WifiMesh → lease_watch restores (the
+  both-restore-paths F4-guard, edge-free).
+- **check(15) PASS** — `requested.remove(Ble)`@2064 + 0 Ble CoC consumers.
+- **check(16) PASS** — `esp_hal::system::reset_reason()`@442 + println@443. **Fixed a per-leg preprocessing bug**:
+  the print marker lives INSIDE the string literal (`{rr:?}` inline) → strip deletes it (the check15-blemesh class);
+  leg2 now on RAW, leg1 call on stripped (excludes the @438 comment). Tell was call=1/print=0 (inconsistent metric).
+  banner = `{rr:?}` enum debug, no device tail.
+- **Carry-over on 9ebad32b:** preflight 1-11 PASS, RWDT check(13) PASS, LoRa[route]=2, WifiMesh consults=2
+  (TX@7049 + lease_watch@7137). Fresh attest chain (all hashes differ from v8.4).
+- **On supervisor's #d005 order:** drain inbox + clean detached checkout of 9ebad32b + build both ELFs
+  (d5-otarx/otafail-v85) + attest; core 3rd-party attests; then bin/stream/flash as v8.4.
+
+## v8.5 `91d90b9a` = SUPERSEDED — the rig caught it (historical record)
+
 Core posted READY sha `91d90b9a` (2 deltas). **Scored against the 3 checks — it predated supervisor's last two
 rulings:**
 - check(15) BLE self-strangle = **PASS** (legA `requested.remove(Ble)`@2043 + legB 0 Ble consumers — delta-2 correct).
