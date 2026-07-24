@@ -29,10 +29,15 @@ tree empty, `rm -rf target`, RWDT(5)+persona(8) present at HEAD, gitdir real.** 
   (both == grant-pinned), partition table e0e49127 (partitions.csv sha=e0e49127f24160f5, 39 rows):
   - **d5-otarx-v84.bin** `9f0078157bf8e1de28b9d0d73d7e7dcc3f55833a29af674fb62e25bebd9eea03` (876224 B, 0xE9)
   - **d5-otafail-v84.bin** `2d3d717f6a878b516c79e07bfe277dce4045b7050a217556ff58fa8f4013ac63` (874656 B, 0xE9)
-  - DISTINCT (otafail differential holds). Staged `~/v84-staging/` (off tracked-tree). Core derives independently
-    under same grant; **3-way completes at composer signing.** **Flashing NOT authorized** under this grant —
-    separate flash grant follows streams. Next hive: cross-verify core's derive + composer's signed-stream payloads
-    against these 2 bin shas (v83 bin→stream identity pattern).
+  - DISTINCT (otafail differential holds). Staged `~/v84-staging/` (off tracked-tree). **Flashing NOT authorized**
+    under this grant — separate flash grant follows streams.
+  - **2-of-3 CONVERGED: hive == core, both bins byte-exact** (otarx 9f007815 876224B == core; otafail 2d3d717f
+    874656B == core). Core confirms ELF pre+post-hash unchanged (step-0 integrity), same params (e0e49127,
+    Merge=FALSE, pathless, grant prefixes), gate not bypassed (both lanes independently hit + respected the
+    firmware gate — prep-reads split from prefixed derive; the prefixes ARE the auth mechanism). **Composer = 3rd
+    leg at signing** — converge on these 2 shas = attest; any lane differing = the finding (do NOT converge on
+    mismatch). On 3-way: composer signs streams (188B OTA preamble + payload=bin) → P1 dial scored. Next hive:
+    cross-verify composer's signed-stream payloads vs these bin shas (v83 bin→stream identity pattern).
 
 ## Superseded: v8.4 `afaab9ab` rig-green stage (HELD, now BUILT above)
 
