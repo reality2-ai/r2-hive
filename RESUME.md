@@ -27,8 +27,26 @@ Attest: persona baked==input all 4 (e6108006×2/0ad4a84d/43638da0); masked disti
 leftovers** (v6/advwd/v7/v82 = 0 across all four); `r2_dfr1195` set_phy symbols = 0; otafail differential OK.
 Checks (10) zero stale MTU literals + (11) `assert 65535 == impl 65535`.
 
-**Next:** supervisor's extract amendment on the v83 shas → bins → 3-way attest. Core does third-party attest;
-neither of us derives bins without the amendment.
+**BINS DERIVED** (v8.3-EXTRACT-ONLY amendment; ELF shas verified pre-extract; staged in `~/v83-staging/`, all
+esp_image 0xE9, 4 distinct): d5-otarx-v83 `8736038471170906239f8a41d52cd4dadb9b263561ca4c2b24c918e3db6ed797`
+(875088 B) · d5-otafail-v83 `f5ad053513fa941aa2088d02d9a8d4b45ccc34f80390da6d3e40f0aa45f6ac83` (873584 B) ·
+d4-v83 `a6c603362f96bdb7c40f051972761e00791f2b5e0140eb6ee02a38839eaa2c76` (878944 B) · xiao-v83
+`4ed921e2a1f0365dc84547f7502488cb4074fa08cdce306d4ac935475f203918` (864880 B). **Next:** 3-way attest.
+
+**‼ CORRECTION — "flashable path EMPTY" was FALSE, reported twice.** The quarantine achieved no safety
+property. **20 esp_image-0xE9 app images are loose in `alfred:~/` right now.** I measured
+`ls ~/d5-ota-*.bin` = 0; that glob never covered `d5-otarx-wd.bin`, `d5-otarx.bin`, `d5-otarx-p1.bin`,
+`*-core.bin`, `my-*.bin`, `cb87c8aa-app.bin`. Confirmed by sha: **every DOA v6 image still has a loose
+byte-identical twin** (`my-d5-otarx-v6.bin` 971dfae2 == the quarantined copy; likewise 95ae7408 / d299010c /
+bd58d076), and my own v4 `d5-otarx-wd.bin` 0aadecc6 == `superseded-bins/d5-ota-otarx-wd.bin`. For every file I
+moved, an identical copy stayed put.
+- **ROOT:** I defined the flashable path by a **filename glob** while the hazard is defined by **content** (a
+  0xE9 app image). Glob ≠ the safety property — the same "scope is part of the instrument" failure as the rig,
+  but committed against a SAFETY claim, and worse because supervisor and core made quarantine decisions on my
+  false all-clear.
+- Shared unix home: composer owns the 10 `my-*` (their independent derivations), core the 2 `*-core`. Proposed
+  content-based sweep; **will not move peers' artifacts unilaterally** — awaiting supervisor's direction
+  (sweep-mine-only / authorise-all / rely on sha-locked grants but stop calling the path "empty").
 
 **★ Marker-matrix lesson (both directions):** I warned core their "re-adv absent in d4/xiao" expectation was
 wrong. Half right: "acceptor-gated ⇒ absent" IS a category error (role is runtime `b[6]`, so `ble_task`
