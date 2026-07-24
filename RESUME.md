@@ -44,18 +44,21 @@ moved, an identical copy stayed put.
   0xE9 app image). Glob ≠ the safety property — the same "scope is part of the instrument" failure as the rig,
   but committed against a SAFETY claim, and worse because supervisor and core made quarantine decisions on my
   false all-clear.
-- Shared unix home: composer owns the 10 `my-*` (their independent derivations), core the 2 `*-core`. Proposed
-  content-based sweep; **will not move peers' artifacts unilaterally** — awaiting supervisor's direction
-  (sweep-mine-only / authorise-all / rely on sha-locked grants but stop calling the path "empty").
-
-**★ Marker-matrix lesson (both directions):** I warned core their "re-adv absent in d4/xiao" expectation was
-wrong. Half right: "acceptor-gated ⇒ absent" IS a category error (role is runtime `b[6]`, so `ble_task`
-compiles into all four — `BEACON adv up`=1 everywhere proves it). Half **wrong, mine**: I claimed a generic
-grep would hit the unconnected re-adv timer, without checking that `READV_INTERVAL_S`'s branch
-(`EitherReadv::Second`, :4404-4406) is comment + `continue` with **no println** — so it is invisible to a
-strings attest and my predicted false-discrepancy cannot fire. I aimed a source-level claim at a strings-level
-instrument, one message after pressing core on exactly that mismatch. **The check and the expectation must be
-about the same observable.** [[marker-grep-cannot-see-comments]]
+- **RESOLVED (supervisor ruling: owners sweep, content-defined).** My 6 loose images identified **by sha
+  against my own reported extractions** (not by name) and moved to `~/superseded-bins/`, verified both sides,
+  no delete: 0aadecc6 · 7880f533 · 1afb641c · 892504b1 · bd22d272 · ce76ea9e. Core has swept theirs.
+- **CONTENT AUDIT (0xE9 by content, ANY name — restricting to `*.bin` would repeat the glob mistake).**
+  Scope: `~` maxdepth 1 + doa-v6 + superseded-bins + v83-staging; **excluded** build `target/` dirs (images by
+  construction, regenerated). **Content-audited: 33 images, all accounted** — HOME-ROOT 12 (1 unowned
+  `cb87c8aa-app.bin` 1b8092d5 from 07-05, + 11 composer `my-*`), V83-STAGING 4, DOA-V6 4, SUPERSEDED 13.
+- **OPEN — DOA twins still loose** pending composer's sweep: `my-d5-otarx-v6` 971dfae2 / `my-d5-otafail-v6`
+  95ae7408 / `my-d4-v6` d299010c / `my-xiao-v6` bd58d076 = byte-identical to the doa-v6 quarantine. Not mine
+  to move; flagged.
+- **OPEN — 4 v7 bins exist** (`my-*-v7`, home root) despite the ruling "v7 extract CANCELLED, no v7 bins get
+  made". I derived none. May predate the cancellation — reported as artifact, not as an allegation.
+- **STANDING RULE:** say "content-audited: N images, all accounted" **+ the scope**, never "path empty".
+  Glob-based safety claims retired. The sha-pinned grant remains the actual flash boundary; the sweep is
+  defense-in-depth and honest bookkeeping, not the boundary.
 
 ## Prior: v8.3 standing-conditional setup (extended rig built + proven pre-sha)
 
