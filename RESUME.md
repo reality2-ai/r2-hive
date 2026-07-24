@@ -22,15 +22,17 @@ tree empty, `rm -rf target`, RWDT(5)+persona(8) present at HEAD, gitdir real.** 
   RWDT sym=3, loraroute-gate "SX1262 RX-standby"=1 + "lease held, loraroute"=1 — both v8.4 deltas IN, 0 v83
   leftover; core caught a pattern-error `WifiMesh MASKED`→0 = runtime-formatted split, re-grepped "max
   modem-sleep"=1). Order [4] bin-gate CLEARED.
-- **BIN DERIVATION BLOCKED AT espflash GATE — ESCALATED to supervisor.** `extract84.sh` staged MAC-FREE (dropped
-  the vestigial `R2_OTA_TARGET` MAC export — `espflash save-image` is an OFFLINE ELF→bin op, no serial device, so
-  the target var was only a grant-substring token + the flagged MAC exposure). Running it tripped the fleet
-  firmware/key gate (keyword-gated; also no target-substring to auto-approve since I removed the MAC). Per standing
-  rule: escalated, did NOT bypass. Artifact=d5-otarx-v84.bin+d5-otafail-v84.bin (from a4980d75/32dd869f);
-  target=NONE (offline save-image); authority=#d005 order[4]+core-attest-GREEN; reason=OTA bins for composer sign.
-  **Resolution options posted:** (a) human clears the gate for hive's MAC-free extract84.sh, or (b) composer/core
-  derive (v83 pattern — 3-party independent match), hive cross-verifies. Method: `espflash save-image --chip
-  esp32s3 --partition-table platforms/dfr1195/partitions.csv`.
+- **BINS DERIVED under supervisor grant (MAC-free hygiene RATIFIED).** Gate cleared by a superseding grant
+  (`artifact=-v84 target=NONE-offline-derive`, both ELF shas pinned) — the device-free target token satisfies the
+  auto-approve substring WITHOUT a MAC (the fix I flagged, now standard). `extract84.sh` carries
+  `R2_OTA_TARGET=NONE-offline-derive R2_OTA_ARTIFACT=d5-ota-v84`, pre-hashes each ELF immediately before save-image
+  (both == grant-pinned), partition table e0e49127 (partitions.csv sha=e0e49127f24160f5, 39 rows):
+  - **d5-otarx-v84.bin** `9f0078157bf8e1de28b9d0d73d7e7dcc3f55833a29af674fb62e25bebd9eea03` (876224 B, 0xE9)
+  - **d5-otafail-v84.bin** `2d3d717f6a878b516c79e07bfe277dce4045b7050a217556ff58fa8f4013ac63` (874656 B, 0xE9)
+  - DISTINCT (otafail differential holds). Staged `~/v84-staging/` (off tracked-tree). Core derives independently
+    under same grant; **3-way completes at composer signing.** **Flashing NOT authorized** under this grant —
+    separate flash grant follows streams. Next hive: cross-verify core's derive + composer's signed-stream payloads
+    against these 2 bin shas (v83 bin→stream identity pattern).
 
 ## Superseded: v8.4 `afaab9ab` rig-green stage (HELD, now BUILT above)
 
