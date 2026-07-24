@@ -4,7 +4,22 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## Next: v8.4 `afaab9ab` — BUILT + ATTESTED (2026-07-25), bins HELD for core 3rd-party attest
+## Next: v8.4 `afaab9ab` — FULL CHAIN VERIFIED (source→ELF→bin→signed stream), flash grant live
+
+**HIVE CROSS-VERIFY OF SIGNED STREAMS = MATCH 4/4 (independent leg).** `~/v84-streams`, payload=stream[188:]:
+- P1 `9bfd800b` payload == otarx `9f007815` · P2a `f040899b` == otarx · P2b `872194b8` == otarx · P3 `579b4c85`
+  payload == otafail `2d3d717f`. All opcode=3, **ver=2 at offset 1**. Size = bin + constant 188B preamble
+  (876224+188=876412 ×3; 874656+188=874844). Whole shas == supervisor pins. Composer byte-inspected; hive =
+  independent leg, MATCH.
+- **CHAIN COMPLETE, every link ≥2-party + measured:** source `afaab9ab` (clean checkout + rig PASS all
+  11+12+13+per-bearer) → ELF `a4980d75`/`32dd869f` (hive build + core 3rd-party attest GREEN) → bin
+  `9f007815`/`2d3d717f` (hive derive == core derive byte-exact, composer 3rd = 3-way) → stream payload
+  `9f007815`/`2d3d717f` (hive independent + composer byte-inspect). What flashes is provably the rig-passed artifact.
+- **v8.4 FLASH grant LIVE** (opaque-handle `D5-037bf5b9`, MAC-free — the ratified opaque-device-handle fix
+  replacing MAC-in-grant-text). Dial firing (composer/flash). Hive does NOT flash. Next hive action: only on a
+  metal verdict surfacing an image-level defect.
+
+## Prior: v8.4 `afaab9ab` — BUILT + ATTESTED (2026-07-25), bins derived+3-way-converged
 
 **#d005 ORDER EXECUTED** (supervisor explicit, ORDER-ACTIVE, ls-remote-verified tip). Inbox drained (no supersede;
 RAK/#d001 traffic is a parallel campaign). Clean detached checkout: **HEAD=`afaab9ab892b02df6316a729500b256b1d8d8e6d`,
