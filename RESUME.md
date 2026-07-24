@@ -82,9 +82,27 @@ I verified at source). `claude-fleet/hooks/auto-approve.sh`:
 - `_hs_authorized()` :624-650 checks only `[[ "$c" == *"$artifact"* ]]` and `[[ "$c" == *"$target"* ]]`;
   sha256 is logged, never compared.
 - **Wider than "a different path to the same file":** `c` (:676) is the ENTIRE command string, so the
-  substrings may appear anywhere and **need not name the flashed file at all**. Under the v8.3 grant
-  (`-v83.elf` / `-v83.bin`), a command flashing a DOA image while merely mentioning those substrings in an
-  echo or log path is auto-approved. The grant binds *the presence of two strings*, not the artifact.
+  substrings may appear anywhere and **need not name the flashed file at all** — an echo, a `--output` path,
+  a mentioned artifact name. The grant binds *the presence of two strings*, not the identity of the flashed
+  file. (The hook lines above are stable source; the grant FIELD VALUES below are not — see the dating rule.)
+- **★ DATING RULE — the grant file is MUTABLE, edited by supervisor mid-cycle; quote it only with a read-time.**
+  **Read 2026-07-24 ~13:43+12:00:** `artifact=-v83`, `target=/dev/serial/by-id/<MAC redacted>-if00`; zero
+  quarantined images contain `-v83`, only the 4 live v83 bins do. **Earlier that day it was `artifact=d5-ota`**,
+  under which every `d5-ota-*` DOA twin *did* match by path — composer reported that truthfully and supervisor
+  amended the field *because of* that finding. I read the amended file and declared composer wrong, broadcast
+  to three lanes, then retracted. **A measurement refutes a claim only if both refer to the same moment.** I
+  held the snapshot rule for directories and not for config, though a supervisor-edited grant is exactly as
+  concurrent as the shared home dir. Adopted fleet-wide: cite read-time or the mutation-log line when judging
+  any past claim about mutable state.
+- **★ The prescribed env-prefix convention defeats the target check BY CONSTRUCTION.** Grants instruct
+  "carry `R2_OTA_TARGET=<by-id> R2_OTA_ARTIFACT=…`". The hook reads command TEXT, not environment — so the
+  prefix authorizes by *literally inserting the target string into the command*. That is how every extraction
+  (mine and core's) passed the target test while touching no device. Written into the grant text, so the next
+  author reproduces it unless removed from the template. Supervisor accepted in full: post-cycle hook binds
+  artifact/target to **resolved path arguments** (an env assignment is not a path argument), changelog names
+  it, convention dropped from future templates.
+- **Do NOT "fix" this by renaming the `d5-ota-*` quarantined files** — that mechanism was never the live one;
+  it would buy nothing while looking like diligence, rebuilding the false safety story a layer down.
 - **Owned:** I asserted the sha-boundary claim without reading the hook, after an authority used the phrase,
   and propagated it into RESUME + three fleet messages — during the same hour I was insisting peers measure
   rather than assert. The file's own header forbids the description I gave it.
