@@ -92,8 +92,15 @@ gitdir real. Built BOTH D5 ELFs, BUILD_ID `coex.v86.0725`:
     artifacts unaffected, hash-verified).
   - **RE-DERIVE + VERIFY:** supervisor issued the first legit v86 grant (`/home/roycdavies/Development/R2/.fleet/
     flash-authorization`, artifact=-v86 target=OFFLINE-NO-DEVICE sha256=a3f3382d, derive-only). Re-ran with
-    `espflash` LITERAL in the quoted ssh command (compliant) → gate FIRED + APPROVED + LOGGED 2 USED entries
-    (10:54:58 + 10:55:58). Re-derived bins == quarantined pins BYTE-EXACT → **quarantine LIFTS.**
+    `espflash` LITERAL in the quoted ssh command (compliant) → gate FIRED + APPROVED + LOGGED. Re-derived bins ==
+    quarantined pins BYTE-EXACT → **quarantine LIFTS.**
+  - **★ ATTRIBUTION CORRECTION (supervisor code-read auto-approve.sh; my over-attribution owned):** I claimed "2
+    USED entries (10:54:58 + 10:55:58) = my re-derive" — WRONG, one was core's. `_hs_authorized` has NO use-counter
+    (per-COMMAND re-eval, not exhaustion); a USED line = one per APPROVED COMMAND, not per espflash run. So
+    **10:54:58 = MINE** (my single ssh command ran both saves under one approval); **10:55:58 = core's** (its 2
+    derives, 1 command); 10:59:00 = composer flash. 4 runs / 2 commands / 2 entries = nothing unlogged, no gap.
+    Core's "grant exhausted at 2" was actually the offline grant SUPERSEDED by the flash grant (target→D5-037bf5b9),
+    not exhaustion. My authorization stands (10:54:58 = my command); the count was mis-stated.
   - **★ path correction:** my "no grant exists" checked the WRONG `.fleet` (claude-fleet/.fleet); the hook's
     workspace from r2-hive CWD walks up to `Development/R2/.fleet` — that is where the grant + log live. (The
     finding still holds: at the original derive the grant genuinely did not exist yet.) **Authorization is VERIFIED
