@@ -6,12 +6,16 @@ quarantined to `~/doa-v6/`.**
 
 ## Next: v8 (`41eb7af6` CONFORMANCE-HELD — do not build; awaiting a new sha)
 
-**⛔ v8 `41eb7af6` HELD — §2.3A is DOCUMENTED, NOT IMPLEMENTED** (specs refutation, core-confirmed, then
-verified by me against code). Comment-stripped grep: `transport_allow_mask` **5 hits full-file / 0 hits
+**⛔ v8 `41eb7af6` IS DEAD — NEVER BUILD IT, in this or any future session** (supervisor: "do NOT build
+41eb7af6, ever"; specs RETRACTED conformance — a private bool is not a §2.3A lease, supervisor verified canon
+:275-292 directly). §2.3A is DOCUMENTED, NOT IMPLEMENTED (core-confirmed, then verified by me against code). Comment-stripped grep: `transport_allow_mask` **5 hits full-file / 0 hits
 comments-stripped**; `lease_id` 0; `intersect|effective_mask` 0; `install_lease|lease_ack` 0;
 `ota_quiesce_active():298-303` = `deadline!=0 && OTA_ACTIVE && now<deadline` — a plain bool, no mask. If
 flashed: bearers stay canonically AVAILABLE while radios park ⇒ **R2-BEACON §3.3 + D-20260724-01 violation**,
-and ROUTE §5.2 still selects the parked LoRa ⇒ **silent drops**. Core is wiring the real lease; new sha coming.
+and ROUTE §5.2 still selects the parked LoRa ⇒ **silent drops**. **Release chain to v8.1 (all four gates, in order):** core reworks the real lease → **new sha** → **specs
+re-stamp conformance** (new gate — specs retracted it on 41eb7af6, so a re-stamp is now required before a
+build order) → **supervisor's explicit order** (BUILD_ID `coex.v8.0724` or `.1`, same 4-set). My hardened
+preflight rig carries over and runs on the new sha.
 
 **★ MY PREFLIGHT MISS (owned) — it would have PASSED this image.** I grepped §2.3A markers, hit doc-comments,
 and reported *behaviour* off prose ("lease installed on OTA_ACTIVE after CoC-up", "refreshed per inbound SDU",
