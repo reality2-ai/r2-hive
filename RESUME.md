@@ -18,8 +18,19 @@ tree empty, `rm -rf target`, RWDT(5)+persona(8) present at HEAD, gitdir real.** 
   string-grep returned 0/0 = wrong-scoped null, NOT absence — sha differential is the differential, only input delta
   = the feature flag). Rig pre-build: preflight-v8.sh afaab9ab PASS exit=0 + per-bearer (LoRa[route]=2 WifiMesh=1
   sdc-blemesh-gated) + check(13) afaab9ab PASS 4/4, 14a1c3ff+b79789c4 FAIL 0/4.
-- **v8.3 + 14a1c3ff pins ALL STALE.** **BINS NOT DERIVED** — MUST NOT until core's 3rd-party ELF attest lands
-  (order [4]). On core attest: derive d5-otarx-v84.bin + d5-otafail-v84.bin, fresh chain.
+- **v8.3 + 14a1c3ff pins ALL STALE.** **CORE 3RD-PARTY ATTEST GREEN** (sha match both ELFs + marker matrix:
+  RWDT sym=3, loraroute-gate "SX1262 RX-standby"=1 + "lease held, loraroute"=1 — both v8.4 deltas IN, 0 v83
+  leftover; core caught a pattern-error `WifiMesh MASKED`→0 = runtime-formatted split, re-grepped "max
+  modem-sleep"=1). Order [4] bin-gate CLEARED.
+- **BIN DERIVATION BLOCKED AT espflash GATE — ESCALATED to supervisor.** `extract84.sh` staged MAC-FREE (dropped
+  the vestigial `R2_OTA_TARGET` MAC export — `espflash save-image` is an OFFLINE ELF→bin op, no serial device, so
+  the target var was only a grant-substring token + the flagged MAC exposure). Running it tripped the fleet
+  firmware/key gate (keyword-gated; also no target-substring to auto-approve since I removed the MAC). Per standing
+  rule: escalated, did NOT bypass. Artifact=d5-otarx-v84.bin+d5-otafail-v84.bin (from a4980d75/32dd869f);
+  target=NONE (offline save-image); authority=#d005 order[4]+core-attest-GREEN; reason=OTA bins for composer sign.
+  **Resolution options posted:** (a) human clears the gate for hive's MAC-free extract84.sh, or (b) composer/core
+  derive (v83 pattern — 3-party independent match), hive cross-verifies. Method: `espflash save-image --chip
+  esp32s3 --partition-table platforms/dfr1195/partitions.csv`.
 
 ## Superseded: v8.4 `afaab9ab` rig-green stage (HELD, now BUILT above)
 
