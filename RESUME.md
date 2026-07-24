@@ -70,9 +70,29 @@ rulings:**
   + add delta-3 (reset-reason). Flagged to supervisor+core. No build (order is supervisor's, after v8.4 dials; #d005
   needs explicit order + the checks green). [[cite-canon-before-claiming-a-finding]] [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]
 
-## PREP: v8.6 hang-instrumentation checks (17)-(20) DESIGNED + neg-locked (checks-first, no build order)
+## v8.6 `30cb3d6d` = RIG BOUND + FULL PASS 21/21, READY-scored — awaiting supervisor #d005 build order
 
-Supervisor RIG PREP (write checks before the fix lands; neg-control 9ebad32b MUST FAIL). All 4 FAIL on 9ebad32b
+Core READY sha `30cb3d6d` (base 9ebad32b, ahead=0). Rig BOUND to core's real identifiers + **FULL PASS 21/21**;
+all neg-locked. **NO build yet** (READY, not #d005). #d005 order follows this bound-rig PASS. v8.6 dial =
+instrumentation (natural hang), no OTA streams.
+- **30cb3d6d:** preflight(1-11) + check 12/13/14/15/16/17/18/19/20/21 **ALL PASS**.
+- **Negatives (loosening-defang OK):** 9ebad32b FAILs 17-21 (new) but still PASSES 14/15/16 (v8.5 deltas retained);
+  afaab9ab + 91d90b9a FAIL 14+16.
+- **REQUIREMENT-not-shape held (fifth-variant):** check(18) would have FALSE-FAILED on literal reg names — the
+  handler captures via `cause:ExceptionCause` + `frame.PC`(=EPC1) + `frame.EXCVADDR` + `frame.A1`(=SP on xtensa);
+  rebound to the real accessors (≥3/4). check(17) our `#[unsafe(no_mangle)] __user_exception`@459 (esp-hal
+  df=false@47, informational-not-gated). check(19) `#[esp_hal::ram(unstable(rtc_fast,persistent))]` HANG_CAP +
+  `HANG_MAGIC 0x4841_4E47` written LAST (@470, after payload+fence). check(20) HANG-CAP decode@731 + reset_reason
+  @761 BOTH post-PHASE-1a@722. check(21) `write_volatile(&raw mut HANG_CAP,[0u32;8])`@755 post-decode.
+- **★ 3rd string-literal-strip bug caught:** awk anchor on `extern "C"` FALSE-ABSENTS (the `"C"` literal is stripped)
+  → re-anchored on bare `fn __user_exception`. [[marker-grep-cannot-see-comments]]
+- **On supervisor's #d005 order:** drain inbox + clean detached checkout of 30cb3d6d + build both ELFs
+  (d5-otarx/otafail-v86, BUILD_ID coex.v86.0725) + attest; core 3rd-party attests. (Instrumentation build — no OTA
+  bin/stream/flash cycle; dial = natural hang capture.)
+
+## PREP: v8.6 hang-instrumentation checks (17)-(20) — design record (now bound + passing above)
+
+Supervisor RIG PREP (write checks before the fix lands; neg-control 9ebad32b MUST FAIL). All FAIL on 9ebad32b
 for the right reason (instrumentation absent); positive side PROVISIONAL — bind to core's identifiers on the sha.
 v8.5 deltas UNCHANGED (checks 14/15/wake_window carry). #d005 gates unchanged — NO build until explicit order.
 - **check(17) REVISED** — SP-monitor VOID (S3 `has_sp_monitor=false`, no assist_debug; Rung-A only). New (17) =
