@@ -4,6 +4,20 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
+## ⚠ v8.5 `91d90b9a` core-READY = STALE vs frozen scope — FLAGGED, no build
+
+Core posted READY sha `91d90b9a` (2 deltas). **Scored against the 3 checks — it predates supervisor's last two
+rulings:**
+- check(15) BLE self-strangle = **PASS** (legA `requested.remove(Ble)`@2043 + legB 0 Ble consumers — delta-2 correct).
+- check(14 radio-DISABLE) = **FAIL**: 91d90b9a:7057 does `receive_async()`@7046 THEN `!transport_available(WifiMesh)
+  {continue}` (comment @7048 "gate RX PROCESSING too") = the **rx-processing-skip supervisor ruled specs §2.3A-1
+  FORBIDS** (radio stays up, PHY not quieted — matches core's own "P1 dies chunk-1, residual WiFi STA assoc"
+  prediction). espnow WifiMesh consults 1(afaab9ab)→2(91d90b9a) = the added RX skip; NO lease-tied radio power-down.
+- check(16 reset-reason) = **FAIL**: 0 reset-reason (delta-3 absent — 91d90b9a is 2 deltas, frozen scope is 3).
+- **Verdict: 91d90b9a is NOT the frozen-v8.5 target.** Needs core to rebuild delta-1 as radio-DISABLE (not rx-skip)
+  + add delta-3 (reset-reason). Flagged to supervisor+core. No build (order is supervisor's, after v8.4 dials; #d005
+  needs explicit order + the checks green). [[cite-canon-before-claiming-a-finding]] [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]
+
 ## PREP: v8.5 rig checks (14)(15) DESIGNED + neg-locked (no build order yet)
 
 Supervisor PREP (scope frozen, 2 deltas at next core sha; design now, score when sha lands). adv-stretch rung DEAD
