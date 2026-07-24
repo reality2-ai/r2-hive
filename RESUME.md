@@ -35,6 +35,22 @@ single abstraction at main.rs:312 every masked-bearer TX task consults):
 **Rig now carries check(12) generalized to the per-bearer classifier** (both LoRa paths + WifiMesh espnow),
 negative-controlled — closes the coverage hole that let v8.3 pass.
 
+**✅ WifiMesh CLOSED 2-PARTY + rig extended (2026-07-25, supervisor's line-cited confirm == my classifier).**
+core: ONE `espnow_task:6951`, sole send `:6995` guarded by `transport_available(WifiMesh) :6992`; 2nd drainer
+`serve_data_coc` cfg(blemesh) COMPILED OUT. Supervisor ordered two STRUCTURAL asserts added to `~/perbearer.sh`
+(both PASS on 14a1c3ff AND b79789c4):
+- `mech(ordered-gate)=1` — asserts ORDERING not token-presence: negating guard `!transport_available(WifiMesh)`
+  + a `continue` that PRECEDES `send_async(&BROADCAST_ADDRESS)` (guardln < contln < sendln).
+- `sdc:def-blemesh=1 non-blemesh-calls=0 recipe-has-blemesh=0` — `serve_data_coc` def @5041 + BOTH call sites
+  (@4459/@4753) cfg(blemesh); v84 FEAT omits blemesh ⇒ compiled out; sole live mesh send = espnow tx.
+- **★ GOTCHA banked:** the sdc check runs on RAW source, NOT `strip_src.py` output — a cfg feature name is a
+  STRING LITERAL, and the stripper (correctly, for prose) empties `"blemesh"` ⇒ it false-FAILED on stripped.
+  The transform that guards comment-mention checks DESTROYS the discriminator when the discriminator is itself
+  a string literal. Per-check: read the tree whose class doesn't contain your discriminator.
+  [[marker-grep-cannot-see-comments]]
+- Both asserts IDENTICAL v83==v84 (WifiMesh was closed already at v83); only `LoRa[route]` flips 0→2 = the sole
+  v84 delta. RWDT sha next; order re-issues on it; check(13) refine-then-re-lock stands.
+
 **BUILD TARGET MOVED off 14a1c3ff** — core still owes the always-on RWDT fix (double-exception hang class;
 composer PC2 = `__naked_double_exception` definitive). Order re-issues at core's NEW sha (RWDT + the WifiMesh
 confirm), not 14a1c3ff. **check(13) added = RWDT mechanism** (hardware WDT init + executor-resident feed task):
