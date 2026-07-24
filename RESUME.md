@@ -70,6 +70,23 @@ rulings:**
   + add delta-3 (reset-reason). Flagged to supervisor+core. No build (order is supervisor's, after v8.4 dials; #d005
   needs explicit order + the checks green). [[cite-canon-before-claiming-a-finding]] [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]
 
+## PREP: v8.6 hang-instrumentation checks (17)-(20) DESIGNED + neg-locked (checks-first, no build order)
+
+Supervisor RIG PREP (write checks before the fix lands; neg-control 9ebad32b MUST FAIL). All 4 FAIL on 9ebad32b
+for the right reason (instrumentation absent); positive side PROVISIONAL — bind to core's identifiers on the sha.
+v8.5 deltas UNCHANGED (checks 14/15/wake_window carry). #d005 gates unchanged — NO build until explicit order.
+- **check(17)** SP-monitor both cores: `enable_sp_monitor` + `enable_core1_sp_monitor`. 9ebad32b 0/0 → FAIL.
+- **check(18)** `__user_exception` override capturing exccause/EPC1/excvaddr/SP (≥3 of 4 regs). 9ebad32b 0, 0/4 →
+  FAIL. Bind reg-accessor names on sha.
+- **check(19)** crash capture → RETAINED mem, magic-word written LAST (partial write never reads valid). Excludes
+  decoys (HUMAN_LABEL_MAGIC "LBL1"@3200, persona/coarse-time persists). 9ebad32b retained-static=0 → FAIL. **On sha
+  ALSO assert magic-store is the LAST write in the persist fn** (ordering); the magic grep is loose now (=29),
+  tighten on sha.
+- **check(20)** decoded-capture-report + reset_reason print BOTH **POST-PHASE-1a** (ORDERING, not presence — pre-1a
+  = uncapturable: USB re-enum clears it). 9ebad32b reset_reason@443 is PRE PHASE-1a@660 + capture-report absent →
+  FAIL. Orthogonal to check(16) (presence): v8.6 RELOCATES reset_reason post-banner. Positions on RAW.
+  [[marker-grep-cannot-see-comments]]
+
 ## PREP: v8.5 rig checks (14)(15) DESIGNED + neg-locked (no build order yet)
 
 Supervisor PREP (scope frozen, 2 deltas at next core sha; design now, score when sha lands). adv-stretch rung DEAD
