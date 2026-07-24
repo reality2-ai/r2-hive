@@ -70,16 +70,22 @@ rulings:**
   + add delta-3 (reset-reason). Flagged to supervisor+core. No build (order is supervisor's, after v8.4 dials; #d005
   needs explicit order + the checks green). [[cite-canon-before-claiming-a-finding]] [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]
 
-## PREP: v8.7 check(22) IRAM-safe fault-reset — DESIGNED + neg-locked (checks-first, no build order)
+## v8.7 `33219370` = RIG BOUND + FULL PASS (22 checks), READY-scored — awaiting supervisor #d005
 
-Supervisor RIG DELTA (checks-first). v8.6 finding: `__user_exception` ended in `esp_hal::system::software_reset()`
-— a FLASH-resident (.text) call that RE-FAULTS in fault context (flash cache suspended), overwriting the real
-capture (all v8.6 captures were the SECONDARY fault @ software_reset entry 0x4204b628). v8.7 fix = handler spins in
-IRAM (`loop{}`) instead. **check(22)** (`~/check22.sh`): REQUIREMENT-not-shape = NO `software_reset` call inside
-the `__user_exception` body (the identified flash offender), + handler-present guard (absence ≠ IRAM-safe); assert
-the ABSENCE of the flash call, not a specific spin idiom. Anchor on bare `fn __user_exception` (NOT `extern "C"` —
-the strip lesson). Neg-lock: 30cb3d6d handler has software_reset @475 → **FAIL** (ovr=1, sr=1). Carries unchanged.
-On core's v8.7 sha: bind (confirm sr=0 → PASS, re-confirm 30cb3d6d still FAILs). [[marker-grep-cannot-see-comments]]
+Core READY sha `33219370` (base 30cb3d6d). check(22) BOUND + full rig scored. **NO build yet** (READY, not #d005).
+v8.7 dial = instrumentation re-run for PRIMARY fault#1 (now preserved, not overwritten by the reset re-fault).
+- **33219370:** preflight(1-11) + check 12–22 **ALL PASS**.
+- **check(22) discriminates:** 33219370 PASS (`__user_exception` software_reset=0 — CALL-FREE IRAM spin, source
+  @476 "v8.7: CALL-FREE IRAM spin, NOT software_reset()", core objdump `j <self>`; divergence guaranteed by `-> !`
+  + compile) vs **30cb3d6d FAIL** (software_reset=1, the flash re-fault path). The v8.6 finding fixed: all v8.6
+  captures were the SECONDARY fault @ the flash-resident software_reset entry 0x4204b628; a bare spin makes zero
+  windowed calls, recovery via always-armed RWDT.
+- Carries all pass: RWDT check(13), wake_window check(14), BLE-lease check(15), reset_reason check(16), handler
+  ownership check(17), fault-capture check(18), retained-magic-last check(19), post-1a ordering check(20),
+  capture-zero check(21). HANG-CAP 3-way + reset_reason + set_wake_window (v8.5) all retained.
+- **On supervisor's #d005 order:** drain inbox + clean detached checkout of 33219370 + build both ELFs
+  (d5-otarx/otafail-v87, BUILD_ID coex.v87.0725) + attest (nm sole strong __user_exception) + RULING-A bins
+  (espflash literal in gated command text, real grant read first) + 3-way. Instrumentation dial (natural hang).
 
 ## v8.6 `30cb3d6d` = BUILT + attested + bins (RULING-A); rig 21/21 bound-PASS. #d005 EXECUTED
 
