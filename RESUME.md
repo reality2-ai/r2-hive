@@ -101,8 +101,12 @@ gitdir real. Built BOTH D5 ELFs, BUILD_ID `coex.v86.0725`:
     [[espflash-gate-bypassed-by-file-and-remote-exec]] [[safety-claims-name-what-is-enforced]]
 - **STANDING RULE (all lanes, in the grant NOTE):** espflash/openocd must appear LITERALLY in the gated command
   text — no ssh-wrapped scripts, no file indirection. ssh OK when the keyword is literal inside the quoted string.
-- **Next:** core derives from the same pinned ELFs → byte-3-way (expect == d0f4bb1c/4289f3fa) → flash grant
-  (separate, after 3-way) → instrumentation dial. **ELF build clean** (a3f3382d/3254ad3c, ownership 40378c48).
+- **3-WAY CLOSED + DIAL RUNNING.** Core's compliant derive == hive bins BYTE-EXACT (d0f4bb1c/4289f3fa); artifact
+  validated, method finding stands as ledgered. My compliant re-derive = non-blocking process cure (done). **v8.6
+  FLASH grant issued; instrumentation dial running** (natural-hang capture). ELF build clean (a3f3382d/3254ad3c,
+  ownership 40378c48). Read-the-grant-and-log discipline + wrong-.fleet correction adopted fleet-wide.
+- **Next likely hive work:** v8.6 capture-consistency analysis once core scores the hang captures (HANG-CAP 3-way
+  outcomes: magic+data / data-no-magic / all-zero).
 
 ## v8.6 `30cb3d6d` rig bound record (21/21, all neg-locked)
 - **30cb3d6d:** preflight(1-11) + check 12/13/14/15/16/17/18/19/20/21 **ALL PASS**.
