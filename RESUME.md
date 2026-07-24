@@ -4,7 +4,37 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## Next: v8.1 `1395269a` — RIG PASS, awaiting specs re-stamp + supervisor order
+## Next: v8.1 `64bf5e63` — RIG PASS, awaiting specs stamp + supervisor order
+
+**v8.1 candidate = `64bf5e638d24140622efe8388c1f7e31f3e9d3f2`** (supersedes `1395269a`). `preflight-v8.sh` v3
+**PASS, exit=0**. §2.3A:281 satisfied: `lease.rs:91 pub accepted_mask: TransportSet` (mask as STORED,
+unknown bits stripped; empty on reject) **alongside** `pub accepted: bool` and `pub effective: TransportSet` —
+wired into the ACK log via `a.accepted_mask.bits()`. New KATs: `lease_ack_carries_accepted_and_effective_masks`
+· `lease_beacon_is_off_because_masked_not_suppressed` · `lease_transition_detector_sees_only_real_edges` ·
+`lease_never_resumes_bearers_under_an_active_holder`.
+
+**CONTROL MATRIX (per defect class — supervisor's requirement + core's positive-control suggestion):**
+| sha | class | expected |
+|---|---|---|
+| `64bf5e63` | known-GOOD (positive control) | **PASS** — a change breaking this is a regression |
+| `1395269a` | class B: bool, no mask companion | FAIL exactly 1 (check 3) |
+| `41eb7af6` | class A: mechanism absent | FAIL 7 |
+
+**★ I ALMOST BLOCKED A CORRECT BUILD (4th variant, costliest).** check(3) required `pub accepted:
+TransportSet` — I encoded **the fix shape I imagined** (retype the existing field) rather than **the
+requirement** (an accepted mask exists, mask-typed). Core added a *new* field and kept the bool — better,
+since "did it accept" and "what got stored" are different facts. First run said FAIL on 64bf5e63; caught by
+reading `lease.rs` directly before reporting. Now asserts `pub (accepted_mask|accepted): *TransportSet`.
+[[marker-grep-cannot-see-comments]]
+
+**★ Rig v3 stripper (core's finding, load-bearing):** strings stripped FIRST (escape/raw-string aware), then
+block, then line comments **incl. trailing**. v2 stripped whole comment-lines only ⇒ trailing `// …` survived
+and a literal `"pub accepted: TransportSet"` would have false-PASSED check 3. Mirrors core's false-NEGATIVE
+(comments-first unbalanced quotes, swallowed real code). `alfred:~/strip_src.py`.
+
+~ Possible one-liner MTU-constant-sweep sha to follow — cheap re-run.
+
+## Superseded candidate: v8.1 `1395269a` (accepted:bool — no accepted mask)
 
 **v8.1 = `1395269a4059eab5e4ce2a9578db3949e63e21cc`** (+ r2-route lease layer `a46fc12d` cherry-picked).
 **`preflight-v8.sh` v2 PASS, exit=0** — the real §2.3A lease is implemented, not documented:
