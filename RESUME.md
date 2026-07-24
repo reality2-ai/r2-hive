@@ -75,7 +75,14 @@ rulings:**
 Supervisor RIG PREP (write checks before the fix lands; neg-control 9ebad32b MUST FAIL). All 4 FAIL on 9ebad32b
 for the right reason (instrumentation absent); positive side PROVISIONAL — bind to core's identifiers on the sha.
 v8.5 deltas UNCHANGED (checks 14/15/wake_window carry). #d005 gates unchanged — NO build until explicit order.
-- **check(17)** SP-monitor both cores: `enable_sp_monitor` + `enable_core1_sp_monitor`. 9ebad32b 0/0 → FAIL.
+- **check(17) REVISED** — SP-monitor VOID (S3 `has_sp_monitor=false`, no assist_debug; Rung-A only). New (17) =
+  exception-handler OWNERSHIP: OUR `#[no_mangle] __user_exception` is the linked override (esp-hal default handler
+  removed). REQUIREMENT-not-shape (fifth-variant): gate on our handler present (+ image links ⇒ it IS linked, a
+  duplicate would be a link error); esp-hal `default-features=false` REPORTED informational, NOT gated. 9ebad32b
+  our-__user_exception=0, esp-hal-df-false=0 → FAIL.
+- **check(21) NEW** — capture region pre-ZEROED at boot AFTER decode: 3-way outcome semantics (magic+data=fresh
+  crash / data-no-magic=torn write / all-zero=clean boot, no stale re-read). Requirement: a zeroing op tied to the
+  capture region post-decode. 9ebad32b 0 → FAIL. Bind symbol on sha.
 - **check(18)** `__user_exception` override capturing exccause/EPC1/excvaddr/SP (≥3 of 4 regs). 9ebad32b 0, 0/4 →
   FAIL. Bind reg-accessor names on sha.
 - **check(19)** crash capture → RETAINED mem, magic-word written LAST (partial write never reads valid). Excludes
