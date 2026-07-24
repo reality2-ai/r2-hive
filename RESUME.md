@@ -37,6 +37,22 @@ until the search widened. **Audit scope corrected:** `~/v83-bins/` holds 4 more 
 sha-verified as DUPLICATES of v83-staging ⇒ **content-audited 37, still 0 loose**; grant-v4/v6/v7-evidence
 dirs hold 0 images (streams only).
 
+**★ BIN→STREAM IDENTITY VERIFIED — the last unmeasured link, and size-identity did NOT prove it.** Payload
+region `stream[188:]` hashed per stream vs the attested bins: p1/p2a/p2b all `87360384…` = `d5-otarx-v83.bin`
+**byte-identical** (not merely same-size); p3 `f5ad0535…` = `d5-otafail-v83.bin`. Preambles all differ
+(b3cc115f/d00385bc/c0e80188/ae576a78), opcode `03`, ver `02` on all four.
+- Combined with core's one-field header extraction, the ONLY differences across P1/P2a/P2b are header field +
+  signature ⇒ **reason=4 can come only from the signer field, reason=7 only from the class field** — proven at
+  byte level on BOTH halves, so neither negative control can be contaminated. Had p2a's payload differed, the
+  reason=4 verdict would have been worthless.
+- Re-derives the 188 offset independently of core's `1+123+64` arithmetic (payload hashes to the bin starting
+  at exactly 188). Two methods, one answer.
+- **Chain now unbroken and fully measured, every link by ≥2 parties:** source `b79789c4` (rig PASS + specs
+  stamp + suites on the tree) → ELF `f1f31854` (hive + core attest, marker matrix cell-for-cell) → bin
+  `87360384` (3-way independent derive) → stream payload `87360384` (this check + 3-party at-rest hashes).
+  **What reaches D5's flash is provably the artifact the rig passed** — precisely what the gate cannot tell
+  us, since it name-locks and records sha without verifying it.
+
 **⚠ The grant `target=` field contains a real MAC.** Quoting it verbatim into a tracked file trips the
 pre-push secret scan — it caught me doing exactly that while writing the dating rule; redacted to a
 placeholder, amended, pushed clean, no leak. Warned all lanes: the env-prefix convention that injects the
