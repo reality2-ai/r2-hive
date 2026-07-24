@@ -63,9 +63,28 @@ moved, an identical copy stayed put.
   "coex" hit is `pm_coex.c`, an esp-radio library filename, not a stamp) and **no baked persona** (none of
   d5/d4/xiao/rak) — consistent with predating the baked_persona campaign. Provenance not attributable further
   from content. Not mine to move; recommended quarantine-on-no-claim.
-- **STANDING RULE:** say "content-audited: N images, all accounted" **+ the scope**, never "path empty".
-  Glob-based safety claims retired. The sha-pinned grant remains the actual flash boundary; the sweep is
-  defense-in-depth and honest bookkeeping, not the boundary.
+- **STANDING RULE:** say "content-audited: N images, all accounted" **+ the scope + that it is a SNAPSHOT**
+  (the home dir has concurrent writers — any count is stale as written). Never "path empty"; glob-based safety
+  claims retired.
+
+**‼ GRANTS ARE NOT SHA-ENFORCED — my "sha-pinned grant is the flash boundary" was FALSE** (composer found it,
+I verified at source). `claude-fleet/hooks/auto-approve.sh`:
+- `:618` — *"The sha256 field is RECORDED, not enforced: a remote flash (ssh to another host) gives this hook
+  no way to hash the bytes that will actually be written."*
+- `:615` — *"THE HUMAN REMAINS THE BOUNDARY. Do not describe this as making flashes safe."*
+- `_hs_authorized()` :624-650 checks only `[[ "$c" == *"$artifact"* ]]` and `[[ "$c" == *"$target"* ]]`;
+  sha256 is logged, never compared.
+- **Wider than "a different path to the same file":** `c` (:676) is the ENTIRE command string, so the
+  substrings may appear anywhere and **need not name the flashed file at all**. Under the v8.3 grant
+  (`-v83.elf` / `-v83.bin`), a command flashing a DOA image while merely mentioning those substrings in an
+  echo or log path is auto-approved. The grant binds *the presence of two strings*, not the artifact.
+- **Owned:** I asserted the sha-boundary claim without reading the hook, after an authority used the phrase,
+  and propagated it into RESUME + three fleet messages — during the same hour I was insisting peers measure
+  rather than assert. The file's own header forbids the description I gave it.
+- **Consequence:** quarantine buys nothing *at the gate* — it is human hygiene only. **The real control is a
+  two-party sha256 of the exact path in the flash command, immediately before flash.** Proposed also a
+  mechanical tightening (bind artifact/target to a resolved path ARGUMENT, not a free substring). Hook is
+  fleet infrastructure — proposed, not edited.
 
 ## Prior: v8.3 standing-conditional setup (extended rig built + proven pre-sha)
 
