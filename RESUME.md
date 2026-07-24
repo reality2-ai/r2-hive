@@ -15,8 +15,20 @@ BUILD_ID `coex.v85.0725`:
 - **Attest PASS:** BUILD_ID coex.v85.0725=1 both, **0 prior-version leftover**, **set_wake_window sym=3 + "§2.3A
   ESP-NOW set_wake_window" string=1** (delta-1 baked), **reset_reason banner=1** (delta-3), RWDT rwdt_feed_task=3,
   role RPF1 Sensor b[4]=1, persona input e6108006 (baked from DFR_PERSONA_PATH). otafail differential = DISTINCT shas.
-- **v8.4 + all prior pins STALE.** **BINS NOT DERIVED** — MUST NOT until core's 3rd-party ELF attest (order [4]).
-  On core attest: derive under the MAC-free grant (`R2_OTA_TARGET=NONE-offline-derive`), 3-way, streams, flash.
+- **v8.4 + all prior pins STALE.** **BINS DERIVED under the pre-staged MAC-free v85 grant** (core attest GREEN):
+  d5-otarx-v85.bin `90e984c423df060101a854350b0c81b872a2a75c146bfdaace7e0caddd173efb` (877744 B, 0xE9) ·
+  d5-otafail-v85.bin `374c1ebc95f5cb6952b97183878cb8d0daf2208b05549a450fb78361f1311706` (876160 B, 0xE9). DISTINCT,
+  ELF pre-hash==grant-pinned, e0e49127.
+- **⚠ v85 BINS NOT 3-WAY BYTE-REPRODUCIBLE across hive/core — DIAGNOSED, path-only, HOLD flash for canonical-bin
+  ruling.** Core's ELF shas differ (a69fcfd2/ba165c20 ≠ mine) — ESP embeds panic-location abspaths in `.rodata`
+  (carry ELF→bin). My bin has **136 abspath strings = 106 `~/.cargo/registry` (identical across lanes) + 15
+  `dfr1195-fw-hive-build/crates/*` package paths**. **v84 bin had the SAME 15 yet matched core byte-exact** ⇒ v84
+  core built in an identically-named dir; **v85 core used a worktree (different package path)** ⇒ those 15 strings
+  diverge. Root = core's build LOCATION, not code/hive; markers all reproduce (core's marker-matrix GREEN). Fix
+  options (supervisor's call): (a) core re-derive in a same-named path (repro like v84), or (b) marker-matrix 3-way
+  + ship hive's #d005-pinned canonical bin, or (c) future `--remap-path-prefix`/`trim-paths` rebuild (also removes
+  the shipped username path — v84 already shipped it, accepted-residual, parked improvement). NO flash until the
+  canonical bin + 3-way method is ruled.
 
 ## v8.5'' `9ebad32b` rig-green record (16/16, all neg-locked)
 
