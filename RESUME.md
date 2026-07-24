@@ -4,9 +4,13 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## ⚠ v8.5 `91d90b9a` core-READY = STALE vs frozen scope — FLAGGED, no build
+## v8.5 `91d90b9a` = CONFIRMED SUPERSEDED (supervisor); awaiting v8.5' sha to re-score
 
-Core posted READY sha `91d90b9a` (2 deltas). **Scored against the 3 checks — it predates supervisor's last two
+Supervisor CONFIRMED 91d90b9a superseded (ledgered pre-my-report; my independent catch corroborates — the rig
+working as built). **v8.5' rebuild in core's queue: radio-DOWN replaces rx-skip + delta-3 (reset-reason) added +
+BLE-lease carried.** No build order will name 91d90b9a. Re-score all 3 checks on core's new sha (+ refine check(14)
+positive legs to core's real radio stop/start ids). The scoring that caught it, for the record:
+Core posted READY sha `91d90b9a` (2 deltas). **Scored against the 3 checks — it predated supervisor's last two
 rulings:**
 - check(15) BLE self-strangle = **PASS** (legA `requested.remove(Ble)`@2043 + legB 0 Ble consumers — delta-2 correct).
 - check(14 radio-DISABLE) = **FAIL**: 91d90b9a:7057 does `receive_async()`@7046 THEN `!transport_available(WifiMesh)
