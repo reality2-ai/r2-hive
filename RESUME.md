@@ -8,10 +8,13 @@ quarantined to `~/doa-v6/`.**
 
 Supervisor PREP (scope frozen, 2 deltas at next core sha; design now, score when sha lands). adv-stretch rung DEAD
 (never built, core caught moot pre-build) — no check existed for it, nothing to discard.
-- **check(14) — espnow_task RX-gate** (`~/check14.sh`): RX arm (`let rx = async`@7034 → DATA_RX.try_send@7077)
-  gated by `transport_available(WifiMesh)`, ordered-gate style (guard+continue BEFORE admit), the RX analogue of
-  check(12)/mech. **Scoped to the rx sub-block** so the existing TX gate @7028 is NOT miscounted (the false-PASS a
-  naive "espnow has WifiMesh" grep would hit). Neg-lock: afaab9ab rx-gate=0 → **FAIL** (RX gate absent).
+- **check(14) — REDESIGNED (radio-DISABLE, not rx-gate)** (`~/check14.sh`): specs found §2.3A point-1 FORBIDS the
+  rx-arm processing-skip (and it would not quiet the PHY). New rung-2 shape = runtime radio-DISABLE: ESP-NOW/WiFi
+  driven DOWN on lease install, RESTORED on clear (lever = `OTA_ACTIVE`@245 / lease install @2045; "a stuck OTA
+  never permanently masks the mesh"@276; handles WifiController@763 / esp_now@769). **Positive legs PENDING core's
+  published stop/start identifiers** — NOT guessing the exact call (encoding an imagined fix shape = the repeat
+  defect); the broad radio-power pattern neg-locks the SHAPE only. Neg-lock: afaab9ab radio-down=0 up=0 → **FAIL**
+  (mask-consult only, no lease-tied power-down). Old rx-gate positive RETIRED.
 - **check(15) — BLE lease self-strangle guard** (`~/check15.sh`): two legs, PASS needs BOTH — legA `requested.remove(
   Transport::Ble)` present near `LeaseSource::OtaSession`@2045 (v8.5 masks BLE; afaab9ab @2039 comment "BLE
   deliberately left in the requested mask" = legA=0) AND legB no `transport_available(Transport::Ble)` inside the
