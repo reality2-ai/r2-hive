@@ -27,6 +27,22 @@ Attest: persona baked==input all 4 (e6108006×2/0ad4a84d/43638da0); masked disti
 leftovers** (v6/advwd/v7/v82 = 0 across all four); `r2_dfr1195` set_phy symbols = 0; otafail differential OK.
 Checks (10) zero stale MTU literals + (11) `assert 65535 == impl 65535`.
 
+**STREAMS AT REST VERIFIED (second-party leg, both hosts):** p1 `5d1e69ca…` 875276 B · p2a `86208e5b…`
+875276 B · p2b `356c2e1c…` 875276 B · p3 `45849855…` 873772 B — alfred and tuxedo-os hashed independently,
+identical, all matching the ledgered pins. Free consistency checks: p1/p2a/p2b size-identical + p3 differs =
+same otarx bin re-signed 3× and otafail for P3, per phase design; each stream = its bin + a **constant 188 B**
+(measured — contents of those bytes NOT verified and NOT guessed). Found only via a CONTENT search: my first
+glob `~/*-v83-*.stream` returned 0 on BOTH hosts because they live in `~/v83-streams/`; I reported nothing
+until the search widened. **Audit scope corrected:** `~/v83-bins/` holds 4 more 0xE9 images my scope missed,
+sha-verified as DUPLICATES of v83-staging ⇒ **content-audited 37, still 0 loose**; grant-v4/v6/v7-evidence
+dirs hold 0 images (streams only).
+
+**⚠ The grant `target=` field contains a real MAC.** Quoting it verbatim into a tracked file trips the
+pre-push secret scan — it caught me doing exactly that while writing the dating rule; redacted to a
+placeholder, amended, pushed clean, no leak. Warned all lanes: the env-prefix convention that injects the
+target into command text also injects a MAC into every transcript/log/ledger quoting that command — same root
+as the gate defect, and path-argument binding alone will NOT fix the exposure.
+
 **BINS DERIVED** (v8.3-EXTRACT-ONLY amendment; ELF shas verified pre-extract; staged in `~/v83-staging/`, all
 esp_image 0xE9, 4 distinct): d5-otarx-v83 `8736038471170906239f8a41d52cd4dadb9b263561ca4c2b24c918e3db6ed797`
 (875088 B) · d5-otafail-v83 `f5ad053513fa941aa2088d02d9a8d4b45ccc34f80390da6d3e40f0aa45f6ac83` (873584 B) ·
