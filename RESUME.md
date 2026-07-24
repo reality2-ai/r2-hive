@@ -53,6 +53,26 @@ region `stream[188:]` hashed per stream vs the attested bins: p1/p2a/p2b all `87
   **What reaches D5's flash is provably the artifact the rig passed** — precisely what the gate cannot tell
   us, since it name-locks and records sha without verifying it.
 
+**MAC-HYGIENE ARC — CLOSED SYMMETRIC, BOTH REPOS, ZERO BYSTANDER CAPTURES (2026-07-24, supervisor-ledgered).**
+r2-hive: content-audited by SHAPE (generic 6-octet, tool-level control confirmed the regex was ACCEPTED, exit
+0/1 never 2) → live tree CLEAN; history 48 commits / 6 messages / 25 distinct values, 8 synthetic, **17
+real-looking → all 17 classified own-device or own-generated**, incl. 2 BLE random/RPA (not hardware ids) and
+1 scan-adjacent but provably our own bridge XIAO (roster row carries its hive_id/role/persona-verified).
+r2-core: 5 families, likewise zero bystanders. `14:b5:cd` closed as ONE shared lab fixture documented in both
+repos. **Disposition: accepted-residual stands** (07-17 ruling: pushed messages = flag-don't-rewrite; rewrite
+breaks every clone + pinned sha incl. the live grant pin). Nothing escalated to Roy.
+- **Classification canon (joint):** shape FINDS everything, context CLASSIFIES it — enumeration never
+  converges (my board-OUI list was incomplete twice). Then: **context tells you WHERE a value came from;
+  ownership is a SEPARATE step telling you WHOSE it is.** Both directions need it — a `[SCAN]` line is not
+  automatically a bystander capture, an inventory line is not automatically ours.
+- **Disposition split:** "the board broadcasts it anyway" justifies accepted-residual for OUR identifiers
+  only; a third-party capture republished in a public repo is a different class and escalates to the human.
+- **Instrument canon:** a sweep must prove its own regex was ACCEPTED before its result means anything, and
+  the positive-control string must match *that* pattern. `grep` here is a shell function wrapping ugrep
+  (rejects backreferences, exit 2). Not-0-as-broken manufactures false alarms exactly as empty-as-clean
+  manufactures false all-clears. **The controls themselves need controls.**
+  [[hygiene-gate-greps-all-tracked-files]] [[safety-claims-name-what-is-enforced]]
+
 **⚠ The grant `target=` field contains a real MAC.** Quoting it verbatim into a tracked file trips the
 pre-push secret scan — it caught me doing exactly that while writing the dating rule; redacted to a
 placeholder, amended, pushed clean, no leak. Warned all lanes: the env-prefix convention that injects the
