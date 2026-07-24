@@ -26,13 +26,15 @@ rulings:**
 
 Supervisor PREP (scope frozen, 2 deltas at next core sha; design now, score when sha lands). adv-stretch rung DEAD
 (never built, core caught moot pre-build) — no check existed for it, nothing to discard.
-- **check(14) — REDESIGNED (radio-DISABLE, not rx-gate)** (`~/check14.sh`): specs found §2.3A point-1 FORBIDS the
-  rx-arm processing-skip (and it would not quiet the PHY). New rung-2 shape = runtime radio-DISABLE: ESP-NOW/WiFi
-  driven DOWN on lease install, RESTORED on clear (lever = `OTA_ACTIVE`@245 / lease install @2045; "a stuck OTA
-  never permanently masks the mesh"@276; handles WifiController@763 / esp_now@769). **Positive legs PENDING core's
-  published stop/start identifiers** — NOT guessing the exact call (encoding an imagined fix shape = the repeat
-  defect); the broad radio-power pattern neg-locks the SHAPE only. Neg-lock: afaab9ab radio-down=0 up=0 → **FAIL**
-  (mask-consult only, no lease-tied power-down). Old rx-gate positive RETIRED.
+- **check(14) — REBIND #2 = `set_wake_window(minimal)` lease-driven** (`~/check14.sh`). Mechanism churned 4×:
+  (1) rx-processing-skip FORBIDDEN by specs §2.3A-1; (2) full radio-down INFEASIBLE (esp-radio 0.18 has no wifi
+  stop/deinit with BLE live); (3) `disconnect_async` DEAD (D5 has NO WiFi STA assoc — staota absent, 0 sta markers);
+  (4) **FINAL** = `set_wake_window(minimal)` shrunk on lease install, RESTORED on lease clear AND hard-timeout.
+  **INVARIANT (F4-class): a shrink that survives its lease = the defect — BOTH restore paths required** (clear @2088
+  + the edge-free hard-timeout release @6201 "re-listen once the lease clears, session end OR hard timeout").
+  Keys the RUNTIME `set_wake_window(` call, **EXCLUDES the `wake_window_ms` §3.2.2 config field** (@3531/3569/3656
+  "advertised not enforced" — the field-vs-call trap). **Positive legs PENDING core's published call sites**
+  (install/clear/hard-timeout scoping bound on sha). Neg-lock: afaab9ab set_wake_window-calls=0 → **FAIL**.
 - **check(15) — BLE lease self-strangle guard** (`~/check15.sh`): two legs, PASS needs BOTH — legA `requested.remove(
   Transport::Ble)` present near `LeaseSource::OtaSession`@2045 (v8.5 masks BLE; afaab9ab @2039 comment "BLE
   deliberately left in the requested mask" = legA=0) AND legB no `transport_available(Transport::Ble)` inside the
