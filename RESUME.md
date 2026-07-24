@@ -1,7 +1,20 @@
 # RESUME — r2-hive
 
-Updated 2026-07-24. `main` clean + pushed. **v7 4-artifact set BUILT+ELF-attested on `6eec53d5` (v6 boot-hang
-fix). v6 DOA + superseded. v5 grant-v5 staged; v4 OTA pair grant-v4 running.**
+Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaiting core push + supervisor pinned
+sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
+quarantined to `~/doa-v6/`.**
+
+## Next: v8 (ORDER PENDING — do not build until supervisor names the sha)
+
+**v8 = OTA-session radio quiesce** (leased mask {LoRa, ESP-NOW} + power-downs) — the general form of the
+coex-emission lever v6/v7 carried as the 1-line `not(otal2cap)` fakesensor gate. Roy blessed g10; core
+committing. **Scope when the order lands: FULL 4-SET** — d5-otarx-v8, d5-otafail-v8, d4-v8, xiao-v8, ONE pinned
+sha, ONE attest. BUILD_ID `coex.v8.####`. D4/XIAO jump straight to v8 (their v7 flashes cancelled with the
+extract); per-board grants only after the D5 v8 cycle proves green. **Preflight set (staged, confirmed
+correct):** partition e0e49127 map + app@0x20000; personas 0x12000/0x14000/0x17000 untouched; set_phy
+source-scope (0 live call sites); §5.4 marker; BUILD_ID baked + 0 prior-version leftover; persona baked==input;
+masked digests distinct; otafail differential. #d005 stands — drain inbox, explicit sha order, clean detached
+byte-verified checkout.
 
 ## Current build order — v7 4-artifact set (BUILT+ELF-attested, 2026-07-24)
 
@@ -19,8 +32,16 @@ checkpoint write a full 225s out of the boot window. **v6 bins SUPERSEDED (never
   4, 0 v6 leftover** (serial/HEALTH shows v7); re-adv "CoC half-open/idle, re-advertising"; §5.4 rollback marker
   all 4; otafail differential. Preflight: v7 delta confirmed (LAST_CKPT_S=base seed :5827); partition e0e49127
   + app@0x20000; set_phy source-scope 0 live call sites.
-- **PENDING: bin extraction** for the 4 → extract amendment awaited (same gate as v5/v6). NO flash — 3-way
-  attest (hive+composer+core) after extract, then re-sign → grant v7.
+- **v7 EXTRACT CANCELLED (supervisor ruling) — v8 SUPERSEDES v7 EVERYWHERE.** No amendment issues, no v7 bins
+  are made. v7 ELFs stay as **attested reference only** (2-party ELF PASS: core's 4 shas match mine exactly).
+  Rationale (mine, accepted): v8 = v7 base `6eec53d5` + quiesce diff ⇒ strictly ahead on the OTA path;
+  extracting v7 now would mint a superseded bin set beside the DOA v6s — the exact hazard I flagged. v7 flash
+  already ran ELF-direct under grant v7; that cycle is **CLOSED at the coex boundary** (P2a/P2b PASS, P1/P3
+  gated on v8).
+- **v6 DOA bins QUARANTINED** (supervisor-approved, no delete): all 4 moved to `~/doa-v6/`, sha-verified both
+  sides (971dfae2/95ae7408/d299010c/bd58d076 intact). Remaining `~/d5-ota-*.bin` = 5 exactly (v4×2 + v5×3), no
+  v6 in the flashable path. **SHA-PIN affirmed as grant law** — every grant sha-locked, filename never
+  authoritative; the v8 grant names sha + a quarantine-checked dir.
 - Push-timing note: core's push of 6eec53d5 crossed my first fetch (branch tip briefly read 05dba4f3); re-fetch
   resolved it, HEAD verified 6eec53d5 before build. [[positive-control-the-tree-not-just-the-tool]]
 
