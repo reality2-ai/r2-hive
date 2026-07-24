@@ -31,6 +31,11 @@ BUILD_ID `coex.v85.0725`:
   - ELF d5-otafail-v85 `fb95c13f1df4af42a4115199b21929ab6dd16efd96bfe4ba091b31ce765062d8` → bin (hive) `374c1ebc…311706`
   - Expect core+composer bins == hive bins byte-exact (same-ELF transform). Any lane differing = the finding.
     Then composer signs streams, flash. `~alfred:~/d5-*-v85.elf` + `~/v85-staging/*.bin`.
+  - **2-of-3 CONVERGED: core == hive byte-exact** (core derived from hive's pinned ELFs, pre-hash==pin,
+    espflash save-image + partitions.csv): otarx 90e984c4 (877744B), otafail 374c1ebc (876160B). Core's earlier
+    "cross-dir infeasible" was wrong-universe (rebuilt independently + omitted `--partition-table` instead of
+    deriving from pin) — ruling (d) validated. **Composer = 3rd leg at signing.** Next hive: cross-verify composer's
+    signed-stream payloads vs these bin pins (v8.4 pattern).
 
 ## v8.5'' `9ebad32b` rig-green record (16/16, all neg-locked)
 
