@@ -83,8 +83,15 @@ rulings:**
   exact symbol range = 0. Never conclude from a broken instrument.)
 - **Attest:** BUILD_ID coex.v87.0725=1, v86 leftover=0, __user_exception sole strong `40378c44 T`, HANG-CAP 3-way
   (1/1/1), reset_reason=1, set_wake_window=1, RWDT=3, role Sensor, otafail differential DISTINCT. Rig 22/22 bound-PASS.
-- **BINS PENDING:** offline grant stages on this ELF-pin report; then extract per RULING-A (espflash LITERAL in gated
-  command text, partition table e0e49127 explicit, **grant READ first** — the v86 discipline). Then 3-way + dial.
+- **BINS DERIVED — compliant + authorization VERIFIED.** Read the live v87 grant first (artifact=-v87
+  target=OFFLINE-NO-DEVICE sha256=0400a6d7, ELF pins match), extracted with `espflash` LITERAL in the gated command
+  text (prefixes R2_OTA_TARGET=OFFLINE-NO-DEVICE R2_OTA_ARTIFACT=d5-ota-v87), ELF pre-hash==pin first:
+  d5-otarx-v87.bin `c65a90b034da027cdef8ed536c01fcdb201fd833891725e90f7855f6160d2792` (878016 B, 0xE9) ·
+  d5-otafail-v87.bin `4efe08f1594271fd6ce62853db448e00181c8f4b56b3d32a16af1b2b59eb70a4` (876496 B, 0xE9). DISTINCT.
+  **Gate fired + approved + LOGGED** — USED entry `11:42:16 artifact=-v87 target=OFFLINE-NO-DEVICE sha256=0400a6d7`
+  (one per command, verified by READING the log, not inferred). The v86-requalified discipline applied first-time.
+- **Next:** core derives from the same pinned ELFs → byte-3-way (expect == c65a90b0/4efe08f1) → flash grant
+  (separate, after 3-way) → instrumentation dial for PRIMARY fault#1.
 
 ## v8.7 `33219370` rig bound record (22/22, all neg-locked)
 v8.7 dial = instrumentation re-run for PRIMARY fault#1 (now preserved, not overwritten by the reset re-fault).
