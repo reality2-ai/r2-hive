@@ -50,6 +50,12 @@ core: ONE `espnow_task:6951`, sole send `:6995` guarded by `transport_available(
   [[marker-grep-cannot-see-comments]]
 - Both asserts IDENTICAL v83==v84 (WifiMesh was closed already at v83); only `LoRa[route]` flips 0→2 = the sole
   v84 delta. RWDT sha next; order re-issues on it; check(13) refine-then-re-lock stands.
+- **★ METAL-OBSERVABILITY ASYMMETRY (core caveat, adopted):** LoRa suppression is metal-observable (`lora_btx`
+  tx counter); ESP-NOW has NO tx counter ⇒ WifiMesh silence CANNOT be positively observed on metal — its proof
+  is code-STRUCTURAL only (the :6992 chokepoint). Future work: add an espnow-tx counter for a metal observable.
+  Until then WifiMesh gate confidence = source+rig, not runtime.
+- Cite hygiene: my earlier `:4445/:441` WifiMesh cite was a stale/other-file read (core: dfr1195 tree has only
+  espnow at :6951 spawned :881); the QUESTION was right, the line-numbers weren't. [[positive-control-the-tree-not-just-the-tool]]
 
 **BUILD TARGET MOVED off 14a1c3ff** — core still owes the always-on RWDT fix (double-exception hang class;
 composer PC2 = `__naked_double_exception` definitive). Order re-issues at core's NEW sha (RWDT + the WifiMesh
