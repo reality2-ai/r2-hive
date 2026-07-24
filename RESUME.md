@@ -70,11 +70,25 @@ rulings:**
   + add delta-3 (reset-reason). Flagged to supervisor+core. No build (order is supervisor's, after v8.4 dials; #d005
   needs explicit order + the checks green). [[cite-canon-before-claiming-a-finding]] [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]
 
-## v8.6 `30cb3d6d` = RIG BOUND + FULL PASS 21/21, READY-scored — awaiting supervisor #d005 build order
+## v8.6 `30cb3d6d` = BUILT + attested + bins (RULING-A); rig 21/21 bound-PASS. #d005 EXECUTED
 
-Core READY sha `30cb3d6d` (base 9ebad32b, ahead=0). Rig BOUND to core's real identifiers + **FULL PASS 21/21**;
-all neg-locked. **NO build yet** (READY, not #d005). #d005 order follows this bound-rig PASS. v8.6 dial =
-instrumentation (natural hang), no OTA streams.
+**#d005 ORDER EXECUTED.** Inbox drained (no supersede). Clean detached checkout: HEAD=`30cb3d6daa0e2fd097042e0c41
+ac12cca0fb4eb2`, tree empty, `rm -rf target`, deltas present (__user_exception=2/HANG_CAP=5/set_wake_window=3),
+gitdir real. Built BOTH D5 ELFs, BUILD_ID `coex.v86.0725`:
+- **d5-otarx-v86.elf** `a3f3382d9be5ad447e29c744f5c5f92d457ba29ac6c135a79f03fa079f9433e9` (otal2cap, cos)
+- **d5-otafail-v86.elf** `3254ad3c00cf129311b56b2bb19c23b971f095b6cb2dff54e52bc82a8b114c92` (otal2cap+otafail)
+- **OWNERSHIP proven on the linked image:** nm = EXACTLY ONE strong `40378c48 T __user_exception` both ELFs (==
+  core's cited addr; esp-hal weak PROVIDE overridden). check(17) image-links gate satisfied on metal-bound bytes.
+- **Attest:** BUILD_ID coex.v86.0725=1, v85 leftover=0, HANG-CAP 3-way strings fault/PARTIAL/empty all=1,
+  reset_reason banner=1, RWDT=3, set_wake_window=1, role Sensor, otafail differential DISTINCT. Rig 21/21 bound-PASS
+  on this exact sha (attest leg pre-build); ELFs match checked source, no drift.
+- **BINS derived per RULING-A** (v86 grant pre-staged, MAC-free, ELF pre-hash==pin, e0e49127):
+  d5-otarx-v86.bin `d0f4bb1c80ecab2b72cc60ceee0f8699600f4bc9430aab430f79675e5a155c75` (878016 B, 0xE9) ·
+  d5-otafail-v86.bin `4289f3fa1b4b6a02b4771db0d1de560dc4b57284bf152adaed4065af38541450` (876496 B, 0xE9). DISTINCT.
+- **Next:** core 3rd-party attest ELF shas + derive bins from HIVE's ELFs (RULING-A → byte-3-way) → flash grant →
+  instrumentation dial (natural hang, direct flash, no OTA stream). v8.6 rig 21/21 record below.
+
+## v8.6 `30cb3d6d` rig bound record (21/21, all neg-locked)
 - **30cb3d6d:** preflight(1-11) + check 12/13/14/15/16/17/18/19/20/21 **ALL PASS**.
 - **Negatives (loosening-defang OK):** 9ebad32b FAILs 17-21 (new) but still PASSES 14/15/16 (v8.5 deltas retained);
   afaab9ab + 91d90b9a FAIL 14+16.
