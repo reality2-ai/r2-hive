@@ -20,14 +20,27 @@ SELECTION path honours the mask and I let that stand for ALL TX paths; the spawn
 of {consults TRANSPORT_EFFECTIVE_MASK / radio-standby / compile-gated under otal2cap}; a masked bearer with a
 spawned TX path that is none = bypass. [[marker-grep-cannot-see-comments]]
 
-**? OPEN (flagged to core, NOT closed):** lease masks LoRa **+ WifiMesh** (bearer=ESP-NOW). v8.4's visible
-enforcement is LoRa `set_rx_standby`; I could not locate the WifiMesh/ESP-NOW equivalent — `espnow_task:4445
-send_async` has no mask guard, is spawned in the OTA build (bridge cfg), fed by `mesh_broadcast` with no
-visible guard. If nothing suppresses it, v8.4 fixed LoRa but left a symmetric ESP-NOW gap (ACK reports WifiMesh
-masked while ESP-NOW TXs). NOT verified: whether relay paths fire during OTA, or an internal mask check in
-mesh_broadcast_extended. Core owns io_task/WifiMesh mapping — awaiting their resolution before the build.
+**✅ WifiMesh question RESOLVED — NO GAP** (my concern refuted; supervisor's :6962/:881 lead). Per-bearer
+classification (`~/perbearer.sh <sha>`, code-only, per-fn-body, mechanism=`transport_available(<bearer>)` — the
+single abstraction at main.rs:312 every masked-bearer TX task consults):
+- LoRa `lora_route_task:6449` — v8.4 PRESENT / **v8.3 ABSENT(0) = the bypass f596a414 fixes**
+- LoRa `lora_task:6163` — present both · WifiMesh `espnow_task:6988` — **present BOTH** (ESP-NOW was always gated)
+- apiary (ESP-NOW DATA) compile-gated `not(otal2cap)`; net_task=WiFi unmasked; ble_task=bearer never masked
+- Negative control per class: only LoRa[route] flips 0→present between shas ⇒ v8.3's SOLE bypass was
+  lora_route_task; v8.4 is symmetric-complete, no second bearer needs a fix.
+- **My false alarm's mechanism = the day's root:** I grepped espnow_task for `OTA_ACTIVE|mask|lease`, never
+  `transport_available` (the abstraction the code uses) — an incomplete pattern read as absence. Fixed by
+  searching the choke point, not its imagined callees. [[marker-grep-cannot-see-comments]]
 
-## Prior: v8.3 `b79789c4` — BUILT + ATTESTED (D5 cycle never ran; hardware absent)
+**Rig now carries check(12) generalized to the per-bearer classifier** (both LoRa paths + WifiMesh espnow),
+negative-controlled — closes the coverage hole that let v8.3 pass.
+
+**BUILD HELD** (supervisor amended order): fires when core CONFIRMS the WifiMesh read with its own line cites +
+supervisor re-issues. Build recipe ready: `14a1c3ff`, d5-otarx-v84 + d5-otafail-v84, BUILD_ID `coex.v84.0725`,
+same recipes as v83. Carry-over 11-check rig PASS + check(12) PASS on 14a1c3ff; check(12) negative control
+FAILS b79789c4. v8.3 pins all stale — fresh attest chain on the new artifacts.
+
+## Prior: v8.3 `b79789c4` — BUILT + ATTESTED (D5 cycle never ran## Prior: v8.3 `b79789c4` — BUILT + ATTESTED (D5 cycle never ran; hardware absent)
 
 **Rig PASS (exit=0, all 11 checks) → standing conditional fired → BUILT.** `b79789c4672795ed40487d6cd28e482d731a4c63`,
 BUILD_ID `coex.v83.0724`, detached clean checkout, HEAD verified.
