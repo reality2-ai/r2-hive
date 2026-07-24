@@ -4,7 +4,44 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
-## Next: v8.1 `64bf5e63` — RIG PASS, awaiting specs stamp + supervisor order
+## Next: v8.3 — STANDING CONDITIONAL, extended rig ready + proven
+
+**`9b5644f9` STOPPED mid-build (supervisor).** Known-failing test inside the candidate tree:
+`r2-route/tests.rs:535 assert_eq!(Transport::Udp.max_payload(), 65536)` vs `r2-transport/profile.rs:103 =>
+65535`, plus stale `64 * 1024` at `r2-route/constants.rs:111/115/125`, `r2-route/SPEC.md:118`. **No v82 ELF was
+ever written** (killed before any `cp`) — nothing shipped, nothing to discard.
+- **I found a 4th site nobody listed:** `docs/TRANSPORT-EXPANSION-SCOPE.md:34`. **v8.3 sweep = 6 sites.**
+- **MUST NOT sweep** (same literal, different domain): 64KiB `chunk_size`/read-buffers/progress-modulo in
+  `ota_tcp.rs`, `ota_tcp_recv.rs`, `trouble-test`, `r2-ota`, `ota-server`; `r2-cbor/SPEC.md:39` (CBOR encoding
+  table); `r2-def` plugin `max_frame_bytes`; `main.rs:1570` (8-bit truncation comment).
+- **My rig PASSED that tree — two owned gaps:** (i) SCOPE (variant b again) — my FILES list is 5 files, none in
+  `r2-route/`; I saw the sweep touch `profile.rs` and downgraded it to "evidence only, not a gate" without
+  checking other crates. (ii) **CATEGORY (new)** — the rig is a STATIC checker: it never compiles, never runs
+  tests, so a known-failing test is invisible **by construction**. Rig PASS ≠ green suite; now disclosed in
+  every report.
+
+**STANDING CONDITIONAL (supervisor):** v8.3 sha → extended rig + 3 per-class controls → PASS = **BUILD
+IMMEDIATELY**, full 4-set, `R2_BUILD_ID=coex.v83.0724`, #d005 + full preflight. FAIL → report, no build.
+
+**Extended rig (checks 10/11 + disclosure) built and negative-controlled BEFORE the sha:**
+| sha | class | result |
+|---|---|---|
+| `41eb7af6` | A: mechanism absent | FAIL 9 |
+| `1395269a` | B: no typed mask | FAIL 3 |
+| `64bf5e63` | lease-OK, pre-sweep | FAIL 1 — check 10 only; **check 11 correctly PASSES** ⇒ orthogonal |
+| `9b5644f9` | candidate | FAIL 2 (stale sites + real skew) |
+
+No known-good sha exists right now — expected mid-fix; v8.3 becomes the positive control on PASS.
+
+**★ Three defects found in my OWN new checks before use — all returned the RIGHT VERDICT on the bad tree,
+which is why they nearly slipped:** (i) unscoped literal scan → 9 false positives (buffer sites — reproducing
+at scale the blind-sweep hazard I'd just warned core about); (ii) unscoped extraction → `impl=0` (read `=> 0.0`
+from the decay fn; 7 `TransportId::Udp` arms exist); (iii) `64 * 1024` → `impl=64`, a bogus "KNOWN-FAILING
+TEST" on an internally-consistent tree. **A right verdict from a wrong measurement is still a broken
+instrument** — the verdict is about one sha, the measurement carries to the next.
+[[marker-grep-cannot-see-comments]]
+
+## Prior candidate: v8.1 `64bf5e63` (lease correct; superseded by the MTU sweep)
 
 **v8.1 candidate = `64bf5e638d24140622efe8388c1f7e31f3e9d3f2`** (supersedes `1395269a`). `preflight-v8.sh` v3
 **PASS, exit=0**. §2.3A:281 satisfied: `lease.rs:91 pub accepted_mask: TransportSet` (mask as STORED,
