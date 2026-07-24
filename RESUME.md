@@ -90,8 +90,11 @@ rulings:**
   d5-otafail-v87.bin `4efe08f1594271fd6ce62853db448e00181c8f4b56b3d32a16af1b2b59eb70a4` (876496 B, 0xE9). DISTINCT.
   **Gate fired + approved + LOGGED** — USED entry `11:42:16 artifact=-v87 target=OFFLINE-NO-DEVICE sha256=0400a6d7`
   (one per command, verified by READING the log, not inferred). The v86-requalified discipline applied first-time.
-- **Next:** core derives from the same pinned ELFs → byte-3-way (expect == c65a90b0/4efe08f1) → flash grant
-  (separate, after 3-way) → instrumentation dial for PRIMARY fault#1.
+- **3-WAY CLOSED (core==hive byte-exact).** Core's derive == c65a90b0/4efe08f1 (compliant: espflash literal,
+  OFFLINE-NO-DEVICE, pre-hash==pin, USED entry read 11:46:56; mine 11:42:16 — one per command). ELF 2-party attest
+  GREEN (call-free proven on metal by both lanes, objdump cell-for-cell). Grant-read-first discipline now both lanes.
+- **Next:** flash grant (separate) → instrumentation dial for PRIMARY fault#1 (now preserved by the call-free
+  handler). Then hive capture-consistency analysis on the HANG-CAP 3-way outcomes.
 
 ## v8.7 `33219370` rig bound record (22/22, all neg-locked)
 v8.7 dial = instrumentation re-run for PRIMARY fault#1 (now preserved, not overwritten by the reset re-fault).
