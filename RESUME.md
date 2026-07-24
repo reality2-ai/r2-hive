@@ -4,6 +4,24 @@ Updated 2026-07-24. `main` clean + pushed. **NEXT WORK = v8 build order (awaitin
 sha). v7 extract CANCELLED — v8 supersedes v7 everywhere; v7 ELFs = attested reference only. v6 DOA bins
 quarantined to `~/doa-v6/`.**
 
+## PREP: v8.5 rig checks (14)(15) DESIGNED + neg-locked (no build order yet)
+
+Supervisor PREP (scope frozen, 2 deltas at next core sha; design now, score when sha lands). adv-stretch rung DEAD
+(never built, core caught moot pre-build) — no check existed for it, nothing to discard.
+- **check(14) — espnow_task RX-gate** (`~/check14.sh`): RX arm (`let rx = async`@7034 → DATA_RX.try_send@7077)
+  gated by `transport_available(WifiMesh)`, ordered-gate style (guard+continue BEFORE admit), the RX analogue of
+  check(12)/mech. **Scoped to the rx sub-block** so the existing TX gate @7028 is NOT miscounted (the false-PASS a
+  naive "espnow has WifiMesh" grep would hit). Neg-lock: afaab9ab rx-gate=0 → **FAIL** (RX gate absent).
+- **check(15) — BLE lease self-strangle guard** (`~/check15.sh`): two legs, PASS needs BOTH — legA `requested.remove(
+  Transport::Ble)` present near `LeaseSource::OtaSession`@2045 (v8.5 masks BLE; afaab9ab @2039 comment "BLE
+  deliberately left in the requested mask" = legA=0) AND legB no `transport_available(Transport::Ble)` inside the
+  OTA CoC path (serve_coc@4854 / ota_receive_over_coc@8381) — masking BLE while the OTA bearer consults its own
+  mask = self-strangle. Caller-enumeration (supervisor's frame: every Ble consumer non-CoC or exempt). Neg-lock:
+  afaab9ab legA=0 (BLE unmasked) → **FAIL**; legB=0 (0 Ble callers, trivially safe) — FAIL driven by legA.
+- Both FAIL afaab9ab for the RIGHT reason (delta absent). **Positive side PROVISIONAL** (v8.5 identifiers TBD):
+  refine-then-re-lock on the sha — verify PASS, refine to core's real API, re-confirm neg-control FAILs afaab9ab.
+  [[marker-grep-cannot-see-comments]]
+
 ## Next: v8.4 `afaab9ab` — FULL CHAIN VERIFIED (source→ELF→bin→signed stream), flash grant live
 
 **HIVE CROSS-VERIFY OF SIGNED STREAMS = MATCH 4/4 (independent leg).** `~/v84-streams`, payload=stream[188:]:
