@@ -44,11 +44,17 @@ positive bound to core's REAL identifiers (requirement-not-shape). Current suite
   informational) · 18 fault-capture (cause/frame.PC/EXCVADDR/A1) · 19 retained-mem magic-written-LAST · 20
   HANG-CAP decode + reset_reason POST-PHASE-1a (ordering) · 21 capture-region zeroed-after-decode · 22 fault-path
   reset IRAM-safe (no software_reset in handler).
-- **check(23) DESIGNED + neg-locked (v8.7.1 prep, NO build order):** decode-hardening — HANG_CAP RE-PRINTED (~15s)
-  + pre-zero moved AFTER the re-print (handler untouched). Requirement-not-shape: legA HANG_CAP reads ≥2 (a re-print
-  beyond the boot decode) + legB zero-line AFTER the last read (ordering); ~15s timing bound on sha, not gating.
-  Neg-lock: 33219370 reads=1 → FAILs exactly check(23); carries (incl. 21 zero-op, 22 call-free) still PASS. Build
-  order follows once core pushes v8.7.1 + composer's bench report lands.
+- **check(23) BOUND to v8.7.1 `7e774742` (decode-hardening); full rig 23/23 PASS, READY-scored — awaiting #d005.**
+  v8.7.1 = HANG_CAP re-printed ~15s + pre-zero moved after the re-print (handler untouched). check(23): legA
+  `hang_reprint_task` exists + calls `print_hang_cap` (re-print); legB zero ORDERED after the re-print **WITHIN the
+  task** (execution order — the task is defined EARLIER in the file than the boot decode, so a GLOBAL line-order
+  compare false-FAILs; scoped to the task body). 7e774742 PASS; **33219370 FAILs exactly (23)**, carries pass.
+  - **★ check(20) REBOUND (helper-refactor requirement-not-shape catch):** v8.7.1 factored the HANG-CAP decode into
+    `print_hang_cap()` defined EARLY (before PHASE-1a), so my string-literal-line check false-FAILED it. The
+    requirement = decode EMITTED post-1a; rebound to a `print_hang_cap(` CALL post-pa OR a HANG-CAP string post-pa
+    (handles helper + inline). 7e774742 boot call @775 > PHASE-1a@770 → PASS; 33219370 inline @731 > @722 → PASS;
+    afaab9ab (reset_reason pre-1a) still FAILs. Two requirement-not-shape catches this round.
+  - Full 7e774742: preflight(1-11) + check 12–23 ALL PASS. Supervisor's #d005 build order follows this bind.
 
 ## Standing operational constraints
 
