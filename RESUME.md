@@ -128,6 +128,13 @@ carries pass. **★ SATISFIABILITY + DISCRIMINATION PROVEN 3-way** (supervisor's
 check(24) itself): 2249bcf0 (no readback) FAIL · synthetic v8.7.3 both-branches-print → **PASS** · synthetic
 silent-zero (only non-zero prints) → **FAIL** (the affirmative-both leg catches it). Pass-state reachable AND the new
 requirement is itself falsifiable. Positive binds on core's real v8.7.3 sha.
+  - **★ PENDING PRECISE BIND (count-loophole to close on the sha):** the current leg(c) proxy = ≥2 println after the
+    pre-zero. That is a LOOPHOLE — `println!("checking"); if z != 0 { println!(anomaly) }` has 2 prints yet the
+    zero-outcome branch is silent. On core's real sha, bind by reading the actual if/else and confirming the
+    ZERO-OUTCOME branch specifically emits a println (not a function-wide count). Core's diff: zero branch = "HANG-CAP
+    [baseline] post-zero WITNESSED all-zero — next-cycle baseline established"; non-zero = "... NON-ZERO — PRE-ZERO
+    INEFFECTIVE = FINDING ... raw0=/raw1=/raw6=" — use those to VERIFY the zero path prints (requirement, not hardcoded
+    wording). Sha expected shortly (3 COMMENT corrections only, no logic change → binding target stable).
 
 ## The rig (static conformance suite, on alfred; never compiles/runs tests — PASS ≠ green suite)
 
