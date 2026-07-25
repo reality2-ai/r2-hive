@@ -44,6 +44,11 @@ positive bound to core's REAL identifiers (requirement-not-shape). Current suite
   informational) · 18 fault-capture (cause/frame.PC/EXCVADDR/A1) · 19 retained-mem magic-written-LAST · 20
   HANG-CAP decode + reset_reason POST-PHASE-1a (ordering) · 21 capture-region zeroed-after-decode · 22 fault-path
   reset IRAM-safe (no software_reset in handler).
+- **check(23) DESIGNED + neg-locked (v8.7.1 prep, NO build order):** decode-hardening — HANG_CAP RE-PRINTED (~15s)
+  + pre-zero moved AFTER the re-print (handler untouched). Requirement-not-shape: legA HANG_CAP reads ≥2 (a re-print
+  beyond the boot decode) + legB zero-line AFTER the last read (ordering); ~15s timing bound on sha, not gating.
+  Neg-lock: 33219370 reads=1 → FAILs exactly check(23); carries (incl. 21 zero-op, 22 call-free) still PASS. Build
+  order follows once core pushes v8.7.1 + composer's bench report lands.
 
 ## Standing operational constraints
 
