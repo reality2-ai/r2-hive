@@ -112,29 +112,27 @@ Base 30cb3d6d, main.rs only. **#d005 executed, full chain closed:**
   **capture-consistency analysis** on HANG-CAP 3-way outcomes (magic+data=fresh crash / data-no-magic=torn write /
   all-zero=clean boot; decoded exccause/PC/EXCVADDR/SP vs the fault mode).
 
-## PREP: v8.7.3 check(24) — WITNESS the pre-zero baseline (designed + neg-locked + satisfiability-proven, no build)
+## v8.7.3 `513c949db0f9ec0eebbf7d6df3febec39561a13a` — check(24) PRECISE-BOUND + provenance OK; BUILD HELD for ledger
 
-Core writing v8.7.3: a read-back + discriminating print in `hang_reprint_task` AFTER the existing pre-zero — converts
-the post-reprint zero from INFERRED to WITNESSED (an inferred baseline routes every capture to "investigate forever"
-→ the ≥3 PRIMARY bar is unmeetable by construction). **check(24)** (`alfred:~/check24.sh`, dual input sha|file),
-THREE legs (requirement-not-shape): (a) a HANG_CAP read-back + print in the task; (b) ORDERED AFTER the pre-zero write
-(a read BEFORE the zero witnesses nothing, greps identical); (c) DISCRIMINATION + AFFIRMATIVE-IN-BOTH — the code
-distinguishes all-zero vs not (`== [0u32;8]` / `.iter().all` / `.any` / `!= 0` in a conditional) AND **both outcomes
-PRINT, incl. the all-zero case** (a witnessed baseline is a POSITIVE STATEMENT, never inferred silence — silence
-conflates {slot-zero / print-lost / channel-mute} = 3 states, 1 observation, no positive control; also blocks a later
-"optimise the quiet path away" regression). Static proxy: ≥2 println after the pre-zero + the zero-comparison. Leg (c)
-is the instrument-not-decoration guard (a print that always says "all-zero" cannot fail). **Neg-lock: 2249bcf0 FAILS**;
-carries pass. **★ SATISFIABILITY + DISCRIMINATION PROVEN 3-way** (supervisor's matrix-v4 meta-rule, applied to
-check(24) itself): 2249bcf0 (no readback) FAIL · synthetic v8.7.3 both-branches-print → **PASS** · synthetic
-silent-zero (only non-zero prints) → **FAIL** (the affirmative-both leg catches it). Pass-state reachable AND the new
-requirement is itself falsifiable. Positive binds on core's real v8.7.3 sha.
-  - **★ PENDING PRECISE BIND (count-loophole to close on the sha):** the current leg(c) proxy = ≥2 println after the
-    pre-zero. That is a LOOPHOLE — `println!("checking"); if z != 0 { println!(anomaly) }` has 2 prints yet the
-    zero-outcome branch is silent. On core's real sha, bind by reading the actual if/else and confirming the
-    ZERO-OUTCOME branch specifically emits a println (not a function-wide count). Core's diff: zero branch = "HANG-CAP
-    [baseline] post-zero WITNESSED all-zero — next-cycle baseline established"; non-zero = "... NON-ZERO — PRE-ZERO
-    INEFFECTIVE = FINDING ... raw0=/raw1=/raw6=" — use those to VERIFY the zero path prints (requirement, not hardcoded
-    wording). Sha expected shortly (3 COMMENT corrections only, no logic change → binding target stable).
+Real firmware sha (supervisor 2026-07-25, verified with the guard before he named it: touches main.rs + both markers).
+Read-only half DONE; **artifact production held** — 513c949d carries a Decision-Log footer naming a v8.7.3 ruling NOT
+yet in r2-core/DECISIONS.md (a footer pointing at an unwritten record asserts absent durability = worse-than-none).
+Core appending the entry in a follow-up commit; supervisor's #d005 build order comes AFTER that lands and names 513c949d.
+Split (supervisor, deliberate): PROVENANCE + CONFORMANCE now, ARTIFACT after the ledger.
+
+- **Provenance:** `verify-build-target 513c949d platforms/dfr1195/src/main.rs "WITNESSED all-zero" "PRE-ZERO INEFFECTIVE"`
+  → (a) touches main.rs YES; (b) both markers present. **BUILD-TARGET OK.**
+- **check(24) PRECISE-BOUND** (`alfred:~/check24.sh`, dual input sha|file) — FOUR legs, requirement-not-shape:
+  (a) HANG_CAP read-back in `hang_reprint_task`; (b) ORDERED AFTER the pre-zero write (read-before-zero witnesses
+  nothing); (c) a DISCRIMINATION compare of the read-back to all-zero; (d) **PRECISE — the ZERO-OUTCOME branch (TRUE-arm
+  of `if zc==[0u32;8]`) emits its OWN println AND the else/non-zero arm emits** — keyed to the branch, NOT a function-wide
+  println count. This **closes the ≥2-count loophole** (`println!("checking"); if z!=0 {println!(anomaly)}` = 2 prints yet
+  zero-branch silent). A witnessed baseline is a POSITIVE STATEMENT, never inferred silence (silence conflates
+  {slot-zero / print-lost / channel-mute} = 3 states, 1 observation, no positive control).
+- **3-way PROVEN:** 513c949d **PASS** (read-back@task-l29 after pre-zero@l8, `if zc==[0u32;8]`@l30 zero-arm prints,
+  else non-zero-arm prints) · **2249bcf0 FAIL clean** (neg-lock, no read-back after pre-zero; its v8.7.2 carries untouched
+  — check(24) additive) · **silent-zero loophole probe FAIL** (read-back + else-print present, zero-arm SILENT →
+  zero-arm-prints=0; the exact count-loophole rejects). Pass-state reachable AND the requirement itself falsifiable.
 
 ## The rig (static conformance suite, on alfred; never compiles/runs tests — PASS ≠ green suite)
 
