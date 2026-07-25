@@ -24,8 +24,9 @@ Base 30cb3d6d, main.rs only. **#d005 executed, full chain closed:**
 - **Bins (RULING-A, 3-way CLOSED core==hive byte-exact):** d5-otarx-v87.bin
   `c65a90b034da027cdef8ed536c01fcdb201fd833891725e90f7855f6160d2792` (878016 B) / d5-otafail-v87.bin
   `4efe08f1594271fd6ce62853db448e00181c8f4b56b3d32a16af1b2b59eb70a4` (876496 B). DISTINCT, 0xE9, e0e49127.
-- **Authorization VERIFIED both lanes** (grant READ first, espflash LITERAL in gated command text, USED entry read:
-  hive 11:42:16 / core 11:46:56, one per command). Attest: sole strong `__user_exception`, HANG-CAP 3-way (1/1/1),
+- **Authorization VERIFIED both lanes** (grant READ first, espflash LITERAL in gated command text, one USED entry
+  per command per lane, read from the .fleet log — not inferred). Attest: sole strong `__user_exception`, HANG-CAP
+  3-way (1/1/1),
   reset_reason, set_wake_window, RWDT=3, role Sensor, otafail DISTINCT. Rig 22/22 bound-PASS.
 - **NEXT:** flash grant (separate, after 3-way — now due) → instrumentation dial for PRIMARY fault#1 → then hive
   **capture-consistency analysis** on HANG-CAP 3-way outcomes (magic+data=fresh crash / data-no-magic=torn write /

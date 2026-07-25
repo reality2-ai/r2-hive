@@ -6676,10 +6676,10 @@ rulings:**
   text (prefixes R2_OTA_TARGET=OFFLINE-NO-DEVICE R2_OTA_ARTIFACT=d5-ota-v87), ELF pre-hash==pin first:
   d5-otarx-v87.bin `c65a90b034da027cdef8ed536c01fcdb201fd833891725e90f7855f6160d2792` (878016 B, 0xE9) ·
   d5-otafail-v87.bin `4efe08f1594271fd6ce62853db448e00181c8f4b56b3d32a16af1b2b59eb70a4` (876496 B, 0xE9). DISTINCT.
-  **Gate fired + approved + LOGGED** — USED entry `11:42:16 artifact=-v87 target=OFFLINE-NO-DEVICE sha256=0400a6d7`
+  **Gate fired + approved + LOGGED** — USED entry `artifact=-v87 target=OFFLINE-NO-DEVICE sha256=0400a6d7`
   (one per command, verified by READING the log, not inferred). The v86-requalified discipline applied first-time.
 - **3-WAY CLOSED (core==hive byte-exact).** Core's derive == c65a90b0/4efe08f1 (compliant: espflash literal,
-  OFFLINE-NO-DEVICE, pre-hash==pin, USED entry read 11:46:56; mine 11:42:16 — one per command). ELF 2-party attest
+  OFFLINE-NO-DEVICE, pre-hash==pin, USED entry read per command, both lanes). ELF 2-party attest
   GREEN (call-free proven on metal by both lanes, objdump cell-for-cell). Grant-read-first discipline now both lanes.
 - **Next:** flash grant (separate) → instrumentation dial for PRIMARY fault#1 (now preserved by the call-free
   handler). Then hive capture-consistency analysis on the HANG-CAP 3-way outcomes.
