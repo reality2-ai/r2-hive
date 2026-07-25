@@ -10,10 +10,30 @@ core-pinned sha → run the static conformance rig → attest → extract signed
 sub-goal: **v8.7 hang instrumentation** — capture the PRIMARY double-fault (`__user_exception` → HANG_CAP retained
 mem → boot-decode), the ~4min double-fault hang being the true blocker (pre-empts every OTA window).
 
-## CURRENT: v8.7.1 `7e774742f24680d9e5e7a8b8c6a27f73e6cb43d8` — BUILT + attested + bins; rig 23/23. #d005 EXECUTED
+## CURRENT: awaiting v8.7.2 sha — v8.7.1 flash REVOKED (spin tail WEDGES), #d005 stands
+
+**★ CORRECTION (supervisor, JTAG-proven):** the v8.7 call-free spin tail (`j <self>`) that I attested "the fix"
+actually PRODUCES A SILENT LOOKS-ALIVE WEDGE — cpu1 parks on the handler's own j-self, cpu0 keeps feeding RWDT, so
+NO reset ever fires, zero decode prints, RX dead. **v8.7.1 FLASH grant REVOKED unexecuted** (same spin tail). My
+attest was byte-accurate (handler IS call-free, ends j<self>) but the MECHANISM claim was wrong: call-free-via-spin
+is NOT recovery. check(22) asserted "no flash software_reset in handler" — correct-but-INSUFFICIENT: it blocked the
+flash re-fault but the spin replacement wedges. Runtime/JTAG caught what static structure could not.
+[[identity-verified-is-not-function-verified]] [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]
+- **v8.7.2 = 7e774742 + handler tail IRAM-safe RTC_CNTL SW-reset** (a direct RTC-register reset — IRAM-safe, actually
+  RESETS; not a flash `software_reset()` call, not an infinite spin). Core implementing; **rig delta + build order come
+  on its sha** (a check(22') = handler ends in an IRAM-safe RESET, not a spin, is likely owed). **#d005 stands — no
+  build until supervisor names the v8.7.2 sha.**
+- **v8.7.1 bin 3-way CLOSED** (6e2e1358/57d117dd == composer + supervisor cross-read) — nothing waits on it; the ELFs
+  are just superseded.
+- **Capture-consistency analyzer HARDENED + neg-controlled** (`alfred:~/hangcap-analyze.py`): (1) LOST-pc bucket — a
+  boot-XOR-reprint cycle (one print eaten) is UNCORROBORATED, never counted as agreement; (2) 'N corroborated cycles
+  agree' (family, strong) distinguished from '1 pc + its frames' (single, NOT a family). Neg-controls pass: 2 distinct
+  pcs → SCATTERED; 1-capture → no consistent family. Runs on composer's v8.7.2 dial log.
+
+## Superseded build: v8.7.1 `7e774742` — BUILT + attested + bins (flash revoked; spin-tail wedge)
 
 Base 33219370, main.rs only. Decode-hardening: `hang_reprint_task` re-prints HANG_CAP ~15s after boot + pre-zero
-moved into the task AFTER the re-print (host-reopen-race fix); handler UNTOUCHED (call-free, same addr 40378c44).
+moved into the task AFTER the re-print (host-reopen-race fix); handler was call-free spin (WEDGES — see correction).
 - Clean detached checkout, tree empty, `rm -rf target`. **ELFs** (BUILD_ID `coex.v871.0725`): d5-otarx-v871
   `51fbe9aed3ff545cff4e1a6b6e033c4db43e89639bf7672b692274e861735345` / d5-otafail-v871
   `33faa286d1940871aee3320124aae450e06b8a315e1d9fa08bf78fdced8f40e1`. Attest: v87 leftover=0, __user_exception sole
