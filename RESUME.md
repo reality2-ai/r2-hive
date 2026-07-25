@@ -1,7 +1,8 @@
 # RESUME — r2-hive
 
 Updated 2026-07-25. `main` clean + pushed (ahead=0). **Compacted to current-only; full v4→v8.7 cycle history in
-`RESUME-archive.md`.** No build order active (#d005 stands). Firmware = r2-core branch `dfr1195-fw-blerole-coex`.
+`RESUME-archive.md`.** **v8.7.3 BUILT** (#d005 order 513c949db0f9, ledger D-20260725-01 verified) — awaiting core attest
+→ derive grant → bins. Firmware = r2-core branch `dfr1195-fw-blerole-coex`.
 
 ## Objective
 
@@ -112,14 +113,22 @@ Base 30cb3d6d, main.rs only. **#d005 executed, full chain closed:**
   **capture-consistency analysis** on HANG-CAP 3-way outcomes (magic+data=fresh crash / data-no-magic=torn write /
   all-zero=clean boot; decoded exccause/PC/EXCVADDR/SP vs the fault mode).
 
-## v8.7.3 `513c949db0f9ec0eebbf7d6df3febec39561a13a` — check(24) PRECISE-BOUND + provenance OK; BUILD HELD for ledger
+## CURRENT: v8.7.3 `513c949db0f9ec0eebbf7d6df3febec39561a13a` — BUILT; rig check(24) PASS. Awaiting core attest → derive grant → bins
 
-Real firmware sha (supervisor 2026-07-25, verified with the guard before he named it: touches main.rs + both markers).
-Read-only half DONE; **artifact production held** — 513c949d carries a Decision-Log footer naming a v8.7.3 ruling NOT
-yet in r2-core/DECISIONS.md (a footer pointing at an unwritten record asserts absent durability = worse-than-none).
-Core appending the entry in a follow-up commit; supervisor's #d005 build order comes AFTER that lands and names 513c949d.
-Split (supervisor, deliberate): PROVENANCE + CONFORMANCE now, ARTIFACT after the ledger.
+Real firmware sha, #d005 build order (supervisor 2026-07-25). Ledger precondition SATISFIED: r2-core/DECISIONS.md
+D-20260725-01 at d970693c (follow-up commit, DECISIONS.md only, references 513c949d) — supervisor-verified. Sha authority
+= MY ls-remote (`513c949db0f9…a13a` 40ch WITH the `b`, == branch tip; core mis-reported it once as 39ch missing the b —
+used my own output not the transcription). Base 2249bcf0 (SW_SYS_RST tail); v8.7.3 adds the WITNESS pre-zero read-back.
+- **Preflight all green:** HEAD==pinned, `git status` clean=[], WORKTREE main.rs carries both markers (not just `git show`),
+  gitdir=real, `rm -rf target` per build.
+- **ELFs** (BUILD_ID `coex.v873.0725`, FEAT otarx=`bridge,ble,benchsf7,baked_persona,fakesensor,benchkeepalive,otal2cap`;
+  otafail adds `otafail`; DFR_WAVE=cos step0.25, d5-persona):
+  d5-otarx-v873 `52af3bfe09f2ff6e3b69dfd4cecea7cc34239c000dd845d01eb9093636bbb7ab` (1388708 B) /
+  d5-otafail-v873 `7d5d67387d3a6a9a036c8e30ec45feb1c4774e7080318b71eb95528eb69c1d84` (1387560 B). role const both RPF1,1,2,0.
+- **Next:** core attest on the ELF pins → supervisor derive grant → extract bins (grant read first, espflash LITERAL in
+  gated command text, pre-hash==pin, USED-logged) → 3-way → flash → dial. **NO bins extracted yet** (await grant).
 
+### provenance + conformance (accepted in full by supervisor)
 - **Provenance:** `verify-build-target 513c949d platforms/dfr1195/src/main.rs "WITNESSED all-zero" "PRE-ZERO INEFFECTIVE"`
   → (a) touches main.rs YES; (b) both markers present. **BUILD-TARGET OK.**
 - **check(24) PRECISE-BOUND** (`alfred:~/check24.sh`, dual input sha|file) — FOUR legs, requirement-not-shape:
