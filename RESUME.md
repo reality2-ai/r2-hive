@@ -10,7 +10,26 @@ core-pinned sha → run the static conformance rig → attest → extract signed
 sub-goal: **v8.7 hang instrumentation** — capture the PRIMARY double-fault (`__user_exception` → HANG_CAP retained
 mem → boot-decode), the ~4min double-fault hang being the true blocker (pre-empts every OTA window).
 
-## CURRENT: v8.7.1 ON METAL (deliberate wedge reproducer); v8.7.2 rig prepped; #d005 stands
+## CURRENT: v8.7.2 `2249bcf0e5ebdaa3e00bcbf298ded383f6bd220b` — BUILT + attested (reset REACHED, metal-proven); rig 24/24. #d005 EXECUTED, bins pending grant
+
+Base 7e774742, main.rs only. Fix = handler tail spin → **SW_SYS_RST reset** (RMW of RTC_CNTL_OPTIONS0 bit31 @0x60008000
+→ digital-core SYSTEM reset CoreSw=0x03, RTC preserved so HANG_CAP survives, any-core recovers = fixes the silent
+wedge). Source FROZEN at 2249bcf0 (comment-wording fix deferred; tip verified unmoved). Clean detached checkout,
+tree empty, `rm -rf target`.
+- **ELFs** (BUILD_ID `coex.v872.0725`): d5-otarx-v872 `d2b44d9d69ac52e95f3b2b04b61ae8be871e4e974b90a5bc5457733aa0fc061f`
+  / d5-otafail-v872 `831e32820940d17971e11123d0c7256d8746d74e1d14cf24610de9b4fb25d867`. v871 leftover=0, otafail DISTINCT.
+- **★ RESET REACHED — proven on METAL** (objdump handler 0x40378c48..0x40378c9c, cell-for-cell): 0 windowed calls
+  (call-free), then `l32r ← 0x60008000` → read → `or 0x80000000` (bit31) → `s32i` write-back = the SW_SYS_RST RMW,
+  then `j <self>` fallback AFTER. The reset write executes BEFORE the spin — the v8.7.1 wedge is FIXED (this is the
+  presence check(22) missed; check(22') now asserts it). check(22') source: reset-write@494 before spin@498.
+- **Rig 24/24 bound-PASS** (preflight 1-11 + check 12-23 + check22'). **check(22') neg-lock:** 30cb3d6d (flash-call)
+  + 33219370 + 7e774742 (spin) ALL FAIL; carries pass. Requirement-not-shape (reset-domain write REACHED before the
+  fallback spin; RTC_CNTL bit31 not hardcoded).
+- **BINS PENDING** — supervisor issues the derive grant on this ELF-pin report; then extract per RULING-A (grant READ
+  first, espflash LITERAL in gated command text, e0e49127 explicit) → 3-way → v8.7.2 FLASH grant → dial for CLEAN
+  captures + CoreSw-reset recovery. **Capture-consistency analyzer staged** for the dial log.
+
+## Prior: v8.7.1 `7e774742` ON METAL (deliberate wedge reproducer, spin tail)
 
 **v8.7.1 IS ON METAL** (composer flashed ~13:29 under a still-live grant; supervisor's revoke arrived after = his
 race, no fault). Board runs `coex.v871.0725` now, kept there DELIBERATELY as a **wedge reproducer** — the same spin
