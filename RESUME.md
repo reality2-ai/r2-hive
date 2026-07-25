@@ -10,24 +10,33 @@ core-pinned sha → run the static conformance rig → attest → extract signed
 sub-goal: **v8.7 hang instrumentation** — capture the PRIMARY double-fault (`__user_exception` → HANG_CAP retained
 mem → boot-decode), the ~4min double-fault hang being the true blocker (pre-empts every OTA window).
 
-## CURRENT: v8.7.2 `2249bcf0e5ebdaa3e00bcbf298ded383f6bd220b` — BUILT + attested (reset REACHED, metal-proven); rig 24/24. #d005 EXECUTED, bins pending grant
+## CURRENT: v8.7.2 `2249bcf0e5ebdaa3e00bcbf298ded383f6bd220b` — BUILT + attested + bins; rig 24/24. Awaiting 3-way → flash
 
-Base 7e774742, main.rs only. Fix = handler tail spin → **SW_SYS_RST reset** (RMW of RTC_CNTL_OPTIONS0 bit31 @0x60008000
-→ digital-core SYSTEM reset CoreSw=0x03, RTC preserved so HANG_CAP survives, any-core recovers = fixes the silent
-wedge). Source FROZEN at 2249bcf0 (comment-wording fix deferred; tip verified unmoved). Clean detached checkout,
-tree empty, `rm -rf target`.
+Base 7e774742, main.rs only. Fix = handler tail spin → SW_SYS_RST write (RMW of RTC_CNTL_OPTIONS0 bit31 @0x60008000;
+intended digital-core SYSTEM reset CoreSw=0x03, RTC preserved so HANG_CAP survives). Source FROZEN at 2249bcf0
+(comment-wording fix deferred; tip verified unmoved). Clean detached checkout, tree empty, `rm -rf target`.
 - **ELFs** (BUILD_ID `coex.v872.0725`): d5-otarx-v872 `d2b44d9d69ac52e95f3b2b04b61ae8be871e4e974b90a5bc5457733aa0fc061f`
   / d5-otafail-v872 `831e32820940d17971e11123d0c7256d8746d74e1d14cf24610de9b4fb25d867`. v871 leftover=0, otafail DISTINCT.
-- **★ RESET REACHED — proven on METAL** (objdump handler 0x40378c48..0x40378c9c, cell-for-cell): 0 windowed calls
-  (call-free), then `l32r ← 0x60008000` → read → `or 0x80000000` (bit31) → `s32i` write-back = the SW_SYS_RST RMW,
-  then `j <self>` fallback AFTER. The reset write executes BEFORE the spin — the v8.7.1 wedge is FIXED (this is the
-  presence check(22) missed; check(22') now asserts it). check(22') source: reset-write@494 before spin@498.
-- **Rig 24/24 bound-PASS** (preflight 1-11 + check 12-23 + check22'). **check(22') neg-lock:** 30cb3d6d (flash-call)
-  + 33219370 + 7e774742 (spin) ALL FAIL; carries pass. Requirement-not-shape (reset-domain write REACHED before the
-  fallback spin; RTC_CNTL bit31 not hardcoded).
-- **BINS PENDING** — supervisor issues the derive grant on this ELF-pin report; then extract per RULING-A (grant READ
-  first, espflash LITERAL in gated command text, e0e49127 explicit) → 3-way → v8.7.2 FLASH grant → dial for CLEAN
-  captures + CoreSw-reset recovery. **Capture-consistency analyzer staged** for the dial log.
+- **★ STATIC REACHABILITY + ORDERING (NOT "reset reached" — label corrected, over-claim OWNED).** objdump handler
+  0x40378c48..0x40378c9c: 0 windowed calls, then `l32r ← 0x60008000` → read → `or 0x80000000`(bit31) → `s32i`
+  write-back (SW_SYS_RST RMW), THEN `j <self>` fallback. This proves the reset write **precedes the fallback spin on
+  the STATIC PATH** in the artifact — it does NOT prove fault-context execution reaches the write, nor that the
+  hardware honours it, nor that the board recovers. "RESET REACHED" / "wedge FIXED" is RESERVED for a
+  temporally-correlated CoreSw reset + a FRESH capture AFTER the v8.7.2 flash. **check(22') is a static instrument** —
+  its PASS = "the write is on the path before the spin", not "the board recovers." (Same class as my check(22) over-
+  claim: byte-accurate, runtime-blind — [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]].) source: write@494 < spin@498.
+- **Rig 24/24 bound-PASS** (preflight 1-11 + check 12-23 + check22'). check(22') neg-lock: 30cb3d6d (flash-call) +
+  33219370 + 7e774742 (spin) ALL FAIL; carries pass. Requirement-not-shape (reset-domain write reached-before-spin;
+  bit31 not hardcoded).
+- **BINS DERIVED** (v872 grant read first, espflash LITERAL in gated command text, pre-hash==pin, USED-logged):
+  d5-otarx-v872.bin `af2f428a49e154ddea25287e5328e666c6468112113ba0ac97aaaa6a4ca7204c` (878448 B, 0xE9) /
+  d5-otafail-v872.bin `44c3ae8cb104b0cb10686b9022a433c395f218ffc57f18815815e7449c5aec30` (876944 B, 0xE9). DISTINCT, e0e49127.
+- **Next:** composer independent extract + core attest → byte-3-way (== af2f428a/44c3ae8c) → v8.7.2 FLASH grant →
+  dial. **⚠ acceptance matrix NOT YET RATIFIED** (supervisor): core's (a)-(d) omits CpuSw/power-on/brownout/external/
+  panic + non-CoreSw reboots with decoded-or-empty capture; CoreSw alone isn't exclusive proof of this tail if another
+  SW_SYS_RST caller exists — an UNEXPECTED-RESET branch + fresh-capture temporal correlation owed before the flash
+  grant. **Capture-consistency analyzer staged** (add a reset-recovery leg = CoreSw + fresh capture + UNEXPECTED-RESET
+  bucket when the matrix ratifies).
 
 ## Prior: v8.7.1 `7e774742` ON METAL (deliberate wedge reproducer, spin tail)
 
