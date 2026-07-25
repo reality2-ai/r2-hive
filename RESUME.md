@@ -1,8 +1,8 @@
 # RESUME — r2-hive
 
 Updated 2026-07-25. `main` clean + pushed (ahead=0). **Compacted to current-only; full v4→v8.7 cycle history in
-`RESUME-archive.md`.** **v8.7.3 BUILT** (#d005 order 513c949db0f9, ledger D-20260725-01 verified) — awaiting core attest
-→ derive grant → bins. Firmware = r2-core branch `dfr1195-fw-blerole-coex`.
+`RESUME-archive.md`.** **v8.7.3 BINS DERIVED + clean-custody** (#d005 order 513c949db0f9, ledger D-20260725-01) — core attest GREEN, blind
+3-way == composer byte-for-byte, USED-logged. Awaiting FLASH grant. Firmware = r2-core branch `dfr1195-fw-blerole-coex`.
 
 ## Objective
 
@@ -113,7 +113,7 @@ Base 30cb3d6d, main.rs only. **#d005 executed, full chain closed:**
   **capture-consistency analysis** on HANG-CAP 3-way outcomes (magic+data=fresh crash / data-no-magic=torn write /
   all-zero=clean boot; decoded exccause/PC/EXCVADDR/SP vs the fault mode).
 
-## CURRENT: v8.7.3 `513c949db0f9ec0eebbf7d6df3febec39561a13a` — BUILT; rig check(24) PASS. Awaiting core attest → derive grant → bins
+## CURRENT: v8.7.3 `513c949db0f9ec0eebbf7d6df3febec39561a13a` — BINS DERIVED + clean-custody; blind 3-way == composer. Awaiting FLASH grant
 
 Real firmware sha, #d005 build order (supervisor 2026-07-25). Ledger precondition SATISFIED: r2-core/DECISIONS.md
 D-20260725-01 at d970693c (follow-up commit, DECISIONS.md only, references 513c949d) — supervisor-verified. Sha authority
@@ -125,8 +125,21 @@ used my own output not the transcription). Base 2249bcf0 (SW_SYS_RST tail); v8.7
   otafail adds `otafail`; DFR_WAVE=cos step0.25, d5-persona):
   d5-otarx-v873 `52af3bfe09f2ff6e3b69dfd4cecea7cc34239c000dd845d01eb9093636bbb7ab` (1388708 B) /
   d5-otafail-v873 `7d5d67387d3a6a9a036c8e30ec45feb1c4774e7080318b71eb95528eb69c1d84` (1387560 B). role const both RPF1,1,2,0.
-- **Next:** core attest on the ELF pins → supervisor derive grant → extract bins (grant read first, espflash LITERAL in
-  gated command text, pre-hash==pin, USED-logged) → 3-way → flash → dial. **NO bins extracted yet** (await grant).
+- **BINS DERIVED + CLEAN-CUSTODY** (grant `d5-ota-v873` READ first, `env`-prefixed espflash LITERAL in gated command
+  text so the gate SEES it, pre-hash==pins, partition e0e49127/39rows, TWO USED lines written):
+  d5-otarx-v873.bin `adc6cc186eb52d5e423dd9af430e836fb9bdad6b3bceeb1690e46d2a9a6cbd68` (878864 B, 0xE9) /
+  d5-otafail-v873.bin `8a1ee68ee6cf31928717f6aa02b0f9a72a295f630300c309457bdb27d84d1584` (877440 B, 0xE9). DISTINCT.
+  - **★ FIRST genuinely BLIND 3-way of the campaign:** hive == composer BYTE-FOR-BYTE on both bins, two hosts / two
+    toolchains / one pinned input, NEITHER saw the other's numbers (supervisor withheld both directions). Anchored by
+    core ELF-attest GREEN (independent build d4e6cd66 reproduces markers; zero-branch-emits confirmed from artifact).
+  - **★ GATE-BYPASS caught + fixed (audit-integrity):** the first extract carried a BARE `R2_OTA_TARGET=… espflash`
+    prefix — auto-approve.sh:554 parsed base from the assignment, never saw espflash, never gated, wrote NO USED. The
+    ABSENT USED line was the tell (I held custody, refused to assert the cause, escalated). Root cause = the first-token
+    parser (supervisor confirmed at the hook); a bare `VAR=value` isn't in the wrapper list so the unwrap never fired.
+    FIX = `env` prefix (env IS a wrapper → re-classifies → gates → USED written). Bins byte-identical on re-run
+    (idempotent). See [[espflash-gate-bypassed-by-file-and-remote-exec]] third variant.
+- **Next:** supervisor v8.7.3 FLASH grant (--after no-reset, attach logger, RTS-EN boot) → dial. Finish-post = first
+  WITNESSED all-zero `[baseline]` line (converts the family HINT from unscorable to scorable).
 
 ### provenance + conformance (accepted in full by supervisor)
 - **Provenance:** `verify-build-target 513c949d platforms/dfr1195/src/main.rs "WITNESSED all-zero" "PRE-ZERO INEFFECTIVE"`
