@@ -8,12 +8,14 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 ## ‼ READ FIRST — device + authorization state (ledger wins any conflict below)
 
 - **DEVICE (D5 / DFR1195 ESP32-S3):** runs **v8.7.3 at `513c949db0f9ec0eebbf7d6df3febec39561a13a`** — flashed and verified.
-- **VERDICT:** the double-fault family verdict is **RULED AND RATIFIED**. The OTA-coex hang campaign is **CLOSED**.
-- **AUTHORIZATION: NOTHING IS AUTHORIZED. The grant is RETIRED. NO device operations** (no flash, no serial open, no
-  derive, no reset, no JTAG). **There is NO pending flash and NO owed 3-way.** Do not act on any stale "awaiting flash /
-  awaiting 3-way / on metal" language — none exists.
-- **HIVE POSTURE:** v8.7.3 legs **COMPLETE — STOOD DOWN** under #d005. Record-and-report only. Re-engage ONLY on an
-  explicit supervisor order; do not poll, do not assign peer legs ([[fleet-posture-authority]]).
+  The OTA-coex hang campaign is **CLOSED** (double-fault family verdict RULED AND RATIFIED).
+- **g18 (NEW, 2026-07-26):** D4 + X1 fault-forensics **rebuild at `8530327309b82fdc0707063b72a8c00c0166a9c6`** — BUILT +
+  attested, **both variants ELIGIBLE=YES**. See the g18 build record below.
+- **AUTHORIZATION: NO device operations are authorized** (no flash, no serial open, no derive, no reset, no JTAG). The
+  v8.7.3 grant is RETIRED; the g18 order is **build-and-attest ONLY** — the flash grant is a SEPARATE supervisor
+  decision not yet made. **No pending flash, no owed 3-way.** Ignore any stale "awaiting flash / on metal" language.
+- **HIVE POSTURE:** g18 build+attest legs **COMPLETE**. Record-and-report only. Re-engage ONLY on an explicit
+  supervisor order; do not poll, do not assign peer legs ([[fleet-posture-authority]]).
 - **#d003 RAK FREEZE STANDS:** no RAK stage or release without BOTH an explicit sha order AND Roy lifting the freeze.
 - **#d005 BUILD GATE BINDS:** no flashable-artifact build without (1) inbox drained (check supersedes/retractions),
   (2) an explicit CURRENT supervisor order naming the pinned sha, (3) a clean detached checkout of that sha with tree
@@ -26,6 +28,36 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
   windowed call from the handler = total fault blindness + the v8.6 re-fault loop. **They are DO-NOT-FLASH.**
 
 ---
+
+## g18 build record — D4 + X1 fault forensics rebuild `8530327309b8…a9c6` (BUILT + attested; NO FLASH)
+
+Explicit #d005 order (supervisor, Roy-ruled, 2026-07-26). A REBUILD, not a port: xiaobridge and fakesensor are FEATURE
+VARIANTS of the one platforms/dfr1195, not separate platforms. The ~40 staged XIAO/sensor siblings were STALE (built
+before the instrument landed); a rebuild carries the full HANG_CAP/`__user_exception`/reprint instrument (unconditional
+in main.rs, `esp-hal default-features=false` platform-wide so the strong handler symbol wins). ledger: g18 (Roy).
+
+- **Provenance:** ls-remote authority == pinned tip; `verify-build-target 85303273 main.rs HANG_CAP __user_exception
+  hang_reprint_task` → touches main.rs + all present → OK. (85303273 is comment-only touching main.rs — the RTS-EN
+  premise fix — but NOT a docs-sha trap: the instrument IS in the tree, unlike 514c31a4 where the ordered markers were
+  absent.) Preflight: HEAD==pinned, tree clean, worktree-instrument present, `rm -rf target` per build.
+- **Features** (Cargo.toml:273 canonical pairing, both carry benchsf7 — mixed-SF can't demodulate; baked_persona OFF):
+  **D4 = `fakesensor,benchsf7`** · **X1 = `xiaobridge,benchsf7`**. BUILD_ID `g18.0726`.
+- **ELFs:** d4-fakesensor-g18 `30ffcdfdcd7a6ac11bc00b4ced0564af28ef6381f7ad85a9516062d50224870f` (1383864 B) /
+  x1-xiaobridge-g18 `cee2f004fd6f51f9ef839461ecd3b456b8ecee0b96640930a54b218e7158d983` (1153904 B).
+- **★ TWO-LEG ELIGIBILITY — both ELIGIBLE=YES** (`alfred:~/eligibility-g18.sh`, in order, on the EXACT artifact via
+  toolchain nm/objdump): **LEG1** HANG_CAP static present (both @0x600fe000); **LEG2** `__user_exception` call-free
+  within its true `nm -S` extent (D4 @0x40378c48 size 0x52, X1 @0x40378bd0 size 0x52 — 0 windowed calls, 0
+  software_reset each). Positive control: D5 v8.7.3 → ELIGIBLE=YES. Neg-control: stale siblings xiao-acc8 + d4-init8 →
+  LEG1 FAIL (no instrument) — the check discriminates real presence from real absence.
+- **★ INSTRUMENT-BUG SELF-CATCH:** my first eligibility run false-FAILED LEG1 (`<none>`) — the Rust static is MANGLED
+  (`_R…8HANG_CAP`) so `grep -w` missed it + host-nm fallback. I did NOT report absence; positive-controlled against the
+  known-good D5 ELF (it ALSO showed `<none>` under the broken check ⇒ instrument bug, not artifact), fixed to toolchain
+  nm + case-sensitive `HANG_CAP`. A false-absent is the worst misreport (presence-before-quality).
+  [[positive-control-the-tree-not-just-the-tool]] [[never-conclude-from-a-null]]
+- **Does NOT carry g15:** the dataplane join-carriage (core `259ea8e5`) is on branch r2-core-consolidation; 85303273
+  does not contain it. Intentional (g18 = fault forensics, not the join relay). Do not reason "rebuilt after g15 ⇒
+  siblings have it" — they will not.
+- **NO FLASH taken/authorized** — build+attest only; the flash grant is a separate supervisor decision.
 
 ## Campaign result — v8.7.3 `513c949db0f9…a13a` (CLOSED, on metal)
 
