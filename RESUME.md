@@ -1,8 +1,9 @@
 # RESUME — r2-hive
 
 Updated 2026-07-25. `main` clean + pushed (ahead=0). **Compacted to current-only; full v4→v8.7 cycle history in
-`RESUME-archive.md`.** **v8.7.3 BINS DERIVED + clean-custody** (#d005 order 513c949db0f9, ledger D-20260725-01) — core attest GREEN, blind
-3-way == composer byte-for-byte, USED-logged. Awaiting FLASH grant. Firmware = r2-core branch `dfr1195-fw-blerole-coex`.
+`RESUME-archive.md`.** **v8.7.3 BINS DERIVED + clean-custody, hive legs COMPLETE — STOOD DOWN** (#d005 order 513c949db0f9, ledger
+D-20260725-01). core attest GREEN, blind 3-way == composer byte-for-byte, USED-logged. FLASH grant → composer (sole
+serial opener); next event = board dial. Firmware = r2-core branch `dfr1195-fw-blerole-coex`.
 
 ## Objective
 
@@ -138,8 +139,10 @@ used my own output not the transcription). Base 2249bcf0 (SW_SYS_RST tail); v8.7
     parser (supervisor confirmed at the hook); a bare `VAR=value` isn't in the wrapper list so the unwrap never fired.
     FIX = `env` prefix (env IS a wrapper → re-classifies → gates → USED written). Bins byte-identical on re-run
     (idempotent). See [[espflash-gate-bypassed-by-file-and-remote-exec]] third variant.
-- **Next:** supervisor v8.7.3 FLASH grant (--after no-reset, attach logger, RTS-EN boot) → dial. Finish-post = first
-  WITNESSED all-zero `[baseline]` line (converts the family HINT from unscorable to scorable).
+- **Next (NOT hive):** v8.7.3 FLASH grant issued to COMPOSER (sole serial opener) — hive legs COMPLETE, STOOD DOWN.
+  Composer flashes (--after no-reset, attach logger, RTS-EN boot) + dials. Finish-post = first WITNESSED all-zero
+  `[baseline]` line (converts the family HINT from unscorable to scorable), then Roy takes stock. Hive re-engages ONLY
+  if composer needs a rebuild/re-derive (supervisor will come to me) — I do NOT poll or assign.
 
 ### provenance + conformance (accepted in full by supervisor)
 - **Provenance:** `verify-build-target 513c949d platforms/dfr1195/src/main.rs "WITNESSED all-zero" "PRE-ZERO INEFFECTIVE"`
