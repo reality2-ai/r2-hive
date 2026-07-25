@@ -10,7 +10,25 @@ core-pinned sha → run the static conformance rig → attest → extract signed
 sub-goal: **v8.7 hang instrumentation** — capture the PRIMARY double-fault (`__user_exception` → HANG_CAP retained
 mem → boot-decode), the ~4min double-fault hang being the true blocker (pre-empts every OTA window).
 
-## CURRENT: v8.7 `33219370105775e7e80e10e14b7ea6d84b055d65` — 3-WAY CLOSED, awaiting flash grant + dial
+## CURRENT: v8.7.1 `7e774742f24680d9e5e7a8b8c6a27f73e6cb43d8` — BUILT + attested + bins; rig 23/23. #d005 EXECUTED
+
+Base 33219370, main.rs only. Decode-hardening: `hang_reprint_task` re-prints HANG_CAP ~15s after boot + pre-zero
+moved into the task AFTER the re-print (host-reopen-race fix); handler UNTOUCHED (call-free, same addr 40378c44).
+- Clean detached checkout, tree empty, `rm -rf target`. **ELFs** (BUILD_ID `coex.v871.0725`): d5-otarx-v871
+  `51fbe9aed3ff545cff4e1a6b6e033c4db43e89639bf7672b692274e861735345` / d5-otafail-v871
+  `33faa286d1940871aee3320124aae450e06b8a315e1d9fa08bf78fdced8f40e1`. Attest: v87 leftover=0, __user_exception sole
+  strong @40378c44 (handler unchanged), reprint+15s markers + HANG-CAP 3-way + reset_reason + set_wake_window + RWDT,
+  otafail DISTINCT. **Rig 23/23 bound-PASS** (check23 task-scoped ordering; check20 helper-refactor rebind; 33219370
+  FAILs exactly 23).
+- **Bins (RULING-A, compliant + authorization VERIFIED via USED log):** d5-otarx-v871.bin
+  `6e2e1358d2448454f521810758047e5c8c69e7facd99f06390e6fd16d47e827e` (878416 B) / d5-otafail-v871.bin
+  `57d117dd53dbbf96f16d2931ca087cf1c33f915dbb05b4487096b6e9fe043c9e` (876912 B). DISTINCT, 0xE9, e0e49127. Grant read
+  first (artifact=d5-ota-v871 target=offline-derive-no-device), espflash LITERAL in gated command text, one USED
+  entry per command.
+- **Next:** core + composer derive from these pinned ELFs → byte-3-way (expect == 6e2e1358/57d117dd) → v8.7.1 FLASH
+  grant (supervisor writes it after 3-way) → re-dial for CLEAN captures → capture-consistency/family verdict.
+
+## Prior: v8.7 `33219370` — 3-WAY CLOSED (call-free handler fix); superseded by v8.7.1 decode-hardening
 
 Base 30cb3d6d, main.rs only. **#d005 executed, full chain closed:**
 - **ELFs:** d5-otarx-v87 `0400a6d7cf251d6ea6b777801cb8e46dc78ff7057aaaf72392a01f643bd12607` (otal2cap,cos) /
