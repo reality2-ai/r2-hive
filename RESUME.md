@@ -140,7 +140,9 @@ used my own output not the transcription). Base 2249bcf0 (SW_SYS_RST tail); v8.7
     FIX = `env` prefix (env IS a wrapper → re-classifies → gates → USED written). Bins byte-identical on re-run
     (idempotent). See [[espflash-gate-bypassed-by-file-and-remote-exec]] third variant.
 - **Next (NOT hive):** v8.7.3 FLASH grant issued to COMPOSER (sole serial opener) — hive legs COMPLETE, STOOD DOWN.
-  Composer flashes (--after no-reset, attach logger, RTS-EN boot) + dials. Finish-post = first WITNESSED all-zero
+  Composer flashes (--after no-reset, attach logger, RTS-EN boot) + dials. **RTS-EN boots a RUNNING app (correct
+  post-flash boot step); it is NOT a recovery path if a write leaves the board in ROM download mode** (D-20260725-10,
+  state-qualified). Finish-post = first WITNESSED all-zero
   `[baseline]` line (converts the family HINT from unscorable to scorable), then Roy takes stock. Hive re-engages ONLY
   if composer needs a rebuild/re-derive (supervisor will come to me) — I do NOT poll or assign.
 
