@@ -27,6 +27,11 @@ moved into the task AFTER the re-print (host-reopen-race fix); handler UNTOUCHED
   entry per command.
 - **Next:** core + composer derive from these pinned ELFs → byte-3-way (expect == 6e2e1358/57d117dd) → v8.7.1 FLASH
   grant (supervisor writes it after 3-way) → re-dial for CLEAN captures → capture-consistency/family verdict.
+- **Capture-consistency analyzer PRE-STAGED** (`alfred:~/hangcap-analyze.py`, idle-window prep, proven on synthetic):
+  parses print_hang_cap lines (fault/PARTIAL/empty + [boot]/[reprint+15s] tag + reset_reason) from a serial log →
+  (A) DECODE-HARDENING check (per cycle boot==reprint; a reprint-only cycle = the USB-re-enum race the +15s reprint
+  is built to catch) + (B) FAMILY verdict (across cycles: ONE fault mode = a single reproducible double-fault, or
+  scattered = enumerate before root-cause). Runs on composer's dial log when it lands.
 
 ## Prior: v8.7 `33219370` — 3-WAY CLOSED (call-free handler fix); superseded by v8.7.1 decode-hardening
 
