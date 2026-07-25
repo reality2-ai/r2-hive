@@ -10,25 +10,33 @@ core-pinned sha → run the static conformance rig → attest → extract signed
 sub-goal: **v8.7 hang instrumentation** — capture the PRIMARY double-fault (`__user_exception` → HANG_CAP retained
 mem → boot-decode), the ~4min double-fault hang being the true blocker (pre-empts every OTA window).
 
-## CURRENT: awaiting v8.7.2 sha — v8.7.1 flash REVOKED (spin tail WEDGES), #d005 stands
+## CURRENT: v8.7.1 ON METAL (deliberate wedge reproducer); v8.7.2 rig prepped; #d005 stands
 
-**★ CORRECTION (supervisor, JTAG-proven):** the v8.7 call-free spin tail (`j <self>`) that I attested "the fix"
-actually PRODUCES A SILENT LOOKS-ALIVE WEDGE — cpu1 parks on the handler's own j-self, cpu0 keeps feeding RWDT, so
-NO reset ever fires, zero decode prints, RX dead. **v8.7.1 FLASH grant REVOKED unexecuted** (same spin tail). My
-attest was byte-accurate (handler IS call-free, ends j<self>) but the MECHANISM claim was wrong: call-free-via-spin
-is NOT recovery. check(22) asserted "no flash software_reset in handler" — correct-but-INSUFFICIENT: it blocked the
-flash re-fault but the spin replacement wedges. Runtime/JTAG caught what static structure could not.
-[[identity-verified-is-not-function-verified]] [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]
-- **v8.7.2 = 7e774742 + handler tail IRAM-safe RTC_CNTL SW-reset** (a direct RTC-register reset — IRAM-safe, actually
-  RESETS; not a flash `software_reset()` call, not an infinite spin). Core implementing; **rig delta + build order come
-  on its sha** (a check(22') = handler ends in an IRAM-safe RESET, not a spin, is likely owed). **#d005 stands — no
-  build until supervisor names the v8.7.2 sha.**
-- **v8.7.1 bin 3-way CLOSED** (6e2e1358/57d117dd == composer + supervisor cross-read) — nothing waits on it; the ELFs
-  are just superseded.
-- **Capture-consistency analyzer HARDENED + neg-controlled** (`alfred:~/hangcap-analyze.py`): (1) LOST-pc bucket — a
-  boot-XOR-reprint cycle (one print eaten) is UNCORROBORATED, never counted as agreement; (2) 'N corroborated cycles
-  agree' (family, strong) distinguished from '1 pc + its frames' (single, NOT a family). Neg-controls pass: 2 distinct
-  pcs → SCATTERED; 1-capture → no consistent family. Runs on composer's v8.7.2 dial log.
+**v8.7.1 IS ON METAL** (composer flashed ~13:29 under a still-live grant; supervisor's revoke arrived after = his
+race, no fault). Board runs `coex.v871.0725` now, kept there DELIBERATELY as a **wedge reproducer** — the same spin
+handler = the wedge recurs = a live JTAG read.
+- **★ WEDGE (JTAG-proven) + my check(22) SELF-CATCH (supervisor-ratified, "sharpest thing this cycle"):** the v8.7
+  call-free spin tail (`j <self>`) I attested "the fix" PRODUCES A SILENT LOOKS-ALIVE WEDGE — cpu1 parks on its own
+  j-self, cpu0 keeps feeding RWDT, so NO reset fires, zero decode, RX dead. My attest was BYTE-accurate (handler IS
+  call-free) but the MECHANISM claim was wrong: call-free-via-spin ≠ recovery. **check(22) "no flash software_reset"
+  was correct-but-INSUFFICIENT** — it asserts the ABSENCE of the wrong thing, blind to the missing PRESENCE (actual
+  recovery). A static structural check confirmed the shape it was asked about; runtime/JTAG caught the consequence.
+  [[identity-verified-is-not-function-verified]] [[dont-let-a-fix-land-on-an-unconfirmed-mechanism]]
+- **v8.7.2 = 7e774742 + handler tail IRAM-safe RTC_CNTL SW-reset** (core's form = RMW of RTC_CNTL 0x60008000 bit31 —
+  a direct RTC-register reset, IRAM-safe, actually RESETS). Core implementing; **build order comes on its sha. #d005
+  stands.**
+- **check(22') DESIGNED + neg-locked (checks-first, RATIFIED)** (`alfred:~/check22prime.sh`): REQUIREMENT-not-shape =
+  the handler tail REACHES A RESET via an IRAM-local register write, NOT merely "no flash software_reset" and NOT a
+  spin; do NOT hardcode 0x60008000 bit31 (any reset-domain register write qualifies). legA sr=0 + legB a reset-domain
+  write (RTC_CNTL/0x6000_8/SW_SYS_RST, excluding the HANG_CAP base.add writes). **Neg-lock: BOTH 30cb3d6d (legA,
+  flash-call) AND 33219370/7e774742 (legB, spin — no reset write) FAIL; carries pass.** Positive binds on the v8.7.2 sha.
+- **v8.7.1 bin 3-way CLOSED** (6e2e1358/57d117dd == composer + supervisor cross-read) — nothing waited.
+- **Capture-consistency analyzer HARDENED + neg-controlled + UNOBSERVED-framed** (`alfred:~/hangcap-analyze.py`):
+  (1) LOST-pc bucket (boot-XOR-reprint = UNCORROBORATED, never agreement); (2) 'N corroborated agree' (family) vs '1
+  pc + frames' (single, NOT a family — encodes supervisor's "family=UNPROVEN at n=1" ruling). **UNOBSERVED != FAILED:**
+  a missing boot print (v8.7.1's ~3.5min host-logger-arming gap, or the USB re-enum race) is NOT a firmware fault;
+  only TORN is a real negative; the spin-wedge signature = the log STOPS (absence of continuation). Neg-controls pass
+  (2 distinct pcs → SCATTERED; 1-capture → no family; lost-print → leads-not-verdict).
 
 ## Superseded build: v8.7.1 `7e774742` — BUILT + attested + bins (flash revoked; spin-tail wedge)
 
