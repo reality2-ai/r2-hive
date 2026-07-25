@@ -112,6 +112,19 @@ Base 30cb3d6d, main.rs only. **#d005 executed, full chain closed:**
   **capture-consistency analysis** on HANG-CAP 3-way outcomes (magic+data=fresh crash / data-no-magic=torn write /
   all-zero=clean boot; decoded exccause/PC/EXCVADDR/SP vs the fault mode).
 
+## PREP: v8.7.3 check(24) — WITNESS the pre-zero baseline (designed + neg-locked + satisfiability-proven, no build)
+
+Core writing v8.7.3: a read-back + discriminating print in `hang_reprint_task` AFTER the existing pre-zero — converts
+the post-reprint zero from INFERRED to WITNESSED (an inferred baseline routes every capture to "investigate forever"
+→ the ≥3 PRIMARY bar is unmeetable by construction). **check(24)** (`alfred:~/check24.sh`, dual input sha|file),
+THREE legs (requirement-not-shape): (a) a HANG_CAP read-back + print in the task; (b) ORDERED AFTER the pre-zero write
+(a read BEFORE the zero witnesses nothing, greps identical); (c) a NON-ZERO branch — DISCRIMINATES all-zero vs not
+(`== [0u32;8]` / `.iter().all` / `.any` / `!= 0` in a conditional), so a print that always says "all-zero" cannot pass
+(the leg that makes it an instrument, not decoration). **Neg-lock: 2249bcf0 FAILS** (readback-after-zero=0, no witness);
+carries pass. **★ SATISFIABILITY PROVEN** (supervisor's standing meta-rule after the matrix-v4 correct-but-UNSATISFIABLE
+case): ran check(24) on a synthetic v8.7.3-shape task → **PASS** — the pass-state IS reachable on a producible artifact;
+check(24) both passes (synthetic) and fails (2249bcf0). Positive binds on core's real v8.7.3 sha.
+
 ## The rig (static conformance suite, on alfred; never compiles/runs tests — PASS ≠ green suite)
 
 `~/preflight-v8.sh <sha>` (checks 1-11) + `~/check{12..22}.sh <sha>` + `~/perbearer.sh`. `~/strip_src.py` =
