@@ -117,7 +117,11 @@ positive bound to core's REAL identifiers (requirement-not-shape). Current suite
 
 ## Backlog (Roy-gated, not started)
 
-D5 reflash/provision (stays 11f2d2ef; needs Roy word) · SEN0676 radar plugin (UART/ADC) · RAK relay-LED (bench) ·
+D5 reflash/provision (stays 11f2d2ef; needs Roy word) · **SEN0676 radar plugin — PARKED (after v8.7.2 dial):**
+Modbus RTU over plain TTL-UART (circuits-confirmed; NOT ADC/I2C, no RS-485 transceiver); radar target = XIAO per
+g4, so a DFR1195 UART bus in board.toml is needed ONLY if radar also runs on DFR (C6 lis2dh stays I2C); WHICH DFR
+pins carry it = board-map decision hive+composer own (circuits owns only the sensor-side fact); ref r2-core#91 +
+docs/radar-xiao-node.md · RAK relay-LED (bench) ·
 DFR1195 display mislabel (cosmetic) · RAK tx_power −9dBm (core, lora_leaf_config:1219) · AGENTS.md partitions-csv
 doc-drift.
 
