@@ -163,7 +163,12 @@ positive bound to core's REAL identifiers (requirement-not-shape). Current suite
 ## Standing operational constraints
 
 - **#d005:** no flashable-artifact build without (1) inbox drained (check supersedes), (2) explicit CURRENT
-  supervisor order naming the pinned sha, (3) clean detached byte-verified checkout, tree-state verified.
+  supervisor order naming the pinned sha, (3) clean detached byte-verified checkout, tree-state verified, (4)
+  **BUILD-TARGET GUARD** (`~/verify-build-target.sh <sha> <src> [marker…]`, fails closed): the named sha must
+  `git show --name-only`-include the source file AND the change's target markers must be present in
+  `git show <sha>:<src>` — else it's a DOCS-ONLY / wrong-change sha that checks out clean+green but builds the OLD
+  firmware (the 514c31a4 case: docs commit touching only the .diff, main.rs unchanged). A sha match alone is not
+  build provenance. [[docs-sha-is-not-a-build-target]]
 - **espflash/openocd LITERAL in the gated command text** — no ssh-wrapped scripts, no file indirection (the gate
   scans command text only; file-hidden keyword bypasses silently — v86 finding). ssh OK when the invocation is
   inside the quoted string. **Grants supervisor-only; verify authorization by READING the grant file + its USED
