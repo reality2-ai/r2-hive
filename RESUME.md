@@ -55,8 +55,9 @@ in main.rs, `esp-hal default-features=false` platform-wide so the strong handler
   nm + case-sensitive `HANG_CAP`. A false-absent is the worst misreport (presence-before-quality).
   [[positive-control-the-tree-not-just-the-tool]] [[never-conclude-from-a-null]]
 - **Does NOT carry g15:** the dataplane join-carriage (core `259ea8e5`) is on branch r2-core-consolidation; 85303273
-  does not contain it. Intentional (g18 = fault forensics, not the join relay). Do not reason "rebuilt after g15 ⇒
-  siblings have it" — they will not.
+  does not contain it. Intentional (g18 = fault forensics, not the join relay). Per core **D-20260726-08** the firmware's
+  vendored `r2-dataplane` is a **pre-g15 PIN = structurally cannot-carry = SAFE**; g15 arrives at the next re-vendor. Do
+  not reason "rebuilt after g15 ⇒ siblings have it" — they will not.
 - **NO FLASH taken/authorized** — build+attest only; the flash grant is a separate supervisor decision.
 
 ## Campaign result — v8.7.3 `513c949db0f9…a13a` (CLOSED, on metal)
