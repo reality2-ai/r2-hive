@@ -35,7 +35,8 @@ intended digital-core SYSTEM reset CoreSw=0x03, RTC preserved so HANG_CAP surviv
   dial. **⚠ acceptance matrix NOT YET RATIFIED** (supervisor): core's (a)-(d) omits CpuSw/power-on/brownout/external/
   panic + non-CoreSw reboots with decoded-or-empty capture; CoreSw alone isn't exclusive proof of this tail if another
   SW_SYS_RST caller exists — an UNEXPECTED-RESET branch + fresh-capture temporal correlation owed before the flash
-  grant. **Capture-consistency analyzer staged** (add a reset-recovery leg = CoreSw + fresh capture + UNEXPECTED-RESET
+  grant. **Core FINDING: CoreSw is non-exclusive — 5 intentional `software_reset()` callers also produce CoreSw**, so
+  the reset-recovery verdict MUST rest on fresh-capture temporal correlation, not the reset-reason alone. **Capture-consistency analyzer staged** (add a reset-recovery leg = CoreSw + fresh capture + UNEXPECTED-RESET
   bucket when the matrix ratifies).
 
 ## Prior: v8.7.1 `7e774742` ON METAL (deliberate wedge reproducer, spin tail)
