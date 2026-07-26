@@ -41,8 +41,14 @@ all >line 919) unreachable (`allow(unreachable_code)`@603). Pre-probe spawns (rw
   ungated `current_beacon_epoch`@6264. radarprobe=[dev] pulls neither ble nor lora, so the unguarded refs don't resolve;
   every shipping set (fakesensor/xiaobridge/bridge) pulls lora and/or ble, so radarprobe has never compiled standalone.
 - **No ELF → attest moot** (two-leg instrument un-checkable). Not fixing (core owns source; build-only order). No flash,
-  no target prepared (board choice is Roy's). Owed: core gates those refs under cfg (or radarprobe stubs them); then
-  re-issue the build order on the fixed sha.
+  no target prepared. Owed: core gates those refs under cfg (or radarprobe stubs them); then re-issue on the fixed sha.
+- **TARGET = X1 (XIAO ESP32-S3 + Wio-SX1262)** — Roy corrected supervisor's DFR1195-only inference; the radarprobe
+  RS-485 pins are XIAO-authored (RADAR_UART_TX=43=XIAO D6). **radarprobe needs NO `xiao` feature** (verified code +
+  build): `xiao=[]` pulls nothing; its pin-map cfg sites (main.rs:1178-1241) are radio-region, unreached under the
+  radarprobe diverging loop; the radar block uses hardcoded GPIO43/44/6. `radarprobe,xiao` FAILS the identical 5 E0425
+  (xiao adds no ble/lora). SX1262/DIO2-RF-switch warning does NOT bind (radio init lora-gated + unreached). **On the
+  fixed sha, build `--features radarprobe` ALONE.** ⚠ an X1 radarprobe flash REPLACES the bridge role + the g18
+  x1-xiaobridge image (`cee2f004`) X1 currently carries — stated for Roy.
 
 ## g18 build record — D4 + X1 fault forensics rebuild `8530327309b8…a9c6` (BUILT + attested; NO FLASH)
 
