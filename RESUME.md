@@ -29,7 +29,31 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
-## CURRENT: relay-floor OTA X1 — empty-creds A/B built+eligible; but ⚠ STOPPED on a staota-WiFi-connect finding + nobt ruling + synthetic-AP creds
+## CURRENT: otal2cap OTA pair (BLE-CoC bearer) X1 — A/B BUILT + both ELIGIBLE=YES; NO FLASH, awaiting grant on A sha
+
+Supervisor RULED the transport = **otal2cap** (BLE-CoC), superseding staota (broken) and nobt (wrong — BLE IS the bearer,
+must be SPAWNED). Feature set (from code) = **`otal2cap,lora,xiao,benchsf7`** at pinned `85303273`: otal2cap→ble, CoC
+dispatches to `ota_receive_over_coc`@4733 (serve_coc cfg-off) = the OTA bearer; ble_task SPAWNED@1099; lora = dual-bearer
+§8.1 beacon + compile; xiao = XIAO SX1262 pins; staota OUT. Compiles clean. NO WiFi creds (no staota). No new code (otal2cap
+receiver + apply are landed) — the reason this path beats USB-CDC (which would need a new core receiver task).
+- **ELFs** (differ ONLY by baked R2_BUILD_ID, same size 1362468): A `otal2cap.A.0726`
+  `7aa01f81d7fa7f1d16690613fd738dbe567847e2bc521b6cbca46adb311af7fa` / B `otal2cap.B.0726`
+  `03368c8ffc4beeb1ebde2b94cd296b856cf464a4a0f82ca979e84fb533a2a1d4`. Differential A-only-A/B-only-B (0 cross).
+- **Two-leg (these artifacts): A+B both ELIGIBLE=YES** — HANG_CAP@0x600fe000; `__user_exception`@0x40378c44 size 0x52,
+  0 windowed. Pos control D5 v8.7.3=YES; neg control xiao-acc8=LEG1 FAIL.
+- **★ CORE-MAPPING + CORRECTION (it is NOT a 2-radio image):** ALL radio tasks on **CORE0** — ble_task (advertise@4590 +
+  CoC accept loop `L2capChannel::accept`@4683), lora_task (SYNC, @1236, NOT isolated), espnow_task@1116, wifi_task@1000
+  (IDLE — STA never assoc). **ble MANDATES `esp-radio/esp-now`+`coex`**, so ESP-NOW (WiFi PHY) + coex arbiter stay ACTIVE
+  — "no WiFi" = WiFi-STA idle, NOT WiFi-PHY off; can't drop without dropping the bearer.
+- **★ os110 counterfactual CONFOUNDED + my prediction NOT moot:** this image still has BLE+LoRa(SYNC)+ESP-NOW contending
+  on core0 — the SAME core0-multi-radio hazard I pre-registered (ESP-NOW in place of WiFi-STA). main.rs:6696: the #d029
+  CoC stall is a core0-BLE event, fixed by isolating sub-GHz to core1 (loraroute) — but this set keeps LoRa on core0. So
+  os110 and my tri-radio-core0 hazard are ONE hazard. Option offered: `loraroute` moves LoRa→core1 for a cleaner
+  counterfactual (can't remove ESP-NOW). Supervisor's call.
+- **PERSONA PRECONDITION (binding):** ota_health_check items 3+4 → B rolls back if X1 unprovisioned. Flash A app-only →
+  A reports persona → provision if absent → THEN B. NO flash until grant bound to A sha `7aa01f81`.
+
+### superseded: staota transport (core-confirmed broken; kept as the "why we're on otal2cap")
 
 **⚠ STOP CONFIRMED BY CORE (D-20260726-13): staota's WiFi STA NEVER associates → OTA-over-WiFi BROKEN, nobt-independent.**
 wifi_task's `connect_async()`@9027 is gated behind `DATA_PLANE_JOIN.wait()`@9021; **Q1: esp-radio 0.18.0 does NOT
