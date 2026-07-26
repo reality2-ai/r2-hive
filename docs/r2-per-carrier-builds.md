@@ -14,7 +14,7 @@ envelope shape + the negotiation engine (r2-discovery, #24). The LEDC, WiFi, the
 **PER-CARRIER (the platform layer — Cargo-feature-gated):**
 | Knob | DFR1195 (`carrier-dfr1195`) | XIAO-S3 (`carrier-xiao`) |
 |---|---|---|
-| Flash / partition | 4MB / `dfr1195-partitions.csv` | 8MB / `dfr1195-partitions-8mb.csv` |
+| Flash / partition | composer catalogue `esp32-s3-dfr1195/templates/partitions.csv` (r2cfg declared) | composer catalogue `esp32-s3-xiao-wio-sx1262/templates/partitions.csv` (3 MiB slots, device-confirmed on X1) |
 | PSRAM | none | **octal PSRAM** (esp-hal `psram` init + feature) |
 | Screen | ST7735S (LCD init) | none (skip) |
 | LED | GPIO21 active-high | GPIO21 active-high (external) |

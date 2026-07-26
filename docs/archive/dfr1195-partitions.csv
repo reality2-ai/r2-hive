@@ -1,0 +1,19 @@
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# DEPRECATED / ARCHIVED 2026-07-27 — DO NOT FLASH FROM THIS FILE. IT IS NOT A FLASHED ARTIFACT.
+#
+# This file was twice mis-read (by hive and by composer) as the DFR1195 flashed partition
+# table and drove an incorrect fleet-wide conclusion (persona-in-an-unclaimed-gap asserted
+# for all DFR). It was NEVER what flash-board.sh flashes. The table rows are removed so it
+# cannot be flashed; the raw-offset design note it once carried is preserved in git history.
+#
+# SOURCE OF TRUTH = the composer board-catalogue template, SELECTED BY CARRIER by
+# r2-composer/orchestrator/bench/flash-board.sh (lines 70-71, 97):
+#   DFR1195   -> r2-composer/catalogue/boards/esp32-s3-dfr1195/templates/partitions.csv
+#                (declares r2cfg data 0x06 @0x11000/0xF000 — persona in a DECLARED region)
+#   XIAO-S3   -> r2-composer/catalogue/boards/esp32-s3-xiao-wio-sx1262/templates/partitions.csv
+#                (phy_init @0x11000/0x1000 — persona in an UNCLAIMED GAP; 3 MiB OTA slots)
+#
+# Only X1 (a XIAO) is device-enumeration-confirmed. A DFR's on-device table is composer's to
+# read and confirm. Canon persona ruling pt7 wants a DEDICATED declared persona region @0x12000
+# (not r2cfg), matched by no current table — see r2-specifications persona amendment (read at sha).
+# ═══════════════════════════════════════════════════════════════════════════════════════

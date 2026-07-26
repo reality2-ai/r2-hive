@@ -23,8 +23,13 @@ spec/implementation split: HOLD and ask specs/core/supervisor.
 - Read relevant spec and `FORKS.md`. Do not invent downstream fixes.
 - Core/firmware changes go to core owner. Hive keeps its host code and documented patch.
 - Firmware worktree MUST track current core HEAD before build/flash.
-- DFR1195 flash MUST use `--partition-table docs/dfr1195-partitions.csv`; persona is
-  raw flash at `0x12000`, app at `0x20000`.
+- DFR1195/XIAO flash: the partition table is the composer board-catalogue template
+  SELECTED BY CARRIER by `r2-composer/orchestrator/bench/flash-board.sh` — DFR ->
+  `catalogue/boards/esp32-s3-dfr1195/templates/partitions.csv` (r2cfg declared @0x11000),
+  XIAO -> `esp32-s3-xiao-wio-sx1262/templates/partitions.csv` (phy_init @0x11000, gap). That
+  catalogue is SOURCE OF TRUTH; the old `docs/dfr1195-partitions.csv` is DEPRECATED/archived
+  (never flashed — see `docs/archive/`). Persona is raw flash at `0x12000`, app at `0x20000`.
+  Confirm a specific device's table by its own bootloader enumeration (only X1 is confirmed).
 - Security/auth/liveness/duty-class ingest MUST verify first and fail closed.
 - Serialize board TTY access with composer; live demo ports are shared resources.
 
