@@ -29,6 +29,21 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
+## radarprobe build order (2026-07-26) — BUILD FAILS at `8530327309b8…a9c6`; routed to core, NO artifact
+
+Explicit #d005 build order (supervisor, Roy GO). Feature `radarprobe = ["dev"]` (Cargo.toml:290). Pinned sha = MY
+ls-remote authority `85303273` (== branch tip; supervisor's `4e82c36a` is on origin/main + r2-core-consolidation, NOT
+this branch, NOT an ancestor — I pinned my own ls-remote as instructed). **Reachability verified in code:** radarprobe
+block @main.rs:901 spawns `radar_probe_task`@913 then a diverging `loop{}` → radio/mesh spawns (net/wifi/io/ota/ble/lora,
+all >line 919) unreachable (`allow(unreachable_code)`@603). Pre-probe spawns (rwdt_feed@623, hang_reprint@840) still run.
+- **BUILD FAILS — 5× E0425 cannot-find-in-scope:** `role_class_hash` (def `#[cfg(any(lora,ble))]`) used in ungated
+  `io_task`@1729; `DATA_TX` (`#[cfg(ble)]`) @1760; `COARSE_TIME_ANCHOR_S` + `LORA_BEACON_T_ROTATE_S` (`#[cfg(lora)]`) in
+  ungated `current_beacon_epoch`@6264. radarprobe=[dev] pulls neither ble nor lora, so the unguarded refs don't resolve;
+  every shipping set (fakesensor/xiaobridge/bridge) pulls lora and/or ble, so radarprobe has never compiled standalone.
+- **No ELF → attest moot** (two-leg instrument un-checkable). Not fixing (core owns source; build-only order). No flash,
+  no target prepared (board choice is Roy's). Owed: core gates those refs under cfg (or radarprobe stubs them); then
+  re-issue the build order on the fixed sha.
+
 ## g18 build record — D4 + X1 fault forensics rebuild `8530327309b8…a9c6` (BUILT + attested; NO FLASH)
 
 Explicit #d005 order (supervisor, Roy-ruled, 2026-07-26). A REBUILD, not a port: xiaobridge and fakesensor are FEATURE
