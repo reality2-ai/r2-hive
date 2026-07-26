@@ -79,13 +79,23 @@ pin-map.
   open). The FLASH build bakes `R2_WIFI_SSID`/`R2_WIFI_PASS` via build.rs env → different sha256 → **re-attest at
   flash-build** (both images, both legs, controls). The sha above attests structure+instrument+BUILD_ID+eligibility
   (creds-independent).
-- **CREDS = SYNTHETIC AP (g24 real-creds REVERSED — premise was wrong).** Composer found alfred phy2 = a spare, idle,
-  route-free, AP-capable 2.4GHz radio; nmcli hosts an AP natively, no human needed. So use a SYNTHETIC SSID+PSK WE
-  CHOOSE — no secret, no custody, no extraction, g23 leaves this path entirely. My no-print EXTRACTION authorisation is
-  WITHDRAWN — do NOT run it (and it had no clean anchor anyway: SSID-shape in docs/dfr1195-firstlight.patch, PASS in
-  prose = fragmented). Composer brings up phy2 first (never the uplink radio), then I rebuild A+B against the CHOSEN
-  creds + re-attest. Binding still R2-SECRETS 3.1 (build.rs reads env; no literal in any tracked file/commit/message).
-  [[use-is-not-publication-secrets-boundary]]. **Empty-creds attestation STANDS** (creds-independent).
+- **CREDS = SYNTHETIC AP, RESOLVED (g24 real-creds REVERSED).** Composer stood up an AP on alfred's spare phy2 (AP
+  sustained, 0 drops/7 polls/~80s, sole-uplink wlp3s0 default-route untouched throughout — capable-caveat retired BY
+  TEST). Creds are CHOSEN/synthetic (band bg, ch6, WPA2-PSK, DHCP 10.42.0.1) — no custody, no extraction (withdrawn; had
+  no clean anchor anyway). **⚠ HANDLING: synthetic-by-construction ≠ safe-to-publish when the value GRANTS ACCESS — a
+  chosen PSK is a WORKING PSK while the AP is up.** So the SSID/PSK are fine in fleet mail + composer's mode-700
+  dev-trial file, but **MUST NOT enter any tracked/public file** (this RESUME included) — values live in the build env /
+  composer's dev-trial only, deliberately NOT recorded here. build.rs reads env (R2-SECRETS 3.1). **Empty-creds
+  attestation STANDS** (creds-independent). [[use-is-not-publication-secrets-boundary]]
+- **★ PROVISIONING IS A PRECONDITION, not a follow-up (supervisor ruling — persona load-bearing TWICE: R2-DEVICE-LIFECYCLE
+  publish + the OTA health-gate items 3+4).** Revised sequence: flash A **app-only** (NVS survives) → A boots + REPORTS
+  whether its persona validates → if NOT, composer mints the dev-TG persona (its delegated class) + provisions → ONLY
+  THEN push B. Else B is GUARANTEED to auto-revert and a correct rollback reads as broken OTA.
+- **★ otal2cap REROUTE ON THE TABLE (supervisor→core):** Roy asked for OTA working, no transport specified. otal2cap
+  (OTA-over-BLE-CoC) drops 3 radios→2 (retires the tri-radio-core0 hazard) and its receive path is more static-verified
+  than staota's. BUT I confirmed **otal2cap is NOT proven end-to-end** (no slot-flip / running-image on record; the
+  campaign fought the hang that pre-empted every OTA window; closed on the hang fix, not an OTA completion). So it's the
+  better-UNDERSTOOD unproven path, not a proven one — either transport still needs a first real round-trip.
 - **Open before any grant (NOT hive):** composer read of X1 persona + OTA-TG `730c29e7` membership — X1 must VERIFY the
   update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
 - **NO FLASH** taken; no grant.
@@ -145,6 +155,17 @@ pin-map.
   radarprobe's RADAR_DE_RE=GPIO6 was WRONG for this shifter).
 - **FRAM 0x50 = MB85RC, 16-bit addressing, BYTE-WRITABLE**, no page boundaries, no write delay, endurance ~unlimited at
   5-10s; WP+A0-A2 strapped GND (write-enabled, no WP handling). **SIZE UNKNOWN (32KB or 512KB) — PROBE it, do not assume.**
+  **⚠ PAGING HAZARD (circuits): a 512KB MB85RC4M addresses BEYOND 16 bits — the high bits page into the I2C DEVICE-ADDRESS
+  byte, NOT the 2 address bytes. The wrap test still distinguishes 32KB from larger, but full addressing of the large part
+  REQUIRES those page bits — without them WRITES ALIAS (silent corruption past 64KB). So DETECT size AND implement paging;
+  aliasing-writes-that-appear-to-succeed is the worst failure shape for a store-and-forward buffer.**
+- **Storage-queue canon (for the FRAM plugin):** R2-ROUTE 3B.3 **OUTQ-1..4** @769a255 (read the clauses, not a summary) —
+  a SEPARATE section from peer-custody: OWN-ORIGIN custody ends when YOUR OWN transmission succeeds; PEER-custody ends when
+  the PEER reappears — conflating them mis-sizes both buffers.
+- **claim_state persistence (R2-DEVICE-LIFECYCLE 3 invariant 2):** requires 3 hw roots — irreversible VIRGIN sentinel +
+  dedicated monotonic hw_epoch counter + per-device HUK. Lacking ANY ⇒ FAIL CLOSED at build/provision; canon permits BENCH
+  BUILDS AS EXPLICITLY NON-PERSISTENT ONLY. If the S3 lacks any of the three, **DECLARE the bench build NON-PERSISTENT
+  deliberately IN THE BUILD** (don't let it emerge as a surprise).
 - **ATECC608 0x60 = LOCK STATE UNKNOWN — QUERY the lock before assuming anything; do NOT provision blind.**
 - **Battery = D1/GPIO2, 2×470k divider (read ×2), 100nF at pin.** Dry joint NOT confirmed reflowed; fed from LiPo+ which
   USB CUTS → reads ONLY on battery. Code it, do NOT expect a green tonight, say so in the attestation.
