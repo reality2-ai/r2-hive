@@ -29,6 +29,18 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
+## ENSEMBLE PHASE — trace-first (2026-07-27, source-only, NO build; Roy directive via supervisor)
+
+Supervisor's three mechanism questions, traced at `dfr1195-fw-wt` **b25a21eb** (comment-delta over live 4b4a71e5), caller-not-mention. Sent to supervisor. **Verdict: all-as-ensembles is a PLATFORM feature FIRST, not five scores on an existing seam.**
+
+- **Q1 score-loading = MUST-BE-BUILT on MCU.** Real declarative-score loader EXISTS in source — `crates/r2-ensemble` (`loaded.rs` owns parsed `EnsembleScore`, `factory.rs` "walks each sentant entry in the score", `registry.rs`, `serde_yaml 0.9`) — but **std-only** (tokio+parking_lot+r2-engine[std]+r2-dispatch[std]), **not a dep of any platform, unlinkable no_std/xtensa**. In the binary: NO score concept; on-device r2-engine = **compile-time EventBus** (main.rs:8377); parts chosen at COMPILE TIME by cargo features. Boot-read set = persona@0x12000/RPF1@0x17000/board@0x13000 (main.rs:3475), no score partition. Neg-control: zero yaml/score deserialize in any MCU-linkable crate.
+- **Q2 registration = split.** PRIMITIVE exists+reachable: `r2-engine EventBus::register_plugin` (bus.rs:106)/`register_sentant` (:94), CALLED under `fakesensor` (main.rs:7900–7906) and empty under `otaengine` (:8032) — but register-INTO-ONE-BUS. R2-ENSEMBLE 2.1.2 hive-SHARED singleton (N ensembles→1 plugin, R2-WEB) = **MUST-BE-BUILT** (only the std-only r2-ensemble registry/supervision does it). BOTH **absent from the flashed OTA image** (otal2cap,lora,xiao,benchsf7 reach neither otaengine nor fakesensor — feature closure verified).
+- **Q3 NVS role-profile read = EXISTS + reachable EVERY boot.** `read_role_profile()` decodes flash @0x17000 (ROLE_PROFILE_OFFSET, magic RPF1 0x52504631) → Role + duty/ble_role/keepalive_period_ms/scf_cap/scf_ttl_s/reach_conf/silence_s; CALLED by `resolve_role_profile(my_hive)` (main.rs:771) at boot (NVS wins else compile-derive). Cadence knobs ARE role-profile fields — the R2-RUNTIME 210 boot-activation seam + cadence home (field 900s/bench 5–10s). The ONE seam already present.
+
+Memory: [[ensemble-mechanisms-trace]]. NEXT: await supervisor's plan call (platform-first vs otherwise). Build nothing.
+
+---
+
 ## CURRENT: otal2cap v3 OTA — run PASSED (reason=4 signer gate, the pre-committed advance); chunk stream still unreached
 
 **★ RESULT (2026-07-27): reason=4 UnauthorizedSigner = the PRE-COMMITTED PASS.** Last night = reason=1 at the VERSION
