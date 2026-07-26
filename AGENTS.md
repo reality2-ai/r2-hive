@@ -30,6 +30,11 @@ spec/implementation split: HOLD and ask specs/core/supervisor.
   catalogue is SOURCE OF TRUTH; the old `docs/dfr1195-partitions.csv` is DEPRECATED/archived
   (never flashed — see `docs/archive/`). Persona is raw flash at `0x12000`, app at `0x20000`.
   Confirm a specific device's table by its own bootloader enumeration (only X1 is confirmed).
+  NB NEITHER table is canon-conformant (R2-KEYSTORE §9.12.4a): XIAO leaves persona in an
+  UNCLAIMED gap; DFR's `r2cfg` is CONFIG-lifecycle with persona + the 0x18000 anti-rollback
+  floor INSIDE it, so a legitimate config-erase clobbers the sealed identity + downgrade
+  defence — MORE dangerous, not safer. A DEDICATED persona region (pt7) is owed; do not read
+  `r2cfg declared` as a pass.
 - Security/auth/liveness/duty-class ingest MUST verify first and fail closed.
 - Serialize board TTY access with composer; live demo ports are shared resources.
 
