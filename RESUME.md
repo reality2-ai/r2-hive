@@ -29,7 +29,28 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
-## CURRENT: relay-floor OTA X1 (XIAO) — Option B BUILT + attested, both ELIGIBLE=YES; NO FLASH, awaiting grant
+## CURRENT: relay-floor OTA X1 — empty-creds A/B built+eligible; but ⚠ STOPPED on a staota-WiFi-connect finding + nobt ruling + synthetic-AP creds
+
+**⚠ ACTIVE STOP (reported to supervisor+core): staota's WiFi STA may never associate.** wifi_task's
+`controller.connect_async()`@9027 is gated behind `DATA_PLANE_JOIN.wait()`@9021; DATA_PLANE_JOIN has NO `.signal()` site
+(all refs grepped: def@5623/wait@9021/comments — matches the bit5 "never fires in coex" finding). So the STA associates
+ONLY IF `wifi::new(Station)`@957 auto-connects at creation (esp-radio semantics — UNCONFIRMED statically). If not,
+OTA-over-WiFi can't work in nobt OR non-nobt. Core owns the answer (esp-radio auto-connect + whether staota-WiFi-OTA was
+ever metal-proven — the v8.7.x campaign was OTA-over-BLE-CoC/otal2cap, NOT staota). **No A/B build until core resolves it.**
+- **★ PERSONA-GATE inside the OTA health check:** `ota_health_check` items 3+4 (@4084+) require a present+non-degenerate
+  persona (hive_id!=0, tg_pk!=0) AND a GroupHmac sign/verify round-trip ⇒ **image B ROLLS BACK if X1's persona doesn't
+  validate**, independent of OTA transport (R2-LORA 6.5.1, landing IN the health gate). X1 enrolment UNREAD (composer).
+- **nobt RULING (supervisor, variable isolation — an OTA failure then means OTA, not coex-stall ambiguity):** build A+B
+  with `nobt`. STOP-check result: `staota,lora,xiao,nobt` COMPILES; radio-liveness gate passes on LORA_UP (nobt OK there);
+  nobt gates ONLY the ble_task spawn @1090. BUT blocked by the staota-connect STOP above (nobt pulls ble → wifi_task takes
+  the DATA_PLANE_JOIN-gated branch).
+- **CORE-MAPPING (load-bearing, was invisible in the feature list):** under staota,lora,xiao ALL THREE radios on CORE0
+  (wifi_task + ble_task + lora_task@1236, main spawner). Only loraroute isolates LoRa on core1. Tri-radio-on-core0.
+- **SEQUENCE (once unblocked):** A+B with nobt over a SYNTHETIC AP → prove round-trip; THEN the tri-radio (ble-spawned)
+  image as a SECOND over-air push, rollback as the net (a boot-hang at advertise → health gate never marks valid →
+  bootloader auto-reverts) → answers the coex question the prediction is about. Re-attest each build + state each radio's core.
+
+### superseded: earlier Option-B framing (empty-creds attest stands)
 
 Bare R2 relay-floor OTA-capable X1 image, build+attest only. Supervisor RULED **Option B** (`staota,lora,xiao` at pinned
 `85303273`) — the true bare `staota` floor does NOT compile (3× E0425, `current_beacon_epoch` lora consts — THIRD
@@ -58,15 +79,13 @@ pin-map.
   open). The FLASH build bakes `R2_WIFI_SSID`/`R2_WIFI_PASS` via build.rs env → different sha256 → **re-attest at
   flash-build** (both images, both legs, controls). The sha above attests structure+instrument+BUILD_ID+eligibility
   (creds-independent).
-- **g24 RULED (supervisor, Roy asleep): REAL lab creds via ENV** (synthetic AP needs a human to stand up; none awake).
-  Re-attest the creds-baked A+B. **BUT re-attest is STOP-BLOCKED on a clean injection MECHANISM** (reported): no
-  non-tracked creds env file on alfred; creds live in PROSE in tracked files (g23 exposure — not clean KEY=VALUE, so
-  programmatic extraction risks an echo = the "improvise" supervisor forbade); target/ holds only my empty-creds build.
-  Unblock = place `~/.r2-wifi.env` (untracked, `R2_WIFI_SSID=`/`R2_WIFI_PASS=`) on alfred, OR give the exact extraction
-  anchor. Then re-attest = one command (rebuild A+B with creds → new sha256 [reportable, not the literal] → two-leg +
-  controls). **Empty-creds attestation STANDS** (structure/instrument/BUILD_ID/eligibility are creds-independent).
-  Binding: R2-SECRETS 3.1 — build.rs reads env, NO literal in any tracked file/commit/recipe/attestation/message.
-  [[use-is-not-publication-secrets-boundary]]
+- **CREDS = SYNTHETIC AP (g24 real-creds REVERSED — premise was wrong).** Composer found alfred phy2 = a spare, idle,
+  route-free, AP-capable 2.4GHz radio; nmcli hosts an AP natively, no human needed. So use a SYNTHETIC SSID+PSK WE
+  CHOOSE — no secret, no custody, no extraction, g23 leaves this path entirely. My no-print EXTRACTION authorisation is
+  WITHDRAWN — do NOT run it (and it had no clean anchor anyway: SSID-shape in docs/dfr1195-firstlight.patch, PASS in
+  prose = fragmented). Composer brings up phy2 first (never the uplink radio), then I rebuild A+B against the CHOSEN
+  creds + re-attest. Binding still R2-SECRETS 3.1 (build.rs reads env; no literal in any tracked file/commit/message).
+  [[use-is-not-publication-secrets-boundary]]. **Empty-creds attestation STANDS** (creds-independent).
 - **Open before any grant (NOT hive):** composer read of X1 persona + OTA-TG `730c29e7` membership — X1 must VERIFY the
   update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
 - **NO FLASH** taken; no grant.
@@ -105,7 +124,13 @@ pin-map.
   enable 5V gate → WAIT settle → attempt read → substitute value when rail known-cut. NO stub skipping gate+settle
   (never-run-path class). Await circuits for gate pin/polarity/settle (do NOT invent settle). **SIM MARKER MANDATORY**:
   a simulated reading MUST be distinguishable AT THE EVENT (same path ⇒ event carries the signal); SIM MUST NEVER LEAK
-  INTO LIVE. Cadence = score param. Likely SCF duty-class (duty_class = f(role, power_source)) — specs queued.
+  INTO LIVE. Cadence = score param. **duty_class RETRACTED (was: "likely SCF duty-class"): duty_class is a RADIO-SLEEP
+  property, NOT peripheral-power** (R2-DIAGNOSTICS 58 {Unknown,AlwaysOn,Intermittent}, wire R2-WIRE 12.6 `dc`; its ONLY
+  job = telling peers whether to BUFFER-on-fade while your RADIO sleeps — R2-RUNTIME 236). Toggling the 5V sensor rail
+  does NOT make the radio fade (board stays reachable) ⇒ the 5V cycle is INVISIBLE to duty_class, MUST NOT drive it.
+  **USB-powered X1 = AlwaysOn.** Power source OVERRIDES role; class set STATICALLY from provisioning (a runtime flip would
+  leave a battery node AlwaysOn+flooding) — if X1 ever runs on battery it MUST be provisioned DutyCycled BEFORE, never
+  flipped at runtime. Settle: canon SILENT (a driver detail), so 1500ms is a config knob not a spec obligation.
 - **X1 enrolment UNKNOWN:** send-over-TN needs X1 = a TG member with a working persona; persona + OTA-TG `730c29e7`
   membership UNREAD (composer's lane). Do NOT design around X1 enrolled. Button-free entry PROVEN on D5, UNPROVEN on X1
   — gates the first USB write (composer, amended grant).
