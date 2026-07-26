@@ -35,7 +35,9 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 sketch circuits already has** (I2C scan / FRAM + secure-element probe / battery ADC / gated Modbus), NOT an R2 no_std
 feature — so this is NOT hive's artifact. Supervisor owned the mis-inference chain (radar test → radarprobe feature →
 DFR1195 crate-path=board), all unverified. Hive builds nothing here. The finding below STANDS (recorded by supervisor;
-core has a scoped fix), and my build attempt was the thing that surfaced it.
+core HOLDS a ready-but-UNAPPLIED fix — supervisor told it to HOLD, must NOT move the tip since g18 artifacts are pinned
+to 85303273). My build attempt surfaced it. Nothing in flight on radarprobe. (To know if core landed anything, read the
+TIP — the emitter — not a summary or intent.)
 
 Explicit #d005 build order (supervisor, Roy GO). Feature `radarprobe = ["dev"]` (Cargo.toml:290). Pinned sha = MY
 ls-remote authority `85303273` (== branch tip; supervisor's `4e82c36a` is on origin/main + r2-core-consolidation, NOT
