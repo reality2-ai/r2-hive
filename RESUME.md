@@ -100,6 +100,15 @@ pin-map.
   better-understood read is DEVICE-SIDE ONLY; the uncosted half = **does a HOST-SIDE pusher exist on alfred tonight**
   (otal2cap needs a BLE central opening an L2CAP CoC + streaming; staota needs TCP over the now-proven AP) — composer's
   lane, asked. A device path is worthless if nothing can talk to it.
+- **★ USB-CDC decomposition (supervisor idea): the 4-stage round-trip = RECEIVE (transport-specific) + WRITE/FLIP/RUN
+  (bearer-agnostic apply).** Stages 2-4 ARE wired + bearer-agnostic: `FlashSink`(ImageSink)@8232 → `apply_signed`
+  @8335 → `SignedOtaApply::start`@8353 — the SAME orchestrator both wired receivers drive. **But USB-CDC RECEIVE is
+  UNWIRED** (Q-A): `apply_signed` has exactly TWO callers — `ota_receive_over_coc`(BLE-CoC)@4733 + `ota_receiver`(net
+  :21043)@8043; NO USB-CDC caller. The CDC readers that exist (`xiao_bridge_task`@6934, `uart_rx_task`@7519) don't feed
+  apply. USB-CDC is LISTED in r2-core's r2-update but unwired here (Q-B moot — nothing to compile). **Salvage: proving
+  3-of-4 via USB-CDC needs ONE small core change** — a CDC-read receiver task feeding `apply_signed` (mirroring the two
+  wired receivers), core0, reusing the proven apply path. Smallest honest path to a slot-flip+running-image observation
+  with zero radio unknowns — supervisor's call + core's build.
 - **Open before any grant (NOT hive):** composer read of X1 persona + OTA-TG `730c29e7` membership — X1 must VERIFY the
   update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
 - **NO FLASH** taken; no grant.
