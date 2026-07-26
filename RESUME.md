@@ -29,6 +29,26 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
+## relay-floor OTA build order (2026-07-26) — DETERMINED: bare floor doesn't compile; fork surfaced, awaiting A/B, NO build
+
+Bare R2 relay-floor OTA-capable X1 (XIAO ESP32-S3) image, build+attest only, NO flash. Determined from code + cargo
+check at pinned `85303273`:
+- OTA-over-WiFi path = feature **`staota`** (ota_task@main.rs:1056, signed receiver :21043 on the WiFi netif, OFF the
+  RouteEngine so OTA is LoRa-independent). `staota=["ble"]`.
+- **Bare `staota` (no lora) does NOT compile** — 3× E0425 (`COARSE_TIME_ANCHOR_S`, `LORA_BEACON_T_ROTATE_S` via
+  `current_beacon_epoch`@6264, caller@6800 cfg(not(xiaobridge))) — SAME defect class as radarprobe (ble refs resolve
+  under staota; only the lora ones remain). `staota,lora` + `staota,loraroute` COMPILE.
+- **xiao answer:** bare floor wouldn't need xiao, BUT bare doesn't compile; the minimal compiling set adds `lora`, which
+  brings up the SX1262 @1158 on DFR1195 pins → on XIAO needs **`xiao`** (Wio-SX1262 pin-map). So compiling XIAO floor =
+  `staota,lora,xiao`. xiao needed IFF lora, and lora is forced by the compile.
+- **FORK (supervisor's — feature set + a tip-move):** A) unblock core's held cfg fix → true bare `staota` floor (no
+  lora/xiao, matches intent, tip moves); B) build `staota,lora,xiao` now (compiles, OTA proof works — ota_task is
+  WiFi-independent of LoRa, LoRa incidental, xiao correct pins). Recommended B for "OTA first" (no tip move).
+- **Two-image plan:** A (USB) + B (OTA), same pinned sha, distinguished by baked `R2_BUILD_ID` (emitted at boot →
+  runtime-observable; ELF sha256 also differs). B seen running = OTA round-trip proven.
+- Two-leg eligibility to run ON the chosen artifact (not inherited from g18), with controls — after A/B picked. **No
+  build taken** (contested feature set is supervisor's call). No flash.
+
 ## radarprobe build order (2026-07-26) — WITHDRAWN by supervisor (wrong artifact); defect recorded, no hive build
 
 **ORDER WITHDRAWN.** Roy's actual goal = a per-component bring-up smoke test, whose instrument is a **throwaway Arduino
