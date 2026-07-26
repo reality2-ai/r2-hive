@@ -29,30 +29,37 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
-## CURRENT: otal2cap+LORAROUTE OTA pair (BLE-CoC bearer, LoRa→core1) X1 — A/B BUILT + both ELIGIBLE=YES; NO FLASH, grant on A sha
+## CURRENT: otal2cap OTA — first-ever round-trip attempt RUNNING on X1 (composer, grant bound to A `7aa01f81`)
 
-Transport = **otal2cap** (BLE-CoC), staota superseded (broken), nobt superseded (BLE IS the bearer). Supervisor then ruled
-**+loraroute** (my core-map correction accepted — LoRa's SYNC load off core0 = the code's own fix @6696). Feature set (from
-code) = **`otal2cap,loraroute,xiao,benchsf7`** at pinned `85303273`: otal2cap→ble, CoC→`ota_receive_over_coc`@4733 (bearer),
-ble_task SPAWNED@1099; loraroute=[lora,routetest,alloc] → LoRa on core1; xiao=XIAO SX1262 pins; staota OUT; benchsf7 SF7.
-Compiles clean. No new code (otal2cap receiver+apply landed at the tip — why it beat USB-CDC's new-core-task cost).
-- **ELFs** (differ ONLY by baked R2_BUILD_ID, same size 1376748): A `otal2cap-lr.A.0727`
-  `dd355bc72c673fce7426142f91b8984843b82b81c66024bb65bbd8a801b5fc87` / B `otal2cap-lr.B.0727`
-  `f3351d536627333c7d7aa9cfbfe50381d405b068d4394e43998387456d1a2505`. Differential A-only-A/B-only-B (0 cross).
-- **Two-leg (these artifacts): A+B both ELIGIBLE=YES** — HANG_CAP@0x600fe000; `__user_exception`@0x40378c48 size 0x52,
-  0 windowed. Pos control D5=YES; neg control xiao-acc8=LEG1 FAIL.
-- **★ CORE-MAP HEADLINE (symbol-confirmed): LoRa IS ON CORE1** — `lora_route_task` symbol present, `lora_task` (core0)
-  symbol ABSENT (the not(loraroute) core0 path compiled OUT). lora_route_task on the dedicated CORE1_EXEC@1229, carries
-  the §8.1 beacon. **Residual CORE0 = BLE (ble_task advertise@4590 + CoC accept loop@4683) + ESP-NOW@1116 (ble-MANDATED,
-  IRREDUCIBLE) + wifi_task@1000 (IDLE) + net_task**. SYNC LoRa load GONE.
-- **★ os110 decision tree:** if os110 STILL fires with LoRa on core1, residual core0 = BLE+ESP-NOW (can't reduce, ESP-NOW
-  mandated) ⇒ os110 ≠ core0-LoRa-contention ⇒ rung-1 (USB-CDC receiver, core builds it) is the isolation move. Core
-  pre-registered (D-20260726-14): NO os110 at 2 radios; fires at ODT chunk 0/1 = old stall, coex REFUTED; later = new mode.
-- **reset_reason DISCRIMINATOR (HANG_CAP blind to executor stall):** OTA done→B prints otal2cap-lr.B.0727; CPU fault→
-  HANG_CAP captured + CoreSw 0x03 (recovers via reset tail @490); executor/CoC stall (os110)→HANG_CAP EMPTY + RWDT 0x10.
+Two attested pairs built; supervisor RULED the **as-built (heavier-core0) pair RUNS FIRST** — core's asymmetry argument: a
+PASS with MORE core0 load is STRONGER, and the only ambiguous outcome (chunk-0/1 fire) is exactly where the loraroute pair
+is the right next move. My loraroute pair is the pre-built FIRE-BRANCH (removes a build cycle from the failure path).
+
+- **RUNNING — as-built pair** `otal2cap,lora,xiao,benchsf7` @85303273 (grant bound to A, composer executing NOW): A
+  `otal2cap.A.0726` **`7aa01f81d7fa7f1d16690613fd738dbe567847e2bc521b6cbca46adb311af7fa`** / B `otal2cap.B.0726`
+  `03368c8ffc4beeb1ebde2b94cd296b856cf464a4a0f82ca979e84fb533a2a1d4`. Both ELIGIBLE=YES. **ALL radios core0** (ble+CoC,
+  lora_task SYNC, espnow, wifi idle) — os110 + my tri-radio-core0 hazard are ONE hazard here (core R-20260727-01), so a
+  chunk-0/1 fire is CONFOUNDED (intrinsic vs contention inseparable); a PASS is stronger for the same reason.
+- **FIRE-BRANCH — pre-built loraroute pair** `otal2cap,loraroute,xiao,benchsf7` @85303273: A `otal2cap-lr.A.0727`
+  **`dd355bc72c673fce7426142f91b8984843b82b81c66024bb65bbd8a801b5fc87`** / B `otal2cap-lr.B.0727`
+  `f3351d536627333c7d7aa9cfbfe50381d405b068d4394e43998387456d1a2505`. Both ELIGIBLE=YES. **LoRa CONFIRMED on CORE1
+  (symbol-level: `lora_route_task` PRESENT + `lora_task` ABSENT)** — residual core0 = BLE(+CoC) + ESP-NOW (irreducible) +
+  wifi idle. On a chunk-0/1 death → supervisor re-binds grant to `dd355bc7`, composer runs immediately (no rebuild).
+  [[presence-and-absence-at-symbol-level]]
+- **★ ATTRIBUTION CONSTRAINT (pre-committed, if the loraroute pair passes):** the claim is **CORE0 LOAD RELIEF AS A CLASS —
+  NOT coex-relief.** loraroute swaps SYNC lora_task → continuous-RX lora_route_task AND pulls alloc + RouteEngine, so two
+  mechanisms move together; no green separates them (core D-20260727-02). **Do NOT write "coex" in a verdict.**
+- **PRE-COMMITTED DECISION TREE (grant file):** B observed running = FIRST-EVER round-trip on this hardware; ODT chunk 0/1
+  = old stall → loraroute rebuild(=fire-branch); later index = NEW mode (report as new, not os110); os110 surviving with
+  LoRa on core1 = contention refuted strongest → USB-CDC receiver (rung-1, core builds) earns its cost.
+- **reset_reason DISCRIMINATOR (relayed to composer as the capture-time interpretation key):** B prints its BUILD_ID = done;
+  CPU fault → HANG_CAP captured + CoreSw 0x03 (recovers via reset tail @490); **executor/CoC stall (os110) → HANG_CAP EMPTY
+  + RWDT 0x10 — an empty capture is NOT absence of a fault, it is a fault the instrument cannot record.**
 - **PERSONA PRECONDITION (binding):** flash A app-only → A reports persona AFFIRMATIVELY → provision ONLY on
-  affirmative-absent/invalid → THEN B. Silence=STOP; valid persona in a DIFFERENT TG=STOP+ESCALATE, never overwrite. NO
-  flash until grant bound to A sha `dd355bc7`. **Superseded non-loraroute pair `7aa01f81` NOT flashed.**
+  affirmative-absent/invalid → THEN B. Silence=STOP; valid persona in a DIFFERENT TG=STOP+ESCALATE, never overwrite.
+- **HIVE POSTURE:** build+attest COMPLETE for both pairs; composer runs. **Nothing owed unless the run fires a chunk-0/1
+  death** — then the fire-branch is already built (no action) and I report the core-map headline on re-bind. Do NOT
+  pre-build anything else.
 
 ### superseded: staota transport (core-confirmed broken; kept as the "why we're on otal2cap")
 
