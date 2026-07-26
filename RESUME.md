@@ -53,9 +53,15 @@ pin-map.
   open). The FLASH build bakes `R2_WIFI_SSID`/`R2_WIFI_PASS` via build.rs env → different sha256 → **re-attest at
   flash-build** (both images, both legs, controls). The sha above attests structure+instrument+BUILD_ID+eligibility
   (creds-independent).
-- **HOLD-flash-build (supervisor):** do NOT produce the creds-baked flash build until Roy answers **synthetic vs real
-  AP** — recommended = a certified-SYNTHETIC bench SSID/PSK (phone hotspot / spare AP), same code path, zero captured
-  infra, decouples the OTA proof from g23. Empty-creds attestation stands on its own.
+- **g24 RULED (supervisor, Roy asleep): REAL lab creds via ENV** (synthetic AP needs a human to stand up; none awake).
+  Re-attest the creds-baked A+B. **BUT re-attest is STOP-BLOCKED on a clean injection MECHANISM** (reported): no
+  non-tracked creds env file on alfred; creds live in PROSE in tracked files (g23 exposure — not clean KEY=VALUE, so
+  programmatic extraction risks an echo = the "improvise" supervisor forbade); target/ holds only my empty-creds build.
+  Unblock = place `~/.r2-wifi.env` (untracked, `R2_WIFI_SSID=`/`R2_WIFI_PASS=`) on alfred, OR give the exact extraction
+  anchor. Then re-attest = one command (rebuild A+B with creds → new sha256 [reportable, not the literal] → two-leg +
+  controls). **Empty-creds attestation STANDS** (structure/instrument/BUILD_ID/eligibility are creds-independent).
+  Binding: R2-SECRETS 3.1 — build.rs reads env, NO literal in any tracked file/commit/recipe/attestation/message.
+  [[use-is-not-publication-secrets-boundary]]
 - **Open before any grant (NOT hive):** composer read of X1 persona + OTA-TG `730c29e7` membership — X1 must VERIFY the
   update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
 - **NO FLASH** taken; no grant.
