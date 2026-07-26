@@ -31,12 +31,15 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ## CURRENT: relay-floor OTA X1 — empty-creds A/B built+eligible; but ⚠ STOPPED on a staota-WiFi-connect finding + nobt ruling + synthetic-AP creds
 
-**⚠ ACTIVE STOP (reported to supervisor+core): staota's WiFi STA may never associate.** wifi_task's
-`controller.connect_async()`@9027 is gated behind `DATA_PLANE_JOIN.wait()`@9021; DATA_PLANE_JOIN has NO `.signal()` site
-(all refs grepped: def@5623/wait@9021/comments — matches the bit5 "never fires in coex" finding). So the STA associates
-ONLY IF `wifi::new(Station)`@957 auto-connects at creation (esp-radio semantics — UNCONFIRMED statically). If not,
-OTA-over-WiFi can't work in nobt OR non-nobt. Core owns the answer (esp-radio auto-connect + whether staota-WiFi-OTA was
-ever metal-proven — the v8.7.x campaign was OTA-over-BLE-CoC/otal2cap, NOT staota). **No A/B build until core resolves it.**
+**⚠ STOP CONFIRMED BY CORE (D-20260726-13): staota's WiFi STA NEVER associates → OTA-over-WiFi BROKEN, nobt-independent.**
+wifi_task's `connect_async()`@9027 is gated behind `DATA_PLANE_JOIN.wait()`@9021; **Q1: esp-radio 0.18.0 does NOT
+auto-associate — explicit connect_async REQUIRED** (wifi/mod.rs:2515; new()@2205 sets mode only). **Q2: DATA_PLANE_JOIN =
+0 signals** (core's working positive control: generic `.signal(` = 5 real sites, DATA_PLANE_JOIN = 0; my bit5 finding
+holds). So the STA never connects → no DHCP → :21043 unreachable. **Q3: otal2cap is NOT proven either** (os110 aborts +
+post-abort hang = the v8.6-v8.7.3 campaign trigger; the round-trip was F1 target, never demonstrated). **NEITHER
+transport proven.** My tri-radio-core0 prediction + bit5 both stand. **No staota A/B build until supervisor rules
+transport:** (a) core adds a small `cfg(staota)` boot-connect, or (b) switch to otal2cap-at-2-radios (retires the
+tri-radio hazard, may unblock os110 if coex-driven). Awaiting supervisor.
 - **★ PERSONA-GATE inside the OTA health check:** `ota_health_check` items 3+4 (@4084+) require a present+non-degenerate
   persona (hive_id!=0, tg_pk!=0) AND a GroupHmac sign/verify round-trip ⇒ **image B ROLLS BACK if X1's persona doesn't
   validate**, independent of OTA transport (R2-LORA 6.5.1, landing IN the health gate). X1 enrolment UNREAD (composer).
