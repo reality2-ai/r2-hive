@@ -47,10 +47,18 @@ pin-map.
   A-has-only-A / B-has-only-B (0 cross); BUILD_ID printed at boot → B running is observable = OTA round-trip proof.
 - **Two-leg eligibility on THESE artifacts (not inherited):** A + B both **ELIGIBLE=YES** (HANG_CAP@0x600fe000;
   `__user_exception`@0x40378c44 size 0x52, 0 windowed calls). Pos control D5 v8.7.3=YES; neg control xiao-acc8=LEG1 FAIL.
-- **⚠ CREDS CAVEAT:** built with EMPTY WiFi creds (NOT baking the held captured-infra SSID/PSK). The FLASH build bakes
-  `R2_WIFI_SSID`/`R2_WIFI_PASS` via build.rs env → different sha256 → **re-attest at flash-build**. The sha above attests
-  structure + instrument + BUILD_ID + eligibility (creds-independent).
-- **NO FLASH** taken; no grant. Awaiting supervisor grant (after composer's partition answer).
+- **⚠ CREDS — reason CORRECTED (supervisor):** built with EMPTY WiFi creds. The reason creds must stay out of the
+  artifact record is **R2-SECRETS 3.1 — no real value as a LITERAL in ANY tracked file/commit/recipe/attestation/message**
+  — NOT the g23 hold (USE ≠ publication; build.rs reading env is compliant; Roy has issued NO ruling on the creds, g23
+  open). The FLASH build bakes `R2_WIFI_SSID`/`R2_WIFI_PASS` via build.rs env → different sha256 → **re-attest at
+  flash-build** (both images, both legs, controls). The sha above attests structure+instrument+BUILD_ID+eligibility
+  (creds-independent).
+- **HOLD-flash-build (supervisor):** do NOT produce the creds-baked flash build until Roy answers **synthetic vs real
+  AP** — recommended = a certified-SYNTHETIC bench SSID/PSK (phone hotspot / spare AP), same code path, zero captured
+  infra, decouples the OTA proof from g23. Empty-creds attestation stands on its own.
+- **Open before any grant (NOT hive):** composer read of X1 persona + OTA-TG `730c29e7` membership — X1 must VERIFY the
+  update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
+- **NO FLASH** taken; no grant.
 
 ## radarprobe build order (2026-07-26) — WITHDRAWN by supervisor (wrong artifact); defect recorded, no hive build
 
