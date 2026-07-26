@@ -4,7 +4,7 @@
 # The 8MB sibling of the deprecated dfr1195-partitions.csv. Same non-authoritative status: the
 # XIAO-S3 is NOT flashed from this file. flash-board.sh flashes the composer board-catalogue
 # template esp32-s3-xiao-wio-sx1262/templates/partitions.csv (phy_init @0x11000/0x1000, ota_0/1
-# = 3 MiB slots @0x20000/0x320000, storage fat @0x620000 — device-enumeration-confirmed on X1).
+# = 3 MiB slots @0x20000/0x32_0000, storage fat @0x62_0000 — device-enumeration-confirmed on X1).
 # This file's 0x3E0000 slots + ota_1@0x400000 do NOT match the device. Rows removed so it cannot
 # be flashed; history preserves the old layout.
 #
