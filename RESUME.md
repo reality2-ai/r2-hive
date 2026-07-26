@@ -29,21 +29,25 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
-## CURRENT: otal2cap v3 OTA pairs (2, from TIP `b25a21eb`) — all 4 BUILT + ELIGIBLE=YES + v3-in-artifact; NO FLASH, grant on PRIMARY A
+## CURRENT: otal2cap v3 OTA — FIRST-EVER round-trip attempt RUNNING on X1 (4b4a71e5 pair; composer mid-run)
 
-Pin = core branch tip **`b25a21ebd8b7cd549da64c004ad098965f41126f`** (= 4b4a71e5 r2-update v3/137 re-vendor + a canon-cite
-COMMENTS commit; comment-only delta so behaviourally identical, but line-shifts move panic-location bytes → new shas;
-4b4a71e5 build superseded). **Both v2 pairs DEAD** (`7aa01f81`/`dd355bc7` — reject v3 = last night's reason=1; NOT reused).
-#d005 verified by MY ls-remote (b25a21eb=tip, resolves), clean detached, tree clean, source v3/137 (lib.rs:103/107).
-- **★ v3 REACHED THE BINARY (artifact proof, the deciding item):** `verify_header`@42065a8d = `movi a12,137` (HEADER_LEN
-  =137; r2-update crate byte-identical to the 4b4a71e5 build — comments were in main.rs). v2 contrast = `movi a12,123`.
-  137 present, 123 absent — the re-vendor is IN the artifact, not just the tree. PACKAGE_VERSION=3 coupled (v3 header IS 137B).
-- **PRIMARY (RUN FIRST, heavier, LoRa core0)** = `otal2cap,lora,xiao,benchsf7`, size 1363936: A `otav3.A.0727`
-  **`59f609e165225cc961116a8ace963ea469652172d646f387043214c92f4f4159`** / B `otav3.B.0727`
-  `8ec5f876272d436215cf02dfdddfde0cd47a44dfcebf3ac07daa3a8aefb6b147`.
-- **SECONDARY (fire-branch, LoRa core1)** = `otal2cap,loraroute,xiao,benchsf7`, size 1378252: A `otav3-lr.A.0727`
-  **`72bacdee1b2d9e1184b0da3cb6faa7a8e410ab08888dd26290952b136b415d5e`** / B `otav3-lr.B.0727`
-  `d2dac4a31a3741fec29c9fdaff91a017e595c786a078db35e2933155b182b364`.
+**LIVE (THIS run) = the 4b4a71e5 pair. My b25a21eb rebuild CROSSED a flash already in progress — b25a21eb is the NEXT
+(provisioned) run, NOT a supersession.** Both v3 builds are byte-EQUIVALENT in behaviour (r2-update crate byte-identical;
+only main.rs panic-location bytes shift from the canon-cite comments). **DO NOT MIX pairs across a run** — A and B must
+differ ONLY by baked BUILD_ID; pushing b25a21eb B onto a 4b4a71e5 A board would add the panic-loc shifts and break the
+clean BUILD_ID observation. Both v2 pairs DEAD (`7aa01f81`/`dd355bc7`).
+- **★ v3 REACHED THE BINARY (artifact proof):** `verify_header` = `movi a12,137` (HEADER_LEN=137) vs v2 `movi a12,123`.
+  Holds on BOTH v3 builds (crate byte-identical). PACKAGE_VERSION=3 coupled (v3 header IS 137B). **⚠ SOURCE-DIFF IS NOT
+  BINARY-IDENTITY** (I measured both binaries; comments shifted panic-location DATA → different shas even with identical
+  codegen — 3rd instance of the report≠artifact / source≠binary family tonight). [[presence-and-absence-at-symbol-level]]
+- **LIVE (4b4a71e5 build): PRIMARY** `otal2cap,lora,xiao,benchsf7` (LoRa core0), size 1363936 — **A `ae5fadb3…` FLASHED to
+  ota_0, RUNNING (MAC matched, NVS preserved); grant bound to B `4cd1e333…`, composer MID-RUN.** SECONDARY (fire-branch,
+  LoRa core1) A `05874e40` / B `90f5e95c`.
+- **NEXT run (b25a21eb build, HELD — the provisioned run rebuilds anyway):** PRIMARY A `59f609e1` / B `8ec5f876`;
+  SECONDARY A `72bacdee` / B `d2dac4a3`. Both attestations held; all 4 (each build) ELIGIBLE=YES + controls + BUILD_ID
+  differential clean.
+- **CORE-MAP (both builds, symbol-proven):** PRIMARY LoRa core0 (`lora_task` present + `lora_route_task` absent),
+  SECONDARY LoRa core1 (route present + lora_task absent). Residual core0 = BLE(+CoC) + ESP-NOW (irreducible) + wifi idle.
 - **Two-leg: all 4 ELIGIBLE=YES** (HANG_CAP@0x600fe000; `__user_exception`@0x40378c44 size 0x52, 0 windowed). Pos D5=YES;
   neg xiao-acc8=LEG1 FAIL. BUILD_ID differential: all 4 carry only their own (0 cross).
 - **CORE-MAP HEADLINE (presence-AND-absence):** PRIMARY `lora_task` PRESENT(2)+`lora_route_task` ABSENT(0) = LoRa core0
@@ -54,7 +58,9 @@ COMMENTS commit; comment-only delta so behaviourally identical, but line-shifts 
   relief-as-a-class, NOT coex.
 - **PERSONA PRECONDITION (binding):** flash A app-only → A reports persona AFFIRMATIVELY → provision ONLY on
   affirmative-absent/invalid → THEN B. Silence=STOP; different-TG=STOP+ESCALATE, never overwrite.
-- **NO flash.** Grant binds PRIMARY A `59f609e1`; fire-branch = SECONDARY A `72bacdee` (re-bind on a chunk-0/1 death).
+- **Grant is LIVE, bound to the 4b4a71e5 pair** (PRIMARY A `ae5fadb3` flashed+running, B `4cd1e333` mid-run). Fire-branch
+  for THIS run = 4b4a71e5 SECONDARY A `05874e40`. On the NEXT (provisioned) run, rebuild anyway and the b25a21eb pair
+  applies. **No action from hive: do NOT rebuild, re-bind, or flash — the run in flight is consistent.**
 - **ImageSink `staged_rollback_value()=ExplicitlyNotApplicable`** sanity-checked CORRECT (no ESP anti-rollback; R2 seq
   floor @0x18000 sole floor; caveat if secure-version ever enabled → `Value(security_counter)`).
 
