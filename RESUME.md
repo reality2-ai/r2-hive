@@ -29,7 +29,18 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
-## CURRENT: otal2cap v3 OTA — FIRST-EVER round-trip attempt RUNNING on X1 (4b4a71e5 pair; composer mid-run)
+## CURRENT: otal2cap v3 OTA — run PASSED (reason=4 signer gate, the pre-committed advance); chunk stream still unreached
+
+**★ RESULT (2026-07-27): reason=4 UnauthorizedSigner = the PRE-COMMITTED PASS.** Last night = reason=1 at the VERSION
+gate (stale v2); tonight the same board reached the **SIGNER gate** → **the v3 HEADER PARSES**. My `movi 137` artifact
+proof is now confirmed BEHAVIOURALLY ON METAL (the .rodata constant is the one the board acted on). **Clean protocol
+reject** (the 4th tree-leg I flagged missing): NO reset, zero panic, zero watchdog; A uninterrupted, beats→165, still on
+`otav3.A.0727`. NOT a chunk death → **fire-branch has no trigger; b25a21eb pair stays HELD** for the provisioned run.
+Advance = the failure moved ONE gate forward (version→signer). **The chunk stream — where every historical failure lives
+— has still NEVER been reached** (needs a provisioned board; Roy-gated on the two partition questions). Connect +
+header-delivery + version-parse now proven; signer + chunk-stream + apply/flip/run still owed. Nothing owed by hive.
+
+### run detail (LIVE = 4b4a71e5 pair; b25a21eb = next/provisioned run, held)
 
 **LIVE (THIS run) = the 4b4a71e5 pair. My b25a21eb rebuild CROSSED a flash already in progress — b25a21eb is the NEXT
 (provisioned) run, NOT a supersession.** Both v3 builds are byte-EQUIVALENT in behaviour (r2-update crate byte-identical;
@@ -48,6 +59,9 @@ clean BUILD_ID observation. Both v2 pairs DEAD (`7aa01f81`/`dd355bc7`).
   differential clean.
 - **CORE-MAP (both builds, symbol-proven):** PRIMARY LoRa core0 (`lora_task` present + `lora_route_task` absent),
   SECONDARY LoRa core1 (route present + lora_task absent). Residual core0 = BLE(+CoC) + ESP-NOW (irreducible) + wifi idle.
+- **★ PANIC-FORENSICS MAP (supervisor ruled, consequence of source-diff≠binary-identity):** an unexpected panic on the
+  LIVE board decodes against **4b4a71e5 line numbers** (the FLASHED build), NOT b25a21eb — the canon-cite comments shifted
+  main.rs lines. If anything panics mid-run, use the 4b4a71e5 build's ELF/map, not the pinned tip's.
 - **Two-leg: all 4 ELIGIBLE=YES** (HANG_CAP@0x600fe000; `__user_exception`@0x40378c44 size 0x52, 0 windowed). Pos D5=YES;
   neg xiao-acc8=LEG1 FAIL. BUILD_ID differential: all 4 carry only their own (0 cross).
 - **CORE-MAP HEADLINE (presence-AND-absence):** PRIMARY `lora_task` PRESENT(2)+`lora_route_task` ABSENT(0) = LoRa core0
