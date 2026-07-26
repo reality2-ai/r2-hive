@@ -71,30 +71,44 @@ pin-map.
   update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
 - **NO FLASH** taken; no grant.
 
-### Next-phase context (Roy/specs/supervisor rulings — DO NOT build until specs finishes ensemble canon + creds unblock)
-- **OTA delivers the rest:** image A over USB (ONE USB write all night), image B over air proves the round-trip, then
-  each subsequent capability arrives OVER THE AIR too. Sequence: (1) core hive+OTA [done, pending re-attest], (2) the
-  memories, (3) sensor emulated, (4) battery — ALL as ENSEMBLES.
-- **Ensemble = a SCORE, not a binary/feature** (R2-ENSEMBLE v0.3: score is declarative, schema R2-DEF 7; NOT installed,
-  no binary; exactly two part types = Sentants + plugins). Shape = **ONE hive binary, FIVE scores** (each ≥1 Sentant),
-  NOT five cargo features. **Transport bindings (BLE/WiFi/LoRa/UDP/TCP) are ALWAYS hive-shared SINGLETONS, never in a
-  score** (R2-ENSEMBLE 2.1.2) — OTA ensemble owns UPDATE LOGIC, the WiFi bearer stays hive-shared. Encoding is COMPILED
-  (Roy #69, 2026-07-13: MCU = base TN fw + TG + plugins compiled + sentants encoded; interpreted-wasm ruled out on MCU;
-  required ensembles incl. OTA HARD-BAKED into base). **Cite #69 for encoding, R2-ENSEMBLE for boundary; do NOT cite
-  §2.2B.**
-- **Three memories (distinct roles):** ATECC608 @0x60 = encrypted/secure class · FRAM @0x50 = store-and-forward QUEUE
-  for readings awaiting TX (delivery semantics: overflow / reboot-with-undelivered / partial-delivery — NOT a KV store)
-  · NVS @0x9000 = identity/keypair (third, separate).
-- **Sensor = enable-settle-read MUST be REAL code** (only the VALUE is simulated while USB attached, because USB cuts the
-  5V rail): enable the 5V gate → WAIT the settle → attempt read → substitute value when rail known-cut. NO stub that
-  skips gate+settle (that's the never-run-path class). Await circuits for the actual gate pin/polarity/settle (do NOT
-  invent settle). **SIM MARKER MANDATORY** (supervisor rule ahead of specs; canon wins if it speaks): a simulated
-  reading MUST be distinguishable AT THE EVENT by a consumer (same code path ⇒ the event carries the signal). SIM MUST
-  NEVER LEAK INTO LIVE. **Cadence = a SCORE PARAMETER** (~900s field / 5-10s bench — do NOT hardcode either; same shape
-  both). Likely an SCF duty-class question (duty_class = f(role, power_source)) — specs queued.
+### Next-phase context — ENSEMBLE CANON (specs Q1/Q4/Q5 + Roy #69; DO NOT build until specs finishes + creds unblock)
+- **OTA delivers the rest:** image A over USB (ONE USB write all night), B over air proves round-trip, then each
+  capability arrives OVER THE AIR. Sequence: (1) core hive+OTA [done, pending re-attest], (2) memories, (3) sensor, (4)
+  battery.
+- **Ensemble = a SCORE, not a binary/feature** (R2-ENSEMBLE v0.3, schema R2-DEF 7; NOT installed, no binary; two part
+  types = Sentants + plugins). Shape = **ONE hive binary, FIVE scores** (each ≥1 Sentant). Active ensembles AND the
+  900s-vs-5s cadence = **NVS ROLE-PROFILE boot config** (R2-RUNTIME 210 — role+knobs selected AT BOOT from NVS, NOT
+  compile-time; proven no_std), NOT cargo features. Encoding COMPILED (Roy #69); boundary = the score. **Cite #69 for
+  encoding, R2-ENSEMBLE for boundary; NEVER §2.2B (bearer-presence only).**
+- **★ C1 — memories/battery/LED are HIVE-SHARED SINGLETON PLUGINS WITH REGISTRATION, not ensemble-owned** (R2-ENSEMBLE
+  2.1.2: a plugin wrapping an OS-exposed-once singleton — port/device/hw-cap — MUST be hive-shared + have a registration
+  mechanism). NVS/FRAM/ATECC608 each exposed once; the ADC (battery) once; the LED once. The ensemble is the thing that
+  USES + REGISTERS against the shared plugin (R2-WEB pattern: one HTTP server, N ensembles register routes). **NON-
+  CONFORMANT: N ensembles each owning an NVS driver — do NOT build that.**
+- **★ HARD MUST-NOT (structural, R2-KEYSTORE 184):** secret key material MUST NOT leave the protected boundary in
+  plaintext ⇒ a generic read-NVS capability is non-conformant the moment it CAN address the key region. The NVS cap MUST
+  be **REGION-SCOPED BY CONSTRUCTION — incapable of EXPRESSING the key range** (not well-behaved, not documented-forbidden:
+  structurally incapable). Make-bad-state-unrepresentable-by-type. [[identity-verified-is-not-function-verified]]
+- **Q4 capability names:** no canonical storage classes (R2-CAP 3.2 — no central registry; social agreement + docs).
+  Ruling: **MINT `ai.reality2.cap.storage.*` + DOCUMENT in the SAME commit** (docs ARE the registry; undocumented =
+  unregistered). `ai.reality2.cap.env.scalar` is NOT canon — a fleet string; keep using, stop calling it canonical.
+- **★ LED — R2-INDICATOR v0.5 is NORMATIVE (do NOT invent a pattern); indicator is a PLUGIN byte-identical across boards,
+  output stage RENDERS only, never re-decides a state ⇒ LED logic in platform main.rs is NON-CONFORMANT.** Fixed
+  envelopes: Healthy = dub-dub double-pulse (lub@0.00, dub@0.18, 20 BPM, DIM — NOT 25BPM/full-bright, the rejected edge)
+  · Updating/OTA = 0.18s strobe white · Boot = ~100ms flash then dark · Error = 0.25s pulse red · Identify = solid white
+  · Low-batt = 1.5s pulse orange. Overlay priority (highest first): Identify > Updating > Low-batt > underlying (Identify
+  outranks OTA deliberately). Healthy AND Updating MUST signal in BOTH dev+prod. **Dev-only delta = the R2-INDICATOR 6
+  event-arrival BLIP** (quick tick on event arrival, may collide with HB, collision OK/no arbitration; PROD MUST NOT show
+  it; gated on **R2-BUILDMODE**, not a hand-set flag). sensor-read/battery-read are NOT signature states; app extensions
+  allowed but MUST NOT redefine a reserved envelope.
+- **Sensor = enable-settle-read MUST be REAL code** (only the VALUE simulated while USB attached — USB cuts the 5V rail):
+  enable 5V gate → WAIT settle → attempt read → substitute value when rail known-cut. NO stub skipping gate+settle
+  (never-run-path class). Await circuits for gate pin/polarity/settle (do NOT invent settle). **SIM MARKER MANDATORY**:
+  a simulated reading MUST be distinguishable AT THE EVENT (same path ⇒ event carries the signal); SIM MUST NEVER LEAK
+  INTO LIVE. Cadence = score param. Likely SCF duty-class (duty_class = f(role, power_source)) — specs queued.
 - **X1 enrolment UNKNOWN:** send-over-TN needs X1 = a TG member with a working persona; persona + OTA-TG `730c29e7`
-  membership UNREAD (composer's lane). Do NOT design around X1 being enrolled. Board entry-path proof (button-free
-  download) PROVEN on D5, was UNPROVEN on X1 — gates the first USB write (composer, amended grant).
+  membership UNREAD (composer's lane). Do NOT design around X1 enrolled. Button-free entry PROVEN on D5, UNPROVEN on X1
+  — gates the first USB write (composer, amended grant).
 
 ## radarprobe build order (2026-07-26) — WITHDRAWN by supervisor (wrong artifact); defect recorded, no hive build
 
