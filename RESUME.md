@@ -29,25 +29,28 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
-## relay-floor OTA build order (2026-07-26) — DETERMINED: bare floor doesn't compile; fork surfaced, awaiting A/B, NO build
+## CURRENT: relay-floor OTA X1 (XIAO) — Option B BUILT + attested, both ELIGIBLE=YES; NO FLASH, awaiting grant
 
-Bare R2 relay-floor OTA-capable X1 (XIAO ESP32-S3) image, build+attest only, NO flash. Determined from code + cargo
-check at pinned `85303273`:
-- OTA-over-WiFi path = feature **`staota`** (ota_task@main.rs:1056, signed receiver :21043 on the WiFi netif, OFF the
-  RouteEngine so OTA is LoRa-independent). `staota=["ble"]`.
-- **Bare `staota` (no lora) does NOT compile** — 3× E0425 (`COARSE_TIME_ANCHOR_S`, `LORA_BEACON_T_ROTATE_S` via
-  `current_beacon_epoch`@6264, caller@6800 cfg(not(xiaobridge))) — SAME defect class as radarprobe (ble refs resolve
-  under staota; only the lora ones remain). `staota,lora` + `staota,loraroute` COMPILE.
-- **xiao answer:** bare floor wouldn't need xiao, BUT bare doesn't compile; the minimal compiling set adds `lora`, which
-  brings up the SX1262 @1158 on DFR1195 pins → on XIAO needs **`xiao`** (Wio-SX1262 pin-map). So compiling XIAO floor =
-  `staota,lora,xiao`. xiao needed IFF lora, and lora is forced by the compile.
-- **FORK (supervisor's — feature set + a tip-move):** A) unblock core's held cfg fix → true bare `staota` floor (no
-  lora/xiao, matches intent, tip moves); B) build `staota,lora,xiao` now (compiles, OTA proof works — ota_task is
-  WiFi-independent of LoRa, LoRa incidental, xiao correct pins). Recommended B for "OTA first" (no tip move).
-- **Two-image plan:** A (USB) + B (OTA), same pinned sha, distinguished by baked `R2_BUILD_ID` (emitted at boot →
-  runtime-observable; ELF sha256 also differs). B seen running = OTA round-trip proven.
-- Two-leg eligibility to run ON the chosen artifact (not inherited from g18), with controls — after A/B picked. **No
-  build taken** (contested feature set is supervisor's call). No flash.
+Bare R2 relay-floor OTA-capable X1 image, build+attest only. Supervisor RULED **Option B** (`staota,lora,xiao` at pinned
+`85303273`) — the true bare `staota` floor does NOT compile (3× E0425, `current_beacon_epoch` lora consts — THIRD
+instance of the radarprobe defect class; core's held cfg fix owed, DEFAULT must be in its regression set). OTA is
+WiFi-independent of LoRa (ota_task off the RouteEngine), so LoRa is present-but-incidental; xiao = honest XIAO Wio-SX1262
+pin-map.
+- **Feature justification (from code):** `staota` = WiFi OTA (ota_task@1056, signed :21043 on WiFi netif); `lora` FORCED
+  by the compile; `xiao` for the SX1262 bringup @1158 pins (XIAO physically carries the Wio-SX1262).
+- **STOP check (mark-image-valid) PASSES — health-gated, not blind:** `set_current_ota_state(Valid)`@main.rs:4162 runs
+  only inside `if ota_health_check()`@4161, deferred 8s (`ota_confirm_task`@4136), PendingVerify-only; FAIL → Invalid +
+  rollback record + revert + reboot (`ota_health_check`@4074 = §5.2 min-2 radios-up). Rollback protection intact.
+- **Images A + B** (clean detached, `rm -rf target` each, differ ONLY by baked `R2_BUILD_ID`, same size 1346876 B):
+  A `relayfloor.A.0726` sha256 `0722485d8d49160a3d036b6325b5e13fdeff5a38e5ed800c1c1f030834da83f9` /
+  B `relayfloor.B.0726` sha256 `a571710ad42df8355b4abb147831ee2c0069f7a74a8a6e6b0fe726c2da518387`. Differential:
+  A-has-only-A / B-has-only-B (0 cross); BUILD_ID printed at boot → B running is observable = OTA round-trip proof.
+- **Two-leg eligibility on THESE artifacts (not inherited):** A + B both **ELIGIBLE=YES** (HANG_CAP@0x600fe000;
+  `__user_exception`@0x40378c44 size 0x52, 0 windowed calls). Pos control D5 v8.7.3=YES; neg control xiao-acc8=LEG1 FAIL.
+- **⚠ CREDS CAVEAT:** built with EMPTY WiFi creds (NOT baking the held captured-infra SSID/PSK). The FLASH build bakes
+  `R2_WIFI_SSID`/`R2_WIFI_PASS` via build.rs env → different sha256 → **re-attest at flash-build**. The sha above attests
+  structure + instrument + BUILD_ID + eligibility (creds-independent).
+- **NO FLASH** taken; no grant. Awaiting supervisor grant (after composer's partition answer).
 
 ## radarprobe build order (2026-07-26) — WITHDRAWN by supervisor (wrong artifact); defect recorded, no hive build
 
