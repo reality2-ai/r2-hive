@@ -110,6 +110,24 @@ pin-map.
   membership UNREAD (composer's lane). Do NOT design around X1 enrolled. Button-free entry PROVEN on D5, UNPROVEN on X1
   — gates the first USB write (composer, amended grant).
 
+### Electronics (circuits, AUTHORITATIVE for firmware — for the sensor/memory/battery/LED ensembles, not yet built)
+- **5V gate = D0/GPIO1, ACTIVE-HIGH** (TPS61023 EN; low = true 0.1µA disconnect). **Settle = 1500ms proven-good** (radar
+  replied on battery at that value); min UNCHARACTERISED — do NOT go below a few hundred ms without a test. Use 1500 as
+  a CONFIG KNOB, not a literal.
+- **Radar UART = TX GPIO43 / RX GPIO44, 115200 8-N-1**, Modbus RTU slave 0x01; water level = holding reg 0x0003 in mm;
+  request `01 03 00 03 00 01 74 0A`, reply `01 03 02 mm_hi mm_lo crc_lo crc_hi`. **XC4486 = PASSIVE bidirectional shifter
+  — NO DE/RE, NO enable, auto-direction; FIRMWARE DOES NOTHING FOR IT — strip any direction handling** (the withdrawn
+  radarprobe's RADAR_DE_RE=GPIO6 was WRONG for this shifter).
+- **FRAM 0x50 = MB85RC, 16-bit addressing, BYTE-WRITABLE**, no page boundaries, no write delay, endurance ~unlimited at
+  5-10s; WP+A0-A2 strapped GND (write-enabled, no WP handling). **SIZE UNKNOWN (32KB or 512KB) — PROBE it, do not assume.**
+- **ATECC608 0x60 = LOCK STATE UNKNOWN — QUERY the lock before assuming anything; do NOT provision blind.**
+- **Battery = D1/GPIO2, 2×470k divider (read ×2), 100nF at pin.** Dry joint NOT confirmed reflowed; fed from LiPo+ which
+  USB CUTS → reads ONLY on battery. Code it, do NOT expect a green tonight, say so in the attestation.
+- **LED = GPIO21, ACTIVE-LOW**, free (not shared with LoRa B2B pins). **0x7C = CONFIRMED PHANTOM** (only 0x50 + 0x60 are
+  real) — bind nothing to it, don't let an enumerator claim it.
+- **Testable on USB tonight:** FRAM, ATECC608, SX1262 SPI, LED, I2C scan, gate GPIO logic. **NOT testable:** real radar
+  comms, battery, actual 5V rail rise.
+
 ## radarprobe build order (2026-07-26) — WITHDRAWN by supervisor (wrong artifact); defect recorded, no hive build
 
 **ORDER WITHDRAWN.** Roy's actual goal = a per-component bring-up smoke test, whose instrument is a **throwaway Arduino
