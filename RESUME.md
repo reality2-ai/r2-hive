@@ -29,23 +29,36 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
-## CURRENT: otal2cap OTA — run gave reason=1 (STALE v2 vendor, NOT os110); need a v3-vendored sha pin to rebuild
+## CURRENT: otal2cap v3 OTA pairs (2, from re-vendor `4b4a71e5`) — all 4 BUILT + ELIGIBLE=YES + v3-in-artifact; NO FLASH, grant on PRIMARY A
 
-**⚠ THE reason=1 REJECT WAS VENDOR-STALENESS, NOT A TRANSPORT/COEX RESULT (core).** Both attested pairs vendor r2-update
-**v2**; core re-vendored to canonical **v3/137** on branch `dfr1195-fw-ensemble-cfg-dere@4b4a71e5` (root cause; the board
-was correct). A v2 receiver rejects a v3 header at the version gate → reason=1, a CLEAN protocol reject (NO reset — distinct
-from CoreSw 0x03 / RWDT 0x10 / B-boot). **So the os110 legs do NOT apply to a reason=1, and the fire-branch is MOOT here**
-(both pairs v2). Weak positive (composer's ODT index settles it): a header parsed before the version reject means the CoC
-delivered ≥chunk-0 → a hint os110 did not stall at chunk-0 on the heavier image; NOT a transport pass. **NEED: supervisor
-pins a v3-vendored sha** (merge 4b4a71e5 to the tip or order a build from it — #d005; I don't build off a core branch
-without a pin) → then rebuild the otal2cap[,loraroute] pair v3 + re-attest, same shape. **Transport/coex still UNTESTED.**
-- **★ ImageSink grew `staged_rollback_value()` (v3, core).** FlashSink returns `RollbackBinding::ExplicitlyNotApplicable`
-  — I sanity-checked it CORRECT: the DFR1195 has NO ESP bootloader anti-rollback (no sdkconfig / `CONFIG_BOOTLOADER_APP_ANTI_ROLLBACK`
-  / secure_version; otadata state-based slot swap only). The **R2 seq floor (NVS 0x18000 in r2cfg) is the SOLE floor**.
-  CAVEAT: if ESP secure-version anti-rollback is ever enabled, this MUST become `Value(security_counter)` injective-into-seq
-  or a real floor is silently bypassed.
+Pin MOVED to core re-vendor **`4b4a71e5bc523ea44f85fd8efeb8cc9d2c7e9087`** (branch dfr1195-fw-ensemble-cfg-dere: r2-update
+v3/137 re-vendor + cfg fix + staota connect fix). **Both v2 pairs DEAD** (`7aa01f81`/`dd355bc7` — stale-v2, reject v3
+headers = last night's reason=1; NOT reused). #d005 verified by MY ls-remote (=tip), clean detached, tree clean, source
+v3/137 (lib.rs:103/107).
+- **★ v3 REACHED THE BINARY (artifact proof, the new attestation item):** v3 ELF `verify_header`@42065a8d = `movi a12,137`
+  (HEADER_LEN=137) vs the dead v2 ELF `verify_header`@420656bb = `movi a12,123`. 137 present in v3, 123 absent — the
+  re-vendor is IN the artifact, not just the tree. PACKAGE_VERSION=3 coupled (v3 header IS 137B).
+- **PRIMARY (RUN FIRST, heavier, LoRa core0)** = `otal2cap,lora,xiao,benchsf7`, size 1363936: A `otav3.A.0727`
+  **`ae5fadb33a9f5a06266c823198702070da0867d7c672482597b5c2366b8c2175`** / B `otav3.B.0727`
+  `4cd1e33325e40403cc4e32fc0e1bf529d05cfb69777eca1eac2980e9f2784c02`.
+- **SECONDARY (fire-branch, LoRa core1)** = `otal2cap,loraroute,xiao,benchsf7`, size 1378252: A `otav3-lr.A.0727`
+  **`05874e400b429ac77f0902a3294f2c9a2314928d54a083c6909c627d48a5e550`** / B `otav3-lr.B.0727`
+  `90f5e95c79a77fc53fc4936ec5c63717edd2ba53b0fe382ddcd9a310bcd20133`.
+- **Two-leg: all 4 ELIGIBLE=YES** (HANG_CAP@0x600fe000; `__user_exception`@0x40378c44 size 0x52, 0 windowed). Pos D5=YES;
+  neg xiao-acc8=LEG1 FAIL. BUILD_ID differential: all 4 carry only their own (0 cross).
+- **CORE-MAP HEADLINE (presence-AND-absence):** PRIMARY `lora_task` PRESENT(2)+`lora_route_task` ABSENT(0) = LoRa core0
+  (max load); SECONDARY `lora_route_task` PRESENT(3)+`lora_task` ABSENT(0) = LoRa core1. Residual core0 (both) = BLE(+CoC)
+  + ESP-NOW (irreducible) + wifi idle; PRIMARY adds SYNC lora_task. [[presence-and-absence-at-symbol-level]]
+- **reset_reason discriminator (4 outcomes):** B-boot=complete · CoreSw 0x03=fault (recovers via reset tail) · RWDT 0x10=
+  os110 executor stall (HANG_CAP EMPTY) · NO-reset=clean protocol reject. Attribution on a SECONDARY pass = core0-load-
+  relief-as-a-class, NOT coex.
+- **PERSONA PRECONDITION (binding):** flash A app-only → A reports persona AFFIRMATIVELY → provision ONLY on
+  affirmative-absent/invalid → THEN B. Silence=STOP; different-TG=STOP+ESCALATE, never overwrite.
+- **NO flash.** Grant binds PRIMARY A `ae5fadb3`; fire-branch = SECONDARY A `05874e40` (re-bind on a chunk-0/1 death).
+- **ImageSink `staged_rollback_value()=ExplicitlyNotApplicable`** sanity-checked CORRECT (no ESP anti-rollback; R2 seq
+  floor @0x18000 sole floor; caveat if secure-version ever enabled → `Value(security_counter)`).
 
-## superseded: otal2cap v2 pairs (built+attested, both stale-v2 — reject v3 headers)
+## superseded: staota transport + v2 otal2cap pairs (dead — staota STA never connects; v2 rejects v3)
 
 ## CURRENT-was: otal2cap OTA — first-ever round-trip attempt RUNNING on X1 (composer, grant bound to A `7aa01f81`)
 
