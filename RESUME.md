@@ -29,7 +29,25 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
-## CURRENT: otal2cap OTA — first-ever round-trip attempt RUNNING on X1 (composer, grant bound to A `7aa01f81`)
+## CURRENT: otal2cap OTA — run gave reason=1 (STALE v2 vendor, NOT os110); need a v3-vendored sha pin to rebuild
+
+**⚠ THE reason=1 REJECT WAS VENDOR-STALENESS, NOT A TRANSPORT/COEX RESULT (core).** Both attested pairs vendor r2-update
+**v2**; core re-vendored to canonical **v3/137** on branch `dfr1195-fw-ensemble-cfg-dere@4b4a71e5` (root cause; the board
+was correct). A v2 receiver rejects a v3 header at the version gate → reason=1, a CLEAN protocol reject (NO reset — distinct
+from CoreSw 0x03 / RWDT 0x10 / B-boot). **So the os110 legs do NOT apply to a reason=1, and the fire-branch is MOOT here**
+(both pairs v2). Weak positive (composer's ODT index settles it): a header parsed before the version reject means the CoC
+delivered ≥chunk-0 → a hint os110 did not stall at chunk-0 on the heavier image; NOT a transport pass. **NEED: supervisor
+pins a v3-vendored sha** (merge 4b4a71e5 to the tip or order a build from it — #d005; I don't build off a core branch
+without a pin) → then rebuild the otal2cap[,loraroute] pair v3 + re-attest, same shape. **Transport/coex still UNTESTED.**
+- **★ ImageSink grew `staged_rollback_value()` (v3, core).** FlashSink returns `RollbackBinding::ExplicitlyNotApplicable`
+  — I sanity-checked it CORRECT: the DFR1195 has NO ESP bootloader anti-rollback (no sdkconfig / `CONFIG_BOOTLOADER_APP_ANTI_ROLLBACK`
+  / secure_version; otadata state-based slot swap only). The **R2 seq floor (NVS 0x18000 in r2cfg) is the SOLE floor**.
+  CAVEAT: if ESP secure-version anti-rollback is ever enabled, this MUST become `Value(security_counter)` injective-into-seq
+  or a real floor is silently bypassed.
+
+## superseded: otal2cap v2 pairs (built+attested, both stale-v2 — reject v3 headers)
+
+## CURRENT-was: otal2cap OTA — first-ever round-trip attempt RUNNING on X1 (composer, grant bound to A `7aa01f81`)
 
 Two attested pairs built; supervisor RULED the **as-built (heavier-core0) pair RUNS FIRST** — core's asymmetry argument: a
 PASS with MORE core0 load is STRONGER, and the only ambiguous outcome (chunk-0/1 fire) is exactly where the loraroute pair
