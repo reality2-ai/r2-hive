@@ -96,6 +96,10 @@ pin-map.
   than staota's. BUT I confirmed **otal2cap is NOT proven end-to-end** (no slot-flip / running-image on record; the
   campaign fought the hang that pre-empted every OTA window; closed on the hang fix, not an OTA completion). So it's the
   better-UNDERSTOOD unproven path, not a proven one — either transport still needs a first real round-trip.
+  **★ NO OTA HAS EVER COMPLETED ON THIS HARDWARE IN ANY TRANSPORT — tonight is a FIRST, not a re-run.** My
+  better-understood read is DEVICE-SIDE ONLY; the uncosted half = **does a HOST-SIDE pusher exist on alfred tonight**
+  (otal2cap needs a BLE central opening an L2CAP CoC + streaming; staota needs TCP over the now-proven AP) — composer's
+  lane, asked. A device path is worthless if nothing can talk to it.
 - **Open before any grant (NOT hive):** composer read of X1 persona + OTA-TG `730c29e7` membership — X1 must VERIFY the
   update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
 - **NO FLASH** taken; no grant.
