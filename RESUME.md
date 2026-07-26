@@ -37,7 +37,18 @@ Supervisor's three mechanism questions, traced at `dfr1195-fw-wt` **b25a21eb** (
 - **Q2 registration = split.** PRIMITIVE exists+reachable: `r2-engine EventBus::register_plugin` (bus.rs:106)/`register_sentant` (:94), CALLED under `fakesensor` (main.rs:7900–7906) and empty under `otaengine` (:8032) — but register-INTO-ONE-BUS. R2-ENSEMBLE 2.1.2 hive-SHARED singleton (N ensembles→1 plugin, R2-WEB) = **MUST-BE-BUILT** (only the std-only r2-ensemble registry/supervision does it). BOTH **absent from the flashed OTA image** (otal2cap,lora,xiao,benchsf7 reach neither otaengine nor fakesensor — feature closure verified).
 - **Q3 NVS role-profile read = EXISTS + reachable EVERY boot.** `read_role_profile()` decodes flash @0x17000 (ROLE_PROFILE_OFFSET, magic RPF1 0x52504631) → Role + duty/ble_role/keepalive_period_ms/scf_cap/scf_ttl_s/reach_conf/silence_s; CALLED by `resolve_role_profile(my_hive)` (main.rs:771) at boot (NVS wins else compile-derive). Cadence knobs ARE role-profile fields — the R2-RUNTIME 210 boot-activation seam + cadence home (field 900s/bench 5–10s). The ONE seam already present.
 
-Memory: [[ensemble-mechanisms-trace]]. NEXT: await supervisor's plan call (platform-first vs otherwise). Build nothing.
+Memory: [[ensemble-mechanisms-trace]].
+
+### PERSONA-READ + PARTITION + BUDGET (2026-07-27, source/artifact-only, assembled for Roy — NOT acting)
+
+**PERSONA READ = RAW ABSOLUTE 0x12000, brick-safe.** Flashed set has no `baked_persona` ⇒ `read_persona()` (main.rs:3349) = `esp_storage::FlashStorage.read(PERSONA_OFFSET=0x12000)`, raw-absolute, NEVER the partition table; called UNCONDITIONALLY at main.rs:661 in boot. Composer's "NVS 0x9000" is wrong on the mechanism; corroborates the console `@0x12000` from an independent source.
+**TABLE (actual partitions.csv, `--partition-table` load-bearing, metal-confirmed 2026-07-20):** nvs 0x9000/0x6000 · otadata 0xF000/0x2000 · r2cfg data 0x06 0x11000/0xF000 · ota_0 0x20000/0x1E0000 · ota_1 0x200000/0x1E0000. Config plane 0x12000–0x1C000 sits INSIDE declared r2cfg — not a gap.
+**Discrepancies resolved:** (1) composer `phy_init@0x11000` = mislabel of r2cfg (data/0x06 vs phy/0x01) or stale read — does NOT gate: brick-safety invariant = **APP@0x20000** (met, running image boots there); raw read is table-agnostic, r2cfg is protective-not-functional. (2) ota_1 = **0x200000, slot 0x1E0000 = 1.875 MiB** each (composer's 0x320000/3MB is wrong; my 0x200000 right).
+**BUDGET (★ELF ≠ flashed image — [[elf-is-not-the-flashed-image]]):** the 1363936 was the ELF; flashed `.bin` = 857,600 B (text+data 857,475). Slot 1,966,080 − image 857,600 = **headroom ~1.06 MiB (56% free)**, NOT ~588 KiB. fakesensor (full engine+apiary ensemble) = 852 KiB text+data, only ~15 KiB over bare OTA ⇒ engine runtime ≈ one radio stack, tens of KiB; five plugins ~50–150 KiB, nowhere near the wall. Confirms: no no_std parser (would eat 50–200 KiB for contract_only scores).
+
+**CORE ownership ruled (D-pending, settled with core):** NVS region-scoping TYPE (R2-KEYSTORE 184) = CORE-owned shared crate (shared behaviour → core; hive never owns firmware source); offset MAP stays in platforms/dfr1195. Core builds crate + type-enforcement; platform wraps its read/write in the typed API.
+
+NEXT: await supervisor's plan call (platform-first vs otherwise) + specs' #69 compiled-vs-runtime ruling. Build nothing.
 
 ---
 
