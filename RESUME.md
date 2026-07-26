@@ -29,7 +29,13 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
-## radarprobe build order (2026-07-26) — BUILD FAILS at `8530327309b8…a9c6`; routed to core, NO artifact
+## radarprobe build order (2026-07-26) — WITHDRAWN by supervisor (wrong artifact); defect recorded, no hive build
+
+**ORDER WITHDRAWN.** Roy's actual goal = a per-component bring-up smoke test, whose instrument is a **throwaway Arduino
+sketch circuits already has** (I2C scan / FRAM + secure-element probe / battery ADC / gated Modbus), NOT an R2 no_std
+feature — so this is NOT hive's artifact. Supervisor owned the mis-inference chain (radar test → radarprobe feature →
+DFR1195 crate-path=board), all unverified. Hive builds nothing here. The finding below STANDS (recorded by supervisor;
+core has a scoped fix), and my build attempt was the thing that surfaced it.
 
 Explicit #d005 build order (supervisor, Roy GO). Feature `radarprobe = ["dev"]` (Cargo.toml:290). Pinned sha = MY
 ls-remote authority `85303273` (== branch tip; supervisor's `4e82c36a` is on origin/main + r2-core-consolidation, NOT
