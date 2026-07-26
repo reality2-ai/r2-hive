@@ -1,3 +1,12 @@
+# ⚠ STALE / NOT-FLASHED (annotated 2026-07-27, persona sync PULL-VERIFY). This file is NOT what any
+# board is flashed with. flash-board.sh (r2-composer/orchestrator/bench) selects the COMPOSER CATALOGUE
+# template BY CARRIER: DFR -> catalogue/boards/esp32-s3-dfr1195/templates/partitions.csv (which DECLARES
+# r2cfg data 0x06 @0x11000/0xF000 — persona is in a DECLARED region, NOT the gap this file describes);
+# XIAO -> esp32-s3-xiao-wio-sx1262/templates/partitions.csv (phy_init@0x11000, persona in an unclaimed
+# gap). SOURCE OF TRUTH = the composer catalogue, per carrier. Canon target (persona ruling pt7): phy_init
+# STAYS @0x11000/0x1000 + a DEDICATED declared persona region @0x12000 (NOT r2cfg) — new to all current
+# tables. This file kept for the raw-offset rationale below only. Do NOT flash from it.
+#
 # DFR1195 partition table — 2-OTA. Flashed at the 0x8000 default (espflash --partition-table).
 # Works with the ESP-IDF OTA-capable bootloader (composer-staged) which honors otadata.
 # NOTE: the PERSONA enrolment blob (real-TG #20) is NOT a partition entry — espflash's
