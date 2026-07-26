@@ -36,8 +36,13 @@ Bare R2 relay-floor OTA-capable X1 image, build+attest only. Supervisor RULED **
 instance of the radarprobe defect class; core's held cfg fix owed, DEFAULT must be in its regression set). OTA is
 WiFi-independent of LoRa (ota_task off the RouteEngine), so LoRa is present-but-incidental; xiao = honest XIAO Wio-SX1262
 pin-map.
-- **Feature justification (from code):** `staota` = WiFi OTA (ota_task@1056, signed :21043 on WiFi netif); `lora` FORCED
-  by the compile; `xiao` for the SX1262 bringup @1158 pins (XIAO physically carries the Wio-SX1262).
+- **Feature justification (from code):** `staota` = WiFi OTA (ota_task@1056, signed :21043 on WiFi netif); `lora` =
+  **REQUIRED** (Roy: dual-bearer BLE+LoRa beacons — incidental framing WITHDRAWN); `xiao` for the SX1262 bringup @1158
+  pins (XIAO physically carries the Wio-SX1262). staota,lora,xiao = the compile-forced set == the capability set Roy wants.
+- **Beacon reachability (image A, verified static, NEITHER gated):** BLE §7 = `ble_task`@1099 (ble via staota, not nobt)
+  → `peripheral.advertise(`@4590 (encode_advert @4518), BLE_UP@1101. LoRa §8.1 = `lora_task`@1236 (cfg not(loraroute)
+  TRUE) → `radio.transmit(pl)`@6454 (build_lora_beacon@6451), print "LORA-TX §8.1 beacon"@6462, LORA_UP@1237. STATIC
+  reachability only — on-air TX is metal (⚠ coex advertise-hang note @1208; tri-radio combo metal-unverified).
 - **STOP check (mark-image-valid) PASSES — health-gated, not blind:** `set_current_ota_state(Valid)`@main.rs:4162 runs
   only inside `if ota_health_check()`@4161, deferred 8s (`ota_confirm_task`@4136), PendingVerify-only; FAIL → Invalid +
   rollback record + revert + reboot (`ota_health_check`@4074 = §5.2 min-2 radios-up). Rollback protection intact.
@@ -65,6 +70,31 @@ pin-map.
 - **Open before any grant (NOT hive):** composer read of X1 persona + OTA-TG `730c29e7` membership — X1 must VERIFY the
   update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
 - **NO FLASH** taken; no grant.
+
+### Next-phase context (Roy/specs/supervisor rulings — DO NOT build until specs finishes ensemble canon + creds unblock)
+- **OTA delivers the rest:** image A over USB (ONE USB write all night), image B over air proves the round-trip, then
+  each subsequent capability arrives OVER THE AIR too. Sequence: (1) core hive+OTA [done, pending re-attest], (2) the
+  memories, (3) sensor emulated, (4) battery — ALL as ENSEMBLES.
+- **Ensemble = a SCORE, not a binary/feature** (R2-ENSEMBLE v0.3: score is declarative, schema R2-DEF 7; NOT installed,
+  no binary; exactly two part types = Sentants + plugins). Shape = **ONE hive binary, FIVE scores** (each ≥1 Sentant),
+  NOT five cargo features. **Transport bindings (BLE/WiFi/LoRa/UDP/TCP) are ALWAYS hive-shared SINGLETONS, never in a
+  score** (R2-ENSEMBLE 2.1.2) — OTA ensemble owns UPDATE LOGIC, the WiFi bearer stays hive-shared. Encoding is COMPILED
+  (Roy #69, 2026-07-13: MCU = base TN fw + TG + plugins compiled + sentants encoded; interpreted-wasm ruled out on MCU;
+  required ensembles incl. OTA HARD-BAKED into base). **Cite #69 for encoding, R2-ENSEMBLE for boundary; do NOT cite
+  §2.2B.**
+- **Three memories (distinct roles):** ATECC608 @0x60 = encrypted/secure class · FRAM @0x50 = store-and-forward QUEUE
+  for readings awaiting TX (delivery semantics: overflow / reboot-with-undelivered / partial-delivery — NOT a KV store)
+  · NVS @0x9000 = identity/keypair (third, separate).
+- **Sensor = enable-settle-read MUST be REAL code** (only the VALUE is simulated while USB attached, because USB cuts the
+  5V rail): enable the 5V gate → WAIT the settle → attempt read → substitute value when rail known-cut. NO stub that
+  skips gate+settle (that's the never-run-path class). Await circuits for the actual gate pin/polarity/settle (do NOT
+  invent settle). **SIM MARKER MANDATORY** (supervisor rule ahead of specs; canon wins if it speaks): a simulated
+  reading MUST be distinguishable AT THE EVENT by a consumer (same code path ⇒ the event carries the signal). SIM MUST
+  NEVER LEAK INTO LIVE. **Cadence = a SCORE PARAMETER** (~900s field / 5-10s bench — do NOT hardcode either; same shape
+  both). Likely an SCF duty-class question (duty_class = f(role, power_source)) — specs queued.
+- **X1 enrolment UNKNOWN:** send-over-TN needs X1 = a TG member with a working persona; persona + OTA-TG `730c29e7`
+  membership UNREAD (composer's lane). Do NOT design around X1 being enrolled. Board entry-path proof (button-free
+  download) PROVEN on D5, was UNPROVEN on X1 — gates the first USB write (composer, amended grant).
 
 ## radarprobe build order (2026-07-26) — WITHDRAWN by supervisor (wrong artifact); defect recorded, no hive build
 
