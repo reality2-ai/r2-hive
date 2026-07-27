@@ -50,3 +50,17 @@ elif [ ! -e "$MAIN" ]; then
 fi
 
 echo "hooks: done. pre-push now runs ci/check-vendored-vectors.sh --strict AND ci/public-hygiene.sh (bypass: git push --no-verify)."
+
+# ── hygiene denylist (g23 VALUE-classes) — ONE-TIME PER-HOST PLACEMENT (not per-clone) ──────────────
+# public-hygiene.sh loads the forbidden VALUE list (terms/gateway/host) from an OUT-OF-REPO gitignored
+# file so the gate is not itself the last public copy of those values. It is per-HOST: a fresh clone on
+# a host that already has the file is fine. A NEW host needs it placed once.
+DENYLIST="${R2_HYGIENE_DENYLIST:-$HOME/.config/r2-fleet/hygiene-denylist}"
+if [ -r "$DENYLIST" ]; then
+  echo "  hygiene denylist present: $DENYLIST"
+else
+  echo "  ⚠ hygiene denylist MISSING: $DENYLIST"
+  echo "    ONE-TIME PLACEMENT: obtain the canonical value list from the HIVE lane (owner; single-source),"
+  echo "    write it to that path (or set \$R2_HYGIENE_DENYLIST), then verify its content-sha with hive."
+  echo "    pre-push will FAIL CLOSED until it is placed — that is intentional (an absent list = false-green)."
+fi

@@ -21,9 +21,36 @@
 # the SAME function, prefilter included. If a fixture passes, production sees it that way too.
 set -euo pipefail
 
-# Allowlist: the two preserved wire/code identifiers (documented in the scrub commit) that legitimately
-# still contain the token and are pending a separate coordinated code/wire rename, NOT a doc-scrub.
-ALLOW='wairoa_as923_nz|wairoa\.reading'
+# ── VALUE-based denylist (terms / allow / gateway / host) — loaded from a GITIGNORED, OUT-OF-REPO file.
+# WHY out-of-repo: a value-based forbid-pattern IS a list of the values; keeping it inline made this gate
+# the last, complete, public copy of exactly what to look for ([[enforcer-can-become-the-last-copy]]). SHAPE
+# classes (MAC/tail/IP/UUID/key/macron) name no value and stay inline; VALUE classes ride this denylist.
+# OWNER = hive (single-source canonical); composer VERIFIES via content-sha. FAIL-CLOSED on absent/unreadable/
+# no-schema-version/zero-records/git-tracked — a scan against an empty or missing list passes clean, so its
+# absence MUST fail, never pass.
+# load_denylist: RETURNS non-zero (never exit) so the --selftest can prove fail-closed by calling it in a
+# subshell with a bad path. Sets TERM_RE/ALLOW_RE/GATEWAY_RE/HOST_RE. DENYLIST from $R2_HYGIENE_DENYLIST or
+# the per-host fallback (per-host, NOT per-clone: a fresh clone on an existing host finds it).
+load_denylist() {
+  DENYLIST="${R2_HYGIENE_DENYLIST:-$HOME/.config/r2-fleet/hygiene-denylist}"
+  if [ ! -r "$DENYLIST" ]; then
+    echo "::error::hygiene denylist NOT FOUND / not readable at: $DENYLIST" >&2
+    echo "::error::ONE-TIME PER-HOST PLACEMENT (not per-clone): get the canonical value list from the HIVE lane" >&2
+    echo "::error::(owner) and write it to that path, or set \$R2_HYGIENE_DENYLIST. Gitignored/out-of-repo by" >&2
+    echo "::error::design. A fail-closed loader with no file is INTENTIONAL — an absent list would pass clean." >&2
+    return 1
+  fi
+  if git ls-files --error-unmatch "$DENYLIST" >/dev/null 2>&1; then
+    echo "::error::denylist is git-TRACKED ($DENYLIST) — it is the raw value list and MUST be out-of-repo/gitignored." >&2; return 1
+  fi
+  grep -q '^#schema-version:' "$DENYLIST" || { echo "::error::denylist $DENYLIST missing '#schema-version:' (schema drift/wrong file) — fail-closed." >&2; return 1; }
+  local n; n=$(grep -cvE '^[[:space:]]*#|^[[:space:]]*$' "$DENYLIST")
+  [ "$n" -gt 0 ] || { echo "::error::denylist $DENYLIST has ZERO records — an empty-list scan is a false-green; fail-closed." >&2; return 1; }
+  dl_class() { awk -F'\t' -v c="$1" '$1==c{print $2}' "$DENYLIST" | paste -sd'|' -; }
+  TERM_RE=$(dl_class term); ALLOW_RE=$(dl_class allow); GATEWAY_RE=$(dl_class gateway); HOST_RE=$(dl_class host)
+  { [ -n "$TERM_RE" ] && [ -n "$GATEWAY_RE" ] && [ -n "$HOST_RE" ]; } || { echo "::error::denylist $DENYLIST missing a required class (term/gateway/host) — fail-closed." >&2; return 1; }
+}
+load_denylist || exit 1
 # Exclude the guard's own files from the sweep. NOTE: this is a deliberate, bounded fail-open — the KAT
 # fixtures below are synthetic MACs that would (correctly) flag themselves. Keep this file small and
 # reviewed; do not park real values here on the strength of the exclusion.
@@ -54,10 +81,11 @@ gg_filter() { local out rc; out=$(grep "$@");               rc=$?; [ "$rc" -le 1
 
 # (1) Scrubbed location + cultural terms (case-insensitive), minus the allowlisted identifiers.
 # rc>1 in EITHER the term grep or the allowlist filter now fails closed (pipefail propagates gg's rc).
-hits=$(gg -inE 'wairoa|kaitiaki|marae' -- . "${PATHSPEC[@]}" | gg_filter -viE "$ALLOW")
+if [ -n "$ALLOW_RE" ]; then hits=$(gg -inE "$TERM_RE" -- . "${PATHSPEC[@]}" | gg_filter -viE "$ALLOW_RE")
+else                        hits=$(gg -inE "$TERM_RE" -- . "${PATHSPEC[@]}"); fi
 if [ -n "$hits" ]; then
-  echo "::error::scrubbed term(s) reintroduced (Wairoa / kaitiaki / marae). Restoration is gated on the"
-  echo "::error::Māori-reviewer review — do not re-add in a normal commit. Offending lines:"
+  echo "::error::a scrubbed location/cultural term (see the denylist term-class) reintroduced. Restoration is"
+  echo "::error::gated on the Māori-reviewer review — do not re-add in a normal commit. Offending lines:"
   printf '%s\n' "$hits" | redact_stream
   fail=1
 fi
@@ -78,11 +106,11 @@ fi
 
 # (3) Private gateway-product naming (Roy-gated private spec, authorized by supervisor). NARROW: the
 # resident-premises gateway product + its private spec name MUST NOT appear in the public tree (provenance
-# lives in gitignored .r2-local/). The broad historical Mariko/Earthgrid ID scrub is a SEPARATE Roy decision
-# and is deliberately NOT guarded here (some are functional/commit identifiers with real rename cost).
-gwhits=$(gg -inE 'mk-?homehub|home-?hub' -- . "${PATHSPEC[@]}")
+# lives in gitignored .r2-local/). Values are in the denylist gateway-class. A broader historical ID scrub is
+# a SEPARATE Roy decision, deliberately NOT guarded here (some are functional/commit ids with real rename cost).
+gwhits=$(gg -inE "$GATEWAY_RE" -- . "${PATHSPEC[@]}")
 if [ -n "$gwhits" ]; then
-  echo "::error::private gateway-product term(s) found (Home-Hub / MK-HOMEHUB). This naming is Publish:Private —"
+  echo "::error::private gateway-product naming found (see denylist gateway-class). This naming is Publish:Private —"
   echo "::error::keep it out of the public tree (provenance belongs in gitignored .r2-local/). Offending lines:"
   printf '%s\n' "$gwhits" | redact_stream
   fail=1
@@ -96,16 +124,21 @@ fi
 # shape → passes); the key pattern needs a prefix AND >=2 digits (prose slugs are digitless/short → pass).
 # VALUE-based classes (terms/macron/gateway/hostnames, above) name their values and MUST NOT be duplicated
 # cross-repo — they ride a SHARED gitignored denylist (fleet artefact; coordinate, do not fork).
+# >>> SHAPE-PATTERN-SET v1 — CO-PINNED, BYTE-IDENTICAL FLEET-WIDE. Composer carries these exact bytes and
+# pins this block's sha; undeliberate drift fails locally, a deliberate bump lands in both. Keep this block
+# self-contained (no value literals, no per-repo state) so it can be mirrored verbatim. UUID_ALLOW_EXACT is
+# PER-REPO and lives OUTSIDE these markers. >>>
 IP_RE='(^|[^0-9.])(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3})([^0-9.]|$)'
 UUID_RE='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
-# EXACT whole-token UUID allowlist (lowercased), PUBLIC-BY-DEFINITION ONLY: the WS-mesh protocol GUID
-# (compared by both mesh ends — scrubbing it breaks matching) + the nil UUID. Token-level, never substring.
-# NEVER add a real TG/custody UUID here.
-UUID_ALLOW_EXACT='258eafa5-e914-47da-95ca-c5ab0dc85b11
-00000000-0000-0000-0000-000000000000'
-KEY_PFX="$(printf '%s%s' 's' 'k-')"   # assembled from parts so this gate never spells the prefix contiguously
+KEY_PFX="$(printf '%s%s' 's' 'k-')"   # assembled from parts so this block never spells the prefix contiguously
 KEY_RE="(^|[^A-Za-z0-9])${KEY_PFX}(ant-)?[A-Za-z0-9_-]{40,}"
 KEY_DIGITS='[0-9].*[0-9]'
+# <<< SHAPE-PATTERN-SET v1 <<<
+# EXACT whole-token UUID allowlist (lowercased), PER-REPO, PUBLIC-BY-DEFINITION ONLY: the WS-mesh protocol
+# GUID (compared by both mesh ends — scrubbing it breaks matching) + the nil UUID. Token-level, never
+# substring. NEVER add a real TG/custody UUID here. (Outside the co-pin markers: allowlist values are local.)
+UUID_ALLOW_EXACT='258eafa5-e914-47da-95ca-c5ab0dc85b11
+00000000-0000-0000-0000-000000000000'
 
 # (4) Private-range + CGNAT IP shapes (range-restricted = the FP filter; no real value named).
 iphits=$(gg -inE "$IP_RE" -- . "${PATHSPEC[@]}")
@@ -473,6 +506,18 @@ if [ "${1:-}" = "--selftest" ]; then
   skat "key-shaped w/ digits flags" 1 "$(printf 'tok %sant-a1b2%s\n' "$KEY_PFX" "$(printf 'x%.0s' $(seq 1 60))" | key_check)"
   skat "digitless key-like slug passes" 0 "$(printf 'name %santhill-membership-token-fixture-value-longenough\n' "$KEY_PFX" | key_check)"
 
+  # ── denylist LOADER KATs: prove fail-closed by deleting/breaking the file (supervisor requirement) ──
+  dlt=$(mktemp -d)
+  dlkat() { k=$((k+1)); local d=$1 path=$2 want=$3 r
+    ( R2_HYGIENE_DENYLIST="$path" load_denylist ) >/dev/null 2>&1 && r=0 || r=1
+    if [ "$r" = "$want" ]; then p=$((p+1)); echo "  ok   $d"; else echo "  FAIL $d (rc=$r want=$want)"; fi; }
+  dlkat "loader fail-closed on MISSING file"            "$dlt/nope"      1
+  : > "$dlt/empty";                                       dlkat "loader fail-closed on EMPTY (zero records)"    "$dlt/empty"    1
+  printf 'term\tfoo\tbar\n' > "$dlt/noschema";            dlkat "loader fail-closed on NO schema-version"       "$dlt/noschema" 1
+  printf '#schema-version: 1\nterm\tfoo\t<x>\n' > "$dlt/noclass"; dlkat "loader fail-closed on MISSING required class" "$dlt/noclass" 1
+  printf '#schema-version: 1\nterm\tfoo\t<x>\ngateway\tg\t<y>\nhost\th\t<z>\n' > "$dlt/ok"; dlkat "loader loads a valid file" "$dlt/ok" 0
+  rm -rf "$dlt"
+
   # A parser/instrument failure must fail closed rather than look like an empty clean scan.
   k=$((k+1))
   if printf 'malformed' | hygiene_scan >/dev/null 2>&1; then
@@ -496,14 +541,14 @@ if [ -n "$devhits" ]; then
   fail=1
 fi
 
-# (5) Bench/infra hostnames — FORBIDDEN by Roy g23 ruling 2026-07-27 (SUPERSEDES the 2026-07-15
+# (5) Bench/infra + personal hostnames — FORBIDDEN by Roy g23 ruling 2026-07-27 (SUPERSEDES the 2026-07-15
 # advisory): real host names are scrubbed, NOT accepted; the earlier "accepted dev-box names" reading
-# conflated this gate's allowlist with the g23 keep-set — they are different concerns. royspi5 is a
-# HIGHER class (it carries the principal's name = a personal identifier). HARDFAIL so reintroduction is
-# caught. This gate file itself is EXCLUDED from the scan below — it must name the pattern to search for
-# it, and that self-reference is not a violation.
+# conflated this gate's allowlist with the g23 keep-set — different concerns. One host name is a HIGHER
+# class (it carried the principal's name = a personal identifier). HARDFAIL so reintroduction is caught.
+# VALUES now come from the denylist host-class (out-of-repo), so this gate no longer carries the list
+# itself ([[enforcer-can-become-the-last-copy]]). PATHSPEC already excludes this file from the scan.
 HOSTNAME_SEVERITY='hardfail'
-BENCH_HOSTS='Alfred|Tuxedo|royspi5'
+BENCH_HOSTS="$HOST_RE"
 # rc-aware even though it is advisory today: the `|| true` here would become fail-OPEN the moment
 # HOSTNAME_SEVERITY is flipped to hardfail (a scan tool failure would pass as "no hostnames"). Capture
 # the status now so the flip is safe — advisory WARNS on a scan failure, hardfail EXITS closed
@@ -518,7 +563,7 @@ if [ "$hrc" -gt 1 ]; then
 fi
 if [ -n "$hosthits" ]; then
   if [ "$HOSTNAME_SEVERITY" = "hardfail" ]; then
-    echo "::error::FORBIDDEN bench/personal hostname(s) ($BENCH_HOSTS) — scrub per Roy g23 2026-07-27 (use a role token e.g. <build-host>/<rig-host>):"
+    echo "::error::FORBIDDEN bench/personal hostname(s) (see denylist host-class) — scrub per Roy g23 2026-07-27 (use a role token e.g. <build-host>/<rig-host>):"
     printf '%s\n' "$hosthits" | redact_stream
     fail=1
   else
