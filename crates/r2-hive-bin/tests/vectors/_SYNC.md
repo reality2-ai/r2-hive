@@ -16,6 +16,14 @@ r2-specifications/testing/test-vectors/
     r2-plugin-web-vectors.json    → vector_coverage.rs (web plugin conformance)
 ```
 
+Vendored 2026-07-28 from r2-specifications @ 298e7b4 (vector file v0.30; supersedes 2ebaeac @ v0.29,
+which stood for ~20 minutes). specs commit: 'spec(USB 0.32): correct §3.7.2 — my vector encoded a
+state §9.1 forbids' — i.e. **the TV34 added at 2ebaeac was itself wrong and specs corrected it**.
+Anyone who vendored v0.29 is carrying a vector that encodes a state R2-UPDATE §9.1 forbids.
+NB the spec-doc version in the commit subject (0.31/0.32) and the vector-file `version` field
+(0.29/0.30) are different sequences; pin by the specs SHA, not by either number.
+
+PRIOR ENTRY:
 Vendored 2026-07-28 from r2-specifications @ 2ebaeac (R2-USB v0.29; supersedes fc23c03 @ v0.28).
 v0.28→v0.29 delta: ONE additive vector, **TV34** — anti-rollback boot census control frame
 (§3.7.2, v2 type byte 0xFF, msg_type=18): peripheral→host, one per boot, unsolicited, link-local

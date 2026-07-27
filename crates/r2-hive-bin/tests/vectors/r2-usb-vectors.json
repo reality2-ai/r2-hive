@@ -1,6 +1,6 @@
 {
   "spec": "R2-USB",
-  "version": "0.29",
+  "version": "0.30",
   "description": "Conformance vectors for the R2-USB serial transport framing and properties (R2-USB §3 Framing, §4 Transport Properties). USB carries compact R2-WIRE frames length-prefixed on the serial byte stream. All multi-byte integers on the USB framing layer are LITTLE-ENDIAN (§3.2). Hex is lowercase. Vector ids follow the TV<n> scheme cited by consuming impls.",
   "notes": [
     "Frame encoding (§3.2): [payload_length: uint16 LE][R2-WIRE compact message: payload_length bytes]. Max payload 255 (compact). payload_length == 0 is a no-op/keepalive that MUST be silently ignored.",
@@ -217,41 +217,6 @@
       "reason": "type-byte frames forbidden on a v1-negotiated link"
     },
     {
-      "id": "TV28",
-      "category": "tier_negotiation",
-      "description": "Extended is enabled ONLY by explicit BILATERAL assent (§3.3, v0.25). Both ends advertised flags bit0=1 -> extended permitted on this link establishment.",
-      "host_flags": "0x01",
-      "peripheral_flags": "0x01",
-      "peer_flags_observed": true,
-      "attempted_send_tier": "extended",
-      "negotiated_tier": "extended",
-      "expect": "extended_permitted"
-    },
-    {
-      "id": "TV29",
-      "category": "tier_negotiation",
-      "description": "Either end advertising flags bit0=0 -> COMPACT ONLY. An endpoint MUST NOT send extended unless BOTH ends advertised bit0=1 (§3.3, v0.25). Fail-closed: compact is the default, not a fallback either side may override.",
-      "host_flags": "0x01",
-      "peripheral_flags": "0x00",
-      "peer_flags_observed": true,
-      "attempted_send_tier": "extended",
-      "negotiated_tier": "compact",
-      "expect": "sender_refuses_extended_emits_compact"
-    },
-    {
-      "id": "TV30",
-      "category": "tier_negotiation",
-      "description": "NEGOTIATION-IGNORING (§3.3, v0.25) — the third state, and the one that ships. An endpoint that sends a valid SYNC but never READS the peer's flags byte MUST behave as compact-only: it MUST NOT send extended. Ignoring a negotiation is NOT refusing one — it is declining to decide, and it is NOT a licence to skip the rule. Sending extended without having observed the peer's assent is NON-CONFORMANT.",
-      "host_flags": "0x00",
-      "peripheral_flags": "0x00",
-      "peer_flags_observed": false,
-      "attempted_send_tier": "extended",
-      "negotiated_tier": "compact",
-      "expect": "sender_refuses_extended_emits_compact",
-      "reason": "silence is not refusal; with the peer's assent unobserved the fail-closed default is compact",
-      "notes": "SENDER-DRIVEN, NOT RECEIVER-CHECKABLE BY CONSTRUCTION. The falsifiable condition is peer_flags_observed=false AND attempted_send_tier=extended -> a conformant SENDER MUST refuse and emit compact; the SAME wire bytes as a negotiated-compact link cannot be used to detect ignoring from the receive side (M2, specs-codex 0abefb2). There is deliberately no matching receiver-side MUST, because none is implementable: flags bit0 is the only tier signal on a USB link and it is OUT-OF-BAND (in the §3.3 SYNC handshake, not in any frame). Compact and extended share an identical byte 0 (ver(2)|type(3)|flags(3), R2-WIRE 4.2.2 / 4.3.2; ver is the WIRE version, NOT the tier — both tiers are version 0 today), and the v2 type byte does not carry the tier (its 0x00-0xFB space is entirely local_id) -> there is NO in-frame/in-band R2-WIRE discriminator. An extended frame on a compact-negotiated link is therefore MIS-PARSED as compact, not rejected: a violating sender produces garbage that decodes, never a clean error. A conformance harness must drive this from the SENDER side."
-    },
-    {
       "id": "TV18",
       "category": "type_byte",
       "description": "v2 local_id-tagged R2-WIRE frame (§3.5, type byte 0x00-0xFB). type byte 0x00 = the transport with local_id 0; body is one R2-WIRE compact message (here the TV1 16-byte frame). usb_frame = [len LE][type][wire].",
@@ -325,31 +290,6 @@
       "reason": "duplicate local_id in CAPS transports array"
     },
     {
-      "id": "TV31",
-      "category": "caps",
-      "description": "CAPS descriptor region+properties coverage (§3.6 descriptor keys 2 + 3): one LoRa transport {local_id 0, kind 2, region 'au915', properties {chip:'sx1262'}}. Exercises the OPTIONAL region (tstr, key 2) + properties (map, key 3) parse path that TV21 (minimal {local_id, kind}) does not — the vector-coverage gap for §3.6's open descriptor fields (hive flagged its host fixture was the only thing exercising it). The region value and properties CONTENT are ILLUSTRATIVE of the open kind-specific fields (§3.6: 'properties ... Receivers MAY retain it undecoded'); the CONFORMANCE targets are (a) a receiver MUST accept the frame and skip/retain the optional keys (forward compatibility, §3.6) and (b) kind = 2 (LoRa, R2-TRANSPORT §2.2) byte-exact. NOT a firmware capture (unlike TV27) — a synthetic parse-coverage vector modelling hive's host CAPS_FIXTURE_LORA.",
-      "fields": {
-        "hive_id_bytes": "851fdee3082ad30e4f981b08e8e303a3",
-        "firmware_id": "r2-relay",
-        "firmware_version": 1,
-        "transports": [
-          {
-            "local_id": 0,
-            "kind": 2,
-            "region": "au915",
-            "properties": {
-              "chip": "sx1262"
-            }
-          }
-        ]
-      },
-      "caps_body_cbor_hex": "a40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a4000001020265617539313503a1646368697066737831323632",
-      "usb_frame_hex": "3c00fea40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a4000001020265617539313503a1646368697066737831323632",
-      "usb_frame_length": 62,
-      "expect": "accept",
-      "notes": "Byte-exact, round-trip verified (encode->decode->compare). Delta from TV21: descriptor grows {0:0,1:2} -> {0:0,1:2,2:'au915',3:{chip:'sx1262'}}; envelope (hive_id_bytes/firmware_id/firmware_version) reused from TV21. region 'au915' is lowercase per the §3.6 examples (us915/eu868). properties is an OPEN kind-specific map (§3.6) — a receiver MAY retain it undecoded; the map {chip:'sx1262'} is illustrative, NOT a normative properties schema. hive re-anchors its host CAPS_FIXTURE_LORA byte-exact to this."
-    },
-    {
       "id": "TV23",
       "category": "control",
       "description": "Control frame (§3.7, type byte 0xFF): CBOR {0: msg_type, 1: body}. Here msg_type 2 = log line, body tstr 'hello'.",
@@ -407,6 +347,66 @@
       "notes": "beacon 17B DEV = magic b2 · ver 01 · flags 00 · rbid 7fce111165325a9a · class bafe8ac1 (HIVE class 0xBAFE8AC1: DFR1195 is a full-service node running AP/services, R2-BEACON §4 v0.47 -- NOT a repeater) · txpwr 14 · build_class 02. PROD LoRa = 15B core (magic ver flags rbid class) OR 16B with optional tx_power; DEV = 17B (+build_class). Accepted set exactly {15,16,17} per R2-BEACON 8.1.1 — a length-gating decoder MUST accept all three. BLE (future producer) forwards the >=18B/24B manufacturer value from 0xB2 (different structure: +anti-collision+reserved), bearer=0, snr omitted."
     },
     {
+      "id": "TV28",
+      "category": "tier_negotiation",
+      "description": "Extended is enabled ONLY by explicit BILATERAL assent (§3.3, v0.25). Both ends advertised flags bit0=1 -> extended permitted on this link establishment.",
+      "host_flags": "0x01",
+      "peripheral_flags": "0x01",
+      "peer_flags_observed": true,
+      "attempted_send_tier": "extended",
+      "negotiated_tier": "extended",
+      "expect": "extended_permitted"
+    },
+    {
+      "id": "TV29",
+      "category": "tier_negotiation",
+      "description": "Either end advertising flags bit0=0 -> COMPACT ONLY. An endpoint MUST NOT send extended unless BOTH ends advertised bit0=1 (§3.3, v0.25). Fail-closed: compact is the default, not a fallback either side may override.",
+      "host_flags": "0x01",
+      "peripheral_flags": "0x00",
+      "peer_flags_observed": true,
+      "attempted_send_tier": "extended",
+      "negotiated_tier": "compact",
+      "expect": "sender_refuses_extended_emits_compact"
+    },
+    {
+      "id": "TV30",
+      "category": "tier_negotiation",
+      "description": "NEGOTIATION-IGNORING (§3.3, v0.25) — the third state, and the one that ships. An endpoint that sends a valid SYNC but never READS the peer's flags byte MUST behave as compact-only: it MUST NOT send extended. Ignoring a negotiation is NOT refusing one — it is declining to decide, and it is NOT a licence to skip the rule. Sending extended without having observed the peer's assent is NON-CONFORMANT.",
+      "host_flags": "0x00",
+      "peripheral_flags": "0x00",
+      "peer_flags_observed": false,
+      "attempted_send_tier": "extended",
+      "negotiated_tier": "compact",
+      "expect": "sender_refuses_extended_emits_compact",
+      "reason": "silence is not refusal; with the peer's assent unobserved the fail-closed default is compact",
+      "notes": "SENDER-DRIVEN, NOT RECEIVER-CHECKABLE BY CONSTRUCTION. The falsifiable condition is peer_flags_observed=false AND attempted_send_tier=extended -> a conformant SENDER MUST refuse and emit compact; the SAME wire bytes as a negotiated-compact link cannot be used to detect ignoring from the receive side (M2, specs-codex 0abefb2). There is deliberately no matching receiver-side MUST, because none is implementable: flags bit0 is the only tier signal on a USB link and it is OUT-OF-BAND (in the §3.3 SYNC handshake, not in any frame). Compact and extended share an identical byte 0 (ver(2)|type(3)|flags(3), R2-WIRE 4.2.2 / 4.3.2; ver is the WIRE version, NOT the tier — both tiers are version 0 today), and the v2 type byte does not carry the tier (its 0x00-0xFB space is entirely local_id) -> there is NO in-frame/in-band R2-WIRE discriminator. An extended frame on a compact-negotiated link is therefore MIS-PARSED as compact, not rejected: a violating sender produces garbage that decodes, never a clean error. A conformance harness must drive this from the SENDER side."
+    },
+    {
+      "id": "TV31",
+      "category": "caps",
+      "description": "CAPS descriptor region+properties coverage (§3.6 descriptor keys 2 + 3): one LoRa transport {local_id 0, kind 2, region 'au915', properties {chip:'sx1262'}}. Exercises the OPTIONAL region (tstr, key 2) + properties (map, key 3) parse path that TV21 (minimal {local_id, kind}) does not — the vector-coverage gap for §3.6's open descriptor fields (hive flagged its host fixture was the only thing exercising it). The region value and properties CONTENT are ILLUSTRATIVE of the open kind-specific fields (§3.6: 'properties ... Receivers MAY retain it undecoded'); the CONFORMANCE targets are (a) a receiver MUST accept the frame and skip/retain the optional keys (forward compatibility, §3.6) and (b) kind = 2 (LoRa, R2-TRANSPORT §2.2) byte-exact. NOT a firmware capture (unlike TV27) — a synthetic parse-coverage vector modelling hive's host CAPS_FIXTURE_LORA.",
+      "fields": {
+        "hive_id_bytes": "851fdee3082ad30e4f981b08e8e303a3",
+        "firmware_id": "r2-relay",
+        "firmware_version": 1,
+        "transports": [
+          {
+            "local_id": 0,
+            "kind": 2,
+            "region": "au915",
+            "properties": {
+              "chip": "sx1262"
+            }
+          }
+        ]
+      },
+      "caps_body_cbor_hex": "a40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a4000001020265617539313503a1646368697066737831323632",
+      "usb_frame_hex": "3c00fea40050851fdee3082ad30e4f981b08e8e303a3016872322d72656c617902010381a4000001020265617539313503a1646368697066737831323632",
+      "usb_frame_length": 62,
+      "expect": "accept",
+      "notes": "Byte-exact, round-trip verified (encode->decode->compare). Delta from TV21: descriptor grows {0:0,1:2} -> {0:0,1:2,2:'au915',3:{chip:'sx1262'}}; envelope (hive_id_bytes/firmware_id/firmware_version) reused from TV21. region 'au915' is lowercase per the §3.6 examples (us915/eu868). properties is an OPEN kind-specific map (§3.6) — a receiver MAY retain it undecoded; the map {chip:'sx1262'} is illustrative, NOT a normative properties schema. hive re-anchors its host CAPS_FIXTURE_LORA byte-exact to this."
+    },
+    {
       "id": "TV32",
       "category": "anti_storm",
       "description": "§3.3 anti-storm (v0.27): a SYNC received on an established link WHILE this endpoint has an OUTSTANDING SYNC of its own (it sent a SYNC and awaits the response) is the COMPLETION of that exchange. The endpoint clears its pending state, PRESERVES link state (session/CAPS/tier/generation/reset_seq), and MUST NOT send a SYNC in reply. Also covers the SIMULTANEOUS CROSS: if both ends sent a SYNC at once, both are in this state, both clear, and NEITHER re-answers.",
@@ -429,21 +429,59 @@
     {
       "id": "TV34",
       "category": "control",
-      "description": "Anti-rollback boot census control frame (§3.7.2, v2 type byte 0xFF, msg_type=18): peripheral->host, one per boot, unsolicited, link-local MUST-NOT-relay by frame class. Body {0:18, 1:{0:class, 1:record, 2:seq, 3:floor}}. Semantics owned by R2-UPDATE §9.1; R2-USB carries only. Unknown keys MUST be skipped (declared in §3.7.2, NOT inherited from §3.7).",
+      "description": "Anti-rollback boot census control frame (§3.7.2, v2 type byte 0xFF, msg_type=18): peripheral->host, one per boot, unsolicited, link-local MUST-NOT-relay. Body {0:18, 1:{0:class, 1:record, 2:seq, 3:floor}}. R2-USB carries key 1 as an OPAQUE bstr -- it does NOT define the record's internal layout, and neither does R2-UPDATE §9.1, which governs replay SEMANTICS only. FOREIGN case. Bytes do not authenticate as a record. ⚠ seq=0 AND floor=0: a FOREIGN verdict yields (0,0) -- BOTH fields, never one. Repairing seq alone merely trades reject 6 StaleSeq for reject 12 RevokedAuthority (core, pinned by a test in crates/r2-update/src/anti_rollback.rs).",
       "fields": {
         "msg_type": 18,
         "class": 2,
         "class_name": "FOREIGN",
         "record_hex": "000102030405060708090a0b0c0d0e0f",
         "record_len": 16,
-        "seq": 66051,
-        "floor": 67438087
+        "seq": 0,
+        "floor": 0
       },
-      "control_body_cbor_hex": "a2001201a400020150000102030405060708090a0b0c0d0e0f021a00010203031a04050607",
-      "control_payload_hex": "ffa2001201a400020150000102030405060708090a0b0c0d0e0f021a00010203031a04050607",
-      "usb_frame_hex": "2600ffa2001201a400020150000102030405060708090a0b0c0d0e0f021a00010203031a04050607",
-      "usb_frame_length": 40,
-      "notes": "⚠ record_hex IS SYNTHETIC (00..0f), NOT A CAPTURE. Key 1 is Publish: PRIVATE per §3.7.2 -- its real content is raw flash bytes of unbounded provenance, so a real capture MUST NOT be published in a vector. The synthetic value is chosen to be unmistakable for either a capture or valid record content. class=2 FOREIGN is the CONSISTENT classification for these bytes: they do not authenticate as a record. seq/floor are the emitter's decode of the first 8 bytes big-endian (0x00010203 / 0x04050607) -- the decode itself is owned by R2-UPDATE §9.1, not by this spec. Per §3.7.2 key 0 is ADVISORY whenever key 1 is present: a reader re-derives the class from the raw bytes and, on disagreement, key 1 is the evidence and key 0 is the claim. Bytes verified by round-trip through an independently-written CBOR decoder, itself positive-controlled against TV27's declared fields and negative-controlled by single-byte perturbation."
+      "control_body_cbor_hex": "a2001201a400020150000102030405060708090a0b0c0d0e0f02000300",
+      "control_payload_hex": "ffa2001201a400020150000102030405060708090a0b0c0d0e0f02000300",
+      "usb_frame_hex": "1e00ffa2001201a400020150000102030405060708090a0b0c0d0e0f02000300",
+      "usb_frame_length": 32,
+      "notes": "⚠ record_hex is SYNTHETIC -- no board produced it. Key 1 is Publish: PRIVATE (§3.7.2), so a real capture MUST NOT be published. ⚠ CANON SPECIFIES NO RECORD LAYOUT: §9.1 constrains semantics (seq must exceed the floor, durability class must be declared), not framing. Any tag/endianness here is core's IMPLEMENTATION, reproduced so the carriage can be tested -- it is NOT a canon layout and MUST NOT be cited as one. Bytes round-tripped through a CBOR decoder written separately from the encoder, positive-controlled against TV27 and negative-controlled by single-byte perturbation."
+    },
+    {
+      "id": "TV35",
+      "category": "control",
+      "description": "Anti-rollback boot census control frame (§3.7.2, v2 type byte 0xFF, msg_type=18): peripheral->host, one per boot, unsolicited, link-local MUST-NOT-relay. Body {0:18, 1:{0:class, 1:record, 2:seq, 3:floor}}. R2-USB carries key 1 as an OPAQUE bstr -- it does NOT define the record's internal layout, and neither does R2-UPDATE §9.1, which governs replay SEMANTICS only. AUTHENTICATED case. Record bytes produced by core's shipping encoder and round-tripped through its shipping classifier.",
+      "fields": {
+        "msg_type": 18,
+        "class": 0,
+        "class_name": "AUTHENTICATED",
+        "record_hex": "415242310100000001000000e23dd227",
+        "record_len": 16,
+        "seq": 1,
+        "floor": 1
+      },
+      "control_body_cbor_hex": "a2001201a400000150415242310100000001000000e23dd22702010301",
+      "control_payload_hex": "ffa2001201a400000150415242310100000001000000e23dd22702010301",
+      "usb_frame_hex": "1e00ffa2001201a400000150415242310100000001000000e23dd22702010301",
+      "usb_frame_length": 32,
+      "notes": "⚠ record_hex is SYNTHETIC -- no board produced it. Key 1 is Publish: PRIVATE (§3.7.2), so a real capture MUST NOT be published. ⚠ CANON SPECIFIES NO RECORD LAYOUT: §9.1 constrains semantics (seq must exceed the floor, durability class must be declared), not framing. Any tag/endianness here is core's IMPLEMENTATION, reproduced so the carriage can be tested -- it is NOT a canon layout and MUST NOT be cited as one. Bytes round-tripped through a CBOR decoder written separately from the encoder, positive-controlled against TV27 and negative-controlled by single-byte perturbation."
+    },
+    {
+      "id": "TV36",
+      "category": "control",
+      "description": "Anti-rollback boot census control frame (§3.7.2, v2 type byte 0xFF, msg_type=18): peripheral->host, one per boot, unsolicited, link-local MUST-NOT-relay. Body {0:18, 1:{0:class, 1:record, 2:seq, 3:floor}}. R2-USB carries key 1 as an OPAQUE bstr -- it does NOT define the record's internal layout, and neither does R2-UPDATE §9.1, which governs replay SEMANTICS only. ERASED case -- the never-provisioned board. All-0xFF yields class=ERASED with seq=0 and floor=0.",
+      "fields": {
+        "msg_type": 18,
+        "class": 1,
+        "class_name": "ERASED",
+        "record_hex": "ffffffffffffffffffffffffffffffff",
+        "record_len": 16,
+        "seq": 0,
+        "floor": 0
+      },
+      "control_body_cbor_hex": "a2001201a400010150ffffffffffffffffffffffffffffffff02000300",
+      "control_payload_hex": "ffa2001201a400010150ffffffffffffffffffffffffffffffff02000300",
+      "usb_frame_hex": "1e00ffa2001201a400010150ffffffffffffffffffffffffffffffff02000300",
+      "usb_frame_length": 32,
+      "notes": "⚠ record_hex is SYNTHETIC -- no board produced it. Key 1 is Publish: PRIVATE (§3.7.2), so a real capture MUST NOT be published. ⚠ CANON SPECIFIES NO RECORD LAYOUT: §9.1 constrains semantics (seq must exceed the floor, durability class must be declared), not framing. Any tag/endianness here is core's IMPLEMENTATION, reproduced so the carriage can be tested -- it is NOT a canon layout and MUST NOT be cited as one. Bytes round-tripped through a CBOR decoder written separately from the encoder, positive-controlled against TV27 and negative-controlled by single-byte perturbation."
     }
   ]
 }
