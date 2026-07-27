@@ -37,7 +37,11 @@ CANON="${R2_SPECS_VECTORS:-$ROOT/../r2-specifications/testing/test-vectors}"
 # This is the SKIP-GREEN shape one level out: a DIRTY canonical must not report the same as a MOVED one.
 # So: if the sibling is a git repo, compare against its COMMITTED HEAD, and if the vector files are dirty
 # say so as a DISTINCT status rather than calling it drift.
-if [ -z "${R2_SPECS_VECTORS:-}" ] && [ -d "$CANON/../../.git" ]; then
+# Guard applies whenever CANON sits inside a git repo — including an explicit R2_SPECS_VECTORS override.
+# Gating it on the override being unset meant an override pointed at a DIRTY checkout silently lost the
+# protection, and it also made the failure mode untestable (you cannot dirty the live sibling to prove it).
+# Found by trying to build composer's reproduce-then-show-absent control rather than by reading the code.
+if [ -d "$CANON/../../.git" ] || git -C "$CANON" rev-parse --git-dir >/dev/null 2>&1; then
   _specs_root="$CANON/../.."
   _dirty=$(git -C "$_specs_root" status --porcelain -- testing/test-vectors 2>/dev/null | wc -l)
   if [ "$_dirty" -gt 0 ]; then
