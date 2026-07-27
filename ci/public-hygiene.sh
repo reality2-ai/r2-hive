@@ -110,8 +110,28 @@ gg_filter() { local out rc=0; out=$(grep "$@")               || rc=$?; [ "$rc" -
 # (1) Scrubbed location + cultural terms (case-insensitive), minus the allowlisted identifiers.
 # rc>1 in EITHER the term grep or the allowlist filter now fails closed (pipefail propagates gg's rc).
 if [ -z "$SHAPES_ONLY" ]; then   # VALUE-class: needs the denylist; skipped in CI-shapes-only (enforced pre-push)
-if [ -n "$ALLOW_RE" ]; then hits=$(gg -inE "$TERM_RE" -- . "${PATHSPEC[@]}" | gg_filter -viE "$ALLOW_RE")
-else                        hits=$(gg -inE "$TERM_RE" -- . "${PATHSPEC[@]}"); fi
+# TOKEN-CONTAINMENT, not whole-line exemption (fixed 2026-07-28, supervisor-directed, in lane).
+# WAS: `gg -inE "$TERM_RE" | gg_filter -viE "$ALLOW_RE"` — `grep -v` drops the ENTIRE LINE, so ANY line
+# carrying an allowlisted identifier was exempt from the whole class. Measured on the live tree at the
+# time: 18 lines matched TERM_RE and 0 survived the filter — an EFFECTIVE DENOMINATOR OF ZERO. The gate
+# printed "terms clean" having evaluated nothing. Worse, both allow records EMBED a scrubbed term, so the
+# exempting shape was the NORMAL shape, not a rare one — and the allowlisted lines are precisely the ones
+# nobody re-checks, so their silent pass was the only signal the matcher was wrong.
+# NOW: a term occurrence is exempt ONLY IF THAT OCCURRENCE lies inside an allowlisted-identifier match on
+# the same line. A bare term sharing a line with an allowlisted identifier now FAILS, which is the case the
+# old shape could never see. Same token-level principle as the UUID class at (5).
+hits=$(gg -inE "$TERM_RE" -- . "${PATHSPEC[@]}" | TERM_RE="$TERM_RE" ALLOW_RE="$ALLOW_RE" perl -ne '
+  my $t = $ENV{TERM_RE}; my $a = $ENV{ALLOW_RE};
+  my @allow;
+  if (defined $a && length $a) { while (/$a/gi) { push @allow, [ $-[0], $+[0] ]; } }
+  my $flag = 0;
+  while (/$t/gi) {
+    my ($s, $e) = ($-[0], $+[0]);
+    my $covered = 0;
+    for my $r (@allow) { if ($s >= $r->[0] && $e <= $r->[1]) { $covered = 1; last; } }
+    if (!$covered) { $flag = 1; last; }
+  }
+  print if $flag;')
 if [ -n "$hits" ]; then
   echo "::error::a scrubbed location/cultural term (see the denylist term-class) reintroduced. Restoration is"
   echo "::error::gated on the Māori-reviewer review — do not re-add in a normal commit. Offending lines:"
@@ -653,6 +673,41 @@ if [ "${1:-}" = "--selftest" ]; then
   vsha=$(sha256sum ci/shape-scan-vectors.tsv 2>/dev/null | cut -d' ' -f1)
   if [ "$vsha" = "$PINNED_VECTORS_SHA" ]; then p=$((p+1)); echo "  ok   shape-vector contract sha pinned ($PINNED_VECTORS_SHA)"
   else echo "  FAIL shape-vector contract DRIFT (got ${vsha:-<none>} want $PINNED_VECTORS_SHA) — adopt the new vectors + rebump the pin in every repo"; fi
+
+  # ── TERM-CLASS TOKEN-CONTAINMENT KAT (2026-07-28) ─────────────────────────────────────────────
+  # The term class was a WHOLE-LINE `grep -v`, so any line carrying an allowlisted identifier was exempt
+  # from the entire class (18 lines matched, 0 survived = effective denominator ZERO). This KAT is the
+  # case the old shape could NEVER see, and it is why the class now tests CONTAINMENT of each occurrence.
+  # Fixtures are SYNTHESISED AT RUNTIME from the gitignored denylist — no term or allow value is ever
+  # written into this tracked file. If the denylist is absent the KAT is SKIPPED LOUDLY, never silently
+  # passed: an unrunnable control must not read as a green one.
+  term_filter() { TERM_RE="$1" ALLOW_RE="$2" perl -ne '
+    my $t = $ENV{TERM_RE}; my $a = $ENV{ALLOW_RE}; my @al;
+    if (defined $a && length $a) { while (/$a/gi) { push @al, [ $-[0], $+[0] ]; } }
+    my $f = 0;
+    while (/$t/gi) { my ($s,$e) = ($-[0],$+[0]); my $c = 0;
+      for my $r (@al) { if ($s >= $r->[0] && $e <= $r->[1]) { $c = 1; last; } }
+      if (!$c) { $f = 1; last; } }
+    print if $f;'; }
+  if load_denylist 2>/dev/null && [ -n "$TERM_RE" ] && [ -n "$ALLOW_RE" ]; then
+    _t1=$(awk -F'\t' '$1=="term"{print $2; exit}'  "$DENYLIST")
+    _a1=$(awk -F'\t' '$1=="allow"{print $2; exit}' "$DENYLIST")
+    # (i) allowlisted identifier + a BARE term on ONE line -> MUST FLAG (the old shape scored 0 here)
+    k=$((k+1))
+    if [ "$(printf '%s\n' "ctx $_a1 and bare $_t1 here" | term_filter "$TERM_RE" "$ALLOW_RE" | wc -l)" -eq 1 ]
+      then p=$((p+1)); else echo "  FAIL term-containment: bare term beside an allowlisted identifier NOT flagged"; fi
+    # (ii) allowlisted identifier ALONE -> MUST PASS (the allowlist must still work)
+    k=$((k+1))
+    if [ "$(printf '%s\n' "ctx $_a1 alone" | term_filter "$TERM_RE" "$ALLOW_RE" | wc -l)" -eq 0 ]
+      then p=$((p+1)); else echo "  FAIL term-containment: allowlisted identifier alone was flagged (false positive)"; fi
+    # (iii) a bare term with NO allowlisted identifier -> MUST FLAG (guards a matcher that matches nothing)
+    k=$((k+1))
+    if [ "$(printf '%s\n' "ctx bare $_t1 here" | term_filter "$TERM_RE" "$ALLOW_RE" | wc -l)" -eq 1 ]
+      then p=$((p+1)); else echo "  FAIL term-containment: bare term alone NOT flagged — class is INERT"; fi
+    unset _t1 _a1
+  else
+    echo "  SKIP term-containment KAT: denylist unavailable (control NOT run — this is not a pass)"
+  fi
 
   echo "selftest: $p/$k passed"
   [ "$p" -eq "$k" ] || exit 1
