@@ -107,6 +107,17 @@ for f in "$VENDORED"/*.json; do
 done
 
 if [ "$drift" -eq 0 ] && [ "$missing" -eq 0 ]; then
+  # NAME A REF, NOT A PATH (specs standing form, 2026-07-28). A cross-repo comparison against a WORKING
+  # TREE compares against whatever its owner happens to be typing — specs measured that while it was
+  # mid-reconciliation its UNCOMMITTED file was the fleet REFERENCE COPY and nothing announced it.
+  # So PRINT the commit actually compared against, per file, resolved at RUN TIME. The record is
+  # GENERATED, never maintained: specs HEAD moved THREE times tonight; any hand-copied sha is stale.
+  if [ -n "${_specs_root:-}" ]; then
+    for _b in "$VENDORED"/*.json; do _n=$(basename "$_b")
+      _c=$(git -C "$_specs_root" log -1 --format=%H -- "testing/test-vectors/$_n" 2>/dev/null)
+      [ -n "$_c" ] && echo "  canon-ref $_n @ ${_c:0:12}"
+    done
+  fi
   echo "check-vendored-vectors: all $(ls "$VENDORED"/*.json 2>/dev/null | wc -l | tr -d ' ') vendored vectors match canon — no drift."
   exit 0
 fi
