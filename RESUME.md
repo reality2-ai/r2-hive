@@ -129,6 +129,17 @@ Publish-HALT LIFTED (bookkeeping public again). Scrubbed VALUES, kept REASONING.
   cured. **v8.5 `9ebad32b`:** set_wake_window RX-quiesce + BLE-lease; identified the ~4min double-fault as the blocker.
   **v8.4 `afaab9ab`** and earlier: archived.
 
+## ⚠ GATE-AUDIT GAP (2026-07-28) — grant-authorised but NOT gate-audited; hive-measured, wider than first reported
+
+composer-codex replay-confirmed that wrapper-script indirection bypasses the fleet firmware gate entirely (the outer command carries neither the tool token nor the artifact string). **hive measured the audit trail and it is worse than the read alone:**
+- `.fleet/flash-authorization.log` **last entry `2026-07-27T13:48:32`**; entries dated 07-28 = **0**; entries after 18:00 on 07-27 = **0**; naming `2026-07-28-antirollback` = **0**; naming `x1-otav3*` = **0**.
+- ⇒ **ACT 1 — the 857088 B WRITE to X1 — is unaudited too**, as is act 1b. Every device operation since 13:48 on 07-27 is grant-authorised but absent from the log, **including the only write in the sequence**.
+- **AMBIGUITY NAMED, NOT COLLAPSED:** the gate's append is best-effort (`>> … 2>/dev/null || true`, auto-approve.sh ~:692), so an absent entry means EITHER the gate never ran (bypass) OR it ran and the append failed silently. composer-codex's replay evidences bypass **for the D4 read**; for act 1 hive has only the absence, and **a null does not carry its own explanation**.
+- **RECURRENCE, not a one-off:** hive banked this class earlier — the gate matches **COMMAND TEXT ONLY**, so `ssh host 'bash file'`, a wrapper script, or a token living inside a file all defeat it ([[espflash-gate-bypassed-by-file-and-remote-exec]]). Two independent routes now ⇒ a design property, not a bug.
+- **★ IT FAILED IN BOTH DIRECTIONS THE SAME NIGHT (hive holds both halves):** **FALSE POSITIVE** — denied hive's `espflash save-image`, a pure file write with no port and no board, which is what forced the Roy-produces/hive-attests/composer-writes split; **FALSE NEGATIVE** — passed a real device operation behind a wrapper. **A gate that blocks the harmless and admits the real trains lanes to route around it** — which is how the bypass came to exist. Fixing the matcher without fixing the false-positive side leaves the incentive intact.
+- **Regression test must cover the CLASS with its own positive control** (direct / wrapper / ssh / token-in-file / env-carried ⇒ DENY; a known-bad command ⇒ DENY as the control, else the rig can pass by being dead; a benign file-only op ⇒ ALLOW to guard the false-positive side). **And make the log append fail loudly** — as written, "not audited" and "audit failed" are byte-identical in the record.
+- **MEASUREMENT UNAFFECTED** (hive re-derived the D4 capture byte-for-byte): bounds, capture and result stand. This is an audit/controls finding, not a data finding. **Owner: supervisor. Not hive's to action.**
+
 ## Standing operational constraints
 
 - **#d005 build gate + build-target guard** (`~/verify-build-target.sh <sha> <src> [marker…]`, fails closed): the named
