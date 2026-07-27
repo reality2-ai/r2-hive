@@ -105,6 +105,10 @@ NEXT: await supervisor's plan call (platform-first vs otherwise) + specs' ensemb
 
 ---
 
+## ★ ACTIVE BUILD ORDER (supervisor #d005, 2026-07-27): image A for X1 with baked_persona — HOLDING for composer's blob
+
+**Order:** build image A for **X1** at pinned **`4b4a71e5`** with `baked_persona`, `DFR_PERSONA_PATH` = the dev persona.bin **composer is producing** for the OTA TG. #d005 satisfied by the order message. **PREFLIGHT DONE:** inbox drained (no supersede); clean detached checkout of `4b4a71e5` in `~/dfr1195-fw-hive-build` (PIN MATCH, tree clean); baked_persona markers verified in the checked-out tree. **Feature set = `otal2cap,lora,xiao,benchsf7,baked_persona`** (the LIVE A recipe `build-otav3.sh:19` was WITHOUT baked_persona = the reason=4 root; adding it for B's TG is the fix). **HOLDING** for composer's blob PATH + sha256 (+ optional role blob + the intended tg_pk) — MUST NOT substitute a bench blob, MUST NOT start until it lands. **On land:** re-verify tree-clean, `rm -rf target`, build verbatim, objcopy raw .bin, then ATTEST: ELF+bin sha256, build cmd verbatim, and **tg_pk-IN-BINARY** (extract baked bytes from the ELF rodata, confirm sha==blob + carry the intended tg_pk — artifact evidence not source). **DO NOT WRITE TO ANY BOARD** — grant comes from supervisor AFTER attestation, pinned to my digest. Artifact secret-bearing ⇒ gitignored, digest-only. This makes `ctx.tg_pk == B.issuer_pk` ⇒ gate-4 (reason=4 UnauthorizedSigner) passes = "A over USB carrying the persona", the conformant first half.
+
 ## CURRENT: otal2cap v3 OTA — run PASSED (reason=4 signer gate, the pre-committed advance); chunk stream still unreached
 
 **★ RESULT (2026-07-27): reason=4 UnauthorizedSigner = the PRE-COMMITTED PASS.** Last night = reason=1 at the VERSION
