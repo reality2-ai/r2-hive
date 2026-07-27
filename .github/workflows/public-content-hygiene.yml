@@ -12,5 +12,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: No scrubbed location / te-reo terms outside the allowlist
-        run: bash ci/public-hygiene.sh
+      # ★ SHAPES-ONLY backstop (supervisor ruling 2026-07-27, option b). The VALUE-class list (scrubbed
+      # location/cultural terms, gateway-product name, bench/personal hostnames) rides an OUT-OF-REPO
+      # per-host denylist that the runner deliberately does NOT hold — so CI runs SHAPE/signal classes
+      # only (MAC/tail, RFC1918+CGNAT IP, dashed-UUID, API-key, te-reo macron). This does NOT weaken
+      # value-class coverage: the pre-push gate runs load_denylist which FAILS CLOSED, so a host without
+      # the denylist CANNOT PUSH — the value invariant is enforced-or-refused, never silently unchecked.
+      # The flag is explicit; WITHOUT it the script fails closed on a missing denylist (never an accidental
+      # partial pass). Injecting the denylist as a CI secret was REJECTED (a new copy in a third-party store).
+      - name: Public-content hygiene (shape/signal classes — value-classes enforced pre-push)
+        run: bash ci/public-hygiene.sh --ci-shapes-only

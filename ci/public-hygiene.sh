@@ -50,7 +50,26 @@ load_denylist() {
   TERM_RE=$(dl_class term); ALLOW_RE=$(dl_class allow); GATEWAY_RE=$(dl_class gateway); HOST_RE=$(dl_class host)
   { [ -n "$TERM_RE" ] && [ -n "$GATEWAY_RE" ] && [ -n "$HOST_RE" ]; } || { echo "::error::denylist $DENYLIST missing a required class (term/gateway/host) — fail-closed." >&2; return 1; }
 }
-load_denylist || exit 1
+# ── MODE (supervisor ruling 2026-07-27, option b: shapes-only CI backstop) ───────────────────────
+# DEFAULT (local + pre-push): FULL sweep — VALUE-classes + SHAPE-classes — REQUIRES the per-host
+# out-of-repo denylist and FAILS CLOSED without it. --ci-shapes-only: the hosted-CI backstop — SHAPE/
+# signal classes only, no denylist needed. The flag is EXPLICIT + CI-declared; it is NEVER an absent-
+# denylist fallback (DEFAULT mode with no denylist still fails closed, right below). ★ WHY THIS IS SOUND,
+# not merely cheaper: load_denylist FAILS CLOSED, so a host WITHOUT the denylist CANNOT PUSH AT ALL — the
+# value-class invariant is ENFORCED-OR-REFUSED, with no third outcome where a push lands value-unchecked.
+# Removing value-classes from CI therefore does NOT weaken coverage; the pre-push fail-closed does. And the
+# mode is unreachable-by-accident: the only way to a partial pass is to pass the flag on purpose; a plain
+# local run either fully passes (denylist present) or fails closed (absent), never a silent partial.
+SHAPES_ONLY=""
+if [ "${1:-}" = "--ci-shapes-only" ]; then
+  SHAPES_ONLY=1
+  echo "::notice::MODE=CI-SHAPES-ONLY — a PARTIAL backstop, NOT a full hygiene pass (run without the flag, denylist present, for full)."
+  echo "::notice::NOT CHECKED here (VALUE-classes, enforced PRE-PUSH via the per-host out-of-repo denylist): scrubbed location/cultural TERMS, gateway-product NAME, bench/personal HOSTNAMES."
+  echo "::notice::load_denylist FAILS CLOSED ⇒ a host without the denylist cannot push ⇒ value coverage is enforced-or-refused, never silently dropped."
+  echo "::notice::CHECKED here (SHAPE/signal classes, no denylist needed): device MAC/tail, RFC1918+CGNAT IP, dashed-UUID, API-key, te-reo macron."
+else
+  load_denylist || exit 1
+fi
 # Exclude the guard's own files from the sweep. NOTE: this is a deliberate, bounded fail-open — the KAT
 # fixtures below are synthetic MACs that would (correctly) flag themselves. Keep this file small and
 # reviewed; do not park real values here on the strength of the exclusion.
@@ -79,11 +98,18 @@ redact_stream() {
 # output; rc >1 (a real failure — invalid pattern, bad pathspec, or -P with no PCRE support) PROPAGATES
 # so `set -e` aborts = fail CLOSED. The prior `… || true` / bare `if assignment` mapped a scanner TOOL
 # failure to a clean result, so a broken term/macron/gateway pattern would silently pass the hard gate.
-gg()        { local out rc; out=$(git grep "$@" 2>/dev/null); rc=$?; [ "$rc" -le 1 ] || return "$rc"; printf '%s' "$out"; }
-gg_filter() { local out rc; out=$(grep "$@");               rc=$?; [ "$rc" -le 1 ] || return "$rc"; printf '%s' "$out"; }
+# ★ CAPTURE THE RC IN AN `|| rc=$?` GUARD, NOT a bare `out=$(...); rc=$?` (supervisor 2026-07-27): rc 1 =
+# CLEAN NO-MATCH = the SUCCESS case for a hygiene grep, but a FAILURE case for `set -e`; a bare assignment
+# can errexit the whole gate on the CLEAN path under some bash/set-e configs — and that path is invisible to
+# every negative/error control (they plant a match, so the clean branch never runs). The `|| rc=$?` puts the
+# assignment in an ||-list, which `set -e` never errexits, and captures rc explicitly. rc>1 = engine error =
+# fail-closed (return propagates under pipefail). Bash-e clean-path is exercised by a --selftest control.
+gg()        { local out rc=0; out=$(git grep "$@" 2>/dev/null) || rc=$?; [ "$rc" -le 1 ] || return "$rc"; printf '%s' "$out"; }
+gg_filter() { local out rc=0; out=$(grep "$@")               || rc=$?; [ "$rc" -le 1 ] || return "$rc"; printf '%s' "$out"; }
 
 # (1) Scrubbed location + cultural terms (case-insensitive), minus the allowlisted identifiers.
 # rc>1 in EITHER the term grep or the allowlist filter now fails closed (pipefail propagates gg's rc).
+if [ -z "$SHAPES_ONLY" ]; then   # VALUE-class: needs the denylist; skipped in CI-shapes-only (enforced pre-push)
 if [ -n "$ALLOW_RE" ]; then hits=$(gg -inE "$TERM_RE" -- . "${PATHSPEC[@]}" | gg_filter -viE "$ALLOW_RE")
 else                        hits=$(gg -inE "$TERM_RE" -- . "${PATHSPEC[@]}"); fi
 if [ -n "$hits" ]; then
@@ -91,6 +117,7 @@ if [ -n "$hits" ]; then
   echo "::error::gated on the Māori-reviewer review — do not re-add in a normal commit. Offending lines:"
   printf '%s\n' "$hits" | redact_stream
   fail=1
+fi
 fi
 
 # (2) Te-reo macron signal (ā ē ī ō ū, upper/lower) — a strong indicator of unreviewed te-reo prose.
@@ -111,12 +138,14 @@ fi
 # resident-premises gateway product + its private spec name MUST NOT appear in the public tree (provenance
 # lives in gitignored .r2-local/). Values are in the denylist gateway-class. A broader historical ID scrub is
 # a SEPARATE Roy decision, deliberately NOT guarded here (some are functional/commit ids with real rename cost).
+if [ -z "$SHAPES_ONLY" ]; then   # VALUE-class: needs the denylist; skipped in CI-shapes-only (enforced pre-push)
 gwhits=$(gg -inE "$GATEWAY_RE" -- . "${PATHSPEC[@]}")
 if [ -n "$gwhits" ]; then
   echo "::error::private gateway-product naming found (see denylist gateway-class). This naming is Publish:Private —"
   echo "::error::keep it out of the public tree (provenance belongs in gitignored .r2-local/). Offending lines:"
   printf '%s\n' "$gwhits" | redact_stream
   fail=1
+fi
 fi
 
 # ── Shape-based value classes (SAFE-TO-PUBLISH INLINE, parity UNCONDITIONAL — supervisor 2026-07-27) ──
@@ -536,6 +565,17 @@ if [ "${1:-}" = "--selftest" ]; then
   k=$((k+1)); gg -inE 'zzz_no_such_token_zzz_9137' -- . >/dev/null 2>&1 && gncrc=0 || gncrc=$?
   if [ "$gncrc" -eq 0 ]; then p=$((p+1)); echo "  ok   gg error-control: genuine no-match -> rc0 (clean is distinct from error)"
   else echo "  FAIL gg error-control: no-match -> rc=$gncrc (want 0)"; fi
+  # ── CLEAN-PATH-UNDER-bash-e control (supervisor 2026-07-27): rc1 = clean no-match = SUCCESS for a hygiene
+  # grep but FAILURE for set -e. The clean branch is the ONE the negative + error controls NEVER touch (they
+  # plant a match), so a bare `out=$(git grep no-match); rc=$?` can errexit the whole gate on the clean path
+  # and stay invisible. Run gg's clean no-match in a FRESH `bash -euo pipefail` subshell (exactly how CI runs
+  # it) and assert it SURVIVES. This is the branch that reddened a peer's hosted CI while passing locally.
+  k=$((k+1))
+  if bash -euo pipefail -c '
+      gg() { local out rc=0; out=$(git grep "$@" 2>/dev/null) || rc=$?; [ "$rc" -le 1 ] || return "$rc"; printf "%s" "$out"; }
+      h=$(gg -inE "zzz_clean_path_probe_zzz" -- .); : "$h"' >/dev/null 2>&1
+  then p=$((p+1)); echo "  ok   clean-path under bash -e: gg no-match SURVIVES (does not errexit the gate)"
+  else echo "  FAIL clean-path under bash -e: gg no-match errexits — the invisible CLEAN-path trap"; fi
   # ── RUN THE CONTRACT FROM FILE (supervisor 2026-07-27): running inline COPIES + pinning the file's sha
   # proves the file is unchanged, NOT that the copies still equal it — editing an inline KAT leaves the sha
   # and the pin green while the contract is no longer run (the mirror-test, in the artefact meant to stop
@@ -610,6 +650,7 @@ fi
 # class (it carried the principal's name = a personal identifier). HARDFAIL so reintroduction is caught.
 # VALUES now come from the denylist host-class (out-of-repo), so this gate no longer carries the list
 # itself ([[enforcer-can-become-the-last-copy]]). PATHSPEC already excludes this file from the scan.
+if [ -z "$SHAPES_ONLY" ]; then   # VALUE-class: needs the denylist host-class; skipped in CI-shapes-only (enforced pre-push)
 HOSTNAME_SEVERITY='hardfail'
 BENCH_HOSTS="$HOST_RE"
 # rc-aware even though it is advisory today: the `|| true` here would become fail-OPEN the moment
@@ -633,10 +674,15 @@ if [ -n "$hosthits" ]; then
     echo "::warning::[ADVISORY] hostname hit(s) ($BENCH_HOSTS) $(printf '%s\n' "$hosthits" | wc -l) line(s); not failing (severity=advisory)."
   fi
 fi
+fi   # end VALUE-class host block (SHAPES_ONLY skips it)
 
 if [ "$fail" -ne 0 ]; then
   echo "public-content-hygiene: FAIL"
   exit 1
 fi
 scanned=$(git ls-files -- . "${PATHSPEC[@]}" | wc -l | tr -d ' ')
-echo "public-content-hygiene: OK — DENOMINATOR $scanned files scanned (sweep scope); terms/macrons/gateway clean; no MACs; no device tails; no MAC-in-filenames"
+if [ -n "$SHAPES_ONLY" ]; then
+  echo "public-content-hygiene: OK (CI-SHAPES-ONLY, PARTIAL) — DENOMINATOR $scanned files scanned; SHAPE/signal classes clean (MAC/tail, RFC1918+CGNAT IP, dashed-UUID, API-key, te-reo macron). VALUE-classes (terms/gateway/hostnames) NOT checked here — enforced PRE-PUSH via the fail-closed per-host denylist. This is NOT a full hygiene pass."
+else
+  echo "public-content-hygiene: OK — DENOMINATOR $scanned files scanned (sweep scope); terms/macrons/gateway clean; no MACs; no device tails; no MAC-in-filenames"
+fi
