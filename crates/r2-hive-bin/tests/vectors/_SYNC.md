@@ -16,6 +16,13 @@ r2-specifications/testing/test-vectors/
     r2-plugin-web-vectors.json    → vector_coverage.rs (web plugin conformance)
 ```
 
+Vendored 2026-07-28 from r2-specifications @ ebaf2bd (vector file v0.33), sha256 d7314af82458ebf17143e2512fbc1ccdc132ddbe3e1cce55233607d1f9ffa361.
+GENUINE movement, verified as such: the previous read of this sibling showed the same content as an
+UNCOMMITTED worktree edit and was correctly REFUSED (see ci/check-vendored-vectors.sh dirty-canon
+guard). specs has since committed it with a clean tree, so this vendors a COMMITTED state that
+exists in history and is reproducible by anyone.
+
+PRIOR ENTRY:
 Vendored 2026-07-28 from r2-specifications @ 298e7b4 (vector file v0.30; supersedes 2ebaeac @ v0.29,
 which stood for ~20 minutes). specs commit: 'spec(USB 0.32): correct §3.7.2 — my vector encoded a
 state §9.1 forbids' — i.e. **the TV34 added at 2ebaeac was itself wrong and specs corrected it**.
