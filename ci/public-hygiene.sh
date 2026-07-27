@@ -88,6 +88,54 @@ if [ -n "$gwhits" ]; then
   fail=1
 fi
 
+# ── Shape-based value classes (SAFE-TO-PUBLISH INLINE, parity UNCONDITIONAL — supervisor 2026-07-27) ──
+# A pattern for these describes the SHAPE and names no real value, so it is safe inline and every fleet
+# tree gets it (cross-repo coverage parity). False-positive management IS the work: the IP pattern is
+# RANGE-RESTRICTED (only RFC1918 + CGNAT 100.64/10 — public/loopback/RFC5737-example/4-part-semver are
+# out of range → pass); the UUID pattern is the dashed 8-4-4-4-12 shape (a 40/8-hex COMMIT SHA is not that
+# shape → passes); the key pattern needs a prefix AND >=2 digits (prose slugs are digitless/short → pass).
+# VALUE-based classes (terms/macron/gateway/hostnames, above) name their values and MUST NOT be duplicated
+# cross-repo — they ride a SHARED gitignored denylist (fleet artefact; coordinate, do not fork).
+IP_RE='(^|[^0-9.])(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3})([^0-9.]|$)'
+UUID_RE='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+# EXACT whole-token UUID allowlist (lowercased), PUBLIC-BY-DEFINITION ONLY: the WS-mesh protocol GUID
+# (compared by both mesh ends — scrubbing it breaks matching) + the nil UUID. Token-level, never substring.
+# NEVER add a real TG/custody UUID here.
+UUID_ALLOW_EXACT='258eafa5-e914-47da-95ca-c5ab0dc85b11
+00000000-0000-0000-0000-000000000000'
+KEY_PFX="$(printf '%s%s' 's' 'k-')"   # assembled from parts so this gate never spells the prefix contiguously
+KEY_RE="(^|[^A-Za-z0-9])${KEY_PFX}(ant-)?[A-Za-z0-9_-]{40,}"
+KEY_DIGITS='[0-9].*[0-9]'
+
+# (4) Private-range + CGNAT IP shapes (range-restricted = the FP filter; no real value named).
+iphits=$(gg -inE "$IP_RE" -- . "${PATHSPEC[@]}")
+if [ -n "$iphits" ]; then
+  echo "::error::private-range / CGNAT IP address(es) found (SHAPE class, Publish:Private). Use a role token"
+  echo "::error::(<build-host> …) or gitignored .r2-local/. Offending lines:"
+  printf '%s\n' "$iphits" | redact_stream
+  fail=1
+fi
+
+# (5) Dashed UUID shape (TG/custody ids) minus the EXACT public-constant allowlist (TOKEN-level, not line).
+uuidhits=$(gg -inoE "$UUID_RE" -- . "${PATHSPEC[@]}" | UUID_ALLOW="$UUID_ALLOW_EXACT" perl -ne '
+  BEGIN{ %a=map{chomp; ($_=>1)} split /\n/, ($ENV{UUID_ALLOW}||""); }
+  if(/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/){ print unless $a{lc $1}; }')
+if [ -n "$uuidhits" ]; then
+  echo "::error::UUID(s) found (TG/custody-id shape, Publish:Private). Real ids live in gitignored custody;"
+  echo "::error::a public constant goes in UUID_ALLOW_EXACT (exact token). Offending lines:"
+  printf '%s\n' "$uuidhits" | redact_stream
+  fail=1
+fi
+
+# (6) API-key-shaped secrets (prefix + >=2 digits; digitless/short prose slugs pass). TOKEN-level digit test.
+keyhits=$(gg -inoE "$KEY_RE" -- . "${PATHSPEC[@]}" | gg_filter -E "$KEY_DIGITS")
+if [ -n "$keyhits" ]; then
+  echo "::error::API-key-shaped token(s) found. A key is Publish:Private — ROTATE it and move to gitignored"
+  echo "::error::custody; it is not fixed by deletion. Offending lines:"
+  printf '%s\n' "$keyhits" | redact_stream
+  fail=1
+fi
+
 # ── Device-fingerprint hygiene (Roy-approved 2026-07-15; MAC=hard-fail, hostname=advisory) ──────────
 
 # Placeholder MACs a doc/test may legitimately show. EXACT WHOLE-TOKEN, normalised (lowercase, colons):
@@ -399,6 +447,31 @@ if [ "${1:-}" = "--selftest" ]; then
   e2e failclosed "empty tracked tree fails closed"
   rm -rf "$tmp"
   trap - EXIT
+
+  # ── shape-class KATs (IP / UUID / API-key) — the gg-checks; assert the SHARED pattern on stdin ──
+  # Fixtures are SYNTHETIC ONLY (generic private ranges, a synthetic UUID, a parts-built key) — never a
+  # real scrubbed value, which would re-disclose it in this tracked file even though PATHSPEC self-excludes.
+  skat() { k=$((k+1)); local d=$1 want=$2 got=$3
+    if { [ "$want" = 1 ] && [ -n "$got" ]; } || { [ "$want" = 0 ] && [ -z "$got" ]; }; then p=$((p+1)); echo "  ok   $d"
+    else echo "  FAIL $d (want=$want got='$got')"; fi; }
+  # IP: range IS the discriminator — RFC1918/CGNAT flag; public/loopback/example/4-part-semver pass.
+  skat "RFC1918 IP flags"          1 "$(printf 'host 10.0.0.1 up\n'    | grep -inoE "$IP_RE")"
+  skat "192.168 IP flags"          1 "$(printf 'ap 192.168.0.1\n'      | grep -inoE "$IP_RE")"
+  skat "CGNAT 100.64/10 flags"     1 "$(printf 'ts 100.64.0.1\n'       | grep -inoE "$IP_RE")"
+  skat "public IP passes"          0 "$(printf 'dns 8.8.8.8\n'         | grep -inoE "$IP_RE")"
+  skat "loopback passes"           0 "$(printf 'bind 127.0.0.1\n'      | grep -inoE "$IP_RE")"
+  skat "RFC5737 example passes"    0 "$(printf 'doc 192.0.2.5\n'       | grep -inoE "$IP_RE")"
+  skat "4-part semver passes"      0 "$(printf 'v 1.2.3.4 rel\n'       | grep -inoE "$IP_RE")"
+  # UUID: dashed shape flags; commit-SHA / 8-hex hive-id / allowlisted-constant pass.
+  uuid_check() { grep -inoE "$UUID_RE" | UUID_ALLOW="$UUID_ALLOW_EXACT" perl -ne 'BEGIN{%a=map{chomp;($_=>1)}split/\n/,($ENV{UUID_ALLOW}||"")} if(/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/){print unless $a{lc $1}}'; }
+  skat "synthetic UUID flags"      1 "$(printf 'id 12345678-1234-1234-1234-1234567890ab\n' | uuid_check)"
+  skat "allowlisted nil UUID passes" 0 "$(printf 'nil 00000000-0000-0000-0000-000000000000\n' | uuid_check)"
+  skat "40-hex commit SHA passes"  0 "$(printf 'commit deadbeefcafe0123456789abcdef0123456789ab\n' | uuid_check)"
+  skat "8-hex on-air hive id passes" 0 "$(printf 'hive deadbeef on air\n' | uuid_check)"
+  # API-key: prefix + >=2 digits flags; digitless/short prose slug passes.
+  key_check() { grep -inoE "$KEY_RE" | grep -E "$KEY_DIGITS"; }
+  skat "key-shaped w/ digits flags" 1 "$(printf 'tok %sant-a1b2%s\n' "$KEY_PFX" "$(printf 'x%.0s' $(seq 1 60))" | key_check)"
+  skat "digitless key-like slug passes" 0 "$(printf 'name %santhill-membership-token-fixture-value-longenough\n' "$KEY_PFX" | key_check)"
 
   # A parser/instrument failure must fail closed rather than look like an empty clean scan.
   k=$((k+1))
