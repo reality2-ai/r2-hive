@@ -219,10 +219,18 @@ pin-map.
 - **★ R2-WIFI 3.0b (specs, landed 2026-07-27) = a canon MUST that binds hive builds DIRECTLY:** a build NOT given
   credentials **MUST NOT substitute a compiled literal**. Either FAIL the build, or produce an image that **cannot
   associate AND SAYS SO**. **ABSENCE OF A CREDENTIAL MUST NOT RESOLVE TO A CREDENTIAL.** **LIVE CODE FINDING (core's
-  firmware source — no build.rs in hive):** two of three wifi cfg branches currently FALL BACK to compiled literals
-  beneath a comment claiming never-hardcoded (true of one branch in three). **Falsifier (no deployment build needed):**
-  build without the feature and without creds, then INSPECT THE IMAGE for an embedded SSID/passphrase — finding one = MUST
-  unmet. Owner = core (firmware source); hive MUST NOT emit a violating image. Flagged to core.
+  firmware source — no build.rs in hive):** core CONFIRMED the 3 cfg branches (dfr1195 main.rs:936-941): (1) `staota`
+  → env creds but `unwrap_or_default()` bakes an EMPTY string on absence = "cannot associate but does NOT SAY SO" (the
+  silent half-miss, not a literal); (2) `ble,not(staota)` → COMPILED LITERAL pair = 3.0b VIOLATION; (3) `not(ble),not(staota)`
+  → `FIELDLAB_SSID`/`FIELDLAB_PASS` consts :386-387 = 3.0b VIOLATION. Comment :934 "NEVER hardcoded" is true of the
+  staota branch ONLY. **Class-not-instance (supervisor): a default credential is the same CLASS as a permissive default —
+  the value may be byte-identical to a chosen one, only its PROVENANCE differs; 3.0b is a provenance rule.** **Fix is
+  CORE's** (queued behind the persona write-pair + 5-item re-vendor): emit-inert `Option::None` uniform (no assoc + logs
+  "no credentials at build — WiFi inert, cannot associate") + build.rs FAIL-CLOSED scoped to `staota` (WiFi definitionally
+  required there). **hive RE-ATTEST criteria post-fix (owner=hive):** a non-staota no-creds build → `strings`-on-image
+  finds NO SSID/passphrase + the inert log; a `staota` no-creds build → FAILS TO COMPILE. **hive MUST NOT emit a violating
+  image**; any future wifi-bearing build order must not precede core's fix. Falsifier stands: inspect the image for an
+  embedded SSID/passphrase = finding one is a MUST-miss.
 - **Synthetic-AP context (kept, NOT a closure):** composer stood up an AP on <build-host>'s spare phy2 (sustained, 0
   drops/7 polls/~80s, sole-uplink wlp3s0 default-route untouched). If used, creds are CHOSEN/synthetic. **⚠ synthetic ≠
   safe-to-publish when the value GRANTS ACCESS — a chosen PSK is a WORKING PSK while the AP is up.** SSID/PSK fine in fleet
