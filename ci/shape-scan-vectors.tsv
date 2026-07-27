@@ -7,6 +7,10 @@
 #prefix (the two chars s,k and a hyphen) before feeding a KEY vector to the impl. The prefix
 #is NEVER stored contiguously here: the fleet secret-scan bans it fleet-wide (a synthetic
 #key-shape is indistinguishable from a real one), so a shared secret-shape vector must tokenize it.
+#FAIL-SAFE BY CONSTRUCTION — do NOT add a control for a missed expansion: if the runner fails to
+#expand <KEYPFX>, the KEY POSITIVE is not key-shaped, so it is NOT caught, so that vector FAILS
+#LOUDLY. A broken expansion cannot produce a silent pass on the positive side; the negatives are
+#insensitive to expansion either way. The positive covers it. No extra machinery is needed.
 #want<TAB>class<TAB>count<TAB>input
 flag	MAC	-	usb_dev_02:11:22:33:44:55-if00
 flag	MAC	-	usb_dev_02-11-22-33-44-55-if00

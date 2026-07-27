@@ -571,7 +571,7 @@ if [ "${1:-}" = "--selftest" ]; then
   # match its pinned content-sha. A vector added in ANY fleet repo bumps this; adopt + rebump here. The
   # inline shape/MAC/tail KATs above ARE these vectors — keep them in step (single-source run-from-file is
   # the planned follow-on). The vector file is SYNTHETIC + publishable, so the pin is on public content.
-  k=$((k+1)); PINNED_VECTORS_SHA='0228be3ee70ab250eb6047ff3c6690a1aba7ed53a4db47a93c2210a37841b910'
+  k=$((k+1)); PINNED_VECTORS_SHA='79fdc80ee7f7e4fb6e6afbbf5fbe338c8cebc5858ce7dd07eebd4e22b39070a9'
   vsha=$(sha256sum ci/shape-scan-vectors.tsv 2>/dev/null | cut -d' ' -f1)
   if [ "$vsha" = "$PINNED_VECTORS_SHA" ]; then p=$((p+1)); echo "  ok   shape-vector contract sha pinned ($PINNED_VECTORS_SHA)"
   else echo "  FAIL shape-vector contract DRIFT (got ${vsha:-<none>} want $PINNED_VECTORS_SHA) — adopt the new vectors + rebump the pin in every repo"; fi
