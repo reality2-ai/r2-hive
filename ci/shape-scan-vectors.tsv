@@ -1,0 +1,59 @@
+#r2-fleet shape-scan CONTRACT vectors
+#schema-version: 1
+#SYNTHETIC shape fixtures only (publishable). Co-pinned by CONTENT-SHA in every fleet repo; each gate
+#runs the FULL set in its own self-test, ANY implementation/language. A vector added in one repo fails
+#the others' pin until adopted = drift alarm on the CONTRACT, not on any implementation's text.
+#RUNTIME EXPANSION: the runner MUST replace the literal token <KEYPFX> with the API-key
+#prefix (the two chars s,k and a hyphen) before feeding a KEY vector to the impl. The prefix
+#is NEVER stored contiguously here: the fleet secret-scan bans it fleet-wide (a synthetic
+#key-shape is indistinguishable from a real one), so a shared secret-shape vector must tokenize it.
+#want<TAB>class<TAB>count<TAB>input
+flag	MAC	-	usb_dev_02:11:22:33:44:55-if00
+flag	MAC	-	usb_dev_02-11-22-33-44-55-if00
+flag	MAC	-	x-02-11-22-33-44-55-y
+flag	MAC	-	mac 02-11-22-33-44-55 seen
+flag	MAC	-	ex 00:00:00:00:00:00 real 02:11:22:33:44:55
+flag	MAC	-	mac 02:DE:AD:BE:EF:03 here
+flag	MAC	-	run aa-02-11-22-33-44-55-bb
+flag	MAC	-	MAC 02-AB-CD-EF-11-22
+flag	MAC	-	frag 02:11-22:33-44:55 here
+flag	MAC	-	id 02-11:22-33:44-55 seen
+pass	-	-	mac 00:00:00:00:00:00 only
+pass	-	-	mac AA-BB-CC-DD-EE-FF only
+pass	-	-	mac xx:xx:xx:xx:xx:xx redacted
+flag	TAIL	1	mac_low3 = 02:34:5a
+flag	TAIL	-	raw_serial d3-02-34-5a.log
+flag	TAIL	2	bssid 11:02:34:5a
+flag	TAIL-COMPACT	-	DEV 02345A role=STA
+flag	TAIL-COMPACT	-	hive 02345A originates
+pass	-	-	revision 1a2b3c landed
+pass	-	-	board boot command with padding padding -b 115200
+pass	-	-	HEALTH matches a7011a<hive8>
+pass	-	-	at 12:34:56 today
+pass	-	-	entry 26-07-04 shipped
+pass	-	-	macro rework 26-07-04 landed
+pass	-	-	oui D8-3B-DA vendor prefix
+pass	-	-	oui D83BDA vendor prefix
+flag	TAIL-0x	-	value 0x02345A
+flag	TAIL-0x	-	DEV 0x02A000
+flag	TAIL-0x	-	DEV 0x1E0000
+pass	-	-	persona @0x12000 and 0x1E0000
+pass	-	-	magic 0xC0FFEE and 0xFFFFFF
+pass	-	-	reg 0x02345A99 write
+flag	-	-	fallback 0x0002345A from mac_low3
+flag	-	-	{"hive":"02345Aaa","mac":"xx:xx:xx:xx:xx:xx"}
+pass	-	-	hive_id 02345A99
+flag	IP	-	host 10.0.0.1 up
+flag	IP	-	ap 192.168.0.1
+flag	IP	-	ts 100.64.0.1
+pass	-	-	dns 8.8.8.8
+pass	-	-	bind 127.0.0.1
+pass	-	-	doc 192.0.2.5
+pass	-	-	v 1.2.3.4 rel
+flag	UUID	-	id 12345678-1234-1234-1234-1234567890ab
+pass	-	-	nil 00000000-0000-0000-0000-000000000000
+pass	-	-	commit deadbeefcafe0123456789abcdef0123456789ab
+pass	-	-	hive deadbeef on air
+flag	KEY	-	tok <KEYPFX>ant-a1b2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+pass	-	-	name <KEYPFX>anthill-membership-token-fixture-value-longenough
+flag	macron	-	te reo māori prose

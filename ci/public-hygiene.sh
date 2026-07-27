@@ -54,7 +54,10 @@ load_denylist || exit 1
 # Exclude the guard's own files from the sweep. NOTE: this is a deliberate, bounded fail-open — the KAT
 # fixtures below are synthetic MACs that would (correctly) flag themselves. Keep this file small and
 # reviewed; do not park real values here on the strength of the exclusion.
-PATHSPEC=(':!ci/public-hygiene.sh' ':!.github/workflows/public-content-hygiene.yml')
+PATHSPEC=(':!ci/public-hygiene.sh' ':!.github/workflows/public-content-hygiene.yml' ':!ci/shape-scan-vectors.tsv')
+# NB ci/shape-scan-vectors.tsv is the shared CONTRACT vector file — deliberately FULL of synthetic shape
+# fixtures (MAC/IP/UUID/key/macron), so it MUST be excluded from the sweep or it flags itself. Every fleet
+# repo carrying the vectors excludes them the same way; that exclusion is part of the contract.
 
 fail=0
 
