@@ -211,14 +211,24 @@ pin-map.
   open). The FLASH build bakes `R2_WIFI_SSID`/`R2_WIFI_PASS` via build.rs env → different sha256 → **re-attest at
   flash-build** (both images, both legs, controls). The sha above attests structure+instrument+BUILD_ID+eligibility
   (creds-independent).
-- **CREDS = SYNTHETIC AP, RESOLVED (g24 real-creds REVERSED).** Composer stood up an AP on <build-host>'s spare phy2 (AP
-  sustained, 0 drops/7 polls/~80s, sole-uplink wlp3s0 default-route untouched throughout — capable-caveat retired BY
-  TEST). Creds are CHOSEN/synthetic (band bg, ch6, WPA2-PSK, DHCP <scrubbed-ip>) — no custody, no extraction (withdrawn; had
-  no clean anchor anyway). **⚠ HANDLING: synthetic-by-construction ≠ safe-to-publish when the value GRANTS ACCESS — a
-  chosen PSK is a WORKING PSK while the AP is up.** So the SSID/PSK are fine in fleet mail + composer's mode-700
-  dev-trial file, but **MUST NOT enter any tracked/public file** (this RESUME included) — values live in the build env /
-  composer's dev-trial only, deliberately NOT recorded here. build.rs reads env (R2-SECRETS 3.1). **Empty-creds
-  attestation STANDS** (creds-independent). [[use-is-not-publication-secrets-boundary]]
+- **★ CREDS = THE LIVE FINDING (supervisor 2026-07-27, CORRECTING a stale ALL-CLEAR I wrote). NOT resolved. g24 is OPEN.**
+  ROY-GATES.md:122 — g24 is **RULED synthetic OVERNIGHT, PENDING ROY REVIEW**, in the OPEN set NOT the closed table; the
+  supervisor's synthetic-AP ruling is a RECOMMENDATION awaiting a one-line overturn, **not a closure**. My earlier
+  "CREDS = SYNTHETIC AP, RESOLVED" was a stale all-clear — the DANGEROUS direction (a stale unblock costs an action nobody
+  re-examines; re-verify unblocks with the same rigour as blocks). [[status-recorded-as-a-constraint]]
+- **★ R2-WIFI 3.0b (specs, landed 2026-07-27) = a canon MUST that binds hive builds DIRECTLY:** a build NOT given
+  credentials **MUST NOT substitute a compiled literal**. Either FAIL the build, or produce an image that **cannot
+  associate AND SAYS SO**. **ABSENCE OF A CREDENTIAL MUST NOT RESOLVE TO A CREDENTIAL.** **LIVE CODE FINDING (core's
+  firmware source — no build.rs in hive):** two of three wifi cfg branches currently FALL BACK to compiled literals
+  beneath a comment claiming never-hardcoded (true of one branch in three). **Falsifier (no deployment build needed):**
+  build without the feature and without creds, then INSPECT THE IMAGE for an embedded SSID/passphrase — finding one = MUST
+  unmet. Owner = core (firmware source); hive MUST NOT emit a violating image. Flagged to core.
+- **Synthetic-AP context (kept, NOT a closure):** composer stood up an AP on <build-host>'s spare phy2 (sustained, 0
+  drops/7 polls/~80s, sole-uplink wlp3s0 default-route untouched). If used, creds are CHOSEN/synthetic. **⚠ synthetic ≠
+  safe-to-publish when the value GRANTS ACCESS — a chosen PSK is a WORKING PSK while the AP is up.** SSID/PSK fine in fleet
+  mail + composer's mode-700 dev-trial, **MUST NOT enter any tracked/public file** (this RESUME included). Build reads env
+  (R2-SECRETS 3.1) — but per R2-WIFI 3.0b a MISSING env MUST NOT fall through to a literal. **Empty-creds attestation
+  STANDS** (attests structure/instrument/BUILD_ID, creds-independent). [[use-is-not-publication-secrets-boundary]]
 - **★ PROVISIONING IS A PRECONDITION, not a follow-up (supervisor ruling — persona load-bearing TWICE: R2-DEVICE-LIFECYCLE
   publish + the OTA health-gate items 3+4).** Revised sequence: flash A **app-only** (NVS survives) → A boots + REPORTS
   whether its persona validates → if NOT, composer mints the dev-TG persona (its delegated class) + provisions → ONLY
@@ -245,7 +255,7 @@ pin-map.
   update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
 - **NO FLASH** taken; no grant.
 
-### Next-phase context — ENSEMBLE CANON (specs Q1/Q4/Q5 + Roy #69; DO NOT build until specs finishes — creds RESOLVED, g24 RULED synthetic 2026-07-27)
+### Next-phase context — ENSEMBLE CANON (specs Q1/Q4/Q5 + Roy #69; DO NOT build until specs finishes — ★ CREDS ARE THE LIVE FINDING, g24 OPEN pending Roy, R2-WIFI 3.0b MUST binds any build; see the CREDS block)
 - **OTA delivers the rest:** image A over USB (ONE USB write all night), B over air proves round-trip, then each
   capability arrives OVER THE AIR. Sequence: (1) core hive+OTA [done, pending re-attest], (2) memories, (3) sensor, (4)
   battery.
