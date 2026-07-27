@@ -20,8 +20,14 @@ Vendored 2026-07-28 from r2-specifications @ 298e7b4 (vector file v0.30; superse
 which stood for ~20 minutes). specs commit: 'spec(USB 0.32): correct §3.7.2 — my vector encoded a
 state §9.1 forbids' — i.e. **the TV34 added at 2ebaeac was itself wrong and specs corrected it**.
 Anyone who vendored v0.29 is carrying a vector that encodes a state R2-UPDATE §9.1 forbids.
-NB the spec-doc version in the commit subject (0.31/0.32) and the vector-file `version` field
-(0.29/0.30) are different sequences; pin by the specs SHA, not by either number.
+★ RETRACTED 2026-07-28 — I wrote here that the spec-doc version and the vector-file `version` are
+"different sequences offset by two". **THAT IS WRONG.** specs measured all 29 commits that touched
+this file: **27 are at delta ZERO**, one sequence is a hand convention, and **divergence begins
+TODAY**. So there is no standing offset — and the gap **GROWS**, because the doc bumps on EVERY spec
+edit while the vector file bumps only on a VECTOR edit.
+**USE INSTEAD: PIN BY THE SPECS SHA. The numbers are UNCOUPLED for ungated specs and the gap grows.**
+Discard the offset-by-two form entirely rather than adjusting it — a stale INSTRUCTION forecloses the
+check that a stale FACT would have invited.
 
 PRIOR ENTRY:
 Vendored 2026-07-28 from r2-specifications @ 2ebaeac (R2-USB v0.29; supersedes fc23c03 @ v0.28).

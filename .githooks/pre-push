@@ -33,7 +33,23 @@ if ! "$GUARD" --strict; then
   echo "" >&2
   echo "✗ PUSH BLOCKED — vendored conformance vectors have DRIFTED from canon (or canon is unreachable)." >&2
   echo "  Re-vendor per crates/r2-hive-bin/tests/vectors/_SYNC.md, then re-run the suite." >&2
-  echo "  Deliberate bypass (e.g. no r2-specifications sibling on this host): git push --no-verify" >&2
+  # THE BYPASS IS CONDITIONAL (supervisor ruling 2026-07-28). The defect was never the escape — it was the
+  # escape being ADVERTISED AT THE MOMENT OF MAXIMUM PRESSURE, reaching its reader exactly when they are
+  # blocked, in a hurry, and least able to weigh whether the exemption applies. The message was arguing for
+  # the wrong side. If canon is REACHABLE, this host can chase it and the exemption does NOT apply, so the
+  # line is not printed at all. The cost is stated either way: a bypass whose consequence is unnamed reads
+  # as a supported option.
+  _canon="${R2_SPECS_VECTORS:-$(git rev-parse --show-toplevel)/../r2-specifications/testing/test-vectors}"
+  if [ -d "$_canon" ]; then
+    echo "  Canon IS reachable on this host ($_canon) — so this is real drift, not an unreachable sibling." >&2
+    echo "  There is no applicable bypass: re-vendor. Pushing regardless would carry vectors that NOTHING" >&2
+    echo "  has compared against canon." >&2
+  else
+    echo "  Canon NOT found at: $_canon" >&2
+    echo "  BYPASS EXISTS ONLY FOR THIS CASE — a host that cannot reach canon: git push --no-verify" >&2
+    echo "  SCOPE: using it on a host that CAN reach canon is a false green. COST either way: your push" >&2
+    echo "  carries vendored vectors nothing has compared against canon, and no later gate will catch it." >&2
+  fi
   exit 1
 fi
 echo "pre-push: vendored vectors match canon — OK."
