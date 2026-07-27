@@ -231,6 +231,29 @@ fi
 # is the vendor-rule derivation of flash_crypt_cnt and leaks the same fact; it was missing from the first
 # version of this class because I took a three-field description instead of reading the emitter.
 POSTURE_RE='(ARB-CENSUS-SOC|secure_boot_en|aggressive_revoke|flash_crypt_cnt|flash_enc_derived)'
+# (6c) RAW CENSUS RECORD BYTES (Publish:Private — Roy via supervisor, R2-USB §3.7.2 key 1, at the SCHEMA
+# level; the console `ARB-CENSUS raw=<hex>` carries the same bytes and inherits the class).
+# WHY A SECOND SHAPE, and why the posture class above cannot do this job: posture leaks through NAMED
+# fields, so a keyword matcher finds it. These bytes are ANONYMOUS. **A publish gate keyed on keywords is
+# blind to opaque blobs** (core, 2026-07-28) — the class has to be a SHAPE, not a vocabulary.
+# WHY PRIVATE, since the earlier ruling was the opposite: the bytes are flash content of UNBOUNDED
+# PROVENANCE. Every board measured holds foreign app text at 0x18000 and THE MECHANISM THAT PUT IT THERE
+# IS UNIDENTIFIED, so nobody can assert they are non-secret. That is a negative about arbitrary content,
+# and unclassifiable bytes are exactly what the FOREIGN class exists for.
+# THE `raw=` ANCHOR IS LOAD-BEARING, measured not assumed: the tree carries 2070 bare 32+hex runs (commit
+# shas, artifact digests) and 0 preceded by `raw=`. An unanchored hex-blob pattern would flag all 2070.
+# `class=` stays PUBLISHABLE and still supports the denominator — deliberately not matched here.
+RAWREC_RE='raw=[0-9a-fA-F]{32,}'
+rawhits=$(gg -inoE "$RAWREC_RE" -- . "${PATHSPEC[@]}")
+if [ -n "$rawhits" ]; then
+  echo "::error::RAW census record bytes found (Publish:Private, R2-USB §3.7.2 key 1 at schema level)."
+  echo "::error::These are flash bytes of UNBOUNDED PROVENANCE — unclassifiable, so not assertable as"
+  echo "::error::non-secret. Keep them in the gitignored per-board capture dir. class= is publishable and"
+  echo "::error::is what the denominator needs. Offending lines:"
+  printf '%s\n' "$rawhits" | redact_stream
+  fail=1
+fi
+
 posturehits=$(gg -inoE "$POSTURE_RE" -- . "${PATHSPEC[@]}")
 if [ -n "$posturehits" ]; then
   echo "::error::SoC security-posture token(s) from the census emission found (Publish:Private, D-20260728-94)."
@@ -674,6 +697,18 @@ if [ "${1:-}" = "--selftest" ]; then
   if [ "$vsha" = "$PINNED_VECTORS_SHA" ]; then p=$((p+1)); echo "  ok   shape-vector contract sha pinned ($PINNED_VECTORS_SHA)"
   else echo "  FAIL shape-vector contract DRIFT (got ${vsha:-<none>} want $PINNED_VECTORS_SHA) — adopt the new vectors + rebump the pin in every repo"; fi
 
+  # ── RAW CENSUS RECORD KAT (2026-07-28) ────────────────────────────────────────────────────────
+  # A publish gate keyed on KEYWORDS is blind to OPAQUE BLOBS: the posture class finds NAMED fields, but
+  # census record bytes are anonymous, so this class must be a SHAPE. Fixtures synthetic; safe to keep in
+  # this file because PATHSPEC excludes it from the production sweep.
+  raw_filter() { grep -inoE 'raw=[0-9a-fA-F]{32,}' || true; }
+  k=$((k+1)); if [ "$(printf '%s\n' 'ARB-CENSUS class=2 raw=000102030405060708090a0b0c0d0e0f seq=3' | raw_filter | wc -l)" -eq 1 ]
+    then p=$((p+1)); else echo "  FAIL raw-record: blob after raw= NOT flagged — class is INERT"; fi
+  k=$((k+1)); if [ "$(printf '%s\n' 'ARB-CENSUS class=2 seq=3 floor=7' | raw_filter | wc -l)" -eq 0 ]
+    then p=$((p+1)); else echo "  FAIL raw-record: publishable class= line flagged (false positive)"; fi
+  k=$((k+1)); if [ "$(printf '%s\n' 'artifact sha256 c5e16d6d54af5a06f4995b8cc397577a4f9e0780a3bd0da0e80631b24651eff5' | raw_filter | wc -l)" -eq 0 ]
+    then p=$((p+1)); else echo "  FAIL raw-record: bare digest flagged — the raw= anchor is not holding (2070 lines at risk)"; fi
+
   # ── TERM-CLASS TOKEN-CONTAINMENT KAT (2026-07-28) ─────────────────────────────────────────────
   # The term class was a WHOLE-LINE `grep -v`, so any line carrying an allowlisted identifier was exempt
   # from the entire class (18 lines matched, 0 survived = effective denominator ZERO). This KAT is the
@@ -767,5 +802,5 @@ scanned=$(git ls-files -- . "${PATHSPEC[@]}" | wc -l | tr -d ' ')
 if [ -n "$SHAPES_ONLY" ]; then
   echo "public-content-hygiene: OK (CI-SHAPES-ONLY, PARTIAL) — DENOMINATOR $scanned files scanned; SHAPE/signal classes clean (MAC/tail, RFC1918+CGNAT IP, dashed-UUID, API-key, te-reo macron). VALUE-classes (terms/gateway/hostnames) NOT checked here — enforced PRE-PUSH via the fail-closed per-host denylist. This is NOT a full hygiene pass."
 else
-  echo "public-content-hygiene: OK — DENOMINATOR $scanned files scanned (sweep scope); terms/macrons/gateway clean; no MACs; no device tails; no MAC-in-filenames; no SoC posture"
+  echo "public-content-hygiene: OK — DENOMINATOR $scanned files scanned (sweep scope); terms/macrons/gateway clean; no MACs; no device tails; no MAC-in-filenames; no SoC posture; no raw census records"
 fi
