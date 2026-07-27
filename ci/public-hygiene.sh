@@ -193,6 +193,31 @@ if [ -n "$uuidhits" ]; then
 fi
 
 # (6) API-key-shaped secrets (prefix + >=2 digits; digitless/short prose slugs pass). TOKEN-level digit test.
+# (6b) SoC SECURITY POSTURE from the census emission (D-20260728-94, supervisor: Publish:Private).
+# WHY: `ARB-CENSUS-SOC` emits secure_boot_en / aggressive_revoke / flash_crypt_cnt from BLOCK0 eFuse.
+# Each is harmless on a live console. The hazard is a COMPOSITION nobody chose: durable per-board captures
+# (D-20260727-77) retired the ephemerality that was silently doing the security work, so a pasted census
+# line would persist AND pass this gate — an inventory of which boards have secure boot / flash encryption
+# OFF. The sensitive direction is `=0`, which on a dev bench is the COMMON case, not the rare one.
+# DIRECTION IS ASYMMETRY, NOT SEVERITY: publishing is irreversible, withholding is reversible, and the
+# values stay readable locally where every consumer of them already is. Re-examine ON DEPLOYMENT; do not
+# re-litigate before it.
+# SHAPE class, deliberately inline: these are FIELD NAMES, not secret values, so there is nothing here for
+# an out-of-repo denylist to hold — and a shape pattern cannot become the last authoritative copy of a
+# value it describes.
+# TOKEN-level (-inoE), matching the UUID/key classes at (5)/(6) — NOT the whole-line `grep -v` shape,
+# which exempts an entire line when any part of it is allowlisted.
+POSTURE_RE='(ARB-CENSUS-SOC|secure_boot_en|aggressive_revoke|flash_crypt_cnt)'
+posturehits=$(gg -inoE "$POSTURE_RE" -- . "${PATHSPEC[@]}")
+if [ -n "$posturehits" ]; then
+  echo "::error::SoC security-posture token(s) from the census emission found (Publish:Private, D-20260728-94)."
+  echo "::error::secure_boot_en/aggressive_revoke/flash_crypt_cnt enumerate which boards are soft targets."
+  echo "::error::Keep census captures in the gitignored per-board capture dir; do not paste them into a"
+  echo "::error::tracked file. Offending lines:"
+  printf '%s\n' "$posturehits" | redact_stream
+  fail=1
+fi
+
 keyhits=$(gg -inoE "$KEY_RE" -- . "${PATHSPEC[@]}" | gg_filter -E "$KEY_DIGITS")
 if [ -n "$keyhits" ]; then
   echo "::error::API-key-shaped token(s) found. A key is Publish:Private — ROTATE it and move to gitignored"
@@ -684,5 +709,5 @@ scanned=$(git ls-files -- . "${PATHSPEC[@]}" | wc -l | tr -d ' ')
 if [ -n "$SHAPES_ONLY" ]; then
   echo "public-content-hygiene: OK (CI-SHAPES-ONLY, PARTIAL) — DENOMINATOR $scanned files scanned; SHAPE/signal classes clean (MAC/tail, RFC1918+CGNAT IP, dashed-UUID, API-key, te-reo macron). VALUE-classes (terms/gateway/hostnames) NOT checked here — enforced PRE-PUSH via the fail-closed per-host denylist. This is NOT a full hygiene pass."
 else
-  echo "public-content-hygiene: OK — DENOMINATOR $scanned files scanned (sweep scope); terms/macrons/gateway clean; no MACs; no device tails; no MAC-in-filenames"
+  echo "public-content-hygiene: OK — DENOMINATOR $scanned files scanned (sweep scope); terms/macrons/gateway clean; no MACs; no device tails; no MAC-in-filenames; no SoC posture"
 fi
