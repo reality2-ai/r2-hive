@@ -1,6 +1,6 @@
 # RESUME — r2-hive
 
-Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current snapshot; full v4→v8.7 cycle history in
+Updated 2026-07-27. `main` clean + pushed (ahead=0). Compacted to one current snapshot; full v4→v8.7 cycle history in
 `RESUME-archive.md`. Firmware lives in r2-core branch `dfr1195-fw-blerole-coex` (hive designs/builds/attests; never edits core).
 
 ---
@@ -24,9 +24,12 @@ Publish-HALT LIFTED (bookkeeping public again). Scrubbed VALUES, kept REASONING.
   The OTA-coex hang campaign is **CLOSED** (double-fault family verdict RULED AND RATIFIED).
 - **g18 (NEW, 2026-07-26):** D4 + X1 fault-forensics **rebuild at `8530327309b82fdc0707063b72a8c00c0166a9c6`** — BUILT +
   attested, **both variants ELIGIBLE=YES**. See the g18 build record below.
-- **AUTHORIZATION: NO device operations are authorized** (no flash, no serial open, no derive, no reset, no JTAG). The
-  v8.7.3 grant is RETIRED; the g18 order is **build-and-attest ONLY** — the flash grant is a SEPARATE supervisor
-  decision not yet made. **No pending flash, no owed 3-way.** Ignore any stale "awaiting flash / on metal" language.
+- **AUTHORIZATION: NO device operations are authorized** (no flash, no serial open, no derive, no reset, no JTAG) — **no
+  grant currently issued, no flash taken.** But NOT a standstill: a **D4 reflash (`cbd6bf67`, ALL-SF7) is the next expected
+  op, awaiting ROY's explicit go** (supervisor was writing the flash-auth; target `<flash-host>`), and the RAK relay image
+  `858bc638` is STAGED for Roy STEP3 — see the #d001 campaign section above. So do NOT read "no pending flash" as "nothing
+  queued"; read the campaign section for the live picture. Ignore any stale "on metal / grant live" language — a grant is
+  issued only by a supervisor flash-authorization file, none is.
 - **HIVE POSTURE:** g18 build+attest legs **COMPLETE**. Record-and-report only. Re-engage ONLY on an explicit
   supervisor order; do not poll, do not assign peer legs ([[fleet-posture-authority]]).
 - **#d003 RAK FREEZE STANDS:** no RAK stage or release without BOTH an explicit sha order AND Roy lifting the freeze.
@@ -39,6 +42,18 @@ Publish-HALT LIFTED (bookkeeping public again). Scrubbed VALUES, kept REASONING.
      objdump window.
   **The ~40 staged XIAO + sensor artifacts FAIL leg 1 entirely** — no capture instrument at all, plus a flash-resident
   windowed call from the handler = total fault blindness + the v8.6 re-fault loop. **They are DO-NOT-FLASH.**
+
+---
+
+## #d001 RELAY + LoRa BENCH-MESH campaign (2026-07-27) — RE-DERIVED from transcript after compaction lost it
+
+**★ WHY THIS SECTION EXISTS + A DENOMINATOR WARNING: this campaign ran in THIS session, was LOST TO COMPACTION, and I nearly reconstructed a false-empty from `git log` — which returned 100% hygiene commits, ZERO RAK/D4 trace. The artifacts are scp-only + gitignored, so THE REPO IS A FALSE DENOMINATOR for artifact-producing work: `git log` gives a confident, complete-looking, WRONG answer. Do NOT reconstruct this campaign's history from git; the record is HERE + on the build/flash host + the transcript.** Supervisor confirmed no second hive writer (hive-codex idle since 2026-07-21); the driving context was my own, pre-compaction. Flagging-not-inventing was correct.
+
+- **★ A RAK IMAGE WAS BUILT (not "no RAK image") — and it is NOT a #d003 breach.** hive rebuilt the RAK4630 compact-relay hex `858bc638…bb2e` (ELF `d1aeefdc…3958`) from core `rak4630-fw` HEAD `70f442b9`, under the explicit supervisor P0 order. This IS the #d001 relay-proving reference image (RAK = relay-substrate + bench-test, frozen AT the #d001-passing point) — no build-out beyond it. Fix baked = core `set_relay_egress(RelayEgress::SameCarrier)` main.rs:844 (the #85 relay leg was masked by the `CrossCarrier` default → `relay_on==0` → `route_len` stuck at 1). Superseded the STALE `8215b52a` (decode-fix only; a filename-reuse collision on the flash host was caught + resolved — [[attest-baked-bytes-and-sha-pin-handoff]]). Features `dev,blespike,uf2,baked_persona,benchsf7` + baked persona `8d5d099f`. Composer packaged the nRF UF2 .zip (no partition table, @0x26000): `image_digest e5c7073e` (118624 B) reproduced 3 ways (objcopy-ELF / hex / zip-extract) = packager roundtrip PROVEN; `flash_package_digest d51b5b86`. **STAGED, never flashed.**
+- **D4 (DFR1195 ESP32-S3) benchsf7 image `cbd6bf67…653c`** vs differential control `a23c21ea` (non-benchsf7) = a positive control that `benchsf7` is NOT a no-op. Persona = the #d001 shared bench TG (`tg_hash 0x6E31DEC6` / `wire_id 0xCC788B17` / `tg_id 730c29e7`). verify-boot-SF7 baked; `baked_persona` avoids the old 0x12000 brick path. **NO FLASH taken — awaiting Roy's explicit go** (brick-history board); supervisor was writing the flash-auth (artifact=`cbd6bf67`, target=`<flash-host>`).
+- **RULINGS (hive, supervisor-accepted):** (1) **ALL-SF7** for the bench mesh (one SF) — R2-LORA §5 v0.4.19 bench profile + airtime (29B@SF12 ~1647ms ToA ≈16× too slow for the 1/s apiary; SF7 ~67ms meets it); D4 was flashed **SF12** (`lora_dr=0` — `benchsf7` did NOT take on D4), RAK=SF7; all-SF12 regresses the req, PHY-only so §5.1 vector untouched. (2) **`0x6E31DEC6` (tg_id 730c29e7) CANONICAL, do NOT re-mint** — confirmed by authoritative `parse_persona(8d5d099f)`, NOT a rodata scan (tg_hash is derived-not-stored ⇒ scan structurally blind); stale composer criteria `0x3eb54833/0xd256dc00` named a different provisioning, superseded. (3) **`route_len=2` proves RELAY (the #d001 claim), NOT persona** — same-TG members relay regardless; persona-correctness rests on d001-ratification + the parser. [[shared-radio-config-is-a-base-not-a-guarantee]] [[sf12-airtime-cant-carry-sensor-stream]]
+- **PROVEN:** packager roundtrip (3-way digest); benchsf7 differential. **NOT PROVEN / OPEN — the mesh is NOT forming, so NO on-air relay proof exists:** composer 100s dual capture — D4 emits 4 APIARY `64cedb11` (seq 567–570, 29B compact, ENQUEUED→LoRa) but XIAO forwards ZERO (count=0, own beacon only) AND hears NOTHING direct from D4; DFRs `leaderless-0.4` role=STA, nbrs~0, synced=false. **NO `route_len` anywhere — not even the direct D4→XIAO `route_len=1`.** Root = the SF split (D4 SF12 vs RAK SF7). Direct D4→XIAO `route_len=1` must work FIRST (via the ALL-SF7 reflash); RAK relay `route_len=2` is untestable until the mesh is up. [[sequential-flashing-phase-aligns-boards]]
+- **OWED:** RAK power `-9dBm` (over-hot +20dBm at 30cm, after SF unified); D4 reflash on Roy's go. **FLASH STATE: no flash taken, no grant consumed, #d005 intact.** Summary sent to supervisor for DECISIONS.md (claude-fleet had zero record — its context compacted too).
 
 ---
 
