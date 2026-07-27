@@ -526,6 +526,47 @@ if [ "${1:-}" = "--selftest" ]; then
   if printf 'malformed' | hygiene_scan >/dev/null 2>&1; then
     echo "  FAIL malformed scanner input passed open"
   else p=$((p+1)); echo "  ok   malformed scanner input fails closed"; fi
+  # ── RUN THE CONTRACT FROM FILE (supervisor 2026-07-27): running inline COPIES + pinning the file's sha
+  # proves the file is unchanged, NOT that the copies still equal it — editing an inline KAT leaves the sha
+  # and the pin green while the contract is no longer run (the mirror-test, in the artefact meant to stop
+  # drift). So execute every vector from ci/shape-scan-vectors.tsv through THIS gate's own matchers. The
+  # inline KATs above are retained as targeted regression fixtures; the CONTRACT truth comes from here.
+  uuid_hit() { grep -inoE "$UUID_RE" | UUID_ALLOW="$UUID_ALLOW_EXACT" perl -ne 'BEGIN{%a=map{chomp;($_=>1)}split/\n/,($ENV{UUID_ALLOW}||"")} if(/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/){print unless $a{lc $1}}'; }
+  run_vectors() {
+    local KP want class count input reason cnt ipm uidm keym macm hs hn ok
+    KP=$(printf '%s%s' 's' 'k-')   # expand <KEYPFX> (vector-file header: fail-safe — a failed expansion makes
+                                   # the KEY positive non-key-shaped ⇒ NOT caught ⇒ it FAILS loud, never silent-pass)
+    while IFS=$'\t' read -r want class count input; do
+      case "$want" in flag|pass) ;; *) continue ;; esac
+      input=${input//<KEYPFX>/$KP}
+      k=$((k+1)); ok=1; reason=''; cnt='-'
+      # every matcher via $()=…|| true : a STANDALONE assignment with a failing substitution (grep no-match
+      # rc1) EXITS under set -e (unlike an arg-position "$(…)"), so each is explicitly guarded to rc0.
+      ipm=$(printf '%s\n' "$input" | grep -inoE "$IP_RE") || true
+      uidm=$(printf '%s\n' "$input" | uuid_hit) || true
+      keym=$(printf '%s\n' "$input" | grep -inoE "$KEY_RE" | grep -E "$KEY_DIGITS") || true
+      macm=$(printf '%s\n' "$input" | grep -inP '[\x{0101}\x{0113}\x{012B}\x{014D}\x{016B}\x{0100}\x{0112}\x{012A}\x{014C}\x{016A}]') || true
+      hs=$(printf 'f\0001\000%s\n' "$input" | hygiene_scan) || true
+      hn=$(printf '%s' "$hs" | grep -c '\[') || true; hn=${hn:-0}
+      if [ "$want" = pass ]; then
+        if [ -n "$ipm" ] || [ -n "$uidm" ] || [ -n "$keym" ] || [ -n "$macm" ] || [ "$hn" -ne 0 ]; then ok=0; fi
+      else
+        case "$class" in
+          IP)     if [ -z "$ipm" ]; then ok=0; fi ;;
+          UUID)   if [ -z "$uidm" ]; then ok=0; fi ;;
+          KEY)    if [ -z "$keym" ]; then ok=0; fi ;;
+          macron) if [ -z "$macm" ]; then ok=0; fi ;;
+          *)      if [ "$hn" -gt 0 ]; then cnt=$hn; reason=$(printf '%s' "$hs" | grep -oE '\[[A-Z0-9-]+\]' | head -1 | tr -d '[]') || true; else ok=0; fi
+                  if [ "$class" != '-' ] && [ -n "$reason" ] && [ "$reason" != "$class" ]; then ok=0; fi
+                  if [ "$count" != '-' ] && [ "$cnt" != "$count" ]; then ok=0; fi ;;
+        esac
+      fi
+      if [ "$ok" = 1 ]; then p=$((p+1)); else echo "  FAIL contract-vector [$want $class $count] $input (reason=${reason:-none} cnt=$cnt)"; fi
+    done < ci/shape-scan-vectors.tsv
+    echo "  ran $(grep -cE '^(flag|pass)' ci/shape-scan-vectors.tsv) CONTRACT vectors from ci/shape-scan-vectors.tsv"
+  }
+  run_vectors
+
   # ── shared shape-vector CONTRACT drift alarm (supervisor 2026-07-27): the co-pinned vector file must
   # match its pinned content-sha. A vector added in ANY fleet repo bumps this; adopt + rebump here. The
   # inline shape/MAC/tail KATs above ARE these vectors — keep them in step (single-source run-from-file is
