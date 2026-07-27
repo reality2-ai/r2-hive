@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pre-push: vendored-conformance-vector drift guard (supervisor ruling 2026-07-18).
+# pre-push: (1) vendored-conformance-vector drift guard (2026-07-18) + (2) public-content hygiene forbid-gate (2026-07-27).
 #
 # WHY: tests/vectors/ are READ-ONLY pinned copies of r2-specifications' canonical
 # test-vectors (see crates/r2-hive-bin/tests/vectors/_SYNC.md). A drift guard that
@@ -37,4 +37,30 @@ if ! "$GUARD" --strict; then
   exit 1
 fi
 echo "pre-push: vendored vectors match canon — OK."
+
+# ── public-content hygiene (g23 forbid-gate) ──────────────────────────────────────────────
+# WHY WIRED HERE (supervisor ruling 2026-07-27): the hygiene gate is HARDFAIL, but a hardfail gate
+# that nothing invokes at push time is A GATE NOTHING RUNS — the same false-green class as a silent
+# exit-0, and it already bit us (a commit pushed while the gate FAILED because pre-push did not run
+# it; manual discipline decays silently, a mechanism fails loudly). So INVOKE it here and BLOCK on
+# failure. The gate self-excludes ONLY its own file (narrow) so describing a forbidden class does not
+# self-trip; describe the CLASS not the INSTANCE in any tracked file.
+HYG="$ROOT/ci/public-hygiene.sh"
+if [ ! -x "$HYG" ]; then
+  echo "pre-push: public-hygiene gate missing ($HYG) — cannot verify; FAILING CLOSED." >&2
+  echo "  a scanner with ABSENT INPUTS must fail, never pass. restore it: git checkout -- ci/public-hygiene.sh" >&2
+  echo "  bypass (deliberate): git push --no-verify" >&2
+  exit 1
+fi
+# CONDITION-1 forward note: if the pattern/denylist is ever externalised to a gitignored file, the
+# gate ITSELF MUST fail-closed when that file is absent (a fresh clone lacks it → empty-corpus green).
+# Today the patterns are inline in the gate, so a present+executable gate is a present-inputs gate.
+echo "pre-push: public-content hygiene…"
+if ! "$HYG"; then
+  echo "" >&2
+  echo "✗ PUSH BLOCKED — public-content-hygiene FAILED (forbidden host name / MAC / device tail / captured value)." >&2
+  echo "  Scrub per the g23 convention: role tokens (<build-host>/<rig-host>/<scrubbed-ip>…), describe the CLASS not the INSTANCE." >&2
+  echo "  Deliberate bypass (rare): git push --no-verify" >&2
+  exit 1
+fi
 exit 0

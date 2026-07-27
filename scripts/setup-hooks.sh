@@ -49,4 +49,4 @@ elif [ ! -e "$MAIN" ]; then
   echo "  (no fleet secret-scan hook present; installed our guard directly as pre-push)"
 fi
 
-echo "hooks: done. pre-push now runs ci/check-vendored-vectors.sh --strict (bypass: git push --no-verify)."
+echo "hooks: done. pre-push now runs ci/check-vendored-vectors.sh --strict AND ci/public-hygiene.sh (bypass: git push --no-verify)."
