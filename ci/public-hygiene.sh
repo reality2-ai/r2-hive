@@ -207,7 +207,10 @@ fi
 # value it describes.
 # TOKEN-level (-inoE), matching the UUID/key classes at (5)/(6) — NOT the whole-line `grep -v` shape,
 # which exempts an entire line when any part of it is allowlisted.
-POSTURE_RE='(ARB-CENSUS-SOC|secure_boot_en|aggressive_revoke|flash_crypt_cnt)'
+# FOUR fields, enumerated from the FORMAT STRING at main.rs:8513 — not from a summary. `flash_enc_derived`
+# is the vendor-rule derivation of flash_crypt_cnt and leaks the same fact; it was missing from the first
+# version of this class because I took a three-field description instead of reading the emitter.
+POSTURE_RE='(ARB-CENSUS-SOC|secure_boot_en|aggressive_revoke|flash_crypt_cnt|flash_enc_derived)'
 posturehits=$(gg -inoE "$POSTURE_RE" -- . "${PATHSPEC[@]}")
 if [ -n "$posturehits" ]; then
   echo "::error::SoC security-posture token(s) from the census emission found (Publish:Private, D-20260728-94)."
