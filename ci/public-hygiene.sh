@@ -86,10 +86,10 @@ fail=0
 redact_stream() {
   perl -pe '
     s{(?i)(?<![0-9a-f])(?:[0-9a-f]{2}[:-]){2,}[0-9a-f]{2}(?![0-9a-f])}{<redacted-hex-run>}g;
-    s{(?i)(?<![0-9a-z_])0x[0-9a-f]{7,8}(?![0-9a-z_])}{0x<redacted-hex>}g;
-    s{(?i)(?<![0-9a-z_])[0-9a-f]{7,8}(?![0-9a-z_])}{<redacted-hex>}g;
-    s{(?i)(?<![0-9a-z_])0x[0-9a-f]{6}(?![0-9a-z_])}{0xXXXXXX}g;
-    s{(?i)(?<![0-9a-z_])[0-9a-f]{6}(?![0-9a-z_])}{<redacted-hex>}g;
+    s{(?i)(?<![0-9a-z])0x[0-9a-f]{7,8}(?![0-9a-z])}{0x<redacted-hex>}g;
+    s{(?i)(?<![0-9a-z])[0-9a-f]{7,8}(?![0-9a-z])}{<redacted-hex>}g;
+    s{(?i)(?<![0-9a-z])0x[0-9a-f]{6}(?![0-9a-z])}{0xXXXXXX}g;
+    s{(?i)(?<![0-9a-z])[0-9a-f]{6}(?![0-9a-z])}{<redacted-hex>}g;
   '
 }
 
@@ -301,10 +301,10 @@ abcdef'
 # Bare 'serial' is DELIBERATELY absent: every espflash log header reads "Serial port: '/dev/ttyACM3'",
 # which turned the timestamp '12:34:56' into a tail hit in 18 files. 'serial' describes a wire, not a
 # MAC. The 'raw_serial' JSON key IS kept — its value is a list of logs named after device tails.
-TAIL_CTX='(?i:mac_low3|mac[ _-]?low|mac[ _-]?tail|\bmacs?\b|\bbssid\b|\beui\b|\boui\b|fingerprint|\bdevice\b|\bboards?\b|\bhive(?:[ _-]?id)?\b|\bsoft[ _-]?ap\b|raw_serial)|\b(?:DEV|AP|STA)\b'
+TAIL_CTX='(?i:mac_low3|mac[ _-]?low|mac[ _-]?tail|\bmacs?(?![0-9a-zA-Z])|\bbssid(?![0-9a-zA-Z])|\beui(?![0-9a-zA-Z])|\boui(?![0-9a-zA-Z])|fingerprint|\bdevice(?![0-9a-zA-Z])|\bboards?(?![0-9a-zA-Z])|\bhive(?:[ _-]?id)?(?![0-9a-zA-Z])|\bsoft[ _-]?ap(?![0-9a-zA-Z])|raw_serial)|\b(?:DEV|AP|STA)(?![0-9a-zA-Z])'
 # Bare compact tokens need a stricter vocabulary plus adjacency checks in the classifier. In particular,
 # prose such as `-b 115200 -> Device programmed` is not a device ID merely because both tokens share a line.
-COMPACT_CTX='(?i:mac_low3|mac[ _-]?low|mac[ _-]?tail|\bmacs?\b|\bbssid\b|\beui\b|\boui\b|fingerprint|device[ _-]?id|board[ _-]?id|hive[ _-]?id|raw_serial)'
+COMPACT_CTX='(?i:mac_low3|mac[ _-]?low|mac[ _-]?tail|\bmacs?(?![0-9a-zA-Z])|\bbssid(?![0-9a-zA-Z])|\beui(?![0-9a-zA-Z])|\boui(?![0-9a-zA-Z])|fingerprint|device[ _-]?id|board[ _-]?id|hive[ _-]?id|raw_serial)'
 # An 8-hex token is normally an opaque public ID. Two structural derivations are not: `00` + mac_low3
 # under explicit fallback context, and a JSON `hive` value mapped directly to a `mac` field. Keep the
 # recognition structural: treating every public 32-bit hive_id near the word "fallback" as a tail
@@ -341,10 +341,10 @@ hygiene_scan() {
     sub redact {
       my ($text) = @_;
       $text =~ s{(?i)(?<![0-9a-f])(?:[0-9a-f]{2}[:-]){2,}[0-9a-f]{2}(?![0-9a-f])}{<redacted-hex-run>}g;
-      $text =~ s{(?i)(?<![0-9a-z_])0x[0-9a-f]{7,8}(?![0-9a-z_])}{0x<redacted-hex>}g;
-      $text =~ s{(?i)(?<![0-9a-z_])[0-9a-f]{7,8}(?![0-9a-z_])}{<redacted-hex>}g;
-      $text =~ s{(?i)(?<![0-9a-z_])0x[0-9a-f]{6}(?![0-9a-z_])}{0xXXXXXX}g;
-      $text =~ s{(?i)(?<![0-9a-z_])[0-9a-f]{6}(?![0-9a-z_])}{<redacted-hex>}g;
+      $text =~ s{(?i)(?<![0-9a-z])0x[0-9a-f]{7,8}(?![0-9a-z])}{0x<redacted-hex>}g;
+      $text =~ s{(?i)(?<![0-9a-z])[0-9a-f]{7,8}(?![0-9a-z])}{<redacted-hex>}g;
+      $text =~ s{(?i)(?<![0-9a-z])0x[0-9a-f]{6}(?![0-9a-z])}{0xXXXXXX}g;
+      $text =~ s{(?i)(?<![0-9a-z])[0-9a-f]{6}(?![0-9a-z])}{<redacted-hex>}g;
       return $text;
     }
     sub nearby {
@@ -358,7 +358,7 @@ hygiene_scan() {
       return 1 if nearby($content, $start, $end, 32) =~ $compact_ctx;
       my $before = substr($content, $start > 40 ? $start - 40 : 0, $start > 40 ? 40 : $start);
       my $after = substr($content, $end, 40);
-      return 1 if $before =~ /\b(?:DEV|device|board|hive)\s*(?:[=:]\s*)?\z/i;
+      return 1 if $before =~ /\b(?:DEV|device|board|hive)[\s_-]*(?:[=:][\s_-]*)?\z/i;   # `_`/`-` separators count as context (2026-07-28)
       return 1 if $after =~ /\A\s*(?:[=:]\s*)?(?:AP|STA)\b/;
       return 0;
     }
@@ -379,7 +379,7 @@ hygiene_scan() {
       $consumed = pos($data);
       # One internal prefilter, shared by production and KATs. It is a strict superset: separated
       # three-byte runs, 0x compact tails, and context-bearing bare compact tails all reach verdicts.
-      next unless $content =~ /(?:[0-9a-f]{2}[:-]){2}[0-9a-f]{2}|(?<![0-9a-z_])(?:0x)?[0-9a-f]{6,8}(?![0-9a-z_])/i;
+      next unless $content =~ /(?:[0-9a-f]{2}[:-]){2}[0-9a-f]{2}|(?<![0-9a-z])(?:0x)?[0-9a-f]{6,8}(?![0-9a-z])/i;   # `_` dropped: PREFILTER skipped the record before the loops (2026-07-28)
 
       # Extract the maximal pair run and NORMALISE both separators to ':' before classifying. Boundary
       # checks exclude only hex, not the separator: x-02-...-y and usb_02:...-if00 must both reach here.
@@ -408,7 +408,7 @@ hygiene_scan() {
 
       # Bare compact tails require device context. 0x tails do not. An offset-shaped value is excused
       # only by offset context and only when device context is absent; DEV 0x...000 therefore fails.
-      while ($content =~ /(?<![0-9a-z_])(0x)?([0-9a-f]{6})(?![0-9a-z_])/ig) {
+      while ($content =~ /(?<![0-9a-z])(0x)?([0-9a-f]{6})(?![0-9a-z])/ig) {   # `_` dropped: it defeated the token guard (2026-07-28)
         my ($prefix, $hex) = (defined($1) ? $1 : "", lc $2);
         # Compact tokens are common short numbers/words, so context must be local. The historical
         # forms were adjacent (`DEV <tail>`, `hive <tail>`, `<tail>=AP`); a line-wide match turns a
@@ -424,7 +424,7 @@ hygiene_scan() {
 
       # Eight-hex values are scanned only under the two structural derivations described above. Report
       # the whole token redacted; the guard deliberately carries no historical tail values or hashes.
-      while ($content =~ /(?<![0-9a-z_])(0x)?([0-9a-f]{8})(?![0-9a-z_])/ig) {
+      while ($content =~ /(?<![0-9a-z])(0x)?([0-9a-f]{8})(?![0-9a-z])/ig) {   # `_` dropped: same defect, 8-hex arm
         my ($prefix, $hex) = (defined($1) ? $1 : "", lc $2);
         my $before = substr($content, $-[0] > 48 ? $-[0] - 48 : 0, $-[0] > 48 ? 48 : $-[0]);
         my $after = substr($content, $+[0], 48);
@@ -495,6 +495,26 @@ if [ "${1:-}" = "--selftest" ]; then
     else echo "  FAIL $1 (matched=$got want=$3 reason=${4:-any} count=${5:-any})"; fi
   }
   # --- full-MAC positives: the boundary fail-opens (assert reason=MAC so a mis-class can't pass) ---
+  # ── UNDERSCORE ADJACENCY ON HEX TAILS (2026-07-28) ────────────────────────────────────────────
+  # ONE DEFECT WEARING FOUR GUARD FAILURES. `_` is a WORD character, so it independently defeated:
+  #   (1) the compact token lookbehind (?<![0-9a-z_])  — the mechanism first reported
+  #   (2) has_compact_context's `\b<word>\s*\z` anchor  — `board_` never anchored
+  #   (3) the PREFILTER, which skipped the record before either loop ran. This is why a lookbehind-only
+  #       fix produced NO observable change — which reads as "the fix failed" rather than "another guard".
+  #   (4) TAIL_CTX/COMPACT_CTX trailing `\b` on the DASH path — `\bboards?\b` cannot match before `_`.
+  # Fixing any one alone leaves the hole open. Trailing `\b` became `(?![0-9a-zA-Z])`: `_` now separates,
+  # while `boardroom` still does NOT count as device context.
+  # FAIL-SAFE DIRECTION, DECLARED rather than inferred from which fixtures exist (supervisor 2026-07-28):
+  # an ambiguous identifier such as hive_<6hex> FLAGS. A false positive costs one review; a false negative
+  # leaks a per-device fingerprint.
+  kat "underscore before compact tail, device ctx"           'board_02345A.log'                          1
+  kat "underscore before 0x tail (ctx-exempt)"               'dev_0x02345A'                              1
+  kat "underscore before DASH tail, device ctx"              'board_02-34-5a.log'                        1
+  kat "underscore in hive_ prefix, dash tail"                'hive_02-34-5a'                             1
+  kat "ambiguous identifier flags (declared direction)"      'hive_abc123'                               1
+  kat "boardroom is NOT device context"                      'boardroom 02345A here'                     0
+  kat "prose about a board does not flag"                    'the board is fine'                         0
+
   kat "underscore-adjacent colon MAC flags"                  'usb_dev_02:11:22:33:44:55-if00'            1 MAC
   kat "underscore+hyphen MAC flags (prefilter fail-open)"    'usb_dev_02-11-22-33-44-55-if00'            1 MAC
   kat "hyphen MAC, hyphen on BOTH sides, flags"              'x-02-11-22-33-44-55-y'                     1 MAC
