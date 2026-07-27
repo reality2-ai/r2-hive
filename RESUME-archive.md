@@ -7731,3 +7731,425 @@ Key rulings in `DECISIONS.md`. Ops hazard: [[reference-xiao-boot-flush-wedge]]. 
 - **★ TREE RELATIONSHIP 4b4a71e5 (A) ↔ b25a21eb (B) — supervisor asked mirror/vendor/divergent = NONE:** BOTH are commits in **r2-core** (the DFR firmware is r2-core/platforms/dfr1195; b25a21eb is NOT in r2-hive — supervisor's naming was off). **b25a21eb = 4b4a71e5 + EXACTLY ONE commit** `docs(update): cite canon clauses for the v3 DeviceContext device-posture values` (merge-base=4b4a71e5, b25 ahead 1, 4b4 ahead 0 = direct parent→child). **COMMENT-ONLY:** only main.rs changed; comment-stripped diff at the two shas is empty of code (8 blank lines where full-line comments were). **Code byte-for-byte identical.** ⇒ A and the UNBAKED B have identical code; a post-swap behaviour delta has NO hidden second cause from the tree pair — it isolates to the persona present(A)/absent(unbaked-B) variable, plus benign panic-loc string shifts in .rodata ([[source-diff-is-not-binary-identity]], why the persona sits at 0xb904 in A vs 0xb950 in B).
 - **UNBAKED B kept AS-IS (supervisor):** delivered FIRST as the single-variable gate-4 flip AND the falsifier for the compiled-in-only claim (board MUST come up unprovisioned after an unbaked payload replaces the rodata persona; if it stays provisioned the claim is refuted). No change from hive to that image.
 - Artifacts non-secret (public builds); the persona blob is secret-bearing ⇒ gitignored, digest-only, never committed/published.
+
+---
+
+# ARCHIVED 2026-07-28 (compaction) — RAK #d001 · ENSEMBLE phase · otal2cap v3 + first-round-trip campaign · radarprobe · g18 · v8.7.3
+
+> Moved out of RESUME.md to bring it under the 65536 B takeover-snapshot limit (it had reached 106215 B).
+> An oversized RESUME is not a takeover snapshot: the next writer inherits a document nobody can act on
+> quickly, which is the failure the file exists to prevent. **Every fact below is preserved verbatim.**
+> Current state, live digests and standing constraints remain in RESUME.md; one-line summaries of the RAK
+> and ENSEMBLE items were retained there pointing here.
+
+## RAK COMPACT-RELAY + BENCH-MESH (2026-07-27) — #d001 CONFIRMED (measured); SameCarrier override orphaned by a tree re-export, re-applied @70f442b9; bench mesh SF-split open
+
+**★ SETTLED (supervisor 2026-07-27, rename ratified): #d001 is a RATIFIED PASS, now CONFIRMED BY MEASUREMENT for the specific image `e5c7073e` (see the rebuild-compare below) — citable for THAT image only, nothing else.** The cause is no longer open: the `set_relay_egress(SameCarrier)` override was **orphaned by a tree re-export** (the current rak4630-fw layout dropped the old-monorepo tree; the override was re-applied as a NEW commit `70f442b9`), so a build from the pre-fix `7011934e` did not relay. The current bench mesh is separately **not forming — cause UNDIAGNOSED (2026-07-27)**: the earlier "SF split (D4 SF12 vs RAK SF7)" diagnosis rested entirely on reading `lora_dr=0` as SF12, and `lora_dr` = `LORA_TX_DROPPED` (a shed counter), NOT the spreading factor — so there was never evidence D4 runs SF12, and the mesh failure needs a fresh explanation. The #d001 relay cause IS measured + named; the mesh-forming failure is re-opened.
+
+**★ WHY THIS SECTION EXISTS + A DENOMINATOR WARNING: this campaign ran in THIS session, was LOST TO COMPACTION, and I nearly reconstructed a false-empty from `git log` — which returned 100% hygiene commits, ZERO RAK/D4 trace. The artifacts are scp-only + gitignored, so THE REPO IS A FALSE DENOMINATOR for artifact-producing work: `git log` gives a confident, complete-looking, WRONG answer. Do NOT reconstruct this campaign's history from git; the record is HERE + on the build/flash host + the transcript.** Supervisor confirmed no second hive writer (hive-codex idle since 2026-07-21); the driving context was my own, pre-compaction. Flagging-not-inventing was correct.
+
+- **★ A RAK IMAGE WAS BUILT (not "no RAK image") — supervisor ACCEPTED the #d003 reading (2026-07-27): reproducing the #d001-passing REFERENCE image is producing the reference, not building out beyond it; staged-never-flashed, serial-DFU-only, no nRF feature work. NO FURTHER RAK BUILDS without a fresh order naming a pinned sha.** hive rebuilt the RAK4630 compact-relay hex `858bc638…bb2e` (ELF `d1aeefdc…3958`) from core `rak4630-fw` HEAD `70f442b9`. Fix baked = `set_relay_egress(RelayEgress::SameCarrier)` main.rs:844 (the relay leg was masked by the `CrossCarrier` default → `relay_on==0` → `route_len` stuck at 1). Superseded the STALE `8215b52a` (decode-fix only; a filename-reuse collision on the flash host was caught + resolved — [[attest-baked-bytes-and-sha-pin-handoff]]). Features `dev,blespike,uf2,baked_persona,benchsf7` + baked persona `8d5d099f`. Composer packaged the nRF UF2 .zip (no partition table, @0x26000): `image_digest e5c7073e` (118624 B) reproduced 3 ways = packager roundtrip PROVEN; `flash_package_digest d51b5b86`. **STAGED, never flashed.**
+- **★ #d001 SETTLED BY REBUILD-AND-COMPARE (2026-07-27) — #d001 STANDS, CONFIRMED BY MEASUREMENT.** Composer held the 07-22 flash record (image_digest `e5c7073e…49d56`, raw image @0x26000, 118624 B, flashed 2026-07-21 serial-DFU, relay-proven 07-22, RAK not reflashed between). Supervisor ordered a determinism-first rebuild-and-compare (explicit #d005 order, two pinned shas, FLASH NOTHING). Built on `<build-host>` (same env that derived `e5c7073e`):
+  - **DETERMINISM (checked first): `70f442b9` built TWICE, clean detached, `rm -rf target` each → BYTE-IDENTICAL** (118624 B, sha256 `e5c7073ec5e551f691a677bc6825c583c83f6d4c8e5dfbb0e96e990d74e49d56`) ⇒ build deterministic, comparison valid.
+  - **`70f442b9` (WITH `set_relay_egress(SameCarrier)`) = `e5c7073e…49d56`, 118624 B = EXACT match to the FLASHED image.** ⇒ the 07-22 proving image CARRIED the override → it relayed → **#d001's warrant is checkable after all and CONFIRMED.**
+  - **`7011934e` (pre-fix, grep-confirmed 0 `set_relay_egress`) = `83ff6f62…`, 118528 B — does NOT match**; it reproduces composer's STALE `8215b52a` decode-only image (composer's own staging digest `83ff6f62`/118528 B) → the pre-fix lineage was NEVER flashed.
+  - Composer's grant-artifact TAG `70f442b9` treated as a LABEL, not evidence — the DIGEST match is the evidence ([[safety-claims-name-what-is-enforced]]). Built BOTH shas + the determinism pair (4 builds); did not stop at agreement.
+  - **⇒ The current-branch masking (`7011934e` dropped the override) is a re-vendor LINEAGE REGRESSION — my earlier lean, now MEASURED.** git corroboration: `CrossCarrier` mechanism = `2f7d9866` (07-17); the override-call exists in only 2 commits across all refs (`2f7d9866` NOT an ancestor of current; `70f442b9` parent=`7011934e`). [[positive-control-the-tree-not-just-the-tool]] (lineage beats date; DIGEST beats both), [[env-baked-const-needs-full-clean]] (rm -rf target so the env-baked persona re-bakes), [[tn-base-is-mixed-sha-assembly]].
+  - FLASH-NOTHING honored: `rust-objcopy -O binary` digests only; secret-bearing raw bins (baked persona `8d5d099f`) DELETED; no `.zip`/hex produced; rak4630-fw-wt restored to `rak4630-fw`@`70f442b9` clean, ahead=0; no grant sought. **Re-proof of the CURRENT-lineage mesh (unify SF → route_len=1 → route_len=2) is still the fix for the regression**, but #d001's historical warrant no longer needs it — measurement closed that.
+- **★ RE-VENDOR DIVERGENCE AUDIT (supervisor: "one lost commit is rarely alone"; read+diff only, no build):** MECHANISM = **tree RE-EXPORT onto a new layout** (not a cherry-pick set / squash) — `2f7d9866` carries the old-monorepo tree (`tools/r2-relay`/`r2-provision`/`r2-sensor` present), current `70f442b9` does not; merge-base `5100933d` 07-05; `70f442b9` re-adds the override as a NEW commit. **The mechanism predicts the loss class: a re-export carries vendored-CRATE behavior but ORPHANS hand-edits to the platform `main.rs`** — exactly where `set_relay_egress` lived. The 342-file/43k-line raw `mb..2f7d9866` diff is a FALSE DENOMINATOR (parallel divergence on two layouts, not a dropped list); scoped to the firmware surface the behavioral delta is small: **(1) `set_relay_egress(SameCarrier)`** — the orphaned fix, RE-ADDED @`70f442b9`; **(2) `set_egress_enabled_mask(PHY_LORA)`** — present on `2f7d9866`, absent on current, but NOT a break: current defaults `egress_enabled=PHY_ALL` (r2-dataplane lib.rs:299, includes LoRa) + uses `SameCarrier` ("all carriers except arrival"), so the flashed image relayed; the `2f7d9866` call was a spike-specific LoRa-only NARROWING that current's fuller model supersedes — **flagged to core to confirm PHY_ALL egress is intended for the repeater** (design Q, not a dropped fix); **(3)** LED set_high/low + import list = cosmetic. No other behavioral drop; current is the FULLER line (~840 vs ~200-line main.rs, adds ota.rs), not a subset. [[tn-base-is-mixed-sha-assembly]] [[shared-checkout-path-dep-coupling]]
+- **D4 (DFR1195 ESP32-S3) benchsf7 image `cbd6bf67…653c`.** ARTIFACT fact: `cbd6bf67 != a23c21ea` (non-benchsf7) proves `benchsf7` is not a no-op **IN THE IMAGE** — says NOTHING about what the board executes. **★ WITHDRAWN: "the flashed D4 runs SF12 (`lora_dr=0`), benchsf7 didn't take" — this was a MISREAD.** `lora_dr` = `LORA_TX_DROPPED` (main.rs:1074, a shed counter), NOT the spreading factor; `lora_dr=0` is consistent with SF7 (no shed). There is NO evidence D4 runs SF12, and `benchsf7` DOES set SF7 at source (5816, no runtime override). D4's actual SF is disclosed ONLY in the boot banner (@5824), not in any periodic telemetry — so positive SF7 confirmation waits for the next legitimate reflash (reset barred). Persona = the #d001 shared bench TG (`tg_hash 0x6E31DEC6` / `wire_id 0xCC788B17` / `tg_id 730c29e7`); `baked_persona` avoids the old 0x12000 brick path.
+- **RULINGS (hive, supervisor-accepted):** (1) **ALL-SF7** for the bench mesh (one SF) — grounded in AIRTIME (29B@SF12 ~1647ms ToA ≈16× too slow for the 1/s apiary; SF7 ~67ms meets it; R2-LORA §5 v0.4.19); all-SF12 regresses the req, PHY-only so §5.1 vector untouched. **★ This POLICY stands on the airtime physics ALONE — it does NOT depend on D4's current SF** (the "D4=SF12" claim was the lora_dr misread, withdrawn above; ALL-SF7 remains the right target regardless). (2) **`0x6E31DEC6` (tg_id 730c29e7) CANONICAL, do NOT re-mint** — confirmed by authoritative `parse_persona(8d5d099f)`, NOT a rodata scan (tg_hash is derived-not-stored ⇒ scan structurally blind); stale composer criteria `0x3eb54833/0xd256dc00` named a different provisioning, superseded. (3) **`route_len=2` proves RELAY (the #d001 claim), NOT persona** — same-TG members relay regardless; persona-correctness rests on d001-ratification + the parser. [[shared-radio-config-is-a-base-not-a-guarantee]] [[sf12-airtime-cant-carry-sensor-stream]]
+- **PROVEN:** packager roundtrip (3-way digest); benchsf7 differential. **NOT PROVEN / OPEN — the mesh is NOT forming, so NO on-air relay proof exists:** composer 100s dual capture — D4 emits 4 APIARY `64cedb11` (seq 567–570, 29B compact, ENQUEUED→LoRa) but XIAO forwards ZERO (count=0, own beacon only) AND hears NOTHING direct from D4; DFRs `leaderless-0.4` role=STA, nbrs~0, synced=false. **NO `route_len` anywhere — not even the direct D4→XIAO `route_len=1`.** **★ ROOT CAUSE UNDIAGNOSED (was "SF split D4 SF12 vs RAK SF7" — now UNSUPPORTED, rested on the `lora_dr`-as-SF misread).** Needs a fresh explanation on the next live look. Direct D4→XIAO `route_len=1` still the first milestone; RAK relay `route_len=2` untestable until the mesh forms. [[never-conclude-from-a-null]] [[sequential-flashing-phase-aligns-boards]]
+- **★ FLASH STATE — AUTHORITATIVE (supervisor 2026-07-27): there is NO `cbd6bf67` grant.** The only live grant is READ-ONLY (DFR partition-table read @`0x8000` len `0x1000`, target **D5**), blocked on Roy putting D5 in download mode. **ONE GRANT AT A TIME.** No D4 flash (brick-history board; needs Roy's explicit go regardless). Any draft flash-auth naming `cbd6bf67` with a HOST target is **VOID** — a grant target MUST be an opaque DEVICE handle resolved locally, never a host name (my earlier RESUME wrongly quoted a host-targeted draft; corrected). **OWED:** D4 reflash on Roy's go; RAK `-9dBm` power AFTER the SF is unified, not before.
+- **DENOMINATOR WARNING (kept): this campaign's artifacts are scp-only + gitignored → `git log` is a FALSE denominator (returns a confident, complete-looking, WRONG empty). Do NOT reconstruct from git; record is HERE + build/flash host + transcript.** Compaction lost my own driving context (no second hive writer — hive-codex idle since 07-21); flagging-not-inventing was correct. Summary sent to supervisor for DECISIONS.md (claude-fleet had zero record — its context compacted too). [[never-conclude-from-a-null]] [[status-recorded-as-a-constraint]]
+
+---
+
+## ENSEMBLE PHASE — trace-first (2026-07-27, source-only, NO build; Roy directive via supervisor)
+
+Supervisor's three mechanism questions, traced at `dfr1195-fw-wt` **b25a21eb** (comment-delta over live 4b4a71e5), caller-not-mention. Sent to supervisor. **Verdict: all-as-ensembles is a PLATFORM feature FIRST, not five scores on an existing seam.**
+
+- **Q1 score-loading = MUST-BE-BUILT on MCU.** Real declarative-score loader EXISTS in source — `crates/r2-ensemble` (`loaded.rs` owns parsed `EnsembleScore`, `factory.rs` "walks each sentant entry in the score", `registry.rs`, `serde_yaml 0.9`) — but **std-only** (tokio+parking_lot+r2-engine[std]+r2-dispatch[std]), **not a dep of any platform, unlinkable no_std/xtensa**. In the binary: NO score concept; on-device r2-engine = **compile-time EventBus** (main.rs:8377); parts chosen at COMPILE TIME by cargo features. Boot-read set = persona@0x12000/RPF1@0x17000/board@0x13000 (main.rs:3475), no score partition. Neg-control: zero yaml/score deserialize in any MCU-linkable crate.
+- **Q2 registration = split.** PRIMITIVE exists+reachable: `r2-engine EventBus::register_plugin` (bus.rs:106)/`register_sentant` (:94), CALLED under `fakesensor` (main.rs:7900–7906) and empty under `otaengine` (:8032) — but register-INTO-ONE-BUS. R2-ENSEMBLE 2.1.2 hive-SHARED singleton (N ensembles→1 plugin, R2-WEB) = **MUST-BE-BUILT** (only the std-only r2-ensemble registry/supervision does it). BOTH **absent from the flashed OTA image** (otal2cap,lora,xiao,benchsf7 reach neither otaengine nor fakesensor — feature closure verified).
+- **Q3 NVS role-profile read = EXISTS + reachable EVERY boot.** `read_role_profile()` decodes flash @0x17000 (ROLE_PROFILE_OFFSET, magic RPF1 0x52504631) → Role + duty/ble_role/keepalive_period_ms/scf_cap/scf_ttl_s/reach_conf/silence_s; CALLED by `resolve_role_profile(my_hive)` (main.rs:771) at boot (NVS wins else compile-derive). Cadence knobs ARE role-profile fields — the R2-RUNTIME 210 boot-activation seam + cadence home (field 900s/bench 5–10s). The ONE seam already present.
+
+Memory: [[ensemble-mechanisms-trace]].
+
+### PERSONA-READ + PARTITION + BUDGET (2026-07-27, source/artifact-only, assembled for Roy — NOT acting)
+
+**★ CORRECTED 2026-07-27 (supervisor): I traced the PLATFORM csv, not the FLASHED one. X1 is a XIAO — composer flashed the board-catalogue template, device enumeration is ground truth.**
+**PERSONA READ = RAW ABSOLUTE 0x12000, brick-safe TODAY but UNPROTECTED.** Flashed set has no `baked_persona` ⇒ `read_persona()` (main.rs:3349) = `esp_storage::FlashStorage.read(PERSONA_OFFSET=0x12000)`, raw-absolute, NEVER the partition table; called UNCONDITIONALLY at main.rs:661. Mechanism corroborates console `@0x12000`. Composer's "NVS 0x9000" wrong on mechanism.
+**FLASHED TABLE (X1) = r2-composer/catalogue/boards/esp32-s3-xiao-wio-sx1262/templates/partitions.csv — matches the device boot enumeration EXACTLY:** nvs 0x9000/0x6000 · otadata 0xF000/0x2000 · **phy_init phy 0x11000/0x1000** · ota_0 0x20000/0x30_0000 · ota_1 0x32_0000/0x30_0000 · storage fat 0x62_0000/0x1E_0000. (The DFR table I first traced — r2cfg@0x11000, ota_1@0x20_0000, 0x1E_0000 slots — was NEVER flashed to X1.)
+**BRICK ANSWER:** 0x12000 sits in an **UNCLAIMED GAP** (phy_init ends 0x12000, ota_0@0x20000; nothing claims 0x12000..0x20000). Brick-safe TODAY holds (app@0x20000, 0x12000 not app code) — but it is **UNPROTECTED**: no partition declares it, so a future table edit / erase-region / compacting tool can clobber it silently. "Brick-safe today AND unprotected" ≠ "brick-safe". composer's `phy_init@0x11000` was RIGHT.
+**BUDGET (★ELF ≠ flashed image [[elf-is-not-the-flashed-image]] — method stands, DENOMINATOR moved via the FILE):** slot = 0x32_0000−0x20000 = 0x30_0000 = **3.000 MiB** (composer's 0x32_0000 RIGHT; my 0x20_0000 was the DFR table = WRONG). flashed `.bin` = 857,600 B (0.818 MiB, stable). **HEADROOM = 2.182 MiB, image = 27% of slot.** fakesensor (engine+apiary) = 852 KiB text+data, ~15 KiB over bare OTA. no_std parser: "not worth it" HOLDS (contract_only scores = zero runtime benefit), but "could NOT fit" is now an **OPEN measurement** at 2.18 MiB spare, not settled-no.
+**⚠ LATENT HAZARD (core+composer to reconcile, not hive):** platforms/dfr1195/.cargo/config.toml runner passes `--partition-table partitions.csv` = the DFR r2cfg table. A XIAO flashed via THAT runner installs DFR geometry (1.875 MiB slots, ota_1@0x20_0000) — DIFFERENT from X1's current xiao-wio (3 MiB). One platform table, two boards; a re-flash via the platform runner silently changes X1's geometry.
+
+**PERSONA SYNC PULL-VERIFY (2026-07-27, Roy order — report DIVERGENCE; read-only):** flash-board.sh (r2-composer/orchestrator/bench:70-71,97) flashes the COMPOSER CATALOGUE template BY CARRIER (`DFR`→esp32-s3-dfr1195 = **r2cfg@0x11000**; `XIAO`→xiao-wio = phy_init@0x11000 + **gap**), NOT `r2-hive/docs/dfr1195-partitions.csv` (stale doc, deprecated). **★ NEITHER LAYOUT IS CANON-CONFORMANT (R2-KEYSTORE §9.12.4a @ eb72f04 / v0.55, verified at sha):** r2cfg is CONFIG-lifecycle and persona(0x12000)+role(0x17000)+**anti-rollback floor(0x18000)**+OTA-pending(0x1A000) ALL sit inside r2cfg(0x11000..0x1FFFF), so a legitimate config-erase clobbers the sealed identity + downgrade defence = §9.12.4a violation, MORE dangerous than the gap (a DELIBERATE, legitimate erase, not an accidental write). **§9.12.4a is now a MUST generalised off partitions: "naming a thing for what it is stored WITH rather than what it IS grants every operation defined on the neighbours — the name is the AUTHORISATION SURFACE" (any shared namespace/key-prefix/config-blob/scope, not just tables).** **STATE IS TIME-SPLIT, not carrier-split (v0.55 cut the board mapping from canon — canon keeps the RULE, the fleet ledger/this RESUME keeps the STATE; my per-carrier detail is CORRECT and belongs here, do NOT delete to match canon):** the flasher hard-coded a no-persona-region table, composer fixed it mid-session, so a DFR flashed BEFORE carries the gap, AFTER carries r2cfg — which a deployed board has is unknowable from any repo, only on-device (no device on bus; only X1 confirmed). Nameable in canon (table-independent): `read_persona` raw-absolute 0x12000 — a CONSTANT can't resolve through a descriptor. Only pt7's DEDICATED persona region is conformant. So: (Q1) the hive-doc file-claim CONFIRMED (no r2cfg/no persona region) BUT its premise-as-flashed-table REFUTED. (Fleet claim) "every DFR persona in an unclaimed gap" = **REFUTED for DFR** (flash-board + platform-runner both give DFR r2cfg-declared), **CONFIRMED for XIAO** (X1 device-enum). Device-confirmed only X1; DFR = 3 sources agree r2cfg but no DFR device-read (composer's). NONE of the 3 tables matches canon pt7 (phy_init@0x11000 + DEDICATED persona region @0x12000 not-r2cfg — new to all). (Q2) **NO hive build bakes a persona address** beyond core's `const PERSONA_OFFSET=0x12000` (main.rs:3294): build.rs bakes only the BLOB (rodata, no address), no linker/memory.x/header/script. Canon pt2/pt8 divergence (core-owned): read_persona does a raw const-offset read, not descriptor-resolved — const must go. Fixes: CORE (const + descriptor resolution), COMPOSER (tables + dedicated persona region + DFR device-read), HIVE (DEPRECATED the stale doc — done). **★ POST-FIX CAVEAT (supervisor, now standard):** the three agreeing sources are HOURS OLD — composer landed the DFR catalogue + repointed flash-board.sh THIS session, so they say nothing about a DFR flashed last week; **only X1 is device-confirmed**, a DFR on-device read is composer's to close. **DEPRECATION DONE (supervisor: "do it, don't just annotate"):** `docs/dfr1195-partitions.csv` + `-8mb.csv` → `docs/archive/` (rows stripped, redirect stub to the composer catalogue); fixed the AGENTS.md MUST (was `--partition-table docs/dfr1195-partitions.csv` — the wrong instruction that drove the misread) + docs/r2-per-carrier-builds.md to name the composer catalogue as source of truth.
+**0x18000 NEAR-MISS on record (Roy/supervisor ask, confirmed from git):** const `HUMAN_LABEL_OFFSET` was **0x18000** (sha 712fc34), moved to 0x1B000 at **sha a501bff0** (2026-06-30, r2-core/dfr1195/main.rs). 0x18000 = OTA anti-rollback floor (security_version, survives reflash); a label WRITE there would reset the floor on re-provision = downgrade-bypass. **FOUND BY REVIEW, NOT a fired failure** (commit: "found by cross-reading ota_recv_signed"); never clobbered a real board. But two UNDECLARED raw offsets collided in the gap on the most security-critical sector, caught only by a human cross-read — the concrete precedent that the unclaimed-gap hazard is real, and the strongest single argument for declaring the region (a declared region / overlap-rejecting flasher makes it impossible-by-construction). Same root as the fleet-wide persona-in-gap finding.
+
+**CORE ownership SETTLED (core@ee500ae2):** NVS region-scoping TYPE = CORE-owned crate `crates/r2-region` (shared behaviour → core; hive never owns firmware source); offset MAP stays in platforms/dfr1195. Core builds Region + region-scoped typed key (cross-region unrepresentable, E_REG_CONFLICT + neg-KAT); platform path-deps + wraps read/write in the typed API. ★Canon home = **R2-DEF §7.4a:865** (`memories` singleton: "region a caller cannot name it cannot address, enforced by NOT BEING EXPRESSIBLE"); pattern = R2-RUNTIME:1140 SealedLockfile. My earlier "R2-KEYSTORE 184" cite was a RELAYED-from-core cite I repeated unverified — R2-KEYSTORE §184 is the key-custody boundary this ENFORCES, a different concern ([[cite-canon-before-claiming-a-finding]]). §7.4a is also the canonical home of the ensemble Q2 shared-singleton registration contracts (indicator @:867). **CONVERGED core@2c8839ad** (both ground-truthed independently): requirement=R2-DEF §7.4a:865, enforced boundary=R2-KEYSTORE §184. Two forward facts: (a) R2-DEF:842's example region IS `outbound-queue` ⇒ item-4 FRAM own-origin outq is a §7.4a `memories` region — core builds it as ONE region of the item-3 type (items 3+4 share the singleton contract); (b) **indicator is hive's capability** for the registry work (R2-INDICATOR §5 reserved states) — scope noted, build still gated on supervisor's ensemble plan call.
+
+**INDICATOR SHAPE SETTLED (supervisor, ground-truthed vs R2-INDICATOR v0.6 — PENDING ROY, re-confirm ratification before cutting code):** the plugin = pure map board-state → (envelope, period, optional hue), **byte-identical cross-board** (§2:23-26); output stage **renders only, never re-decides** what a state looks like; build **ONE OPTICAL output stage, NO RF carrier** (§3.2:56-76 "RF is not a transducer; carrier is NOT an output stage" — envelope does not abstract: brightness/hue don't map to a packet, so RF would carry STATE not ENVELOPE = category error). Sealed opaque field unit **already conforms** (§8:162 "no indicator trivially conforms"); GPIO21 stays SERVICE indicator (visible box-open), not a defect when sealed. Machine-readable sealed-unit state = **R2-DIAGNOSTICS** (§3.2(d), read-only/TG-gated/rate-bounded), a different mechanism — NOT indicator work. main.rs LED logic non-conformant to this shape = the owed next-phase refactor. Memory [[indicator-envelope-does-not-abstract]].
+
+**REALISED-SET MANIFEST EMITTED (R2-DEF §7.10.2; supervisor pre-cleared as analysis, NOT an artifact build — d005 ungated).** Composer builds the assert in the build path; hive emits. Mapping hive owns: a score part (plugin/sentant Type impl'ing r2_engine Plugin/Sentant) is REALISED iff `xtensa-...-nm` shows a trait-impl vtable symbol carrying INVARIANT identifier substrings (Type + trait tail + `r2_engine`) — matched not predicted (survives mangling-version shift; a predicted full-mangle would silent-ABSENT). Fail-loud: denominator = declared score-set (NOT-REALISED on a declared part = nonzero exit), per-run positive controls (nm≥100, `r2_dfr1195` present, canary = same match on a known-good ELF). LEVEL-2 shown (the case recipe-checks fail): fakesensor ELF 4/4 REALISED (exit0); otav3-A same-4-declared 0/4 (exit1) — apiary.rs IS in otav3's tree but cfg-disabled. **★ FALSE-PRESENT fix (supervisor review): my first controls all defended false-ABSENT/dead-instrument, NONE the fail-open false-PRESENT. Bare substring false-presented a shorter id in a linked longer one (RAN it: `TickSource`/`Button`→REALISED on fakesensor). FIXED = LENGTH-ANCHORED match `<lenType><Type>`+`<lenTrait><Trait>` (mangling invariant, boundary without predicting the mangle) — collision closed, level-2 regression clean; each control now LABELS its defended direction.** Emitter `~/realised-manifest.sh` (<build-host>, anchored+labels), handed to composer. Memory [[realised-set-manifest-from-elf]].
+**MAPPING-SOURCE GAP (composer, OPEN):** score keys parts by name + reverse-DNS class, NOT Rust Type — so realised==declared needs a declared→Type map the score lacks. My vote + composer's = **(b) register-macro marker**: emit `#[export_name="r2_part_<unique-score-key>"]`, composer greps the exact score name (no Rust-type map, no mangle dependence, realised-name==declared-name by construction). CONSTRAINT (keeps it fail-closed): marker MUST be DCE-correct — non-`#[used]`, reachable ONLY via the registration path (a `#[used]` marker survives DCE on an unlinked part = FALSE-PRESENT). Evidence the property exists: otav3-A has 0 apiary vtable syms (present-iff-registered, not #[used]). Rejected (a) in-score impl_type (drift-prone 2nd copy of type-identity, leaks impl into a declarative score, keeps mangle dependence). Vtable matcher stays as interim + independent cross-check. **FINALIZED (core+composer converged):** key = **NAME** (composer measured sentant names unique 10/10 across catalogue scores; core adds sentant-name-uniqueness to r2-def validate ⇒ NAME injective by construction). Core's correction: **there is NO register macro** — registration is the runtime method `bus.register_sentant/register_plugin` (bus.rs:119/132); the marker is a **NEW r2-engine `register_part!(bus,Ctor,key)` macro** (construction-tied, non-#[used], registration-reachable-only), a **SEPARATE unit from the r2-def schema re-vendor** (can't fold in). Core builds it + brings me the exact `r2_part_<name>` string; I wire the emitter to match exactly. My length-anchored vtable matcher stays the interim emitter + independent 2nd mechanism (not blocked). **CONVERGED (core+composer):** own unit AFTER the current 5-item re-vendor (deny_unknown/runtime_executable/local_dev/part-version/PluginRef-capability); NAME injective-by-construction once core adds `E_ENS_SENTANT_DUP` to r2-def validate (only plugin-uniqueness enforced today). Composer wires+TESTS the assert mechanism now against my demo ELFs (`~/realised-manifest.sh`, fakesensor 4/4 / otav3 0/4) — NOT shipped live on the catalogue until the marker resolves the denominator. Golden-ELF canary = composer's. Nothing owed by hive until the symbol string lands.
+
+NEXT: await supervisor's plan call (platform-first vs otherwise) + specs' ensemble-canon finish (Q1/Q4/Q5). Build nothing. (The compiled-vs-runtime ENCODING is already ruled — Roy #69 = COMPILED, see below; do NOT carry it as an open ruling.)
+
+---
+
+
+## CURRENT: otal2cap v3 OTA — run PASSED (reason=4 signer gate, the pre-committed advance); chunk stream still unreached
+
+**★ RESULT (2026-07-27): reason=4 UnauthorizedSigner = the PRE-COMMITTED PASS.** Last night = reason=1 at the VERSION
+gate (stale v2); tonight the same board reached the **SIGNER gate** → **the v3 HEADER PARSES**. My `movi 137` artifact
+proof is now confirmed BEHAVIOURALLY ON METAL (the .rodata constant is the one the board acted on). **Clean protocol
+reject** (the 4th tree-leg I flagged missing): NO reset, zero panic, zero watchdog; A uninterrupted, beats→165, still on
+`otav3.A.0727`. NOT a chunk death → **fire-branch has no trigger; b25a21eb pair stays HELD** for the provisioned run.
+Advance = the failure moved ONE gate forward (version→signer). **The chunk stream — where every historical failure lives — has still NEVER been reached.** Connect + header-delivery + version-parse now proven; signer + chunk-stream + apply/flip/run still owed.
+
+**★ reason=4 DECODED (source-attested @4b4a71e5, for the Roy-OTA refocus 2026-07-27): `VerifyError::UnauthorizedSigner`** (r2-update `reject_reason()` lib.rs:812; emitted by `check_acceptable_signer` :521). **Order matters: the header sig is verified FIRST — a bad sig is reason=3 — so reaching 4 means the signature VERIFIED (image B is validly signed); reason=4 is purely an AUTHORISATION verdict.** Gate-4 accept needs ANY of: (1) `header.issuer_pk == receiver ctx.tg_pk` (TG_SK-direct, :477); or (2) a valid non-revoked in-floor in-window role-0x05 `update_authority` cert binding issuer_pk (:490-521). `ctx.tg_pk`+certs come from the RECEIVER'S PROVISIONED PERSONA; certs are EMPTY here ⇒ the ONLY path is (1): **B's signer must equal X1's provisioned tg_pk.** reason=4 = they differ.
+- **★ THE PERSONA-REGION MIGRATION IS NOT ON THIS CRITICAL PATH.** Gate 4 cares that the receiver's tg_pk MATCHES B's signer, not WHERE the persona is stored (§9.12.4a safe-storage is a real but SEPARATE concern). Cheapest green, possibly NO metal / NO write: **(A) composer RE-SIGNS image B with X1's EXISTING tg's TG_SK** (if X1 has a valid persona) ⇒ issuer_pk==tg_pk ⇒ gate 4 passes. **(B) only if X1 is wholly unprovisioned:** a raw persona WRITE giving it a matching tg_pk (identity write, Roy-gated) — still NOT the region migration. So the identity write is required ONLY in case (B).
+- **PIVOT FACT neither lane has stated as a value: X1's provisioned tg_pk vs image B's issuer_pk** — both composer/device custody (X1 persona UNREAD in my records; B's signer = composer's ota-sign key). Everything downstream is a TG-alignment resolvable at the SIGNER, not on metal, unless X1 is unprovisioned.
+- **SHORTEST PATH (steps/blocker):** 1. read X1 tg_pk+validity [composer/device]; 2. read B issuer_pk+its TG [composer]; 3. align — re-sign B to X1's TG (A, no metal) else provision X1 (B, Roy-gated write); 4. re-deliver B over BLE-CoC ⇒ past gate 4 ⇒ CHUNK STREAM (never reached) ⇒ apply/flip/run [grant + composer]. Nothing owed by hive (answer delivered; the pivot facts are composer's).
+- **★ baked_persona = THE CONFORMANT UNBLOCK (source-attested @4b4a71e5, supervisor OTA refocus 2026-07-27): the bench boards were provisioned BY THE IMAGE, a proven mechanism.** (Q1) **arbitrary TG at build time — YES**: build.rs (:76) bakes whatever `persona.bin` `DFR_PERSONA_PATH` points at, verbatim as the `BAKED_PERSONA` const (:89); TG lives in the blob, nothing hardwired. (Q2) **input = env var `DFR_PERSONA_PATH`** (required; +optional `DFR_ROLE_PATH`; RAK = `RAK_PERSONA_PATH`). (Q3) **lives COMPILED IN (rodata), read directly** — `read_persona` under `#[cfg(baked_persona)]` (main.rs:3344) = `persona_from_bytes(BAKED_PERSONA)`; the flash-0x12000 read is the `not(baked_persona)` ELSE branch (:3349), not taken. **AIRTIGHT: `BAKED_PERSONA` is only ever parsed, NEVER an argument to a flash write — NO 0x12000 write, no first-boot write, no region touch, ever.** ⇒ **sidesteps the persona-region question ENTIRELY; NOT the raw-write non-conformance in a build-time costume.** **Fixes reason=4 directly:** gate-4 `ctx.tg_pk` comes from `read_persona` = the baked const, so building image A with `baked_persona` for the SAME TG that B is signed with ⇒ `ctx.tg_pk == B.issuer_pk` ⇒ TG_SK-direct accept. The missing 0x00D3 CoC provisioner is irrelevant (nothing is provisioned over a bearer). **"A over USB carrying the persona" = the conformant FIRST HALF of the objective.** NEEDS (not this turn): composer mints a dev persona.bin for the chosen OTA TG (SECRET, gitignored) + signs B with that TG's TG_SK; hive REBUILDS A with baked_persona (#d005 order + pinned sha + clean checkout; hive builds/attests, never flashes). baked-TG and B-signer-TG must be the SAME keypair — composer controls both, guaranteeable off metal. [[dfr1195-nvs-config-needs-partition-table]] [[all-firmware-dev-mode-standing]]
+
+### run detail (LIVE = 4b4a71e5 pair; b25a21eb = next/provisioned run, held)
+
+**LIVE (THIS run) = the 4b4a71e5 pair. My b25a21eb rebuild CROSSED a flash already in progress — b25a21eb is the NEXT
+(provisioned) run, NOT a supersession.** Both v3 builds are byte-EQUIVALENT in behaviour (r2-update crate byte-identical;
+only main.rs panic-location bytes shift from the canon-cite comments). **DO NOT MIX pairs across a run** — A and B must
+differ ONLY by baked BUILD_ID; pushing b25a21eb B onto a 4b4a71e5 A board would add the panic-loc shifts and break the
+clean BUILD_ID observation. Both v2 pairs DEAD (`7aa01f81`/`dd355bc7`).
+- **★ v3 REACHED THE BINARY (artifact proof):** `verify_header` = `movi a12,137` (HEADER_LEN=137) vs v2 `movi a12,123`.
+  Holds on BOTH v3 builds (crate byte-identical). PACKAGE_VERSION=3 coupled (v3 header IS 137B). **⚠ SOURCE-DIFF IS NOT
+  BINARY-IDENTITY** (I measured both binaries; comments shifted panic-location DATA → different shas even with identical
+  codegen — 3rd instance of the report≠artifact / source≠binary family tonight). [[presence-and-absence-at-symbol-level]]
+- **LIVE (4b4a71e5 build): PRIMARY** `otal2cap,lora,xiao,benchsf7` (LoRa core0), size 1363936 — **A `ae5fadb3…` FLASHED to
+  ota_0, RUNNING (MAC matched, NVS preserved); grant bound to B `4cd1e333…`, composer MID-RUN.** SECONDARY (fire-branch,
+  LoRa core1) A `05874e40` / B `90f5e95c`.
+- **NEXT run (b25a21eb build, HELD — the provisioned run rebuilds anyway):** PRIMARY A `59f609e1` / B `8ec5f876`;
+  SECONDARY A `72bacdee` / B `d2dac4a3`. Both attestations held; all 4 (each build) ELIGIBLE=YES + controls + BUILD_ID
+  differential clean.
+- **CORE-MAP (both builds, symbol-proven):** PRIMARY LoRa core0 (`lora_task` present + `lora_route_task` absent),
+  SECONDARY LoRa core1 (route present + lora_task absent). Residual core0 = BLE(+CoC) + ESP-NOW (irreducible) + wifi idle.
+- **★ PANIC-FORENSICS MAP (supervisor ruled, consequence of source-diff≠binary-identity):** an unexpected panic on the
+  LIVE board decodes against **4b4a71e5 line numbers** (the FLASHED build), NOT b25a21eb — the canon-cite comments shifted
+  main.rs lines. If anything panics mid-run, use the 4b4a71e5 build's ELF/map, not the pinned tip's.
+- **Two-leg: all 4 ELIGIBLE=YES** (HANG_CAP@0x600fe000; `__user_exception`@0x40378c44 size 0x52, 0 windowed). Pos D5=YES;
+  neg xiao-acc8=LEG1 FAIL. BUILD_ID differential: all 4 carry only their own (0 cross).
+- **CORE-MAP HEADLINE (presence-AND-absence):** PRIMARY `lora_task` PRESENT(2)+`lora_route_task` ABSENT(0) = LoRa core0
+  (max load); SECONDARY `lora_route_task` PRESENT(3)+`lora_task` ABSENT(0) = LoRa core1. Residual core0 (both) = BLE(+CoC)
+  + ESP-NOW (irreducible) + wifi idle; PRIMARY adds SYNC lora_task. [[presence-and-absence-at-symbol-level]]
+- **reset_reason discriminator (4 outcomes):** B-boot=complete · CoreSw 0x03=fault (recovers via reset tail) · RWDT 0x10=
+  os110 executor stall (HANG_CAP EMPTY) · NO-reset=clean protocol reject. Attribution on a SECONDARY pass = core0-load-
+  relief-as-a-class, NOT coex.
+- **PERSONA PRECONDITION (binding):** flash A app-only → A reports persona AFFIRMATIVELY → provision ONLY on
+  affirmative-absent/invalid → THEN B. Silence=STOP; different-TG=STOP+ESCALATE, never overwrite.
+- **Grant is LIVE, bound to the 4b4a71e5 pair** (PRIMARY A `ae5fadb3` flashed+running, B `4cd1e333` mid-run). Fire-branch
+  for THIS run = 4b4a71e5 SECONDARY A `05874e40`. On the NEXT (provisioned) run, rebuild anyway and the b25a21eb pair
+  applies. **No action from hive: do NOT rebuild, re-bind, or flash — the run in flight is consistent.**
+- **ImageSink `staged_rollback_value()=ExplicitlyNotApplicable`** sanity-checked CORRECT (no ESP anti-rollback; R2 seq
+  floor @0x18000 sole floor; caveat if secure-version ever enabled → `Value(security_counter)`).
+
+## superseded: staota transport + v2 otal2cap pairs (dead — staota STA never connects; v2 rejects v3)
+
+## CURRENT-was: otal2cap OTA — first-ever round-trip attempt RUNNING on X1 (composer, grant bound to A `7aa01f81`)
+
+Two attested pairs built; supervisor RULED the **as-built (heavier-core0) pair RUNS FIRST** — core's asymmetry argument: a
+PASS with MORE core0 load is STRONGER, and the only ambiguous outcome (chunk-0/1 fire) is exactly where the loraroute pair
+is the right next move. My loraroute pair is the pre-built FIRE-BRANCH (removes a build cycle from the failure path).
+
+- **RUNNING — as-built pair** `otal2cap,lora,xiao,benchsf7` @85303273 (grant bound to A, composer executing NOW): A
+  `otal2cap.A.0726` **`7aa01f81d7fa7f1d16690613fd738dbe567847e2bc521b6cbca46adb311af7fa`** / B `otal2cap.B.0726`
+  `03368c8ffc4beeb1ebde2b94cd296b856cf464a4a0f82ca979e84fb533a2a1d4`. Both ELIGIBLE=YES. **ALL radios core0** (ble+CoC,
+  lora_task SYNC, espnow, wifi idle) — os110 + my tri-radio-core0 hazard are ONE hazard here (core R-20260727-01), so a
+  chunk-0/1 fire is CONFOUNDED (intrinsic vs contention inseparable); a PASS is stronger for the same reason.
+- **FIRE-BRANCH — pre-built loraroute pair** `otal2cap,loraroute,xiao,benchsf7` @85303273: A `otal2cap-lr.A.0727`
+  **`dd355bc72c673fce7426142f91b8984843b82b81c66024bb65bbd8a801b5fc87`** / B `otal2cap-lr.B.0727`
+  `f3351d536627333c7d7aa9cfbfe50381d405b068d4394e43998387456d1a2505`. Both ELIGIBLE=YES. **LoRa CONFIRMED on CORE1
+  (symbol-level: `lora_route_task` PRESENT + `lora_task` ABSENT)** — residual core0 = BLE(+CoC) + ESP-NOW (irreducible) +
+  wifi idle. On a chunk-0/1 death → supervisor re-binds grant to `dd355bc7`, composer runs immediately (no rebuild).
+  [[presence-and-absence-at-symbol-level]]
+- **★ ATTRIBUTION CONSTRAINT (pre-committed, if the loraroute pair passes):** the claim is **CORE0 LOAD RELIEF AS A CLASS —
+  NOT coex-relief.** loraroute swaps SYNC lora_task → continuous-RX lora_route_task AND pulls alloc + RouteEngine, so two
+  mechanisms move together; no green separates them (core D-20260727-02). **Do NOT write "coex" in a verdict.**
+- **PRE-COMMITTED DECISION TREE (grant file):** B observed running = FIRST-EVER round-trip on this hardware; ODT chunk 0/1
+  = old stall → loraroute rebuild(=fire-branch); later index = NEW mode (report as new, not os110); os110 surviving with
+  LoRa on core1 = contention refuted strongest → USB-CDC receiver (rung-1, core builds) earns its cost.
+- **reset_reason DISCRIMINATOR (relayed to composer as the capture-time interpretation key):** B prints its BUILD_ID = done;
+  CPU fault → HANG_CAP captured + CoreSw 0x03 (recovers via reset tail @490); **executor/CoC stall (os110) → HANG_CAP EMPTY
+  + RWDT 0x10 — an empty capture is NOT absence of a fault, it is a fault the instrument cannot record.**
+- **PERSONA PRECONDITION (binding):** flash A app-only → A reports persona AFFIRMATIVELY → provision ONLY on
+  affirmative-absent/invalid → THEN B. Silence=STOP; valid persona in a DIFFERENT TG=STOP+ESCALATE, never overwrite.
+- **HIVE POSTURE:** build+attest COMPLETE for both pairs; composer runs. **Nothing owed unless the run fires a chunk-0/1
+  death** — then the fire-branch is already built (no action) and I report the core-map headline on re-bind. Do NOT
+  pre-build anything else.
+
+### superseded: staota transport (core-confirmed broken; kept as the "why we're on otal2cap")
+
+**⚠ STOP CONFIRMED BY CORE (D-20260726-13): staota's WiFi STA NEVER associates → OTA-over-WiFi BROKEN, nobt-independent.**
+wifi_task's `connect_async()`@9027 is gated behind `DATA_PLANE_JOIN.wait()`@9021; **Q1: esp-radio 0.18.0 does NOT
+auto-associate — explicit connect_async REQUIRED** (wifi/mod.rs:2515; new()@2205 sets mode only). **Q2: DATA_PLANE_JOIN =
+0 signals** (core's working positive control: generic `.signal(` = 5 real sites, DATA_PLANE_JOIN = 0; my bit5 finding
+holds). So the STA never connects → no DHCP → :21043 unreachable. **Q3: otal2cap is NOT proven either** (os110 aborts +
+post-abort hang = the v8.6-v8.7.3 campaign trigger; the round-trip was F1 target, never demonstrated). **NEITHER
+transport proven.** My tri-radio-core0 prediction + bit5 both stand. **No staota A/B build until supervisor rules
+transport:** (a) core adds a small `cfg(staota)` boot-connect, or (b) switch to otal2cap-at-2-radios (retires the
+tri-radio hazard, may unblock os110 if coex-driven). Awaiting supervisor.
+- **★ PERSONA-GATE inside the OTA health check:** `ota_health_check` items 3+4 (@4084+) require a present+non-degenerate
+  persona (hive_id!=0, tg_pk!=0) AND a GroupHmac sign/verify round-trip ⇒ **image B ROLLS BACK if X1's persona doesn't
+  validate**, independent of OTA transport (R2-LORA 6.5.1, landing IN the health gate). X1 enrolment UNREAD (composer).
+- **nobt RULING (supervisor, variable isolation — an OTA failure then means OTA, not coex-stall ambiguity):** build A+B
+  with `nobt`. STOP-check result: `staota,lora,xiao,nobt` COMPILES; radio-liveness gate passes on LORA_UP (nobt OK there);
+  nobt gates ONLY the ble_task spawn @1090. BUT blocked by the staota-connect STOP above (nobt pulls ble → wifi_task takes
+  the DATA_PLANE_JOIN-gated branch).
+- **CORE-MAPPING (load-bearing, was invisible in the feature list):** under staota,lora,xiao ALL THREE radios on CORE0
+  (wifi_task + ble_task + lora_task@1236, main spawner). Only loraroute isolates LoRa on core1. Tri-radio-on-core0.
+- **SEQUENCE (once unblocked):** A+B with nobt over a SYNTHETIC AP → prove round-trip; THEN the tri-radio (ble-spawned)
+  image as a SECOND over-air push, rollback as the net (a boot-hang at advertise → health gate never marks valid →
+  bootloader auto-reverts) → answers the coex question the prediction is about. Re-attest each build + state each radio's core.
+
+### superseded: earlier Option-B framing (empty-creds attest stands)
+
+Bare R2 relay-floor OTA-capable X1 image, build+attest only. Supervisor RULED **Option B** (`staota,lora,xiao` at pinned
+`85303273`) — the true bare `staota` floor does NOT compile (3× E0425, `current_beacon_epoch` lora consts — THIRD
+instance of the radarprobe defect class; core's held cfg fix owed, DEFAULT must be in its regression set). OTA is
+WiFi-independent of LoRa (ota_task off the RouteEngine), so LoRa is present-but-incidental; xiao = honest XIAO Wio-SX1262
+pin-map.
+- **Feature justification (from code):** `staota` = WiFi OTA (ota_task@1056, signed :21043 on WiFi netif); `lora` =
+  **REQUIRED** (Roy: dual-bearer BLE+LoRa beacons — incidental framing WITHDRAWN); `xiao` for the SX1262 bringup @1158
+  pins (XIAO physically carries the Wio-SX1262). staota,lora,xiao = the compile-forced set == the capability set Roy wants.
+- **Beacon reachability (image A, verified static, NEITHER gated):** BLE §7 = `ble_task`@1099 (ble via staota, not nobt)
+  → `peripheral.advertise(`@4590 (encode_advert @4518), BLE_UP@1101. LoRa §8.1 = `lora_task`@1236 (cfg not(loraroute)
+  TRUE) → `radio.transmit(pl)`@6454 (build_lora_beacon@6451), print "LORA-TX §8.1 beacon"@6462, LORA_UP@1237. STATIC
+  reachability only — on-air TX is metal (⚠ coex advertise-hang note @1208; tri-radio combo metal-unverified).
+- **STOP check (mark-image-valid) PASSES — health-gated, not blind:** `set_current_ota_state(Valid)`@main.rs:4162 runs
+  only inside `if ota_health_check()`@4161, deferred 8s (`ota_confirm_task`@4136), PendingVerify-only; FAIL → Invalid +
+  rollback record + revert + reboot (`ota_health_check`@4074 = §5.2 min-2 radios-up). Rollback protection intact.
+- **Images A + B** (clean detached, `rm -rf target` each, differ ONLY by baked `R2_BUILD_ID`, same size 1346876 B):
+  A `relayfloor.A.0726` sha256 `0722485d8d49160a3d036b6325b5e13fdeff5a38e5ed800c1c1f030834da83f9` /
+  B `relayfloor.B.0726` sha256 `a571710ad42df8355b4abb147831ee2c0069f7a74a8a6e6b0fe726c2da518387`. Differential:
+  A-has-only-A / B-has-only-B (0 cross); BUILD_ID printed at boot → B running is observable = OTA round-trip proof.
+- **Two-leg eligibility on THESE artifacts (not inherited):** A + B both **ELIGIBLE=YES** (HANG_CAP@0x600fe000;
+  `__user_exception`@0x40378c44 size 0x52, 0 windowed calls). Pos control D5 v8.7.3=YES; neg control xiao-acc8=LEG1 FAIL.
+- **⚠ CREDS — reason CORRECTED (supervisor):** built with EMPTY WiFi creds. The reason creds must stay out of the
+  artifact record is **R2-SECRETS 3.1 — no real value as a LITERAL in ANY tracked file/commit/recipe/attestation/message**
+  — NOT the g23 hold (USE ≠ publication; build.rs reading env is compliant; Roy has issued NO ruling on the creds, g23
+  open). The FLASH build bakes `R2_WIFI_SSID`/`R2_WIFI_PASS` via build.rs env → different sha256 → **re-attest at
+  flash-build** (both images, both legs, controls). The sha above attests structure+instrument+BUILD_ID+eligibility
+  (creds-independent).
+- **★ CREDS = THE LIVE FINDING (supervisor 2026-07-27, CORRECTING a stale ALL-CLEAR I wrote). NOT resolved. g24 is OPEN.**
+  ROY-GATES.md:122 — g24 is **RULED synthetic OVERNIGHT, PENDING ROY REVIEW**, in the OPEN set NOT the closed table; the
+  supervisor's synthetic-AP ruling is a RECOMMENDATION awaiting a one-line overturn, **not a closure**. My earlier
+  "CREDS = SYNTHETIC AP, RESOLVED" was a stale all-clear — the DANGEROUS direction (a stale unblock costs an action nobody
+  re-examines; re-verify unblocks with the same rigour as blocks). [[status-recorded-as-a-constraint]]
+- **★ R2-WIFI 3.0b (specs, landed 2026-07-27) = a canon MUST that binds hive builds DIRECTLY:** a build NOT given
+  credentials **MUST NOT substitute a compiled literal**. Either FAIL the build, or produce an image that **cannot
+  associate AND SAYS SO**. **ABSENCE OF A CREDENTIAL MUST NOT RESOLVE TO A CREDENTIAL.** **LIVE CODE FINDING (core's
+  firmware source — no build.rs in hive):** core CONFIRMED the 3 cfg branches (dfr1195 main.rs:936-941): (1) `staota`
+  → env creds but `unwrap_or_default()` bakes an EMPTY string on absence = "cannot associate but does NOT SAY SO" (the
+  silent half-miss, not a literal); (2) `ble,not(staota)` → COMPILED LITERAL pair = 3.0b VIOLATION; (3) `not(ble),not(staota)`
+  → `FIELDLAB_SSID`/`FIELDLAB_PASS` consts :386-387 = 3.0b VIOLATION. Comment :934 "NEVER hardcoded" is true of the
+  staota branch ONLY. **Class-not-instance (supervisor): a default credential is the same CLASS as a permissive default —
+  the value may be byte-identical to a chosen one, only its PROVENANCE differs; 3.0b is a provenance rule.** **Fix is
+  CORE's** (queued behind the persona write-pair + 5-item re-vendor): emit-inert `Option::None` uniform (no assoc + logs
+  "no credentials at build — WiFi inert, cannot associate") + build.rs FAIL-CLOSED scoped to `staota` (WiFi definitionally
+  required there). **hive RE-ATTEST criteria post-fix (owner=hive):** a non-staota no-creds build → `strings`-on-image
+  finds NO SSID/passphrase + the inert log; a `staota` no-creds build → FAILS TO COMPILE. **hive MUST NOT emit a violating
+  image**; any future wifi-bearing build order must not precede core's fix. Falsifier stands: inspect the image for an
+  embedded SSID/passphrase = finding one is a MUST-miss.
+- **Synthetic-AP context (kept, NOT a closure):** composer stood up an AP on <build-host>'s spare phy2 (sustained, 0
+  drops/7 polls/~80s, sole-uplink wlp3s0 default-route untouched). If used, creds are CHOSEN/synthetic. **⚠ synthetic ≠
+  safe-to-publish when the value GRANTS ACCESS — a chosen PSK is a WORKING PSK while the AP is up.** SSID/PSK fine in fleet
+  mail + composer's mode-700 dev-trial, **MUST NOT enter any tracked/public file** (this RESUME included). Build reads env
+  (R2-SECRETS 3.1) — but per R2-WIFI 3.0b a MISSING env MUST NOT fall through to a literal. **Empty-creds attestation
+  STANDS** (attests structure/instrument/BUILD_ID, creds-independent). [[use-is-not-publication-secrets-boundary]]
+- **★ PROVISIONING IS A PRECONDITION, not a follow-up (supervisor ruling — persona load-bearing TWICE: R2-DEVICE-LIFECYCLE
+  publish + the OTA health-gate items 3+4).** Revised sequence: flash A **app-only** (NVS survives) → A boots + REPORTS
+  whether its persona validates → if NOT, composer mints the dev-TG persona (its delegated class) + provisions → ONLY
+  THEN push B. Else B is GUARANTEED to auto-revert and a correct rollback reads as broken OTA.
+- **★ otal2cap REROUTE ON THE TABLE (supervisor→core):** Roy asked for OTA working, no transport specified. otal2cap
+  (OTA-over-BLE-CoC) drops 3 radios→2 (retires the tri-radio-core0 hazard) and its receive path is more static-verified
+  than staota's. BUT I confirmed **otal2cap is NOT proven end-to-end** (no slot-flip / running-image on record; the
+  campaign fought the hang that pre-empted every OTA window; closed on the hang fix, not an OTA completion). So it's the
+  better-UNDERSTOOD unproven path, not a proven one — either transport still needs a first real round-trip.
+  **★ NO OTA HAS EVER COMPLETED ON THIS HARDWARE IN ANY TRANSPORT — tonight is a FIRST, not a re-run.** My
+  better-understood read is DEVICE-SIDE ONLY; the uncosted half = **does a HOST-SIDE pusher exist on <build-host> tonight**
+  (otal2cap needs a BLE central opening an L2CAP CoC + streaming; staota needs TCP over the now-proven AP) — composer's
+  lane, asked. A device path is worthless if nothing can talk to it.
+- **★ USB-CDC decomposition (supervisor idea): the 4-stage round-trip = RECEIVE (transport-specific) + WRITE/FLIP/RUN
+  (bearer-agnostic apply).** Stages 2-4 ARE wired + bearer-agnostic: `FlashSink`(ImageSink)@8232 → `apply_signed`
+  @8335 → `SignedOtaApply::start`@8353 — the SAME orchestrator both wired receivers drive. **But USB-CDC RECEIVE is
+  UNWIRED** (Q-A): `apply_signed` has exactly TWO callers — `ota_receive_over_coc`(BLE-CoC)@4733 + `ota_receiver`(net
+  :21043)@8043; NO USB-CDC caller. The CDC readers that exist (`xiao_bridge_task`@6934, `uart_rx_task`@7519) don't feed
+  apply. USB-CDC is LISTED in r2-core's r2-update but unwired here (Q-B moot — nothing to compile). **Salvage: proving
+  3-of-4 via USB-CDC needs ONE small core change** — a CDC-read receiver task feeding `apply_signed` (mirroring the two
+  wired receivers), core0, reusing the proven apply path. Smallest honest path to a slot-flip+running-image observation
+  with zero radio unknowns — supervisor's call + core's build.
+- **Open before any grant (NOT hive):** composer read of X1 persona + OTA-TG `<scrubbed-tg>` membership — X1 must VERIFY the
+  update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
+- **NO FLASH** taken; no grant.
+
+### Next-phase context — ENSEMBLE CANON (specs Q1/Q4/Q5 + Roy #69; DO NOT build until specs finishes — ★ CREDS ARE THE LIVE FINDING, g24 OPEN pending Roy, R2-WIFI 3.0b MUST binds any build; see the CREDS block)
+- **OTA delivers the rest:** image A over USB (ONE USB write all night), B over air proves round-trip, then each
+  capability arrives OVER THE AIR. Sequence: (1) core hive+OTA [done, pending re-attest], (2) memories, (3) sensor, (4)
+  battery.
+- **Ensemble = a SCORE, not a binary/feature** (R2-ENSEMBLE v0.3, schema R2-DEF 7; NOT installed, no binary; two part
+  types = Sentants + plugins). Shape = **ONE hive binary, FIVE scores** (each ≥1 Sentant). Active ensembles AND the
+  900s-vs-5s cadence = **NVS ROLE-PROFILE boot config** (R2-RUNTIME 210 — role+knobs selected AT BOOT from NVS, NOT
+  compile-time; proven no_std), NOT cargo features. Encoding COMPILED (Roy #69); boundary = the score. **Cite #69 for
+  encoding, R2-ENSEMBLE for boundary; NEVER §2.2B (bearer-presence only).**
+- **★ C1 — memories/battery/LED are HIVE-SHARED SINGLETON PLUGINS WITH REGISTRATION, not ensemble-owned** (R2-ENSEMBLE
+  2.1.2: a plugin wrapping an OS-exposed-once singleton — port/device/hw-cap — MUST be hive-shared + have a registration
+  mechanism). NVS/FRAM/ATECC608 each exposed once; the ADC (battery) once; the LED once. The ensemble is the thing that
+  USES + REGISTERS against the shared plugin (R2-WEB pattern: one HTTP server, N ensembles register routes). **NON-
+  CONFORMANT: N ensembles each owning an NVS driver — do NOT build that.**
+- **★ HARD MUST-NOT (structural, R2-KEYSTORE 184):** secret key material MUST NOT leave the protected boundary in
+  plaintext ⇒ a generic read-NVS capability is non-conformant the moment it CAN address the key region. The NVS cap MUST
+  be **REGION-SCOPED BY CONSTRUCTION — incapable of EXPRESSING the key range** (not well-behaved, not documented-forbidden:
+  structurally incapable). Make-bad-state-unrepresentable-by-type. [[identity-verified-is-not-function-verified]]
+- **Q4 capability names:** no canonical storage classes (R2-CAP 3.2 — no central registry; social agreement + docs).
+  Ruling: **MINT `ai.reality2.cap.storage.*` + DOCUMENT in the SAME commit** (docs ARE the registry; undocumented =
+  unregistered). `ai.reality2.cap.env.scalar` is NOT canon — a fleet string; keep using, stop calling it canonical.
+- **★ LED — R2-INDICATOR v0.5 is NORMATIVE (do NOT invent a pattern); indicator is a PLUGIN byte-identical across boards,
+  output stage RENDERS only, never re-decides a state ⇒ LED logic in platform main.rs is NON-CONFORMANT.** Fixed
+  envelopes: Healthy = dub-dub double-pulse (lub@0.00, dub@0.18, 20 BPM, DIM — NOT 25BPM/full-bright, the rejected edge)
+  · Updating/OTA = 0.18s strobe white · Boot = ~100ms flash then dark · Error = 0.25s pulse red · Identify = solid white
+  · Low-batt = 1.5s pulse orange. Overlay priority (highest first): Identify > Updating > Low-batt > underlying (Identify
+  outranks OTA deliberately). Healthy AND Updating MUST signal in BOTH dev+prod. **Dev-only delta = the R2-INDICATOR 6
+  event-arrival BLIP** (quick tick on event arrival, may collide with HB, collision OK/no arbitration; PROD MUST NOT show
+  it; gated on **R2-BUILDMODE**, not a hand-set flag). sensor-read/battery-read are NOT signature states; app extensions
+  allowed but MUST NOT redefine a reserved envelope.
+- **Sensor = enable-settle-read MUST be REAL code** (only the VALUE simulated while USB attached — USB cuts the 5V rail):
+  enable 5V gate → WAIT settle → attempt read → substitute value when rail known-cut. NO stub skipping gate+settle
+  (never-run-path class). Await circuits for gate pin/polarity/settle (do NOT invent settle). **SIM MARKER MANDATORY**:
+  a simulated reading MUST be distinguishable AT THE EVENT (same path ⇒ event carries the signal); SIM MUST NEVER LEAK
+  INTO LIVE. Cadence = score param. **duty_class RETRACTED (was: "likely SCF duty-class"): duty_class is a RADIO-SLEEP
+  property, NOT peripheral-power** (R2-DIAGNOSTICS 58 {Unknown,AlwaysOn,Intermittent}, wire R2-WIRE 12.6 `dc`; its ONLY
+  job = telling peers whether to BUFFER-on-fade while your RADIO sleeps — R2-RUNTIME 236). Toggling the 5V sensor rail
+  does NOT make the radio fade (board stays reachable) ⇒ the 5V cycle is INVISIBLE to duty_class, MUST NOT drive it.
+  **USB-powered X1 = AlwaysOn.** Power source OVERRIDES role; class set STATICALLY from provisioning (a runtime flip would
+  leave a battery node AlwaysOn+flooding) — if X1 ever runs on battery it MUST be provisioned DutyCycled BEFORE, never
+  flipped at runtime. Settle: canon SILENT (a driver detail), so 1500ms is a config knob not a spec obligation.
+- **X1 enrolment UNKNOWN:** send-over-TN needs X1 = a TG member with a working persona; persona + OTA-TG `<scrubbed-tg>`
+  membership UNREAD (composer's lane). Do NOT design around X1 enrolled. Button-free entry PROVEN on D5, UNPROVEN on X1
+  — gates the first USB write (composer, amended grant).
+
+### Electronics (circuits, AUTHORITATIVE for firmware — for the sensor/memory/battery/LED ensembles, not yet built)
+- **5V gate = D0/GPIO1, ACTIVE-HIGH** (TPS61023 EN; low = true 0.1µA disconnect). **Settle = 1500ms proven-good** (radar
+  replied on battery at that value); min UNCHARACTERISED — do NOT go below a few hundred ms without a test. Use 1500 as
+  a CONFIG KNOB, not a literal.
+- **Radar UART = TX GPIO43 / RX GPIO44, 115200 8-N-1**, Modbus RTU slave 0x01; water level = holding reg 0x0003 in mm;
+  request `01 03 00 03 00 01 74 0A`, reply `01 03 02 mm_hi mm_lo crc_lo crc_hi`. **XC4486 = PASSIVE bidirectional shifter
+  — NO DE/RE, NO enable, auto-direction; FIRMWARE DOES NOTHING FOR IT — strip any direction handling** (the withdrawn
+  radarprobe's RADAR_DE_RE=GPIO6 was WRONG for this shifter).
+- **FRAM 0x50 = MB85RC, 16-bit addressing, BYTE-WRITABLE**, no page boundaries, no write delay, endurance ~unlimited at
+  5-10s; WP+A0-A2 strapped GND (write-enabled, no WP handling). **SIZE UNKNOWN (32KB or 512KB) — PROBE it, do not assume.**
+  **⚠ PAGING HAZARD (circuits): a 512KB MB85RC4M addresses BEYOND 16 bits — the high bits page into the I2C DEVICE-ADDRESS
+  byte, NOT the 2 address bytes. The wrap test still distinguishes 32KB from larger, but full addressing of the large part
+  REQUIRES those page bits — without them WRITES ALIAS (silent corruption past 64KB). So DETECT size AND implement paging;
+  aliasing-writes-that-appear-to-succeed is the worst failure shape for a store-and-forward buffer.**
+- **Storage-queue canon (for the FRAM plugin):** R2-ROUTE 3B.3 **OUTQ-1..4** @769a255 (read the clauses, not a summary) —
+  a SEPARATE section from peer-custody: OWN-ORIGIN custody ends when YOUR OWN transmission succeeds; PEER-custody ends when
+  the PEER reappears — conflating them mis-sizes both buffers.
+- **claim_state persistence (R2-DEVICE-LIFECYCLE 3 invariant 2):** requires 3 hw roots — irreversible VIRGIN sentinel +
+  dedicated monotonic hw_epoch counter + per-device HUK. Lacking ANY ⇒ FAIL CLOSED at build/provision; canon permits BENCH
+  BUILDS AS EXPLICITLY NON-PERSISTENT ONLY. If the S3 lacks any of the three, **DECLARE the bench build NON-PERSISTENT
+  deliberately IN THE BUILD** (don't let it emerge as a surprise).
+- **ATECC608 0x60 = LOCK STATE UNKNOWN — QUERY the lock before assuming anything; do NOT provision blind.**
+- **Battery = D1/GPIO2, 2×470k divider (read ×2), 100nF at pin.** Dry joint NOT confirmed reflowed; fed from LiPo+ which
+  USB CUTS → reads ONLY on battery. Code it, do NOT expect a green tonight, say so in the attestation.
+- **LED = GPIO21, ACTIVE-LOW**, free (not shared with LoRa B2B pins). **0x7C = CONFIRMED PHANTOM** (only 0x50 + 0x60 are
+  real) — bind nothing to it, don't let an enumerator claim it.
+- **Testable on USB tonight:** FRAM, ATECC608, SX1262 SPI, LED, I2C scan, gate GPIO logic. **NOT testable:** real radar
+  comms, battery, actual 5V rail rise.
+
+## radarprobe build order (2026-07-26) — WITHDRAWN by supervisor (wrong artifact); defect recorded, no hive build
+
+**ORDER WITHDRAWN.** Roy's actual goal = a per-component bring-up smoke test, whose instrument is a **throwaway Arduino
+sketch circuits already has** (I2C scan / FRAM + secure-element probe / battery ADC / gated Modbus), NOT an R2 no_std
+feature — so this is NOT hive's artifact. Supervisor owned the mis-inference chain (radar test → radarprobe feature →
+DFR1195 crate-path=board), all unverified. Hive builds nothing here. The finding below STANDS (recorded by supervisor;
+core HOLDS a ready-but-UNAPPLIED fix — supervisor told it to HOLD, must NOT move the tip since g18 artifacts are pinned
+to 85303273). My build attempt surfaced it. Nothing in flight on radarprobe. (To know if core landed anything, read the
+TIP — the emitter — not a summary or intent.)
+
+Explicit #d005 build order (supervisor, Roy GO). Feature `radarprobe = ["dev"]` (Cargo.toml:290). Pinned sha = MY
+ls-remote authority `85303273` (== branch tip; supervisor's `4e82c36a` is on origin/main + r2-core-consolidation, NOT
+this branch, NOT an ancestor — I pinned my own ls-remote as instructed). **Reachability verified in code:** radarprobe
+block @main.rs:901 spawns `radar_probe_task`@913 then a diverging `loop{}` → radio/mesh spawns (net/wifi/io/ota/ble/lora,
+all >line 919) unreachable (`allow(unreachable_code)`@603). Pre-probe spawns (rwdt_feed@623, hang_reprint@840) still run.
+- **BUILD FAILS — 5× E0425 cannot-find-in-scope:** `role_class_hash` (def `#[cfg(any(lora,ble))]`) used in ungated
+  `io_task`@1729; `DATA_TX` (`#[cfg(ble)]`) @1760; `COARSE_TIME_ANCHOR_S` + `LORA_BEACON_T_ROTATE_S` (`#[cfg(lora)]`) in
+  ungated `current_beacon_epoch`@6264. radarprobe=[dev] pulls neither ble nor lora, so the unguarded refs don't resolve;
+  every shipping set (fakesensor/xiaobridge/bridge) pulls lora and/or ble, so radarprobe has never compiled standalone.
+- **No ELF → attest moot** (two-leg instrument un-checkable). Not fixing (core owns source; build-only order). No flash,
+  no target prepared. Owed: core gates those refs under cfg (or radarprobe stubs them); then re-issue on the fixed sha.
+- **TARGET = X1 (XIAO ESP32-S3 + Wio-SX1262)** — Roy corrected supervisor's DFR1195-only inference; the radarprobe
+  RS-485 pins are XIAO-authored (RADAR_UART_TX=43=XIAO D6). **radarprobe needs NO `xiao` feature** (verified code +
+  build): `xiao=[]` pulls nothing; its pin-map cfg sites (main.rs:1178-1241) are radio-region, unreached under the
+  radarprobe diverging loop; the radar block uses hardcoded GPIO43/44/6. `radarprobe,xiao` FAILS the identical 5 E0425
+  (xiao adds no ble/lora). SX1262/DIO2-RF-switch warning does NOT bind (radio init lora-gated + unreached). **On the
+  fixed sha, build `--features radarprobe` ALONE.** ⚠ an X1 radarprobe flash REPLACES the bridge role + the g18
+  x1-xiaobridge image (`cee2f004`) X1 currently carries — stated for Roy.
+
+## g18 build record — D4 + X1 fault forensics rebuild `8530327309b8…a9c6` (BUILT + attested; NO FLASH)
+
+Explicit #d005 order (supervisor, Roy-ruled, 2026-07-26). A REBUILD, not a port: xiaobridge and fakesensor are FEATURE
+VARIANTS of the one platforms/dfr1195, not separate platforms. The ~40 staged XIAO/sensor siblings were STALE (built
+before the instrument landed); a rebuild carries the full HANG_CAP/`__user_exception`/reprint instrument (unconditional
+in main.rs, `esp-hal default-features=false` platform-wide so the strong handler symbol wins). ledger: g18 (Roy).
+
+- **Provenance:** ls-remote authority == pinned tip; `verify-build-target 85303273 main.rs HANG_CAP __user_exception
+  hang_reprint_task` → touches main.rs + all present → OK. (85303273 is comment-only touching main.rs — the RTS-EN
+  premise fix — but NOT a docs-sha trap: the instrument IS in the tree, unlike 514c31a4 where the ordered markers were
+  absent.) Preflight: HEAD==pinned, tree clean, worktree-instrument present, `rm -rf target` per build.
+- **Features** (Cargo.toml:273 canonical pairing, both carry benchsf7 — mixed-SF can't demodulate; baked_persona OFF):
+  **D4 = `fakesensor,benchsf7`** · **X1 = `xiaobridge,benchsf7`**. BUILD_ID `g18.0726`.
+- **ELFs:** d4-fakesensor-g18 `30ffcdfdcd7a6ac11bc00b4ced0564af28ef6381f7ad85a9516062d50224870f` (1383864 B) /
+  x1-xiaobridge-g18 `cee2f004fd6f51f9ef839461ecd3b456b8ecee0b96640930a54b218e7158d983` (1153904 B).
+- **★ TWO-LEG ELIGIBILITY — both ELIGIBLE=YES** (`<build-host>:~/eligibility-g18.sh`, in order, on the EXACT artifact via
+  toolchain nm/objdump): **LEG1** HANG_CAP static present (both @0x600fe000); **LEG2** `__user_exception` call-free
+  within its true `nm -S` extent (D4 @0x40378c48 size 0x52, X1 @0x40378bd0 size 0x52 — 0 windowed calls, 0
+  software_reset each). Positive control: D5 v8.7.3 → ELIGIBLE=YES. Neg-control: stale siblings xiao-acc8 + d4-init8 →
+  LEG1 FAIL (no instrument) — the check discriminates real presence from real absence.
+- **★ INSTRUMENT-BUG SELF-CATCH:** my first eligibility run false-FAILED LEG1 (`<none>`) — the Rust static is MANGLED
+  (`_R…8HANG_CAP`) so `grep -w` missed it + host-nm fallback. I did NOT report absence; positive-controlled against the
+  known-good D5 ELF (it ALSO showed `<none>` under the broken check ⇒ instrument bug, not artifact), fixed to toolchain
+  nm + case-sensitive `HANG_CAP`. A false-absent is the worst misreport (presence-before-quality).
+  [[positive-control-the-tree-not-just-the-tool]] [[never-conclude-from-a-null]]
+- **Does NOT carry g15:** the dataplane join-carriage (core `259ea8e5`) is on branch r2-core-consolidation; 85303273
+  does not contain it. Intentional (g18 = fault forensics, not the join relay). Per core **D-20260726-08** the firmware's
+  vendored `r2-dataplane` is a **pre-g15 PIN = structurally cannot-carry = SAFE**; g15 arrives at the next re-vendor. Do
+  not reason "rebuilt after g15 ⇒ siblings have it" — they will not.
+- **NO FLASH taken/authorized** — build+attest only; the flash grant is a separate supervisor decision.
+
+## Campaign result — v8.7.3 `513c949db0f9…a13a` (CLOSED, on metal)
+
+D5 = DFR1195 ESP32-S3; OTA-over-BLE-CoC coex firmware series. The ~4-min PRIMARY double-fault silent-wedge was the true
+blocker (pre-empted every OTA window). v8.7.3 = base `2249bcf0` (SW_SYS_RST IRAM-safe reset tail) + the WITNESS pre-zero
+read-back (`hang_reprint_task` reads HANG_CAP back AFTER the pre-zero and its zero-OUTCOME branch emits its own line, so
+the baseline is WITNESSED not inferred). Ledger: r2-core/DECISIONS.md **D-20260725-01 @ d970693c**.
+
+- **Provenance (before build):** `verify-build-target 513c949d main.rs "WITNESSED all-zero" "PRE-ZERO INEFFECTIVE"` →
+  touches main.rs + both markers present → **OK**. Worktree markers also verified in the CHECKED-OUT tree, not only via
+  `git show` (catches a checkout that never materialised). [[docs-sha-is-not-a-build-target]]
+- **Conformance:** **check(24) PASS** (four legs, zero-OUTCOME branch keyed — not a println count; the silent-zero-arm
+  control FAILS, so it catches the defect it targets). Neg-lock `2249bcf0` FAILS clean; carries untouched.
+- **ELFs** (BUILD_ID `coex.v873.0725`, clean detached build, `rm -rf target`, worktree-markers verified):
+  d5-otarx-v873 `52af3bfe09f2ff6e3b69dfd4cecea7cc34239c000dd845d01eb9093636bbb7ab` (1388708 B) /
+  d5-otafail-v873 `7d5d67387d3a6a9a036c8e30ec45feb1c4774e7080318b71eb95528eb69c1d84` (1387560 B). Core ELF-attest GREEN
+  (independent build d4e6cd66 reproduces markers; zero-branch-emits confirmed from the artifact's `.rodata`).
+- **BINS (clean-custody, USED-logged):** grant `d5-ota-v873` READ first; `env`-prefixed espflash LITERAL in the gated
+  command text so the gate SEES it; pre-hash==pins; partition e0e49127/39rows; TWO USED lines written.
+  d5-otarx-v873.bin `adc6cc186eb52d5e423dd9af430e836fb9bdad6b3bceeb1690e46d2a9a6cbd68` (878864 B, 0xE9) /
+  d5-otafail-v873.bin `8a1ee68ee6cf31928717f6aa02b0f9a72a295f630300c309457bdb27d84d1584` (877440 B, 0xE9). DISTINCT.
+- **★ First genuinely BLIND 3-way of the campaign:** hive == composer BYTE-FOR-BYTE on both bins (two hosts / two
+  toolchains / one pinned input; supervisor withheld both directions), anchored by core's ELF-attest.
+- **★ Gate-bypass caught + fixed:** a BARE `VAR=value` first token made auto-approve.sh:554 parse base off the
+  assignment — never saw espflash, never gated, wrote NO USED. The ABSENT USED line was the tell (held custody, refused
+  to assert the cause, escalated). Fix = `env` prefix. [[espflash-gate-bypassed-by-file-and-remote-exec]] (third variant).
+- **Post-flash boot method (record, D-20260725-11 @ claude-fleet 705c0e5):** espflash-driven (`--after hard-reset`,
+  observed CoreUsbUart) within a grant, OR CTRL+R, OR the Roy button. **RAW TTY RTS/EN is NOT a reset on S3 native
+  USB-JTAG** (peripheral does not map DTR/RTS to CHIP_PU/GPIO0) — removed as a boot step, not merely qualified.
