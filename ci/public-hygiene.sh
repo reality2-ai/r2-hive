@@ -526,6 +526,16 @@ if [ "${1:-}" = "--selftest" ]; then
   if printf 'malformed' | hygiene_scan >/dev/null 2>&1; then
     echo "  FAIL malformed scanner input passed open"
   else p=$((p+1)); echo "  ok   malformed scanner input fails closed"; fi
+  # ── ERROR CONTROL for the gg() search wrapper (supervisor 2026-07-27: a ugrep regex-complexity limit on a
+  # MACRON pattern produced no-matches and READ AS A PASS — a broken engine that looks clean). Our gg() returns
+  # rc>1 on an engine error so `set -euo pipefail` / the macron `exit $mrc` fail CLOSED. Prove it EVERY run, not
+  # just in review: a BROKEN pattern must yield rc>1 (not clean); a genuine no-match must yield rc0 (not error).
+  k=$((k+1)); gg -inP '[\x{0101}' -- . >/dev/null 2>&1 && gecrc=0 || gecrc=$?
+  if [ "$gecrc" -gt 1 ]; then p=$((p+1)); echo "  ok   gg error-control: broken PCRE -> rc=$gecrc (>1) = FAIL-CLOSED, not clean"
+  else echo "  FAIL gg error-control: broken PCRE -> rc=$gecrc (want >1; error-read-as-clean = FAKE GATE)"; fi
+  k=$((k+1)); gg -inE 'zzz_no_such_token_zzz_9137' -- . >/dev/null 2>&1 && gncrc=0 || gncrc=$?
+  if [ "$gncrc" -eq 0 ]; then p=$((p+1)); echo "  ok   gg error-control: genuine no-match -> rc0 (clean is distinct from error)"
+  else echo "  FAIL gg error-control: no-match -> rc=$gncrc (want 0)"; fi
   # ── RUN THE CONTRACT FROM FILE (supervisor 2026-07-27): running inline COPIES + pinning the file's sha
   # proves the file is unchanged, NOT that the copies still equal it — editing an inline KAT leaves the sha
   # and the pin green while the contract is no longer run (the mirror-test, in the artefact meant to stop
@@ -628,4 +638,5 @@ if [ "$fail" -ne 0 ]; then
   echo "public-content-hygiene: FAIL"
   exit 1
 fi
-echo "public-content-hygiene: OK (terms/macrons/gateway clean; no MACs; no device tails; no MAC-in-filenames)"
+scanned=$(git ls-files -- . "${PATHSPEC[@]}" | wc -l | tr -d ' ')
+echo "public-content-hygiene: OK — DENOMINATOR $scanned files scanned (sweep scope); terms/macrons/gateway clean; no MACs; no device tails; no MAC-in-filenames"
