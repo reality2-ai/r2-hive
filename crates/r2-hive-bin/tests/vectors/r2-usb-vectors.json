@@ -1,6 +1,6 @@
 {
   "spec": "R2-USB",
-  "version": "0.28",
+  "version": "0.29",
   "description": "Conformance vectors for the R2-USB serial transport framing and properties (R2-USB §3 Framing, §4 Transport Properties). USB carries compact R2-WIRE frames length-prefixed on the serial byte stream. All multi-byte integers on the USB framing layer are LITTLE-ENDIAN (§3.2). Hex is lowercase. Vector ids follow the TV<n> scheme cited by consuming impls.",
   "notes": [
     "Frame encoding (§3.2): [payload_length: uint16 LE][R2-WIRE compact message: payload_length bytes]. Max payload 255 (compact). payload_length == 0 is a no-op/keepalive that MUST be silently ignored.",
@@ -425,6 +425,25 @@
       "received": "sync",
       "expect": "reply_exactly_one_sync_no_pending_set_preserve_state",
       "notes": "The recursion terminates because the peer, on receiving this one response, is in the TV32 state (it had an outstanding SYNC) and does NOT re-answer. Harness: set outstanding_sync=false, feed a SYNC, assert exactly ONE SYNC emitted, no pending flag set, link generation/reset_seq unchanged. A lost SYNC/response is recovered by the §3.3 step-4 retry; routine idle-liveness is the §3.4 zero-length keepalive, NOT a SYNC."
+    },
+    {
+      "id": "TV34",
+      "category": "control",
+      "description": "Anti-rollback boot census control frame (§3.7.2, v2 type byte 0xFF, msg_type=18): peripheral->host, one per boot, unsolicited, link-local MUST-NOT-relay by frame class. Body {0:18, 1:{0:class, 1:record, 2:seq, 3:floor}}. Semantics owned by R2-UPDATE §9.1; R2-USB carries only. Unknown keys MUST be skipped (declared in §3.7.2, NOT inherited from §3.7).",
+      "fields": {
+        "msg_type": 18,
+        "class": 2,
+        "class_name": "FOREIGN",
+        "record_hex": "000102030405060708090a0b0c0d0e0f",
+        "record_len": 16,
+        "seq": 66051,
+        "floor": 67438087
+      },
+      "control_body_cbor_hex": "a2001201a400020150000102030405060708090a0b0c0d0e0f021a00010203031a04050607",
+      "control_payload_hex": "ffa2001201a400020150000102030405060708090a0b0c0d0e0f021a00010203031a04050607",
+      "usb_frame_hex": "2600ffa2001201a400020150000102030405060708090a0b0c0d0e0f021a00010203031a04050607",
+      "usb_frame_length": 40,
+      "notes": "⚠ record_hex IS SYNTHETIC (00..0f), NOT A CAPTURE. Key 1 is Publish: PRIVATE per §3.7.2 -- its real content is raw flash bytes of unbounded provenance, so a real capture MUST NOT be published in a vector. The synthetic value is chosen to be unmistakable for either a capture or valid record content. class=2 FOREIGN is the CONSISTENT classification for these bytes: they do not authenticate as a record. seq/floor are the emitter's decode of the first 8 bytes big-endian (0x00010203 / 0x04050607) -- the decode itself is owned by R2-UPDATE §9.1, not by this spec. Per §3.7.2 key 0 is ADVISORY whenever key 1 is present: a reader re-derives the class from the raw bytes and, on disagreement, key 1 is the evidence and key 0 is the claim. Bytes verified by round-trip through an independently-written CBOR decoder, itself positive-controlled against TV27's declared fields and negative-controlled by single-byte perturbation."
     }
   ]
 }

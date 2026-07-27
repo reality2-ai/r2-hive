@@ -16,6 +16,15 @@ r2-specifications/testing/test-vectors/
     r2-plugin-web-vectors.json    → vector_coverage.rs (web plugin conformance)
 ```
 
+Vendored 2026-07-28 from r2-specifications @ 2ebaeac (R2-USB v0.29; supersedes fc23c03 @ v0.28).
+v0.28→v0.29 delta: ONE additive vector, **TV34** — anti-rollback boot census control frame
+(§3.7.2, v2 type byte 0xFF, msg_type=18): peripheral→host, one per boot, unsolicited, link-local
+MUST-NOT-relay by frame class; body `{0:18, 1:{0:class, 1:record, 2:seq, 3:floor}}`. Semantics are
+owned by R2-UPDATE §9.1 — R2-USB only carries it. Unknown keys MUST be skipped (declared in §3.7.2,
+NOT inherited from §3.7). No existing vector changed; the other three vendored files were already at
+canon and were re-checked, not assumed.
+
+PRIOR ENTRY (kept, this file is append-not-overwrite):
 Vendored 2026-07-18 from r2-specifications @ fc23c03 (R2-USB v0.28; superseded f2be5e4/7b13594/e03df92).
 Re-sync scope: r2-usb-vectors.json v0.7→v0.28 (§2.2 kind-unify TV21/22, TV8
 behavioural correction reset→preserve, new TV27 observation + TV28-30 tier
