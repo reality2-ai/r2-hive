@@ -3,7 +3,7 @@
 For a non-hive platform (e.g. workshop's esp-idf board) to JOIN the live 9-board
 leaderless ESP-NOW heartbeat mesh **byte-correctly**. Source of truth = hive's
 `nobt`/`multitg` firmware (`platforms/dfr1195/src/main.rs`) + r2-core's `r2-wire` +
-`r2-trust`. Proven on metal 2026-06-22 (cross-host alfred+tuxedo, 2 TGs, clean GroupHmac partition).
+`r2-trust`. Proven on metal 2026-06-22 (cross-host <build-host>+<rig-host>, 2 TGs, clean GroupHmac partition).
 
 ## 0. The shortcut — DON'T re-implement the wire format
 `r2-wire` and `r2-trust` are `no_std` + portable. **Use them directly** and you are

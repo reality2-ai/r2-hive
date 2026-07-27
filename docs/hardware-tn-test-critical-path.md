@@ -109,7 +109,7 @@ antennas/region. Longest pole (greenfield radio).
   `--partition-table`, `save-image` for OTA slots) + `build-firmware.sh` versioning/naming logic + the OTA
   self-proof principle. (Their `r2-esp`/`setup-firmware.sh` are esp-idf-only — don't port to no_std.)
   Their C6 path is the *DFR1117*, not ours. Build is portable (any Linux box w/ Xtensa target); flashing
-  needs the box the board is plugged into (don't block on tuxedo).
+  needs the box the board is plugged into (don't block on <rig-host>).
 - **composer** — OTA push (F5/F5b `ota_push`) + reply-status contract (mine matches) + the S3 `board.toml`
   and 4 MB OTA bound (**RIGHT — restore, my earlier "stale" flag was based on the wrong C6 SoC**); radio trait for Stage C.
 

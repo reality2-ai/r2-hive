@@ -233,7 +233,7 @@ mod tests {
     fn full_toml_round_trips() {
         let toml = r#"
 [daemon]
-name = "alfred"
+name = "testhost"
 port = 23000
 bind = "127.0.0.1"
 buffer_size = 256
@@ -253,7 +253,7 @@ backend = "keyring"
 enabled = false
 "#;
         let c = HiveConfig::from_toml_str(toml).expect("parse");
-        assert_eq!(c.daemon.name, "alfred");
+        assert_eq!(c.daemon.name, "testhost");
         assert_eq!(c.daemon.port, 23000);
         assert_eq!(c.daemon.bind, "127.0.0.1");
         assert!(c.transports.auto);

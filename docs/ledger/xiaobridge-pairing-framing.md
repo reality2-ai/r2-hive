@@ -84,7 +84,7 @@ carry pairing on `0xFF` control frames + sightings on `0xFF` msg_type=12 observa
   confirmed/partial/refuted, fix confirmed, re-verify; only then does this attack move to survived.
 - **METAL interop** (the physical un-run test): real random ephemerals/nonces + real USB-JTAG link + live SYNC→CAPS→
   pairing timing on the actual XIAO↔phone. A survived *vector* test is weaker than a survived *metal* test — this is
-  gated on the reflash (Roy reconnects the XIAO to Alfred's bus + runs the by-id espflash; android drives PairingHost
+  gated on the reflash (Roy reconnects the XIAO to <build-host>'s bus + runs the by-id espflash; android drives PairingHost
   over ttyACM1). | est. severity 0.5 | Confidence: 0.92 → 0.95 (vector-transcript interop proven both sides; metal
   pending — will NOT claim done until a real pair lights).
 

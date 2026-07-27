@@ -23,7 +23,7 @@ constants — there is **no role-profile abstraction**. Observed in `main.rs`:
 | **REPEATER / router** | (any other in-mesh) | D2 etc | plain relay via r2-route plan_forward; no special role code |
 | default duty | — | mains boards | `my_duty = AlwaysOn` |
 
-**The gap:** role identity is welded to specific provisioned hive_ids (the tuxedo D1–D4 rig). Deploying
+**The gap:** role identity is welded to specific provisioned hive_ids (the <rig-host> D1–D4 rig). Deploying
 a real pilot-site field requires a board to KNOW its role independent of which physical unit it is. That is
 the role-profile abstraction this prep targets.
 

@@ -5,7 +5,7 @@
   "transport": "esp-now",
   "run_id": "bl100-metal-0622.1857",
   "timestamp_utc": "2026-06-22T07:18:05Z",
-  "runner": "hive (alfred); 3 XIAO ESP32-S3 capturing, hearing all 9-board mesh heartbeats",
+  "runner": "hive (<build-host>); 3 XIAO ESP32-S3 capturing, hearing all 9-board mesh heartbeats",
   "board_map": {
     "capturing": { "998de7fc": "XIAO X1 (TG-A)", "c2106bd5": "XIAO X2 (TG-A)", "af1464f4": "XIAO X3 (TG-B)" },
     "heard_neighbours": ["2cab5f69(DFR)", "480e900e(DFR)", "f91c8911(DFR)", "06ae082b(DFR)", "0dcadbf8(DFR)", "2c81b4a3(XIAO X4)"]

@@ -5,7 +5,7 @@
   "transport": "esp-now",
   "run_id": "bl103-metal-0622",
   "timestamp_utc": "2026-06-22T10:32:00Z",
-  "runner": "hive; 3 alfred XIAO ESP32-S3, nobt,routetest,fastevict (+blackout on the silent board), MASK+SENDTO->NVS isolation, local serial capture",
+  "runner": "hive; 3 <build-host> XIAO ESP32-S3, nobt,routetest,fastevict (+blackout on the silent board), MASK+SENDTO->NVS isolation, local serial capture",
   "board_map": { "X1/observer": "998de7fc", "X2/active": "c2106bd5", "X3/silent(blackout)": "af1464f4" },
   "topology": "3-XIAO full mesh, MASK-isolated from the live DFR (each hears only the other two)",
   "method": "fastevict scales the ROUTE-engine clock x20 (route_now_s at decay_neighbours/decay_paths/ingest) so the §2.5 eviction horizon (1800s hard-timeout / conf<0.01) is crossed in seconds on the bench. blackout mutes X3's TX for [60,150)s uptime = the silence. An observer (X1) logs its route-engine neighbour table (hive@conf x1000) every fire. Dashboard liveness (seen/MESH_PEER_TTL_S) stays REAL-time; only the engine clock scales.",

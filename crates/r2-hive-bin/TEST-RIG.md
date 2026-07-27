@@ -10,16 +10,16 @@ incrementally extendable.
 | Role | Device | OS / arch | BLE adapter | Network access |
 |------|--------|-----------|-------------|----------------|
 | **laptop** | x86_64 dev box | Linux (Manjaro) | built-in `hci0` (`xx:xx:xx:xx:xx:xx`) | WiFi `<scrubbed-subnet>`, mesh-VPN |
-| **alfred** | x86_64 SBC reachable via `ssh alfred` | Linux | `hci0` (`xx:xx:xx:xx:xx:xx`) — BLE asymmetric (weak receive) | WiFi `<scrubbed-ip>`, mesh-VPN, USB to UNO Q's |
+| **<build-host>** | x86_64 SBC reachable via `ssh <build-host>` | Linux | `hci0` (`xx:xx:xx:xx:xx:xx`) — BLE asymmetric (weak receive) | WiFi `<scrubbed-ip>`, mesh-VPN, USB to UNO Q's |
 | **reality2-3** | Arduino UNO Q | Debian aarch64 (Linux MPU + MCU) | QCA WCN3990 `hci0` (`xx:xx:xx:xx:xx:xx`) — fragile, see below | WiFi `<scrubbed-ip>` |
 | **reality2-1** | Arduino UNO Q | Debian aarch64 | QCA WCN3990 `hci0` (`xx:xx:xx:xx:xx:xx`) | WiFi `<scrubbed-ip>` |
-| **royspi5** | Raspberry Pi 5 | Ubuntu 24.04 aarch64 | — | mesh-VPN `<scrubbed-ip>` (build host, no test role) |
+| **<pi-host>** | Raspberry Pi 5 | Ubuntu 24.04 aarch64 | — | mesh-VPN `<scrubbed-ip>` (build host, no test role) |
 
 The UNO Q's reach the network only via WiFi (`The_Metaverse` SSID, WPA2-PSK).
 Their LoRa radio is wired up but unused in this rig. BLE adapters use the QCA
 `hci_uart_qca` driver and are fragile under sustained operation (see below).
 
-ADB serials, when needed via `ssh alfred 'adb devices'`:
+ADB serials, when needed via `ssh <build-host> 'adb devices'`:
 
 | Device | adb serial |
 |--------|------------|
@@ -33,12 +33,12 @@ ADB serials, when needed via `ssh alfred 'adb devices'`:
                                                 │
             ┌─────────────────────┬─────────────┼────────────────────┐
             │                     │             │                    │
-        laptop                 alfred       reality2-3           reality2-1
+        laptop                 <build-host>       reality2-3           reality2-1
        <scrubbed-subnet>           <scrubbed-ip>   <scrubbed-ip>         <scrubbed-ip>
        hci0 BLE              hci0 BLE       hci0 BLE             hci0 BLE
             │                     │             │                    │
             └─── BLE bubble A ────┘             └─── BLE bubble B ───┘
-                 (laptop ↔ alfred                  (reality2-1 ↔ reality2-3
+                 (laptop ↔ <build-host>                  (reality2-1 ↔ reality2-3
                   bidir, with                       bidir, very strong:
                   asymmetry)                        physically adjacent)
 ```
@@ -99,7 +99,7 @@ podman run --rm --platform linux/arm64 \
 # Output: target/aarch64-unknown-linux-gnu/release/r2-hive
 ```
 
-### Native x86_64 for laptop and alfred
+### Native x86_64 for laptop and <build-host>
 
 Standard:
 
@@ -111,25 +111,25 @@ cargo build --release -p r2-hive --features ble
 
 ## Deployment
 
-### Deploy to alfred
+### Deploy to <build-host>
 
 ```bash
-ssh alfred 'pkill -f r2-hive 2>/dev/null; sleep 1; rm -f /tmp/r2-hive'
-scp target/release/r2-hive alfred:/tmp/r2-hive
+ssh <build-host> 'pkill -f r2-hive 2>/dev/null; sleep 1; rm -f /tmp/r2-hive'
+scp target/release/r2-hive <build-host>:/tmp/r2-hive
 ```
 
-### Deploy to UNO Q's via alfred + adb
+### Deploy to UNO Q's via <build-host> + adb
 
-The UNO Q's are reachable only via `adb` from alfred (USB tether). They are
+The UNO Q's are reachable only via `adb` from <build-host> (USB tether). They are
 **not** independently SSH-able. Their Linux MPU runs as user `arduino`
 (uid 1000, in group `bluetooth`). Sudo password is `Matang1#` if needed.
 
 ```bash
-# Copy binary onto alfred first
-scp /tmp/r2-hive-arm64 alfred:/tmp/r2-hive-arm64
+# Copy binary onto <build-host> first
+scp /tmp/r2-hive-arm64 <build-host>:/tmp/r2-hive-arm64
 
 # Then push via adb to both UNO Q's
-ssh alfred 'adb start-server; sleep 2; \
+ssh <build-host> 'adb start-server; sleep 2; \
     for d in 4206527534 586443026; do \
         adb -s $d shell "pkill -f r2-hive 2>/dev/null"; \
         adb -s $d push /tmp/r2-hive-arm64 /home/arduino/r2-hive; \
@@ -138,14 +138,14 @@ ssh alfred 'adb start-server; sleep 2; \
 
 ## Bringing the rig up
 
-The order matters slightly — UNO Q's first, then alfred, then laptop. UNO Q's
+The order matters slightly — UNO Q's first, then <build-host>, then laptop. UNO Q's
 need their hci0 freshly initialised (the QCA chip degrades over time, see
 "Known issues" below).
 
 ### 1. UNO Q's (BLE + WiFi UDP)
 
 ```bash
-ssh alfred 'adb start-server; sleep 2; \
+ssh <build-host> 'adb start-server; sleep 2; \
     adb -s 4206527534 shell "RUST_LOG=info nohup /home/arduino/r2-hive \
         --ble --lan --port 21099 --name reality2-3 \
         > /tmp/r2-hive.log 2>&1 &"; \
@@ -154,12 +154,12 @@ ssh alfred 'adb start-server; sleep 2; \
         > /tmp/r2-hive.log 2>&1 &"'
 ```
 
-### 2. alfred
+### 2. <build-host>
 
 ```bash
-ssh alfred 'rm -f /tmp/alfred.log; \
+ssh <build-host> 'rm -f /tmp/<build-host>.log; \
     setsid sh -c "RUST_LOG=info /tmp/r2-hive --ble --lan \
-        --port 21099 --name alfred > /tmp/alfred.log 2>&1" \
+        --port 21099 --name <build-host> > /tmp/<build-host>.log 2>&1" \
     < /dev/null &'
 ```
 
@@ -181,12 +181,12 @@ After ~30 seconds of running:
 # Laptop
 grep -E "self hive_id|peer registered" /tmp/laptop.log
 
-# Alfred
-ssh alfred 'grep -E "self hive_id|peer registered" /tmp/alfred.log'
+# <build-host>
+ssh <build-host> 'grep -E "self hive_id|peer registered" /tmp/<build-host>.log'
 
 # UNO Q's
-ssh alfred 'adb -s 4206527534 shell "grep -E \"self hive_id|peer registered\" /tmp/r2-hive.log"'
-ssh alfred 'adb -s 586443026 shell "grep -E \"self hive_id|peer registered\" /tmp/r2-hive.log"'
+ssh <build-host> 'adb -s 4206527534 shell "grep -E \"self hive_id|peer registered\" /tmp/r2-hive.log"'
+ssh <build-host> 'adb -s 586443026 shell "grep -E \"self hive_id|peer registered\" /tmp/r2-hive.log"'
 ```
 
 A healthy 4-node mesh shows each node logging its own `self hive_id` plus three
@@ -203,7 +203,7 @@ Each running r2-hive serves a dashboard on its `--port`:
 | Node | URL |
 |------|-----|
 | laptop | <http://localhost:21099/> |
-| alfred | <http://<scrubbed-ip>:21099/> |
+| <build-host> | <http://<scrubbed-ip>:21099/> |
 | reality2-3 | <http://<scrubbed-ip>:21099/> |
 | reality2-1 | <http://<scrubbed-ip>:21099/> |
 
@@ -215,7 +215,7 @@ WebSocket connections.
 ```bash
 # Stop r2-hive on every node
 pkill -f "target/release/r2-hive" 2>/dev/null
-ssh alfred 'pkill -f r2-hive 2>/dev/null; \
+ssh <build-host> 'pkill -f r2-hive 2>/dev/null; \
     adb start-server; sleep 2; \
     adb -s 4206527534 shell "pkill -f r2-hive 2>/dev/null"; \
     adb -s 586443026 shell "pkill -f r2-hive 2>/dev/null"'
@@ -261,10 +261,10 @@ aborted on `DeviceRemoved`.
 physical hive with two rotating MAC addresses is recognised as the same
 canonical hive_id because identification is via the beacon rbid, not the MAC.
 
-### Asymmetric BLE between laptop and alfred
+### Asymmetric BLE between laptop and <build-host>
 
-Alfred's BLE chip receives advertisements poorly while transmitting its own.
-Laptop sees alfred reliably; alfred often does not see laptop. This is hardware
+<build-host>'s BLE chip receives advertisements poorly while transmitting its own.
+Laptop sees <build-host> reliably; <build-host> often does not see laptop. This is hardware
 RF coexistence and not a code issue. Bringing WiFi up on the same chip
 (observed on the QCA-equipped UNO Q's) tends to *improve* BLE reception —
 likely shared antenna/clock subsystems being properly initialised.
@@ -277,7 +277,7 @@ holding PSM 0xD2. Kill it and rename the binary so systemd's auto-respawn
 fails:
 
 ```bash
-ssh alfred 'adb -s 4206527534 shell "kill -9 \$(pgrep -f r2-demo) 2>/dev/null; \
+ssh <build-host> 'adb -s 4206527534 shell "kill -9 \$(pgrep -f r2-demo) 2>/dev/null; \
     mv /home/arduino/r2-demo /home/arduino/r2-demo.bak"'
 ```
 

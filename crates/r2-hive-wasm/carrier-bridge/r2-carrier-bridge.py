@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""r2-carrier-bridge — host (Alfred) bridge to a DFR1195 CARRIER over USB-serial.
+r"""r2-carrier-bridge — host (the bridge host) bridge to a DFR1195 CARRIER over USB-serial.
 
 Closes the all-radio-via-MCU loop: the carrier mirrors every over-the-air R2-WIRE
 frame to the host as `R2RX <hex>`; this bridge feeds those frames to the REAL
@@ -21,7 +21,7 @@ routing disabled.
 ║ Do NOT point this at an old-firmware board unless you accept that risk.         ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
-Usage (on Alfred, with vendored pyserial on PYTHONPATH — see run-bridge.sh):
+Usage (on the bridge host, with vendored pyserial on PYTHONPATH — see run-bridge.sh):
   python3 r2-carrier-bridge.py --port /dev/serial/by-id/usb-Espressif_..._-if00 \
       --hive a1f5ed00                 # VISIBILITY + route (logs would-be INJECTs)
   ... add --participate               # actually write INJECT to the mesh
@@ -272,7 +272,7 @@ def control_reader(router, ser, participate):
 
 
 # Live mode: open the port safely, spawn the router, run both pump threads
-# until interrupt. This is what alfred:~/carrier-bridge runs in production.
+# until interrupt. This is what <bridge-host>:~/carrier-bridge runs in production.
 def run_live(args):
     ser = open_safe(args.port, args.baud)
     router = None

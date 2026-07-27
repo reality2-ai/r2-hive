@@ -423,16 +423,19 @@ if [ -n "$devhits" ]; then
   fail=1
 fi
 
-# (5) Bench/infra hostnames — ADVISORY by Roy ruling 2026-07-15: Alfred/Tuxedo are ACCEPTED dev-box
-# names and are NOT scrubbed. Kept as a warn-only signal; set HOSTNAME_SEVERITY=hardfail only on a
-# further Roy ruling. (Roy-canon: extend BENCH_HOSTS via Roy.)
-HOSTNAME_SEVERITY='advisory'
-BENCH_HOSTS='Alfred|Tuxedo'
+# (5) Bench/infra hostnames — FORBIDDEN by Roy g23 ruling 2026-07-27 (SUPERSEDES the 2026-07-15
+# advisory): real host names are scrubbed, NOT accepted; the earlier "accepted dev-box names" reading
+# conflated this gate's allowlist with the g23 keep-set — they are different concerns. royspi5 is a
+# HIGHER class (it carries the principal's name = a personal identifier). HARDFAIL so reintroduction is
+# caught. This gate file itself is EXCLUDED from the scan below — it must name the pattern to search for
+# it, and that self-reference is not a violation.
+HOSTNAME_SEVERITY='hardfail'
+BENCH_HOSTS='Alfred|Tuxedo|royspi5'
 # rc-aware even though it is advisory today: the `|| true` here would become fail-OPEN the moment
 # HOSTNAME_SEVERITY is flipped to hardfail (a scan tool failure would pass as "no hostnames"). Capture
 # the status now so the flip is safe — advisory WARNS on a scan failure, hardfail EXITS closed
 # (hive-codex round-7 latent note; the last rc-swallow in this gate).
-hosthits=$(gg -inwE "$BENCH_HOSTS" -- . "${PATHSPEC[@]}") && hrc=0 || hrc=$?
+hosthits=$(gg -inwE "$BENCH_HOSTS" -- . "${PATHSPEC[@]}" ':(exclude)ci/public-hygiene.sh') && hrc=0 || hrc=$?
 if [ "$hrc" -gt 1 ]; then
   if [ "$HOSTNAME_SEVERITY" = "hardfail" ]; then
     echo "::error::hostname scan failed rc=$hrc — failing closed."; exit "$hrc"
@@ -442,11 +445,11 @@ if [ "$hrc" -gt 1 ]; then
 fi
 if [ -n "$hosthits" ]; then
   if [ "$HOSTNAME_SEVERITY" = "hardfail" ]; then
-    echo "::error::bench hostname(s) ($BENCH_HOSTS):"
+    echo "::error::FORBIDDEN bench/personal hostname(s) ($BENCH_HOSTS) — scrub per Roy g23 2026-07-27 (use a role token e.g. <build-host>/<rig-host>):"
     printf '%s\n' "$hosthits" | redact_stream
     fail=1
   else
-    echo "::warning::[ADVISORY — Roy: Alfred/Tuxedo accepted as dev-box names] $(printf '%s\n' "$hosthits" | wc -l) line(s); not failing."
+    echo "::warning::[ADVISORY] hostname hit(s) ($BENCH_HOSTS) $(printf '%s\n' "$hosthits" | wc -l) line(s); not failing (severity=advisory)."
   fi
 fi
 

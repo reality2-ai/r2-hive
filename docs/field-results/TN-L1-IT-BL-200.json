@@ -5,7 +5,7 @@
   "transport": "esp-now",
   "run_id": "bl200-metal-0622-resolved",
   "timestamp_utc": "2026-06-22T09:35:00Z",
-  "runner": "hive; 5 tuxedo DFR, routetest build (demo-Event gated off, MASK+SENDTO persisted to NVS), via ssh tuxedo serial capture",
+  "runner": "hive; 5 <rig-host> DFR, routetest build (demo-Event gated off, MASK+SENDTO persisted to NVS), via ssh <rig-host> serial capture",
   "board_map": { "[0,0]/A": "480e900e", "[0,1]/R1": "2cab5f69", "[0,2]/R2": "f91c8911", "[0,3]/D": "06ae082b", "[0,4]/X": "0dcadbf8" },
   "topology": "chain A-R1-R2-D + alternate A-X (X-D link absent), imposed via per-board MASK on full-mesh ESP-NOW",
   "expectations": [

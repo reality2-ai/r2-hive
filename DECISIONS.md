@@ -52,7 +52,7 @@ It is not a task log and does not replace specifications, ADRs, or code.
 - **Known gaps (honest):** bit0 pump-driven (no persistent BLE peer); LoRa beacons unattributed (unkeyed-origin
   admit still stamps bit2); D4 BLE-central/provider election unproven (M7 ghost scaffold, deferred).
 - **Surfaces landed:** GH `reality2-ai/r2-core#19` (reference-impl green cell, comment 5050303127); recipe
-  registry (`alfred:~/coex-flash-recipe.txt`, canonical bit5-keepalive entry); this record.
+  registry (`<build-host>:~/coex-flash-recipe.txt`, canonical bit5-keepalive entry); this record.
 - **Supersedes:** None (builds on hive:D-20260722-01).
 
 ### D-20260721-01 — Repository decision log
@@ -262,7 +262,7 @@ It is not a task log and does not replace specifications, ADRs, or code.
   outside their paths).
 - **Hive write-paths declared:** (a) `/home/roycdavies/Development/R2/r2-hive` — the only repo hive
   commits/pushes; (b) `~/dfr1195-fw-build` (r2-core linked worktree, hive-exclusive) — checkout/reset/build/
-  stash only, never a source commit to core, no gc (shared object store); (c) alfred `~/` build artifacts +
+  stash only, never a source commit to core, no gc (shared object store); (c) <build-host> `~/` build artifacts +
   `/tmp` scratch; (d) local scratchpad + private agent-memory. Read-only everywhere else.
 - **Alternatives:** Looser per-lane discretion (rejected — produced the races).
 - **Expected consequences:** Fewer wasted/again-superseded actions and no cross-lane tree writes, at the

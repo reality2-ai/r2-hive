@@ -1,13 +1,13 @@
 # XIAO edge-bridge power-standby — firmware plan (the heat fix)
 
-> **Status: ✅ PATH-1 FLASHABLE + STAGED on alfred — Roy-OPERATOR-gated (not scope-gated).** All gates
+> **Status: ✅ PATH-1 FLASHABLE + STAGED on <build-host> — Roy-OPERATOR-gated (not scope-gated).** All gates
 > cleared: spec ratified (R2-RUNTIME §3.2.6 @4072063), Roy scope CONFIRMED, core landed both driver diffs
 > (@8508309), surgically re-vendored (dfr1195-fw bd67669), both `cargo +esp check` green. **Staged:**
-> `alfred:~/xiao-standby-04ce0049.elf` (+ standby-off fallback `xiao-fieldfallback-a6114724.elf`).
+> `<build-host>:~/xiao-standby-04ce0049.elf` (+ standby-off fallback `xiao-fieldfallback-a6114724.elf`).
 > **SCOPE NOTE: the staged image is RADIO RX-duty-cycle ONLY — MCU light-sleep (1c) is DEFERRED**
 > (documented TODO; radio duty-cycle alone is the fastest heat win). **SF7 miss-rate gate (metal):**
 > a high SF7 3ms/5ms miss-rate → ask CORE for a canonical `preamble_len` profile/KAT bump (core-owned,
-> §2 path-(b)), NOT a local firmware tweak. Remaining = Roy flashes (XIAO not on alfred yet) + bench.
+> §2 path-(b)), NOT a local firmware tweak. Remaining = Roy flashes (XIAO not on <build-host> yet) + bench.
 
 ## 0. Root cause (ground-truthed, live worktree)
 The XIAO edge bridge (`xiaobridge` feature: ESP32-S3 + Wio-SX1262; `lora_route_task` RXes, drains
@@ -122,7 +122,7 @@ When the edge bridge sleeps, D4's frames must not be lost. **RESOLVED — no new
    hive surgically re-vendored r2-sx1262 + r2-transport into dfr1195-fw (`bd67669`+`4af9b97`, byte-
    identical) + committed the off-by-default `standby` firmware arm (`810573e`); both
    `cargo +esp check --features xiaobridge` (off) AND `xiaobridge,standby` (on) green; standby ELF
-   BUILT + STAGED on alfred (stage-only, NEVER flash — Roy-only). **REMAINING: Roy-gated bench flash**
+   BUILT + STAGED on <build-host> (stage-only, NEVER flash — Roy-only). **REMAINING: Roy-gated bench flash**
    → idle-draw/heat + duty-engages measurement + keep the D4→XIAO→phone delivered-path green
    (SCF-hold honoured) → path-1 closes. 1c (MCU light-sleep) = documented TODO (untestable off-metal).
 4. **Path 2** on top, separable.

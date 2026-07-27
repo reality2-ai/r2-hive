@@ -1,4 +1,4 @@
-# Bench board facts (Alfred) — MAC ↔ hive_id ↔ TG ↔ port ↔ fw
+# Bench board facts (<build-host>) — MAC ↔ hive_id ↔ TG ↔ port ↔ fw
 
 Persisted per supervisor's XIAO bench bring-up directive (2026-07-12). Living record; update as
 provisioning facts (hive_id / TG) are read from each board.

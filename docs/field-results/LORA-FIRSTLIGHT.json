@@ -4,7 +4,7 @@
   "transport": "lora",
   "run_id": "lora-firstlight-metal-0622",
   "timestamp_utc": "2026-06-22T11:28:00Z",
-  "runner": "hive; 2 tuxedo DFR1195 (D1 480e900e, D2 2cab5f69), nobt,lora,loratcxo, core's r2-sx1262 driver, via ssh tuxedo serial",
+  "runner": "hive; 2 <rig-host> DFR1195 (D1 480e900e, D2 2cab5f69), nobt,lora,loratcxo, core's r2-sx1262 driver, via ssh <rig-host> serial",
   "hardware": "DFR1195 (FireBeetle 2 ESP32-S3) + SX1262; SPI3 SCK7/MISO5/MOSI6, NSS10, RST41, BUSY40, RXEN42, DIO1=4; TCXO DIO3 1.8V",
   "config": "wairoa_as923_nz with bench overrides: 916.8MHz/BW125/SF7(bench)/CR45/sync0x21/CRC/explicit/TCXO1.8V/tx_power-9dBm(bench)",
   "expectations": [

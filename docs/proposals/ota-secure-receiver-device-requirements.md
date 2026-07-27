@@ -31,7 +31,7 @@ Must survive app reflash (distinct sector, like the board-profile @0x13000).
 ## 3. Production minter (the unlock)
 Device-side secure OTA is gated on a **production minter** for the role-0x05 `update_authority`
 certs (today only core's TEST mint exists). The minter + the TG-manager (Roy wants on
-tuxedo/alfred) are the keystore/wallet arc (#20). Until a device has a real `tg_pk` + (optionally)
+<rig-host>/<build-host>) are the keystore/wallet arc (#20). Until a device has a real `tg_pk` + (optionally)
 real `update_authority_certs`, it can only do **basic TG_SK-direct verify** (empty certs/G-Set).
 
 ## 4. Phasing (matches the supervisor's scope split)

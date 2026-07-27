@@ -1,4 +1,4 @@
-# Field-firmware triplet — on-metal validation (2026-06-27, Alfred)
+# Field-firmware triplet — on-metal validation (2026-06-27, <build-host>)
 
 **Result: keystone + radio PROVEN on hardware; OTA networked round-trip = documented follow-up (bench-topology-blocked, not a firmware gap).**
 
@@ -15,7 +15,7 @@ worktree HEAD `0f87bd3`. Image = `xiao,field,loraroute,loratcxo,multitg` (1.32 M
 | repeater | xx:xx:xx:xx:xx:xx | `296f308b` | `296f308b` ✓ | `repeater` duty=1 | true |
 | bridge   | xx:xx:xx:xx:xx:xx | `bd72902e` | `bd72902e` ✓ | `bridge` duty=1 | true |
 
-(4th XIAO xx:xx:xx:xx:xx:xx = spare. The 5 DFR1195 `F4:12:FA:*` also on Alfred = untouched.)
+(4th XIAO xx:xx:xx:xx:xx:xx = spare. The 5 DFR1195 `F4:12:FA:*` also on <build-host> = untouched.)
 
 ## Validations
 
@@ -38,7 +38,7 @@ worktree HEAD `0f87bd3`. Image = `xiao,field,loraroute,loratcxo,multitg` (1.32 M
   (`OTA slot=ota_0 ... test-b PASS`). Trust model mutually confirmed: receiver accepts composer's §2.4
   TG_SK-direct (issuer_pk==tg_pk=d9fb84d4, empty authority certs, floor 0, seq=1>0); mint-ota would NOT
   (no role-0x05 cert). composer signer ready (`tg ota-sign`, f7cd3fe). BLOCKED ONLY by bench network
-  topology: triplet on the DFR-D1-served isolated soft-AP (<scrubbed-subnet>), Alfred on the LAN (<scrubbed-ip>),
+  topology: triplet on the DFR-D1-served isolated soft-AP (<scrubbed-subnet>), <build-host> on the LAN (<scrubbed-ip>),
   no route + no push host on the soft-AP. PATH B (sensor on a LAN-reachable AP: change FIELDLAB_SSID +
   reflash) ready on Roy's go + LAN WiFi creds. Wire contract handed to composer (OST/ODT/OCM UDP :21043, NOT
   the 0x03 blob).
@@ -49,7 +49,7 @@ worktree HEAD `0f87bd3`. Image = `xiao,field,loraroute,loratcxo,multitg` (1.32 M
 
 ## Safety note (the near-miss discipline paid off)
 After USB re-enum the `ttyACMn` numbers REMAPPED (board-info on /dev/ttyACM1 read a different eFuse MAC than
-its old by-id) AND 5 DFR1195 appeared on Alfred (ttyACM6-10). Flashing by ttyACMn would have hit a wrong
+its old by-id) AND 5 DFR1195 appeared on <build-host> (ttyACM6-10). Flashing by ttyACMn would have hit a wrong
 board. Used stable `/dev/serial/by-id/usb-Espressif..._<MAC>-if00` paths + board-info-verified each eFuse MAC.
 
 ## composer follow-up flagged

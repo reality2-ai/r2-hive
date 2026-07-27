@@ -1,6 +1,6 @@
 # r2-carrier-bridge — host ↔ DFR1195 carrier ↔ R2 mesh
 
-Makes a host (Alfred) a **real R2 mesh node** through ONE DFR1195 flashed as a
+Makes a host (<build-host>) a **real R2 mesh node** through ONE DFR1195 flashed as a
 transparent serial↔ESP-NOW *carrier*. The carrier mirrors every over-the-air
 R2-WIRE frame to the host (`R2RX <hex>`) and broadcasts frames the host hands it
 (`INJECT <hex>`). This bridge runs the **real current-TN routing core** (the
@@ -20,7 +20,7 @@ wasm-pack build --release --target nodejs --out-dir carrier-bridge/wasmhive-node
 curl -sSL -o /tmp/ps.whl https://files.pythonhosted.org/packages/07/bc/587a445451b253b285629263eb51c2d8e9bcea4fc97826266d186f96f558/pyserial-3.5-py2.py3-none-any.whl
 ( cd carrier-bridge && unzip -oq /tmp/ps.whl 'serial/*' )
 ```
-(Already done + scp'd to Alfred at `~/carrier-bridge/` for the EOD bench.)
+(Already done + scp'd to <build-host> at `~/carrier-bridge/` for the EOD bench.)
 
 ## Pieces
 - `r2-carrier-bridge.py` — owns the serial port **DTR/RTS-safe** (the only thing
@@ -37,7 +37,7 @@ The bridge opens with **DTR=0, RTS=0 set BEFORE open and never toggled**, and
 aborts if it can't. Use it on the **carrier** board (new firmware has clear-at-boot
 so an open-time reset recovers to the app, never sticky download).
 
-## Run (on Alfred)
+## Run (on <build-host>)
 ```sh
 # heartbeat-VISIBILITY + routing (read-only: logs would-be INJECTs, sends nothing):
 ./run-bridge.sh --port /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_<MAC>-if00 --hive a1f5ed00

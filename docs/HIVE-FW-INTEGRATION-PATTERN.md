@@ -1,7 +1,7 @@
 # Hive firmware integration pattern — for the nRF54-LR2021 (embassy-nrf) platform
 
 Proactive support for composer's new-arch platform lead (supervisor directive). The proven DFR1195/SX1262 hive
-loop adapted to embassy-nrf + the LR2021. **Target: tuxedo↔pi5 faster-LoRa.** Built greenfield = the *simplified*
+loop adapted to embassy-nrf + the LR2021. **Target: <rig-host>↔pi5 faster-LoRa.** Built greenfield = the *simplified*
 (post-Occam) architecture from the start — no PCO to migrate.
 
 ## The big win: the data-plane loop is GENERIC over `LoRaRadio` → it ports directly
@@ -89,7 +89,7 @@ generalized to **FLRC↔LoRa**:
 
 So the nRF54 backbone-gateway firmware = the FR-2 bridge pattern (carrier-agnostic data-plane + per-PHY TX +
 auto-bridging engine), with FLRC+LoRa as the PHYs. Faster backbone (FLRC) + long-range leaves (LoRa) = the
-tuxedo↔pi5 faster-LoRa target, with DFR leaves hanging off the LoRa side.
+<rig-host>↔pi5 faster-LoRa target, with DFR leaves hanging off the LoRa side.
 
 ## Division of labour
 - **composer (new-arch lead):** the embassy-nrf platform layer — HAL init, SPIM/TWIM/SAADC/GPIO bindings, the
