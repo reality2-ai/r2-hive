@@ -127,10 +127,10 @@ fi
 # shape → passes); the key pattern needs a prefix AND >=2 digits (prose slugs are digitless/short → pass).
 # VALUE-based classes (terms/macron/gateway/hostnames, above) name their values and MUST NOT be duplicated
 # cross-repo — they ride a SHARED gitignored denylist (fleet artefact; coordinate, do not fork).
-# >>> SHAPE-PATTERN-SET v1 — CO-PINNED, BYTE-IDENTICAL FLEET-WIDE. Composer carries these exact bytes and
-# pins this block's sha; undeliberate drift fails locally, a deliberate bump lands in both. Keep this block
-# self-contained (no value literals, no per-repo state) so it can be mirrored verbatim. UUID_ALLOW_EXACT is
-# PER-REPO and lives OUTSIDE these markers. >>>
+# >>> SHAPE-PATTERN-SET v1 — hive's IMPLEMENTATION of the shape classes. The FLEET CONTRACT is NOT this
+# text (superseded 2026-07-27): it is ci/shape-scan-vectors.tsv, co-pinned by CONTENT-sha; each repo
+# implements however suits it (hive perl+bash, composer shell/mjs) and both must PASS the vectors. These
+# markers just delimit the shape patterns; they are NOT blob-sha-co-pinned. UUID_ALLOW_EXACT is per-repo. >>>
 IP_RE='(^|[^0-9.])(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3})([^0-9.]|$)'
 UUID_RE='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
 KEY_PFX="$(printf '%s%s' 's' 'k-')"   # assembled from parts so this block never spells the prefix contiguously
