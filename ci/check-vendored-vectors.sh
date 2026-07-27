@@ -27,6 +27,31 @@ VENDORED="$ROOT/crates/r2-hive-bin/tests/vectors"
 # Canonical source: r2-specifications as a sibling of the r2-hive checkout
 # (overridable for a fleet job that checks canon out elsewhere / for testing).
 CANON="${R2_SPECS_VECTORS:-$ROOT/../r2-specifications/testing/test-vectors}"
+
+# ── CANON MUST BE COMMITTED, AND A DIRTY CANON IS ITS OWN STATUS (2026-07-28) ──────────────────────
+# DEFECT FOUND IN THIS GATE, by it firing wrongly: it compares against the sibling's ON-DISK file, so an
+# UNCOMMITTED edit in r2-specifications reads as "canon moved". Measured: specs HEAD 51d9ac3 had the vector
+# file committed at 9c7e63e9… — byte-identical to what this repo vendors and to the supervisor-pinned
+# target — while the WORKING TREE held an uncommitted d7314af8… that the gate reported as v0.33 drift.
+# Chasing it would have vendored ANOTHER LANE'S UNCOMMITTED WIP into this repo AS CANON.
+# This is the SKIP-GREEN shape one level out: a DIRTY canonical must not report the same as a MOVED one.
+# So: if the sibling is a git repo, compare against its COMMITTED HEAD, and if the vector files are dirty
+# say so as a DISTINCT status rather than calling it drift.
+if [ -z "${R2_SPECS_VECTORS:-}" ] && [ -d "$CANON/../../.git" ]; then
+  _specs_root="$CANON/../.."
+  _dirty=$(git -C "$_specs_root" status --porcelain -- testing/test-vectors 2>/dev/null | wc -l)
+  if [ "$_dirty" -gt 0 ]; then
+    echo "⚠ CANON IS DIRTY — r2-specifications has $_dirty UNCOMMITTED change(s) under testing/test-vectors." >&2
+    echo "  This is NOT drift on our side and MUST NOT be vendored: an uncommitted edit is another lane's" >&2
+    echo "  work in progress, not canon. Comparing against specs' COMMITTED HEAD instead." >&2
+    _committed=$(mktemp -d)
+    for _p in "$CANON"/*.json; do
+      _b=$(basename "$_p")
+      git -C "$_specs_root" show "HEAD:testing/test-vectors/$_b" > "$_committed/$_b" 2>/dev/null || cp "$_p" "$_committed/$_b"
+    done
+    CANON="$_committed"
+  fi
+fi
 STRICT=0
 HERMETIC_SKIP=0
 for a in "$@"; do
