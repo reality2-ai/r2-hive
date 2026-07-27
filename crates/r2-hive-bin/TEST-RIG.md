@@ -9,11 +9,11 @@ incrementally extendable.
 
 | Role | Device | OS / arch | BLE adapter | Network access |
 |------|--------|-----------|-------------|----------------|
-| **laptop** | x86_64 dev box | Linux (Manjaro) | built-in `hci0` (`xx:xx:xx:xx:xx:xx`) | WiFi `192.168.1.x`, Tailscale |
-| **alfred** | x86_64 SBC reachable via `ssh alfred` | Linux | `hci0` (`xx:xx:xx:xx:xx:xx`) — BLE asymmetric (weak receive) | WiFi `192.168.1.54`, Tailscale, USB to UNO Q's |
-| **reality2-3** | Arduino UNO Q | Debian aarch64 (Linux MPU + MCU) | QCA WCN3990 `hci0` (`xx:xx:xx:xx:xx:xx`) — fragile, see below | WiFi `192.168.1.20` |
-| **reality2-1** | Arduino UNO Q | Debian aarch64 | QCA WCN3990 `hci0` (`xx:xx:xx:xx:xx:xx`) | WiFi `192.168.1.22` |
-| **royspi5** | Raspberry Pi 5 | Ubuntu 24.04 aarch64 | — | Tailscale `100.96.237.112` (build host, no test role) |
+| **laptop** | x86_64 dev box | Linux (Manjaro) | built-in `hci0` (`xx:xx:xx:xx:xx:xx`) | WiFi `<scrubbed-subnet>`, mesh-VPN |
+| **alfred** | x86_64 SBC reachable via `ssh alfred` | Linux | `hci0` (`xx:xx:xx:xx:xx:xx`) — BLE asymmetric (weak receive) | WiFi `<scrubbed-ip>`, mesh-VPN, USB to UNO Q's |
+| **reality2-3** | Arduino UNO Q | Debian aarch64 (Linux MPU + MCU) | QCA WCN3990 `hci0` (`xx:xx:xx:xx:xx:xx`) — fragile, see below | WiFi `<scrubbed-ip>` |
+| **reality2-1** | Arduino UNO Q | Debian aarch64 | QCA WCN3990 `hci0` (`xx:xx:xx:xx:xx:xx`) | WiFi `<scrubbed-ip>` |
+| **royspi5** | Raspberry Pi 5 | Ubuntu 24.04 aarch64 | — | mesh-VPN `<scrubbed-ip>` (build host, no test role) |
 
 The UNO Q's reach the network only via WiFi (`The_Metaverse` SSID, WPA2-PSK).
 Their LoRa radio is wired up but unused in this rig. BLE adapters use the QCA
@@ -29,12 +29,12 @@ ADB serials, when needed via `ssh alfred 'adb devices'`:
 ## Network topology
 
 ```
-                                The_Metaverse WiFi (192.168.1.0/24)
+                                The_Metaverse WiFi (<scrubbed-ip>/24)
                                                 │
             ┌─────────────────────┬─────────────┼────────────────────┐
             │                     │             │                    │
         laptop                 alfred       reality2-3           reality2-1
-       192.168.1.x           192.168.1.54   192.168.1.20         192.168.1.22
+       <scrubbed-subnet>           <scrubbed-ip>   <scrubbed-ip>         <scrubbed-ip>
        hci0 BLE              hci0 BLE       hci0 BLE             hci0 BLE
             │                     │             │                    │
             └─── BLE bubble A ────┘             └─── BLE bubble B ───┘
@@ -45,7 +45,7 @@ ADB serials, when needed via `ssh alfred 'adb devices'`:
 
 BLE bridges between bubbles are weak — that's expected and is exactly why the
 mesh needs UDP+WiFi as well. Each pair of BLE-bubble nodes also reaches every
-other node via UDP on the same `192.168.1.0/24` subnet.
+other node via UDP on the same `<scrubbed-ip>/24` subnet.
 
 ## Build paths
 
@@ -61,16 +61,16 @@ a binary that runs unchanged on the UNO Q's.
 # 1. Sync working tree from laptop to Pi 5 (excludes target/, .git/)
 cd /path/to/r2-core
 rsync -az --exclude=target --exclude=.git ./ \
-    roycdavies@100.96.237.112:~/Development/R2/r2-core/
+    roycdavies@<scrubbed-ip>:~/Development/R2/r2-core/
 
 # 2. Build natively on Pi 5 (~3 min cold, ~30 sec incremental)
-ssh roycdavies@100.96.237.112 \
+ssh roycdavies@<scrubbed-ip> \
     'export PATH=$HOME/.cargo/bin:$PATH; \
      cd ~/Development/R2/r2-core && \
      cargo build --release -p r2-hive --features ble'
 
 # 3. Pull binary back to laptop
-scp roycdavies@100.96.237.112:~/Development/R2/r2-core/target/release/r2-hive \
+scp roycdavies@<scrubbed-ip>:~/Development/R2/r2-core/target/release/r2-hive \
     /tmp/r2-hive-arm64
 ```
 
@@ -203,9 +203,9 @@ Each running r2-hive serves a dashboard on its `--port`:
 | Node | URL |
 |------|-----|
 | laptop | <http://localhost:21099/> |
-| alfred | <http://192.168.1.54:21099/> |
-| reality2-3 | <http://192.168.1.20:21099/> |
-| reality2-1 | <http://192.168.1.22:21099/> |
+| alfred | <http://<scrubbed-ip>:21099/> |
+| reality2-3 | <http://<scrubbed-ip>:21099/> |
+| reality2-1 | <http://<scrubbed-ip>:21099/> |
 
 The dashboard shows current peers per transport, frames routed, uptime, and
 WebSocket connections.

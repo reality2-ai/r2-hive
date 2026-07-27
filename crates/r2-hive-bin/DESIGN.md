@@ -123,5 +123,5 @@ Currently every note.update sends full content. Future improvement: send diffs (
 - mDNS module implemented but mdns-sd library has reliability issues with multicast
 - UDP broadcast beacon as working alternative: port 21044, 5s interval
 - Beacon packet: magic + version + flags + class_hash + RBID + port + bloom
-- Tested: laptop (192.168.1.52) ↔ Alfred (192.168.1.54) discover in 5 seconds
+- Tested: laptop (<scrubbed-ip>) ↔ Alfred (<scrubbed-ip>) discover in 5 seconds
 - Next: auto-connect discovered peers and exchange R2-WIRE frames over UDP

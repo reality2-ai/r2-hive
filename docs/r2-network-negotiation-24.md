@@ -77,9 +77,9 @@ QUESTION to workshop/supervisor: can the r2-esp blocks be factored no_std-shared
 - **no_std BLE stack** (the big lift) — beacon advertise/scan + L2CAP CoC for signalling. New.
 - R2-BEACON (RBID schedule) + R2-DISCOVERY §3 RBID↔hive_id lookup.
 - Transport-state fallback: R2-TRANSPORT §2.3 (FAILED) + R2-ROUTE §5.6 reselect.
-- **FIX hardcoded AP IP** (R2-WIFI v0.6 §3.2/§4.3): current fw hardcodes 192.168.4.1 — for #24 the
+- **FIX hardcoded AP IP** (R2-WIFI v0.6 §3.2/§4.3): current fw hardcodes <scrubbed-ip> — for #24 the
   AP IP comes from the #wifi_offer / gateway discovery. Pattern = workshop's `wifi_sta::get_gateway()`
-  (the AP IS the gateway, never hardcoded; designed for the no-DHCP embassy r2-fieldlab). OK for the
+  (the AP IS the gateway, never hardcoded; designed for the no-DHCP embassy <scrubbed-ssid>). OK for the
   all-embassy 9-board now; fix for interop.
 
 ## Order

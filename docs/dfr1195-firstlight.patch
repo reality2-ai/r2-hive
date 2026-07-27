@@ -2822,8 +2822,8 @@ index 8c49f1c..4367a1a 100644
 +//! **PHASE 1a — WiFi-up smoke (field.lab bring-up).** Migrates from the bare-metal
 +//! first-light to the esp-rtos/embassy async runtime and brings WiFi up via esp-radio
 +//! (the renamed esp-wifi for the esp-hal 1.1.x line). One image, role auto-selected
-+//! by MAC: device 0xXXXXXX = soft-AP `r2-fieldlab` (192.168.4.1), else STA that joins
-+//! it (192.168.4.2). STATIC IPs both sides (embassy-net 0.9 has no DHCP *server*) — a
++//! by MAC: device 0xXXXXXX = soft-AP `<scrubbed-ssid>` (<scrubbed-ip>), else STA that joins
++//! it (<scrubbed-ip>). STATIC IPs both sides (embassy-net 0.9 has no DHCP *server*) — a
 +//! deterministic 2-node IP network for the board↔board TN test. A non-blocking LED
 +//! heartbeat keeps the board visibly alive. The LCD proof surface (with WiFi role/IP)
 +//! + the WifiTransport/RouteEngine wiring come next (Phase 1b/2).
@@ -2936,8 +2936,8 @@ index 8c49f1c..4367a1a 100644
 +const FW_VERSION: &str = "leaderless-0.4";
 +#[cfg(not(feature = "ble"))]
 +const FW_VERSION: &str = "conductor-0.3";
-+const FIELDLAB_SSID: &str = "r2-fieldlab";
-+const FIELDLAB_PASS: &str = "r2fieldlab"; // >=8 chars (WPA2)
++const FIELDLAB_SSID: &str = "<scrubbed-ssid>";
++const FIELDLAB_PASS: &str = "<scrubbed-psk>"; // >=8 chars (WPA2)
 +const AP_MAC_MATCH: u32 = 0x0050_2698; // low-3 MAC bytes selecting the soft-AP role
 +const TG_ID: &str = "DEMO"; // demo-fallback TG label when no persona is provisioned
 +// Intra-TG trust (demo): both boards share the TG id + group HMAC key = one TG.
@@ -3203,7 +3203,7 @@ index 8c49f1c..4367a1a 100644
 +
 +    // 5. WiFi config for the role. M8c (--features ble): the engine-elected provider serves its OWN
 +    //    SoftAP "r2-tn-form" (the formed data plane); other boards are STAs that JOIN it on negotiation.
-+    //    Default build = the static r2-fieldlab mesh by MAC (UNCHANGED — protects the live mesh).
++    //    Default build = the static <scrubbed-ssid> mesh by MAC (UNCHANGED — protects the live mesh).
 +    // MESH (ble): NO AP — all boards are idle STAs on a FIXED ESP-NOW channel (set in espnow_task); the
 +    // conductor-PLL syncs over ESP-NOW broadcast, no AP-SPOF. (M8c SoftAP-star was the stepping-stone; the
 +    // true mesh has no AP. Infra-mode/mode-1b AP lives in the default build.)
@@ -7192,7 +7192,7 @@ index 8c49f1c..4367a1a 100644
 +
 +/// TEST scaffolding (one-shot, AP only): push our running ota_0 image to the STA's OTA
 +/// receiver so the OTA path is verifiable board-to-board (no soft-AP host needed). Reads
-+/// ota_0[0..LEN], SHA-256s it, streams OST/ODT/OCM to 192.168.4.16:21043 stop-and-wait.
++/// ota_0[0..LEN], SHA-256s it, streams OST/ODT/OCM to <scrubbed-ip>:21043 stop-and-wait.
 +async fn ota_sender(stack: embassy_net::Stack<'static>) {
 +    use embedded_storage::ReadStorage;
 +    use sha2::{Digest, Sha256};
@@ -7319,7 +7319,7 @@ index 8c49f1c..4367a1a 100644
 +                }
 +            }
 +        }
-+        // Default (mesh) STA: auto-connect to r2-fieldlab (UNCHANGED).
++        // Default (mesh) STA: auto-connect to <scrubbed-ssid> (UNCHANGED).
 +        #[cfg(not(feature = "ble"))]
 +        loop {
 +            match controller.connect_async().await {

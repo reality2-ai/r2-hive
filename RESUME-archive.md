@@ -1652,7 +1652,7 @@
   Fleet+Roy concluded: 495b1b62=joiner-no-hk, b14b07d8=Alfred-apiary-different-tg, dark=fail-closed-membership=clean positive.
   I VERIFIED against ground truth (parsed all 5 ~/r2-weave-tg/persona-*.bin: tool scratchpad/persona_map.py — CBOR KS1 parse +
   hk-vs-weave-hk.bin sha compare + derive_hive_id per hkdf.rs; NO secret bytes emitted). RESULT: ALL 5 personas incl BOTH dark
-  carry the IDENTICAL weave TG (tg_hash 04bc57e7, tg_id c95649a6-45a9-43ac-9537-838d8d4477f2) + IDENTICAL weave hk (every
+  carry the IDENTICAL weave TG (tg_hash 04bc57e7, tg_id <scrubbed-tg-uuid>) + IDENTICAL weave hk (every
   hk==weave-hk.bin sha12 f991956b34d2). CROSS-VALIDATED: my derived hive_ids MATCH composer's observed origins EXACTLY
   (xx:xx:xx→09a07e47, xx:xx:xx→8900955e, xx:xx:xx→495b1b62, xx:xx:xx→b14b07d8, xx:xx:xx→655a9e5f=carrier) → derivation
   correct + dark boards RUN these weave personas (on-air id = persona-derived, NOT demo mac_low3). So at the PERSONA level the
@@ -3939,7 +3939,7 @@ read a DIFFERENT MAC on /dev/ttyACM1 than its old by-id; +5 DFR1195 also on Alfr
 ttyACMn would hit a wrong board; ALWAYS use /dev/serial/by-id/usb-Espressif..._<MAC>-if00). Image =
 `xiao,field,loraroute,loratcxo,multitg` (1.32MB), 4MB parttable, app→flash + persona→0x12000 + RPF1→0x17000
 + board-profile(00 01)→0x13000. composer's mint out-dir = /home/roycdavies/r2-bench/mariko-triplet/, TG
-1494e803.
+<scrubbed-tg>.
 - SENSOR   xx:xx:xx:xx:xx:xx → hive=c01cee4d MATCH, role=sensor duty=2 §3.2.2-provisioned, persona=true ✓
 - REPEATER xx:xx:xx:xx:xx:xx → hive=296f308b MATCH, role=repeater duty=1, persona=true ✓
 - BRIDGE   xx:xx:xx:xx:xx:xx → hive=bd72902e MATCH, role=bridge duty=1, persona=true ✓ (4th XIAO E8:..DB:44 spare)
@@ -3953,7 +3953,7 @@ fallback; bumped to 512B. RE-FLASH NOTE: NVS blobs (persona/role/board-profile) 
 FIELD-RESULTS RECORD: `docs/field-results/mariko-triplet-metal-0627.md` (committed c92e7ba). composer CONCURS
 with document-as-follow-up for OTA.
 OTA round-trip = DOCUMENTED FOLLOW-UP — blocked by bench NETWORK topology (triplet on DFR-D1's isolated
-soft-AP 192.168.4.x; Alfred on LAN 192.168.1.33; no route + no push host on the soft-AP). Firmware path
+soft-AP <scrubbed-subnet>; Alfred on LAN <scrubbed-ip>; no route + no push host on the soft-AP). Firmware path
 IMPLEMENTED + slot-switch metal-validated (test-b PASS); signer (composer tg ota-sign f7cd3fe) + trust-model
 (§2.4 TG_SK-direct issuer_pk==tg_pk, verified in my receiver) + wire-contract all confirmed. PATH B (sensor
 on a LAN AP via FIELDLAB_SSID change + reflash) ready on Roy's go + LAN WiFi creds.
@@ -4067,8 +4067,8 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    R2/R3/R4 + confirmed-boot, main.rs ~416) is a standalone embassy-net socket on the WiFi netif, separate from
    io_task/RouteEngine; the mask/faked-distance gate the mesh RouteEngine (ESP-NOW/LoRa), never the WiFi netif or
    :21043. Add an INVARIANT GUARD/comment so future mask-wiring can't gate the netif/OTA socket (SMALL). THE REAL
-   WORK = WiFi TOPOLOGY: today WiFi is a SELF-CONTAINED SOFT-AP ISLAND (one DFR=AP r2-fieldlab 192.168.4.1, others
-   =STA 192.168.4.x; NOT on Alfred's LAN = the 'bench-network-blocked' problem). Change = repurpose WiFi from
+   WORK = WiFi TOPOLOGY: today WiFi is a SELF-CONTAINED SOFT-AP ISLAND (one DFR=AP <scrubbed-ssid> <scrubbed-ip>, others
+   =STA <scrubbed-subnet>; NOT on Alfred's LAN = the 'bench-network-blocked' problem). Change = repurpose WiFi from
    self-AP-island-dataplane to STA-JOIN-ALFRED management plane (data-plane moves fully to the ESP-NOW/LoRa mesh,
    which the TN tests already use). The OTA RECEIVER ITSELF IS DONE (reuse on the STA netif). EFFORT MODERATE:
    WiFi-STA join+reconnect+IP + always-on-device rollout; receiver DONE; mask-guard SMALL. HONEST GAPS: (a)
@@ -4087,7 +4087,7 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    BUILD GATES REMAIN (build held until both): (1) composer confirms the sequencing + gives THE ALFRED NETWORK
    MODEL — the SSID+pass each device's WiFi-STA joins to reach Alfred (Alfred-runs-AP vs join-lab-router) + IP mode
    (DHCP-client vs static); I CANNOT write the STA-join without the SSID/creds (today it joins its own
-   r2-fieldlab island, not Alfred). (2) core confirms no shared mgmt-plane contract (WiFi-STA is hive-platform) +
+   <scrubbed-ssid> island, not Alfred). (2) core confirms no shared mgmt-plane contract (WiFi-STA is hive-platform) +
    OTA authority = CMD_START_SIGNED/TG_SK-direct. Coordinated both 2026-06-30; awaiting replies. composer already
    CONFIRMED the push side (device→IP from r2.hb.health key3, OST/ODT/OCM UDP sender to :21043, USB fallback via
    esptool) — see its hop-6 msg.
@@ -4145,7 +4145,7 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
    identity-verify, confirm staota banner + INERT) → signal composer 'flashed <board>' → composer mints+writes the
    repeater persona @0x12000 + verifies INERT-exit→HEALTH (composer does persona, I do firmware). FIRMWARE-FIRST
    (composer holds provisioning per board). ✅ core CONFIRMED 2026-06-30 (hop6, vs r2-update src): NO shared mgmt contract (WiFi-STA+ota_task 100% hive-platform, fork nothing) + OTA-authority = CMD_START_SIGNED + verify_header issuer_pk==tg_pk = TG_SK-direct (r2-update/src/lib.rs:219 empty update_authority, NO role-0x05 cert) = exactly composer's §2.4 signer. NO core change for #17. So the design + the persona.tg_pk↔OTA-signer binding are VALIDATED; everything ready (both combos green, creds path known, handoff settled).
-   MESH-OTA PHASE-2 (Roy framing, follow-on — NOT now): Alfred can't join the WiFi mesh (its 1 WiFi = Tailscale),
+   MESH-OTA PHASE-2 (Roy framing, follow-on — NOT now): Alfred can't join the WiFi mesh (its 1 WiFi = mesh-VPN),
    so a FIELD mesh-only target (no router) gets OTA via: Alfred→IP→a GATEWAY/BRIDGE board (on the router)→R2 mesh
    (ESP-NOW/LoRa)→target, which runs a MESH-OTA RECEIVER (distinct transport binding). staota LEAVES ROOM: the OTA
    verify/stage/confirm-boot CORE is transport-agnostic; staota binds it to STA-UDP :21043 now, phase-2 binds the
@@ -4380,7 +4380,7 @@ window opens. **Two follow-ups queued (both no-rush, both confirmed to core):**
   dc re-emit, H9-secure HB-rx, A1 reconcile). **GOTCHA:** must `source ~/Development/homelab/export-esp.sh`
   WITHOUT a pipe (piping source = subshell = PATH lost → "linker xtensa-esp32s3-elf-gcc not found").
 - **BENCH IS LIVE — not a hardware gap.** The `tuxedo` ssh alias is a DEAD tailnet node (7d offline) =
-  my timeout. Rig moved to **`tuxedo-os`** (100.90.50.112). All 5 DFR1195 enumerate; TN-FR-1 rig present
+  my timeout. Rig moved to **`tuxedo-os`** (<scrubbed-ip>). All 5 DFR1195 enumerate; TN-FR-1 rig present
   + provisioned Jun22: D1 xx:xx:xx=ttyACM0 (480e900e orig), D2 xx:xx:xx=ttyACM1 (2cab5f69),
   D3 xx:xx:xx=ttyACM4 (f91c8911), D4 xx:xx:xx=ttyACM3 (06ae082b), D5 xx:xx:xx=ttyACM2 (0dcadbf8).
 - **FLASH PAYLOAD PRE-STAGED** to `tuxedo-os:~/phase0/` = {espflash 4.4.0 (tuxedo-os has none), ELF
@@ -4806,7 +4806,7 @@ current, don't wait per-conjecture.
     embassy-net Stack, re-enable mod wifi (once core's wifi.rs@0.9), spawn udp_writer_task, wire RouteEngine →
     board A originates → board B receives+relays (dedup/TTL/spray). network-OTA receiver rides the same tier.
   - **🎯🎯 FIELD.LAB DONE — first routed R2-WIRE frame board↔board on REAL HARDWARE** (`a99313b`). WiFi-up
-    smoke PASSED (soft-AP r2-fieldlab 192.168.4.1 ↔ STA .2, role auto-by-MAC), then the routed frame: board A
+    smoke PASSED (soft-AP <scrubbed-ssid> <scrubbed-ip> ↔ STA .2, role auto-by-MAC), then the routed frame: board A
     (hive XXXXXX) originates an R2-WIRE *extended* Event over real WiFi radio → board B (XXXXXX) decodes +
     `r2_route::RouteEngine::plan_forward` + **DELIVERED msg_id=7..13 ttl=4 'hello-TN'** + **DEDUP** the
     duplicate. Stack: esp-radio 0.18/esp-rtos 0.3/embassy-0.9, one combined recv/send UDP socket task (port
@@ -4834,7 +4834,7 @@ current, don't wait per-conjecture.
   - **TONIGHT'S ARC (all on metal, 2 boards):** WiFi ✅ · routed R2-WIRE frame (deliver+dedup) ✅ · synced
     heartbeat ✅ · LCD ✅ · intra-TG trust deliver-gate ✅ · conductor-PLL heartbeat (TG-scoped + version
     telemetry) ✅. **Both headline goals — TN + trust groups — proven + canon-aligned on real hardware.**
-  - **CONTINUED-SESSION metal wins (all committed):** N-board broadcast (fire/Event → subnet 192.168.4.255,
+  - **CONTINUED-SESSION metal wins (all committed):** N-board broadcast (fire/Event → subnet <scrubbed-ip>,
     verified) ✅ · **unique per-board STA IP** from low MAC byte (the real N-board fix; .2 would collide) ✅ ·
     **organic lub-DUB LED heartbeat** via LEDC PWM hardware duty-fades (Roy: "heartbeat not flash"; io_task
     FIRE_SIGNAL → main renders the envelope) ✅ · **OTA bootloader CONFIRMED (test a)**: my no_std app boots
@@ -4846,7 +4846,7 @@ current, don't wait per-conjecture.
     the fire, followers PLL-listen silently ✅ · **2nd-order conductor-PLL (β/freq term)** — kills the ~200ms
     offset, e→±0.005–0.025 (<50ms), 5 LEDs as ONE ✅ · **5-board mesh** (my 2 + composer's 3, ESP-IDF BL) ✅ ·
     **real-TG persona reader (#20)** — read bundle raw @0x12000, r2_cbor-decode, run on PROVISIONED hk/tg/derived-
-    hive; **TG=4b3df45d OFF DEMO** on both my boards (persona=true), cond=3e0d688f, synced=true, DELIVERED good /
+    hive; **TG=<scrubbed-tg> OFF DEMO** on both my boards (persona=true), cond=3e0d688f, synced=true, DELIVERED good /
     BLOCKED bad on the real hk ✅. Hand-rolled derive_hive_id (HKDF→v4-UUID-string→FNV; r2_trust::derive_hive_id
     not in pinned r2-trust). **KS1-CANONICAL derive_hive_id** — re-synced r2-trust to **abde165** (the no-v4-forcing
     fix; 256489b + my hand-roll BOTH v4-forced = matched each other but DIVERGED from KS1). ids now byte-exact to
@@ -4866,7 +4866,7 @@ current, don't wait per-conjecture.
   - **9-BOARD MESH CONFIRMED (metal) 🎉** — composer flashed all 4 XIAO + 3 DFR1195; ALL on tuxedo USB
     (my ACM0=AP/ACM1=STA, XIAO ACM2-5, DFR1195 ACM9-11). Verified synced=true + dlv climbing (trust delivering)
     across composer's DFR1195 (ACM9/10/11 dlv~1692) AND a XIAO (ACM2) = cross-arch (S3 DFR1195 + XIAO)
-    beat-as-one on real TG 4b3df45d, conductor = lowest canon id 06ae082b. AP serial held by r2-compos
+    beat-as-one on real TG <scrubbed-tg>, conductor = lowest canon id 06ae082b. AP serial held by r2-compos
     (composer orchestrator) = the health #18 dashboard feed working by design; do NOT re-flash the live AP.
   - **OTA network receiver (#17)** — DE-RISK PASSED (flash-write-while-WiFi: 20ms/sector, heartbeat-safe, no
     quiesce). Receiver built (UDP 21043 START/DATA/COMMIT stream → sector-write → SHA-256 → activate+reboot) +
@@ -4882,7 +4882,7 @@ current, don't wait per-conjecture.
     stranded (no network → no app-layer election can help; my STA came up alone/CONDUCTOR). FIX = revive XXXXXX
     (Roy physical RST; port held by composer's health reader so no remote reset). **#23b AP-FAILOVER = the real
     fix, NOT YET built:** pre-designated backup (lowest AP-capable hive from the heartbeat roster) detects
-    esp-radio disassociation + promotes STA→AP at runtime @192.168.4.1; others re-scan/associate. Substantial +
+    esp-radio disassociation + promotes STA→AP at runtime @<scrubbed-ip>; others re-scan/associate. Substantial +
     risky (runtime WiFi mode switch) — implement on a test pairing, not the live mesh.
   - **CONVERGENCE BUG FOUND + FIXED (serial-verified, 0621.1227):** the 9-board "not converged" root was a
     VERSION MISMATCH — 3 DFR1195 (ACM9/10/11) were on a STALE pre-KS1 build (0621.0858) computing WRONG hive_ids
@@ -5000,13 +5000,13 @@ current, don't wait per-conjecture.
     `data plane UP — joined r2-tn-form (REAL WiFi formed, B->W)` + provider `[ap] station joined` = a REAL WiFi
     association formed by BLE negotiation. Full chain on hardware: discover→elect lowest (0dcadbf8)→negotiate
     WifiReq/WifiOffer over the BLE L2CAP CoC→FORM real WiFi. **cfg-gated: default (mesh) build UNTOUCHED**
-    (serve_ap=is_ap/r2-fieldlab/wait_config_up); ble = M8c (serve_ap=elected/r2-tn-form/form-on-negotiation).
+    (serve_ap=is_ap/<scrubbed-ssid>/wait_config_up); ble = M8c (serve_ap=elected/r2-tn-form/form-on-negotiation).
     **THE WHOLE TN ON HARDWARE: S0 discovery + M7 CoC + M8 engine-bridge + M9 forming-negotiation + M8c REAL
     WiFi form** — it discovers, negotiates, and forms a real infra-less WiFi network. NEXT: **M10** = lose-AP →
     S3→S4→reform (self-HEALING) + composer telemetry (key13/14/15); the M8c boards form their own net
     (r2-tn-form) separate from the mesh — coordinate proof-surface wiring w/ composer at M10.
     (10) **FORM→SYNC VERIFIED ON METAL — acceptance criterion #1 COMPLETE (infra-mode).** 2 boards: discover →
-    negotiate over BLE → form real WiFi → **lub-dub-SYNC together**. Joiner (2cab5f69): `HB<-192.168.4.1 cond=dcadbf8
+    negotiate over BLE → form real WiFi → **lub-dub-SYNC together**. Joiner (2cab5f69): `HB<-<scrubbed-ip> cond=dcadbf8
     e=-0.000 (lock)` `synced=true dlv=5`; provider (0dcadbf8): `synced=true role=AP` `FIRE seq=27/28 (CONDUCTOR)`.
     Two fixes verified: (a) conductor-send TIMEOUT-guard (was stalling at beat 8 on SoftAP-no-STA) → fires
     continuously; (b) role-align is_ap=serve_ap → provider correctly role=AP. So discover→negotiate→form→SYNC
@@ -6532,7 +6532,7 @@ A7 RECIPE = rak4630-fw/build-field-image.sh (commit 91b7308): builds boot(--feat
 DRIVE-TO-FLASH STATE: bootloader 9135db2 + app 33429b6/b3896cd BOTH built+link-verified; A7 recipe ready e2e. REMAINING: composer persona artifact (in flight) -> I run build-field-image.sh -> Roy's ONE SWD flash (A8, the only Roy step). #71 matrix COMPLETE (core root-3 ruling folded @9fc4cd2). OTA-receiver wiring (#19/#35) = Phase B, post-flash. FIRMWARE/KEY GATE (supervisor ruling): blocks REAL flash/sign/mint only, NOT docs; NO private secret VALUES in any committed file (public tg_pk/tg_id/addresses/SHAs OK).
 
 ## ✅✅ RAK DEV-TRIAL FLASH-READY (2026-07-14) — image assembled e2e; only Roy's A8 SWD flash remains
-Composer delivered the shared dev-TG + RAK dev persona (PUBLIC: tg_id 730c29e7-209f-4d2e-c8fd-b68e71f5f73b, tg_pk 3992f89ba04c087e8a798cb7b693c749f080c0ce43715191619b3ba7eee00f5b; RAK mesh_pk <RAK-MESH-PK>, hive_id <RAK-HIVE-ID>, wire_id <RAK-WIRE-ID>). Persona = 336B plaintext-CBOR at /home/roycdavies/.r2-dev-trial/rak-persona.bin (SECRET soft-seal, carries DEV_SK — NOT copied/committed anywhere; referenced by path only).
+Composer delivered the shared dev-TG + RAK dev persona (PUBLIC: tg_id <scrubbed-tg-uuid>, tg_pk 3992f89ba04c087e8a798cb7b693c749f080c0ce43715191619b3ba7eee00f5b; RAK mesh_pk <RAK-MESH-PK>, hive_id <RAK-HIVE-ID>, wire_id <RAK-WIRE-ID>). Persona = 336B plaintext-CBOR at /home/roycdavies/.r2-dev-trial/rak-persona.bin (SECRET soft-seal, carries DEV_SK — NOT copied/committed anywhere; referenced by path only).
 FRAMING VERIFIED (structural, RAK-readable): a7 map-7; key0 tg_id text36 (00 7824); key4 real 147B member cert (04 5893); key5 tg_pk anchor (05 5820 <tg_pk>) @byte295 = the bootloader's persona_tg_pk target (the offset-182 tg_pk occurrence = cert issuer, not the anchor). RAW at 0x22000, no framing/header. RAK reads NO role-profile -> role compile-baked REPEATER (DEMO_CLASS_HASH=fnv1a32(ai.reality2.device.hive)); RPF1 (sensor=XIAO) NOT needed.
 FLASH RECIPE = build-field-image.sh @13f8626 (ran e2e: boot 0x101, app 0x24101, persona 336B/0xa7). Artifacts field-image/{boot.hex@0x0, app.hex@0x24000} + persona @0x22000. probe-rs 3-region recipe handed to supervisor->Roy. Dev-trial = APPROTECT OPEN (reflashable). A8 (Roy SWD flash) = the ONLY remaining step; everything else done+verified. Phase B (OTA receiver #19/#35) post-flash.
 
@@ -6543,7 +6543,7 @@ RAK carrier has NO SWD -> use the RESIDENT Adafruit nRF52 UF2 bootloader (flashe
 ARTIFACT (gitignored, carries DEV_SK): platforms/rak4630/field-dfu/r2-rak4630-repeater-devtrial.zip. CMD (Roy): adafruit-nrfutil dfu serial -pkg <zip> -p <VID-1209 port> -b 115200 -sb --touch 1200 (FLAG: flags standard-for-devtype-82 but nrfutil call not scripted; confirm baud vs actual demomember run). Fallback PATH B = UF2 drag (~/rak-blespike/flash-rak-blespike.sh). SECRET HYGIENE: .zip/.bin gitignored, never committed. RAK arc = Rops single nrfutil command from a working dev-TG repeater.
 
 ## 🎉 RAK DEV-TRIAL LIVE ON METAL (2026-07-14) — first R2 TN node on real RAK hardware
-The baked-persona @0x26000 repeater (commit 203cacc) FLASHED SUCCESSFULLY — remote Alfred->Tuxedo over Tailscale ssh (board in bootloader @ttyACM0; adafruit-nrfutil dfu serial -pkg …devtrial.zip -p /dev/ttyACM0 -b 115200 -sb -> Device programmed. Activating new firmware). VERIFIED via independent BLE scan on Tuxedo: R2-BEACON @-43dBm, mfr-data 0xFFFF = b2 01 00 55 ca fa 08 d5 d2 55 05 BA FE 8A C1 14 (BA FE 8A C1 = 0xBAFE8AC1 = fnv1a32(ai.reality2.device.hive) = repeater class). Flag RESOLVED: -b 115200 -sb correct; --touch 1200 only for app-mode entry (board already in bootloader). App headless (no ttyACM in app mode = expected). FLASH.md recipe + baked_persona build PROVEN. See [[rak-usb-dfu-dev-trial]] memory.
+The baked-persona @0x26000 repeater (commit 203cacc) FLASHED SUCCESSFULLY — remote Alfred->Tuxedo over mesh-VPN ssh (board in bootloader @ttyACM0; adafruit-nrfutil dfu serial -pkg …devtrial.zip -p /dev/ttyACM0 -b 115200 -sb -> Device programmed. Activating new firmware). VERIFIED via independent BLE scan on Tuxedo: R2-BEACON @-43dBm, mfr-data 0xFFFF = b2 01 00 55 ca fa 08 d5 d2 55 05 BA FE 8A C1 14 (BA FE 8A C1 = 0xBAFE8AC1 = fnv1a32(ai.reality2.device.hive) = repeater class). Flag RESOLVED: -b 115200 -sb correct; --touch 1200 only for app-mode entry (board already in bootloader). App headless (no ttyACM in app mode = expected). FLASH.md recipe + baked_persona build PROVEN. See [[rak-usb-dfu-dev-trial]] memory.
 OPEN (light, honest refuter): confirm the RAK is a dev-TG MEMBER (baked persona PARSED -> keyed identity) vs a fail-closed keyless repeater — the partial beacon capture shows the repeater CLASS but not clearly the persona tg_hash <PROV-TG-HASH>; verify via keyed dev-TG traffic delivery or a member-marked beacon field (headless board = no console).
 
 > **⚠ STALE-REVIEW RESOLVED (2026-07-14, supervisor-codex ruling (a)):** a twin re-pass on **ecad226** returned HOLD (HIGH1 unauth-tail / HIGH2 link-args-in-config / MED default-features+gate-IO) — but ecad226 was ALREADY superseded by **9135db2**, which closes those VERBATIM (HIGH1=F1 tail-all-0xFF+size>=8+reset-in-signed-extent; HIGH2=F2 link-args->build.rs+verify-elf.sh; MED=F3 default=[]+prod-compile_error + F4 run_gate/GateIo fault-injection KATs). The verdict reviewed a STALE commit (wrong-cwd twin). DO NOT build/edit a successor: RAK custom-bootloader/OTA is DROPPED (Roy, [[rak-usb-dfu-dev-trial]]); 9135db2/33429b6/b3896cd = REFERENCE-ONLY for XIAO/prod. The torn-progress comment nuance is already conservatively correct in swap_is_fresh (all-3-words-pristine); no tidy applied (path frozen). If a future twin re-passes ecad226, it is stale — point it at 9135db2.
@@ -7458,7 +7458,7 @@ build until an explicit order names a sha; #d005/#d006 preflight (drain → pinn
       Core = 3rd derivation on request (ELF paths handed: `/home/roycdavies/d5-otarx-p1.elf` 54dddb16 /
       `d5-otafail-p3.elf` 2a4f3308, b79b4f7a-built — the 418c7934 P1 was ef7b2d24, discarded). **Never route the
       gate for actual flash/sign — grant-gated** (supervisor). MAC in the target path off-tree.
-    - **Signer mechanism (composer, HELD on supervisor):** sealed TG 730c29e7 has no raw tg.txt; composer
+    - **Signer mechanism (composer, HELD on supervisor):** sealed TG <scrubbed-tg> has no raw tg.txt; composer
       recommends `tg OtaSign` in-memory unseal + a new `ota-push --signed-stream` branch (NO plaintext key on
       disk) — I ENDORSED it over my earlier tmpfs-export (stronger custody). Ratified → step = `ota-push
       --signed-stream --dry-run` first (target_class=0, target_tg all-zero). No hive dependency (same .bin

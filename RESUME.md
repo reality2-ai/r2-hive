@@ -5,6 +5,12 @@ Updated 2026-07-25. `main` clean + pushed (ahead=0). Compacted to one current sn
 
 ---
 
+## g23 VALUE-SCRUB (2026-07-27, Roy: keep gates public, scrub values, FORWARD-ONLY) — LANDED
+
+Publish-HALT LIFTED (bookkeeping public again). Scrubbed VALUES, kept REASONING. Replacements = self-announcing tokens (`<scrubbed-ip>`/`<scrubbed-ssid>`/`<scrubbed-psk>`/`<scrubbed-subnet>`/`<scrubbed-tg-uuid>`/`<scrubbed-tg>`), NOT plausible reserved-range numbers. SCRUBBED (counts): SSID ×10, PSK ×1, RFC1918/CGNAT IPs ×77 (18 distinct), subnet-`.x` ×6, mesh-VPN name (Tailscale→mesh-VPN) ×5, real TG UUIDs ×22 + 8-hex UUID prefixes ×9. KEPT+LIST (ambiguous; over-scrub is silent loss): fnv on-air hashes (tg_hash 04bc57e7 / board hive_ids / decimal tg_id) — transmitted CLEARTEXT in frame `target_group`/route-stack, so scrubbing docs is theatre; `royspi5` hostname (dev-box-name class); truncated TG pubkey fingerprint. Corrected 1 over-scrub: WS_GUID (gateway.js protocol constant, reverted). KEPT (Roy's explicit): reasoning/decisions/commit-ids/repo-names/username/alfred-tuxedo. **⚠ SCRUB ≠ UN-PUBLISH: the credential lines were on a public ref (forward-only, history kept) → treat SSID/PSK as DISCLOSED; ROTATION is the real fix and is Roy's action, not closed by this scrub landing green.** [[preserve-before-scrub]].
+
+---
+
 ## ‼ READ FIRST — device + authorization state (ledger wins any conflict below)
 
 - **DEVICE (D5 / DFR1195 ESP32-S3):** runs **v8.7.3 at `513c949db0f9ec0eebbf7d6df3febec39561a13a`** — flashed and verified.
@@ -200,7 +206,7 @@ pin-map.
   (creds-independent).
 - **CREDS = SYNTHETIC AP, RESOLVED (g24 real-creds REVERSED).** Composer stood up an AP on alfred's spare phy2 (AP
   sustained, 0 drops/7 polls/~80s, sole-uplink wlp3s0 default-route untouched throughout — capable-caveat retired BY
-  TEST). Creds are CHOSEN/synthetic (band bg, ch6, WPA2-PSK, DHCP 10.42.0.1) — no custody, no extraction (withdrawn; had
+  TEST). Creds are CHOSEN/synthetic (band bg, ch6, WPA2-PSK, DHCP <scrubbed-ip>) — no custody, no extraction (withdrawn; had
   no clean anchor anyway). **⚠ HANDLING: synthetic-by-construction ≠ safe-to-publish when the value GRANTS ACCESS — a
   chosen PSK is a WORKING PSK while the AP is up.** So the SSID/PSK are fine in fleet mail + composer's mode-700
   dev-trial file, but **MUST NOT enter any tracked/public file** (this RESUME included) — values live in the build env /
@@ -228,7 +234,7 @@ pin-map.
   3-of-4 via USB-CDC needs ONE small core change** — a CDC-read receiver task feeding `apply_signed` (mirroring the two
   wired receivers), core0, reusing the proven apply path. Smallest honest path to a slot-flip+running-image observation
   with zero radio unknowns — supervisor's call + core's build.
-- **Open before any grant (NOT hive):** composer read of X1 persona + OTA-TG `730c29e7` membership — X1 must VERIFY the
+- **Open before any grant (NOT hive):** composer read of X1 persona + OTA-TG `<scrubbed-tg>` membership — X1 must VERIFY the
   update signer or OTA is rejected on arrival. Board currently unplugged from both hosts.
 - **NO FLASH** taken; no grant.
 
@@ -273,7 +279,7 @@ pin-map.
   **USB-powered X1 = AlwaysOn.** Power source OVERRIDES role; class set STATICALLY from provisioning (a runtime flip would
   leave a battery node AlwaysOn+flooding) — if X1 ever runs on battery it MUST be provisioned DutyCycled BEFORE, never
   flipped at runtime. Settle: canon SILENT (a driver detail), so 1500ms is a config knob not a spec obligation.
-- **X1 enrolment UNKNOWN:** send-over-TN needs X1 = a TG member with a working persona; persona + OTA-TG `730c29e7`
+- **X1 enrolment UNKNOWN:** send-over-TN needs X1 = a TG member with a working persona; persona + OTA-TG `<scrubbed-tg>`
   membership UNREAD (composer's lane). Do NOT design around X1 enrolled. Button-free entry PROVEN on D5, UNPROVEN on X1
   — gates the first USB write (composer, amended grant).
 

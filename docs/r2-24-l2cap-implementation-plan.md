@@ -116,7 +116,7 @@ M8c = real form DONE. The full success demo + the 4 remaining behaviors (each su
    FORM but DON'T sync yet — joiner `synced=false` (no HB<- received), provider beats stuck ~8. The io_task
    heartbeat needs formed-net work: (a) socket lifecycle — io_task spawns before the joiner's stack is up
    (wait_config_up skipped for ble) → bind/rebind after the data plane is up; (b) SoftAP broadcast AP↔STA
-   (192.168.4.255 over r2-tn-form); (c) conductor-PLL on the formed net (provider 0dcadbf8 = lowest = conductor;
+   (<scrubbed-ip> over r2-tn-form); (c) conductor-PLL on the formed net (provider 0dcadbf8 = lowest = conductor;
    note is_ap≠serve_ap mismatch — io_task uses is_ap[MAC] not serve_ap[elected], so the WiFi-AP runs STA-role).
 2. **TG-GATE (real resolve)** — CONFIRM forming is TG-gated. CURRENTLY BYPASSED: M8b/M8c inject a SYNTHETIC
    peer obs (push_scan_obs(peer_hive)) + deterministic addr — NOT via resolve. Must replace with the REAL
@@ -168,7 +168,7 @@ ROOT (structural): the WiFi-AP role is decided at BOOT, DECOUPLED from the engin
   AP-relay/IP/health, diverging from serve_ap (WiFi role) → a board acting AP in heartbeat logic while STA in
   WiFi (or vice versa) = a second AP identity. Fixed: for ble, is_ap = serve_ap (exactly the AP board acts AP).
 - (3) **Trigger candidates for the actual two-AP/same-IP** (need Roy's specifics): (a) a MIX of builds — a
-  default board (is_ap=XXXXXX → r2-fieldlab @192.168.4.1) + a ble board (serve_ap → r2-tn-form @192.168.4.1) =
+  default board (is_ap=XXXXXX → <scrubbed-ssid> @<scrubbed-ip>) + a ble board (serve_ap → r2-tn-form @<scrubbed-ip>) =
   two APs same IP, different SSID; (b) the serve_ap test-const not matching the fleet's true lowest → engine
   elects X but the const board serves → divergence; (c) >2 boards / the ACM-renumbering scrambling roles.
 

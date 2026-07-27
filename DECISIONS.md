@@ -78,11 +78,11 @@ It is not a task log and does not replace specifications, ADRs, or code.
 - **Kind:** Decision
 - **Date:** 2026-07-21
 - **Scope:** RAK4630 compact-relay bench artifact (P0), persona identity
-- **Outcome:** The baked persona `8d5d099f` (tg_id `730c29e7-209f-4d2e-c8fd-b68e71f5f73b`,
+- **Outcome:** The baked persona `8d5d099f` (tg_id `<scrubbed-tg-uuid>`,
   tg_hash `0x6E31DEC6`, wire_id `0xCC788B17`) IS the ratified shared bench TG. The relay-fixed
   image (ELF `d1aeefdc`, HEAD `70f442b9`) is flash-ready; STEP3 proceeds. No re-mint, no rebuild.
 - **Decision-maker:** Roy (via supervisor relay).
-- **Authority basis:** `#d001` ratification (Roy Q2: "shared TG `730c29e7`, all field boards"),
+- **Authority basis:** `#d001` ratification (Roy Q2: "shared TG `<scrubbed-tg>`, all field boards"),
   confirmed by the authoritative parser `parse_persona(8d5d099f) = 0x6E31DEC6 / 0xCC788B17`.
 - **Context:** Composer's lift-criteria demanded tg_hash `0x3eb54833` / wire_id `0xd256dc00`, which
   matched none of the 4 provisioned bench personas. Hive measured the baked blob via
@@ -95,7 +95,7 @@ It is not a task log and does not replace specifications, ADRs, or code.
   are stale/superseded.
 - **Expected consequences:** Flash unblocked. Composer owes: correct criteria to
   `0x6E31DEC6`/`0xCC788B17` and trace the origin of `0x3eb54833`; if that trace shows a DELIBERATE
-  intended TG contradicting `730c29e7`, HALT and surface to Roy.
+  intended TG contradicting `<scrubbed-tg>`, HALT and surface to Roy.
 - **Evidence:** `parse_persona` harness `scratchpad/persona-attest`; ELF `d1aeefdc` @offset 115234
   == `8d5d099f`; supervisor ruling 2026-07-21; [RESUME.md](RESUME.md).
 - **Supersedes:** None (composer's `0x3eb54833` criteria were never a ratified decision here).

@@ -7,11 +7,11 @@
   "timestamp_utc": "2026-06-22T10:53:00Z",
   "runner": "hive; 3 alfred XIAO ESP32-S3, default (non-ble) WiFi build, X1=SoftAP via AP_MAC_MATCH=0xXXXXXX, X2/X3=STA, local serial capture",
   "board_map": {
-    "X1/SoftAP": "998de7fc @192.168.4.1",
-    "X2/STA": "c2106bd5 @192.168.4.68",
-    "X3/STA": "af1464f4 @192.168.4.140"
+    "X1/SoftAP": "998de7fc @<scrubbed-ip>",
+    "X2/STA": "c2106bd5 @<scrubbed-ip>",
+    "X3/STA": "af1464f4 @<scrubbed-ip>"
   },
-  "topology": "WiFi SoftAP star (single broadcast domain), UDP broadcast to 192.168.4.255 \u2014 L0 full mesh, N=3",
+  "topology": "WiFi SoftAP star (single broadcast domain), UDP broadcast to <scrubbed-ip> \u2014 L0 full mesh, N=3",
   "method": "the SAME leaderless Mirollo-Strogatz PCO engine (R2-HEARTBEAT v0.4) that runs over ESP-NOW, carried over WiFi/UDP-broadcast instead. AP_MAC_MATCH flipped to a XIAO so the span runs on XIAO (DFR ESP-NOW demo untouched).",
   "expectations": [
     {

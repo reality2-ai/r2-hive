@@ -4,7 +4,7 @@
   "tier": "hardware",
   "transport": "lora",
   "topology": "L1-multihop (chain A-B-C; A<->C masked)",
-  "scope": "intra-TG (all TG-A 4b3df45d / tg_id 177560432)",
+  "scope": "intra-TG (all TG-A <scrubbed-tg> / tg_id 177560432)",
   "payload": "events",
   "run_id": "lora-fr1-metal-0623",
   "timestamp_utc": "2026-06-23T09:13:00Z",

@@ -4,7 +4,7 @@
 
 Roy FLASH-GO, fleet-flashes-with-identity-check. Worktree `dfr1195-fw` @ base r2-core `c46383e`, firmware
 worktree HEAD `0f87bd3`. Image = `xiao,field,loraroute,loratcxo,multitg` (1.32 MB). composer mint out-dir
-`/home/roycdavies/r2-bench/mariko-triplet/`, bench field TG `1494e803-6993-45d3-9a46-49feab7533bb`
+`/home/roycdavies/r2-bench/mariko-triplet/`, bench field TG `<scrubbed-tg-uuid>`
 (tg_pk `d9fb84d4..`). One signed image; the RPF1 record @0x17000 config-activates the role.
 
 ## Boards (flashed via STABLE /dev/serial/by-id MAC paths; boot-banner identity-verified)
@@ -38,7 +38,7 @@ worktree HEAD `0f87bd3`. Image = `xiao,field,loraroute,loratcxo,multitg` (1.32 M
   (`OTA slot=ota_0 ... test-b PASS`). Trust model mutually confirmed: receiver accepts composer's §2.4
   TG_SK-direct (issuer_pk==tg_pk=d9fb84d4, empty authority certs, floor 0, seq=1>0); mint-ota would NOT
   (no role-0x05 cert). composer signer ready (`tg ota-sign`, f7cd3fe). BLOCKED ONLY by bench network
-  topology: triplet on the DFR-D1-served isolated soft-AP (192.168.4.x), Alfred on the LAN (192.168.1.33),
+  topology: triplet on the DFR-D1-served isolated soft-AP (<scrubbed-subnet>), Alfred on the LAN (<scrubbed-ip>),
   no route + no push host on the soft-AP. PATH B (sensor on a LAN-reachable AP: change FIELDLAB_SSID +
   reflash) ready on Roy's go + LAN WiFi creds. Wire contract handed to composer (OST/ODT/OCM UDP :21043, NOT
   the 0x03 blob).
