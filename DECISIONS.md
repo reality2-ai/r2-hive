@@ -322,3 +322,52 @@ It is not a task log and does not replace specifications, ADRs, or code.
   (`TransportId`) — same ordinals, TWO enums (drift guard owed: a test they agree, or one canonical).
 - **Finding:** revise (layout → enum-ordinal). The D-20260722-01 outcome — kill the false-green via a
   real admitted-frame bitset — stands; only the bit assignment is corrected.
+
+### D-20260728-01 — evidence durability: no archive-based retrospective claims; per-board append-only capture directory
+
+- **Kind:** Decision (recorded by hive; NOT hive's ruling — see Decision-maker).
+- **Date:** 2026-07-28 (ruling made 2026-07-27 night).
+- **Scope:** All lanes. Recorded here as binding on hive's reporting, immediately.
+- **Outcome, two halves with different timing:**
+  1. **BINDS NOW — no brief, ledger entry or report may cite a log archive as if one exists.** Until a
+     durable archive exists, retrospective device questions are answered by **MEASURING HARDWARE** or
+     marked **UNANSWERABLE**. *"The logs show no X" is not a weak claim — it is NOT A CLAIM.*
+  2. **QUEUED — board captures persist OUTSIDE session scratchpads:** a durable per-board capture
+     directory, **appended to, never recreated**. Owner: **composer** (bench + capture tooling).
+     Deliberately not done the night it was decided (new work, nothing pressing on it, composer under a
+     nothing-touches-a-board order). **First application already made:** the D4 anti-rollback read grant
+     (2026-07-28) directs its capture to `~/.local/share/r2-bench/captures/D4/`, not a scratchpad.
+- **Decision-maker:** supervisor (policy call explicitly claimed as theirs), on hive's raised gap.
+  Supervisor's own fleet-side ledger IDs for these are **D-20260727-76** (no board-log archive) and
+  **D-20260727-77** (durable capture). This entry is hive's durable record OF that ruling, not a
+  re-issue of it; hive holds no authority to make or revoke it.
+- **Authority basis:** supervisor standing-policy authority; raised by hive, decided by supervisor,
+  cited as binding in the 2026-07-28 D4 grant.
+- **Context / evidence:** an attempt to establish whether any board ever committed an anti-rollback floor
+  failed three times on instrument errors (`grep | head` returns head's rc; `timeout` cannot exec a shell
+  builtin ⇒ rc=127 and the search never ran; then rc=124 timeout). Re-run correctly with a reachability
+  control planted inside the corpus, it found the corpus was **two files, both from that day, both one
+  board** — the entire preserved board-capture archive on the machine, every earlier capture having died
+  with its session. **The question was unanswerable in principle: an archive that was never an archive.**
+- **The inversion that motivated it (hive's observation, supervisor's wording):** had the three instrument
+  bugs NOT fired, the search would have returned a fast, clean, **confident null over two files** and been
+  believed. **An instrument failure is loud; an empty corpus is silent** — so the dangerous null is the one
+  that comes back quickly and cleanly, because nothing about a tidy `0 results` invites *"what did you
+  actually search?"*. The bugs were the only reason anyone examined the denominator.
+- **Forcing asymmetry:** a live board can be measured; **a REFLASHED board cannot be asked about its past
+  at all** — and boards are reflashed weekly, so every reflash permanently destroys answerable history
+  while capture lives only in a session scratchpad.
+- **Alternatives:** (a) keep citing logs with caveats — rejected: it invites exactly the confident-null
+  failure above; (b) fix the archive but keep citing it meanwhile — rejected: the citation is unsound
+  until the archive exists. Adopted verbatim from hive's framing: *either fix the archive or stop citing
+  it.*
+- **Expected consequences:** retrospective device questions get measured or refused, at the cost of more
+  hardware reads and more grants; once (2) lands, "unanswerable in principle" becomes "grep it".
+- **Compliance check already run (hive):** swept all tracked `.md` for archive-citation patterns —
+  denominator **214 files**, `docs/archive/` excluded — **2 hits, 0 violations**. One pre-policy citation
+  (`RESUME-archive.md:1330`, a contemporaneous console read used live as a discriminator, a genuine
+  measurement when made) is now **permanently unverifiable** because that capture died with its session;
+  flagged, **not rewritten** — the archive's job is recording what was believed and on what basis.
+- **No history rewrite.** Prior records stand as written.
+- **Supersedes:** None. Complements `D-20260722-04` (report-don't-act) by constraining what a report may
+  assert as evidence.
