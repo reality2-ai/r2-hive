@@ -371,3 +371,48 @@ It is not a task log and does not replace specifications, ADRs, or code.
 - **No history rewrite.** Prior records stand as written.
 - **Supersedes:** None. Complements `D-20260722-04` (report-don't-act) by constraining what a report may
   assert as evidence.
+
+### D-20260728-02 — vector/union method: settled rules, and the stop that ended the thread
+
+- **Kind:** Decision (recorded by hive; supervisor's ruling — see Decision-maker).
+- **Date:** 2026-07-28.
+- **Scope:** All lanes. Recorded here as binding on hive's comparison and control work.
+- **Outcome — SETTLED, no further debate without a falsifier:**
+  1. Hex matching is **case-insensitive on both sides**. Canon itself is mixed-case — measured: **24 of 40**
+     canon vector files contain uppercase 16+hex runs, so this is the majority condition, not an edge case.
+  2. "Entropy" means **STRUCTURE** — ramps, repeats, fills, constant byte-deltas — **never character
+     diversity**. `1122334455667788` has eight distinct characters and is a ladder.
+  3. **Dedupe AFTER matching, display only**, and merge only when the home set is identical **AND** one run
+     contains the other. A filter applied *before* the comparison changes what can be **found**; applied
+     *after* it changes only what is **shown**.
+  4. Conviction = **entropy + semantics + citation**. **Dating EXONERATES, never convicts** — a content
+     match establishes shared origin, not direction of copy.
+  5. Resolve canon **at run time**; a cross-repo comparison **names a REF, never a path**; gates **print
+     the ref they used**, so the record is generated rather than maintained.
+  6. A negative control carries its own **VACUITY GUARD** — assert the perturbation actually removed the
+     thing, or a green means the fixture failed and is indistinguishable from the pass you wanted.
+  7. **Exoneration is not coverage. Nominal is not effective.**
+- **Decision-maker:** supervisor (ANNEAL ruling, on Roy's call for convergence). hive holds no authority to
+  revoke or extend it.
+- **Authority basis:** supervisor standing-policy authority; Roy called the convergence.
+- **hive's own state under these rules:**
+  - **Route-2 CLOSED** (`0fe80cd`): 11 transcribed hex literals in `src/usb.rs` + `src/usb_serial.rs` pinned
+    **individually** against the vendored vectors, plus an orphan check. Both negative controls fire. The
+    first version asserted `pinned > 0` and was a **false green** — an aggregate assertion survives
+    individual drift.
+  - **Gated column: EFFECTIVE-ON-PUSH-FROM-THIS-HOST, NOMINAL ON A FRESH CLONE.** Proven by execution:
+    `.git/hooks/pre-push` → `pre-push.local` → the vector gate. But **`pre-push.local` is UNTRACKED and
+    exists only on this machine**, `core.hooksPath` is unset so tracked `.githooks/` is ignored, and **zero
+    CI workflows invoke it**. The fleet's only working drift detector is one clone away from nominal.
+  - **Union:** hive gates 4 of 40 canon files. Holes: `0053a1b2…` **2**, `851fdee3…` **1**. Reconciled with
+    composer — `851fdee3` UNION 3/3, `0053a1b2` UNION 3/3, `425ed4e4` **UNION 1/2, the one real hole**.
+  - **Zero transcriptions from the vectors** — four hits, four exonerations, each on a different mechanism.
+- **STATED ONCE, WITH A FALSIFIER, NOT RE-LITIGATED (composer's finding):** content-addressed matching sees
+  **one encoding**. A value also present truncated, re-cased, hyphenated (a UUID form breaks the hex run),
+  base64'd or prose-quoted is invisible to it. **So every hole count in this thread is a LOWER BOUND, not a
+  measurement.** *Falsifier:* find a canonical value whose non-hex-run encoding has a home no lane gates,
+  and the bound moves.
+- **The honest accounting, recorded because it is the reason for the stop:** every finding was real and
+  **not one moved task #7**. The attested ELF has sat since attestation with no `.bin`, no board and no
+  grant. **A correction thread is finished when the next correction costs more than the defect it finds.**
+- **Supersedes:** None. Complements `D-20260728-01` (evidence durability).
