@@ -400,10 +400,28 @@ It is not a task log and does not replace specifications, ADRs, or code.
     **individually** against the vendored vectors, plus an orphan check. Both negative controls fire. The
     first version asserted `pinned > 0` and was a **false green** — an aggregate assertion survives
     individual drift.
-  - **Gated column: EFFECTIVE-ON-PUSH-FROM-THIS-HOST, NOMINAL ON A FRESH CLONE.** Proven by execution:
-    `.git/hooks/pre-push` → `pre-push.local` → the vector gate. But **`pre-push.local` is UNTRACKED and
-    exists only on this machine**, `core.hooksPath` is unset so tracked `.githooks/` is ignored, and **zero
-    CI workflows invoke it**. The fleet's only working drift detector is one clone away from nominal.
+  - **Gated column — CORRECTED 2026-07-28, the first wording was WRONG and is struck.** Proven by
+    execution: `.git/hooks/pre-push` → `pre-push.local` → the vector gate. **`pre-push.local` is a SYMLINK
+    to `.githooks/pre-push`, which is TRACKED** (`ls -l`), as are `ci/check-vendored-vectors.sh` and
+    `scripts/setup-hooks.sh`. Only the **WIRING** is absent on a fresh clone, and `scripts/setup-hooks.sh`
+    installs it **at the extension point so both gates run**. Corrected status: **EFFECTIVE ON ANY CLONE
+    WHERE `setup-hooks.sh` HAS BEEN RUN** — content tracked, activation one documented command, **zero CI
+    invocations**. The remaining honest gap is CI, which is what it always was.
+    - **How the error was made:** I read "untracked" off `git ls-files` and never ran `ls -l`. **I asked
+      git about the PATH and git answered about the PATH** — the symlink target was never in the question.
+      A null from one tool is not a property of the object; see the different-construction rule below.
+    - **`core.hooksPath` MUST NOT be set as a remedy** (supervisor retracted their own instruction to do
+      so, in full). Setting it makes git run the tracked hook **INSTEAD OF** `.git/hooks/pre-push`, which
+      **IS the fleet secret-scan**: 81 secret/scan references there versus 3 in the tracked copy. The fix
+      for a wiring defect would have **silently disabled the secret failsafe on every repo that applied
+      it**. `scripts/setup-hooks.sh:8` already documents why it deliberately does not set it. hive never
+      set it (local, global and effective all UNSET, verified) — nothing to undo here.
+  - **STANDING RULE (supervisor, out of the above):** **before a remediation crosses a repo boundary,
+    prove the defect with a DIFFERENT CONSTRUCTION than the one that reported it, and name what else the
+    fix touches.** A cleanup inherits the same ownership boundary as the mistake and is **more** tempting
+    because it feels like undoing. Corollary from specs: **a repaired instrument inherits the habit that
+    broke the original unless the repair changes the KIND of evidence, not just the key** — a wiring fix
+    for a wiring defect changes nothing about how the claim is evidenced.
   - **Union:** hive gates 4 of 40 canon files. Holes: `0053a1b2…` **2**, `851fdee3…` **1**. Reconciled with
     composer — `851fdee3` UNION 3/3, `0053a1b2` UNION 3/3, `425ed4e4` **UNION 1/2, the one real hole**.
   - **Zero transcriptions from the vectors** — four hits, four exonerations, each on a different mechanism.
