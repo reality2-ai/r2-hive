@@ -1,6 +1,6 @@
 # RESUME — r2-hive
 
-Updated 2026-07-28. `main` clean + pushed (ahead=0). **ONE current takeover snapshot — hard limit 65536 B; history goes to `RESUME-archive.md`, never here.** Full campaign history in
+Updated **2026-07-29 11:46 NZST**. `main` clean + pushed (ahead=0). **ONE current takeover snapshot — hard limit 65536 B; history goes to `RESUME-archive.md`, never here.** Full campaign history in
 `RESUME-archive.md`. **Firmware lives in r2-core branch `dfr1195-fw-ensemble-cfg-dere`** — hive designs/builds/attests, never edits core.
 **CORRECTED 2026-07-28: this line previously named `dfr1195-fw-blerole-coex`, which is STALE.** Measured: `git branch -r --contains c7a1d67a` (hive's pinned build sha) returns `origin/dfr1195-fw-ensemble-cfg-dere` and nothing else.
 **★ CITE BRANCH AND SHA WITH EVERY `path:line` (fleet COMMS v22).** `platforms/dfr1195/src/main.rs` is **10129 lines** on the firmware branch and **83 lines** on `r2-core-consolidation` — a path alone is ambiguous across the two trees, and real work has been burned on it.
@@ -9,15 +9,27 @@ Updated 2026-07-28. `main` clean + pushed (ahead=0). **ONE current takeover snap
 
 ## ▶ TAKEOVER SNAPSHOT (read this alone if you are picking the lane up cold)
 
-- **OBJECTIVE:** get the X1 OTA round-trip to complete. hive designs/builds/**attests** firmware; hive **never** writes to a board and **never** edits r2-core.
+- **★ LANE STATE: IDLE BY INSTRUCTION, NOT STALLED (2026-07-29).** Everything below is current as of the
+  timestamp in the header. **hive has no open work and is opening none.** If you are reading this cold:
+  nothing is half-finished, nothing is waiting on hive, and no measurement was abandoned mid-flight.
+  *Why this line exists: a lane that goes idle with a stale RESUME is indistinguishable to a takeover
+  reader from a lane that died mid-task — **silent completion and silent failure present identically**,
+  which is precisely the firmware defect recorded as F1/F4 below. An explained idle is a state; an
+  unexplained one is a gap.*
+- **OBJECTIVE:** get the X1 OTA round-trip to complete. hive designs/builds/**attests** firmware; hive **never** writes to a board and **never** edits r2-core. **This objective is PARKED, not advancing** — X1 is off the bus and ALL board work is parked until Roy is home (supervisor, 2026-07-28); takeover note at `R2/.fleet/WHEN-X1-RETURNS.md`.
 - **VERIFIED FACTS (measured, not assumed):** X1 runs **baked-A** — act 1 wrote **857088 B @ `0x20000`** app-only, exit 0; 3-limb metal control passed (MAC-fallback id gone, identity `cf1bf564` in all four emissions, build_id `otav3.A.baked.0727`); **reason 4 → 6** on a byte-identical payload ⇒ **`baked_persona` fixed the signer gate on metal.** Four artifacts attested (table in the X1 section). **Act 2 is blocked by a core-owned defect:** `read_anti_rollback` validates nothing, so X1's `0x18000` (ESP-IDF app text) decodes as `seq=1769304421` ⇒ **every OTA refused reason 6**, in front of the signer gate.
-- **NEXT ACTION (not hive's):** composer runs the granted **D4 `0x18000` read** (D4 + D5 now on the bus). hive's part is already done and pre-registered — see the (c) interpretation, which is **binding**.
-- **BLOCKERS:** (1) anti-rollback reason 6 — design **SETTLED** (tag-only, on authentication grounds), fix is **core's**; (2) **residual downgrade risk OPEN**, closable **only from sectors, never from logs** — writer trace narrows the population but **is not a census**, X1 is one board, D4/D5 unmeasured.
-- **OWNED CHANGES THIS SESSION:** `RESUME.md`, `RESUME-archive.md`, `DECISIONS.md`, `ci/public-hygiene.sh`, `.github/workflows/public-content-hygiene.yml`. **No r2-core edits. No board writes. No detached processes** (hive daemons = ZERO, enumerated by command).
-- **CHECKS:** `bash ci/public-hygiene.sh` green (214 files). Pre-push hook chain green. Every commit carries a `Decision-Log:` trailer.
-- **DECISIONS:** `DECISIONS.md` **D-20260728-01** (evidence durability; supervisor-attributed; their fleet IDs D-20260727-76/-77). Ledger beats this file on any conflict. Live constraints: **#d003** RAK freeze, **#d005** build gate.
-- **★ WRITE HOLD IN FORCE (2026-07-28):** supervisor holds ALL r2-hive writes except **`RESUME.md`** (queue + state only). See **⏸ WRITE HOLD + QUEUED WORK** below — five approved/owed items, each with its falsifier or proof shape. **Nothing in that queue has been applied.** Do not start item 1's warning, the rc fix, or the exit-code contract until supervisor lifts.
-- **BRANCH / UPSTREAM / PUSH:** `main` → `origin/main`, **ahead 0, behind 0**, working tree clean at push time. Nothing unpushed.
+- **NEXT ACTION: NOTHING. PARKED UNDER ANNEAL.** hive's own queue is empty and hive starts nothing new.
+  Two items sit with other owners and neither is hive's to chase: composer runs the granted **D4 `0x18000` read**
+  when boards return (hive's part already done and pre-registered — the (c) interpretation is **binding**);
+  the three converging fleet items are **specs' and circuits'**. **The correct hive behaviour right now is to
+  do nothing until supervisor or Roy assigns work.**
+- **BLOCKERS:** (1) anti-rollback reason 6 — design **SETTLED** (tag-only, on authentication grounds), fix is **core's**; (2) **residual downgrade risk OPEN**, closable **only from sectors, never from logs** — writer trace narrows the population but **is not a census**, X1 is one board, D4/D5 unmeasured; (3) **no hardware** — X1 off the bus, all board work parked, so nothing metal can be measured or falsified until Roy returns. **None of the three is hive-actionable today.**
+- **OWNED CHANGES, THIS SESSION SINCE THE WRITE HOLD:** **`RESUME.md` ONLY** — four commits, `d7f5206` (F1–F3), `ced75b8` (F4), `6869902` (ANNEAL + parked list), and this refresh. Earlier in the session, before the hold: `RESUME-archive.md`, `DECISIONS.md`, `ci/public-hygiene.sh`, `.github/workflows/public-content-hygiene.yml`. **No r2-core edits. No board writes. No artifacts built. No detached processes** (hive daemons = ZERO, enumerated by command, not by memory).
+- **CHECKS RUN (this session, all green):** `bash ci/public-hygiene.sh` — OK, denominator **214 files**. Pre-push chain — secret scan, `check-vendored-vectors` (all 4 vendored vectors match canon, no drift), hygiene — all green on every push. Every commit carries a `Decision-Log:` trailer. **No test suite is run by this lane and none was claimed.**
+- **DECISIONS:** `DECISIONS.md` — **D-20260728-01** (evidence durability), **-02** (gated-column text corrected), **-03** (a borrowed category carries a borrowed severity), **R-20260728-01** (fresh-clone gap centrally solved; stale checkout is the live hazard), **R-20260728-02** (XIAO+Wio RF-not-driven caveat **reinstated** — the retraction was wrong; **do NOT cite #d001 as clearing it**, function at 2 m is not margin at range; open items named to core and circuits). Ledger beats this file on any conflict. Live constraints: **#d003** RAK freeze, **#d005** build gate.
+- **★ TWO HOLDS ARE IN FORCE, AND THEY ARE DIFFERENT THINGS:** (1) the **WRITE HOLD** (2026-07-28) — supervisor holds ALL r2-hive writes except **`RESUME.md`**; five approved/owed items sit undone in **⏸ WRITE HOLD + QUEUED WORK** below, each with its falsifier or proof shape, **none applied**. Do not start item 1's warning, the rc fix, or the exit-code contract until supervisor lifts. (2) the **ANNEAL** (2026-07-29) — no new probes, no widened scope, no sweeps, and **F1–F4 are frozen including their wording**. **`RESUME.md` is exempt from both.** A lift of one is not a lift of the other.
+- **BRANCH / UPSTREAM / PUSH:** `main` → `origin/main`, **ahead 0, behind 0**, working tree clean at push time. **Nothing unpushed, no local-only commits, no stashes carrying work** (`git stash list` = 0, measured).
+- **⚠ FILE-SIZE TRAP FOR THE NEXT WRITER:** this file is **64477 B against the 65536 B hard limit — 1059 B of headroom, 98.4 % full.** The next substantive addition will breach it. **Compact into `RESUME-archive.md` BEFORE adding**, not after. Flagged, deliberately not acted on: compaction is work, and the anneal says hive starts none.
 - **▶ ASSIGNED WORK — CLOSED 2026-07-29 by ANNEAL.** The metal-execution audit (*which spec clauses have never executed on metal?*) ran to **F1–F4** and is **banked, not to be re-verified or re-worded**. See **🔬 METAL-EXECUTION AUDIT** below, ending in the **⏸ ANNEAL** subsection. **hive has no open assigned work and opens none** — no new probes, no widened scope, no sweeps. The three converging fleet items are specs' and circuits', not hive's.
 
 ## 🔬 METAL-EXECUTION AUDIT (2026-07-28/29) — findings, no writes outside this file
