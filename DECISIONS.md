@@ -497,3 +497,36 @@ It is not a task log and does not replace specifications, ADRs, or code.
   system resolves it, not the way a search finds it.
 - **Recommendation:** no change to the rulings; both stand. `D-20260728-02`'s corrected status is amended
   by this record to name the fleet installer as the first of two, not the only one.
+
+### R-20260728-02 — the XIAO+Wio "RF not driven" caveat was RIGHT; its retraction is retracted
+
+- **Kind:** Review. **Reviews:** hive's own 2026-07 retraction at `RESUME-archive.md:4318`.
+- **Date:** 2026-07-28. **Reviewer:** supervisor, on datasheet + schematic evidence. **Finding:** the
+  retraction was **wrong**; the original caveat (`RESUME-archive.md:3914-3915`) is **REINSTATED**.
+- **Original caveat (hive, correct):** the `xiao` path used a **placeholder RXEN** to compile, so RF was
+  not driven until core added a DIO2 call — flagged to core at the time.
+- **Why the retraction was wrong — `SetDIO2AsRfSwitchCtrl` KEYS TX ONLY ON THIS CARRIER:**
+  - Wio-SX1262-N module: **DIO2 is INTERNAL**, "logic high = enable **TRANSMITTER** mode".
+  - The **receive** enable is the **EXTERNAL** pin 1 `RF_SW`, "logic high = enable **RECEIVER** mode".
+  - Carrier schematic routes `LORA_RF_SW1` to **J1 pin 5 / B2B J3 pin 15 only — never to DIO2**.
+  - ⇒ core's "DIO2 keyed unconditionally in `configure()`" is true **and does not key receive**. The
+    placeholder RXEN was tracking a **real receive-enable requirement**.
+- **SCOPE — XIAO+Wio carrier ONLY. DFR1195 UNAFFECTED:** `LORA-FIRSTLIGHT.json:14` shows DIO2 + RXEN42
+  **complementary**, clean TX and RX, `pass true`. Real RXEN, real pass.
+- **★ `#d001` MUST NOT BE CITED AS CLEARING THIS.** `#d001` proved the multi-hop link **FUNCTIONS** at
+  bench distance. An un-keyed receive path costs **SENSITIVITY** — invisible at 2 m, decisive at range —
+  and the AS923-NZ SF12 18 km case rests on sensitivity. **FUNCTION AT 2 m IS NOT MARGIN AT RANGE.**
+  Generalised: a **functional** pass at short range is not evidence about a **link-budget** claim; they are
+  different quantities and the first cannot discharge the second.
+- **★ THE TRANSFERABLE LESSON (supervisor, and the reason this is a ledger record and not a note):**
+  **when a lane retracts its own caveat because ANOTHER lane says the concern is naming-only, the
+  RETRACTION needs the SAME EVIDENCE BAR as the original claim.** Here the deciding evidence was a
+  **datasheet neither lane had read**. A peer's assurance is not a measurement, and *withdrawing* a
+  safety-relevant claim is as consequential as *making* one — it is the direction in which the record gets
+  quieter, so it attracts less scrutiny exactly when it deserves the same. Companion to
+  `hive:D-20260728-02` (prove with a different construction) and `hive:R-20260728-01` (resolve the subject
+  the way the system resolves it): this one governs **un-claiming**.
+- **Owners / action:** **core** owns the crate call; **circuits** names the GPIO on B2B pin 15. **No action
+  on hive**; `#d005` unchanged — no artifact build without an explicit sha-pinned order. Status **OPEN**.
+- **Recommendation:** revise — recorded at the retraction site in `RESUME-archive.md` so the archive cannot
+  be read as clearing the caveat.

@@ -4315,7 +4315,20 @@ no lingering serial holds hive-side. Field triplet PROVEN ON METAL = the accepte
   Remaining XIAO check = Seeed schematic-PDF confirm = METAL-BRING-UP item (verify MISO/MOSI on first
   XIAO LoRa light; not blocking). **core CONFIRMED the XIAO
   RF-switch WORKS with Sx1262::new()** (DIO2 keyed unconditionally in configure(); 88f549f added
-  with_dio2_as_rf_switch alias) — dropped the false "RF not driven" caveat (worktree HEAD updated). **specs
+  with_dio2_as_rf_switch alias) — dropped the false "RF not driven" caveat (worktree HEAD updated).
+  **★★ THAT RETRACTION IS ITSELF RETRACTED — 2026-07-28, supervisor, on datasheet evidence. THE ORIGINAL
+  CAVEAT AT :3914-3915 WAS RIGHT AND IS REINSTATED FOR THE XIAO+Wio CARRIER.** `SetDIO2AsRfSwitchCtrl`
+  keys **TX ONLY** on this carrier: on the Wio-SX1262-N module DIO2 is **INTERNAL** ("logic high = enable
+  TRANSMITTER mode"), while the **receive** enable is the **EXTERNAL** pin 1 `RF_SW` ("logic high = enable
+  RECEIVER mode"), and the carrier schematic routes `LORA_RF_SW1` to J1 pin 5 / B2B J3 pin 15 **only —
+  never to DIO2**. The placeholder RXEN was tracking a **real receive-enable requirement**.
+  **Scope: XIAO+Wio carrier ONLY. DFR1195 is UNAFFECTED** — `LORA-FIRSTLIGHT.json:14` shows DIO2 + RXEN42
+  complementary, clean TX and RX, `pass true`: real RXEN, real pass.
+  **`#d001` MUST NOT be cited as clearing this.** It proved the multi-hop link *functions* at bench
+  distance; an un-keyed receive path costs **SENSITIVITY** — invisible at 2 m, decisive at range — and the
+  AS923-NZ SF12 18 km case rests on sensitivity. **Function at 2 m is not margin at range.**
+  Owners: **core** (the crate call), **circuits** (naming the GPIO on B2B pin 15). No action on hive;
+  `#d005` unchanged. See `hive:R-20260728-02`. **specs
   landed R2-RUNTIME v0.12 §3.2** stating one-image config-activated PROVEN, citing this build. NVS map now
   ends: role-profile@17000 / anti-rollback@18000 / (reserved) carrier-creds@19000.
 - Cross-fleet OPENS (replies in): **core RULED** sdkconfig+FFI correct, NVS-collision N/A for esp32
