@@ -72,6 +72,37 @@ absence of evidence here is guaranteed by construction, regardless of what the h
 **Routed:** cap-vs-TTL to core (endorsed: emit on evict). Discard-event canon question to specs — *is a
 discard event already required?* core holds until that returns. Nothing further owed from hive on it.
 
+### F4 — the bridge is diagnostically dark on its only wire; the decision is right, the cost is unpriced
+
+`xiaobridge = ["xiao", "loratcxo", "loraroute", "esp-println/no-op", "dep:r2-usb-pair"]` (`Cargo.toml:315`).
+`loraroute` implies `routetest` (`:loraroute = ["lora", "routetest", …]`), so **`emit_msg` IS compiled and
+IS called on the bridge** — but its sole output channel is `println!("r2-dfr1195: {name} {hx}")` at
+`main.rs:4581`, and `esp-println`'s `no-op` feature expands `println!` to `{{}}` (`esp-println-0.15.0/src/lib.rs:62-65`).
+**It computes the CBOR into a 48-byte buffer and discards it.** All 175 `r2-dfr1195` println sites — every
+drop, reject, mask and dedup path — are dark on the bridge too.
+
+**Measured (this is the positive control):** `r2-dfr1195` literal counts are **159** (census, println live),
+**97** (DFR fakesensor, println live), **2** (all four XIAO `xiaobridge`, println no-op). `msg.*` sets:
+0 on every XIAO despite `routetest` being enabled.
+
+**The decision is correct and should not be reverted.** One physical wire (USB-Serial-JTAG) carries two
+incompatible encodings — ASCII diagnostics and the length-prefixed binary frame stream — and interleaved
+ASCII desyncs the host parser. Per-print `#[cfg(not(xiaobridge))]` gating **had already failed once**: it
+missed `ble_task`'s advertise-loop prints and composer captured one mid-frame (`Cargo.toml:303-314`).
+Compiling every print out is the only form that cannot be missed. *(Same shape as
+**make-the-wrong-state-unrepresentable**: a rule needed discipline, the layout does not.)*
+
+**★ The calm-technology answer, per channel — presence is instrumented, loss is not:**
+
+| channel | "is it alive?" | "is it losing my messages?" |
+|---|---|---|
+| bridge → host (USB) | **YES** — SYNC+CAPS re-emitted every **2 s** (`main.rs:7259`, `:7278`), silent otherwise | **NO** — no loss event exists (F1), and the console fallback is an empty macro (F4) |
+| node → mesh (radio) | **YES** — R2-HEARTBEAT §1A.1 keepalive, default **30 s** ship / 8 s under `benchkeepalive`, NVS-tunable, per-board LCG jitter so fires decorrelate (`main.rs:1965-1998`, `:2204-2215`) | **NO** — same |
+
+So *"can you check it is alive without it nagging you?"* is **YES on both channels, and well designed**.
+The gap is the other half: **a healthy node and a node silently dropping every message look identical
+from outside.** That is one finding wearing two hats — F1 and F4 are the same defect at two layers.
+
 ## ⏸ WRITE HOLD + QUEUED WORK (2026-07-28) — approved, drafted, NOT applied
 
 **SUPERVISOR WRITE HOLD on r2-hive is IN FORCE.** No code, no gates, no patch files, no artifacts, no
