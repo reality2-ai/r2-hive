@@ -18,6 +18,59 @@ Updated 2026-07-28. `main` clean + pushed (ahead=0). **ONE current takeover snap
 - **DECISIONS:** `DECISIONS.md` **D-20260728-01** (evidence durability; supervisor-attributed; their fleet IDs D-20260727-76/-77). Ledger beats this file on any conflict. Live constraints: **#d003** RAK freeze, **#d005** build gate.
 - **★ WRITE HOLD IN FORCE (2026-07-28):** supervisor holds ALL r2-hive writes except **`RESUME.md`** (queue + state only). See **⏸ WRITE HOLD + QUEUED WORK** below — five approved/owed items, each with its falsifier or proof shape. **Nothing in that queue has been applied.** Do not start item 1's warning, the rc fix, or the exit-code contract until supervisor lifts.
 - **BRANCH / UPSTREAM / PUSH:** `main` → `origin/main`, **ahead 0, behind 0**, working tree clean at push time. Nothing unpushed.
+- **▶ CURRENT ASSIGNED WORK (Roy, 2026-07-28, READ/MEASURE/REPORT only):** *which spec clauses have never executed on metal?* Three states — OBSERVED ON METAL / COMPILED BUT NEVER EXERCISED / NOT PRESENT. Findings so far in **🔬 METAL-EXECUTION AUDIT** below. **UNKNOWN is a legitimate answer; state denominators.**
+
+## 🔬 METAL-EXECUTION AUDIT (2026-07-28/29) — findings, no writes outside this file
+
+### F1 — SCF observability is NOT PRESENT in any surviving image
+
+All four store-carry-forward / silence emit sites are gated on `feature = "fr4"`. In r2-core branch
+`dfr1195-fw-ensemble-cfg-dere` @ `c7a1d67a`, `platforms/dfr1195/src/main.rs`: `#[cfg(feature = "fr4")]`
+at `:2278` and `:3257`; emits at `:2304` (`msg.scffwd`), `:2311` (`SCF-DROP` println), `:2324`
+(`msg.silence`), `:3279` (`msg.hold`). `emit_msg` itself is `#[cfg(any(feature = "routetest", feature = "fr4"))]`
+at `:4535`.
+
+**Measured across all 7 ELFs on disk** (`~/x1-census-c7a1d67a.elf` + 6 in `~/r2-fw-archive/`, dated
+2026-07-14): markers `SCF-HOLD` and `SCF-FWD` = **0 in every one**. `msg.*` literal sets differ by config:
+
+| ELF / config | `msg.*` literal set |
+|---|---|
+| census `c7a1d67a` — `otal2cap,lora,xiao,benchsf7,baked_persona` | **none** |
+| `d4-fakesensor-benchsf7-b233a003`, `d4_fakesensor_DEV_79ce66c9` | `tx, rx, relay, delivered` |
+| all 4 XIAO `xiaobridge,benchsf7` (±`dev`) | **none** |
+
+**Controls, both ends** — the zeros are absence, not instrument failure: the source at the pin *has*
+`msg.hold` / `msg.scffwd` / `msg.silence` as literals (1 each; tree clean at `c7a1d67a`), and `strings`
+*does* find `msg.*` in the DFR ELFs. `hci_msg.o` excluded as BLE-blob filename noise, not an event.
+
+**The builds that DID exercise SCF on metal have no surviving ELF.** `docs/field-results/fr4-lifecycle-0623/TN-FR-4.json`
+names them only as *"staged ELFs fr4-sensor/router-bridge/receiver"* at `r2-hive 884b866` **plus two
+metal-found fixes that were never pinned**. So the June result cannot be re-derived from any artifact.
+
+### F2 — metal evidence for SCF, raw-log vs JSON-text discriminated
+
+Corpus: **44 files, 10 campaigns** under `docs/field-results/`. A JSON `predicted`/`observed`/`notes`
+field naming an event is **not** metal evidence; only a raw `.log` line is. Counting only `.log`:
+
+- `msg.hold` — **27 lines / 5 logs** → OBSERVED ON METAL
+- `SCF-DROP` (TTL expiry) — **4 lines / 2 logs** → OBSERVED ON METAL
+- `msg.scffwd` — **1 line / 1 log** → OBSERVED, n=1 (sufficient: emission is DETERMINISTIC given the branch is reached; says nothing about rate or timing)
+- `msg.silence` — **ZERO raw-log lines.** Its only two hits in the corpus are JSON `predicted` and `notes` text.
+
+`TN-FR-4` records `E4_silence_is_signal` **pass=true** with a detailed CBOR-key observation. Its own
+`notes` say that leg came from **composer's `/r2` WS stream**, which hive does not hold. So E4 is
+**OUT OF MY CORPUS, not refuted** — the null carries its scope, never its explanation.
+
+### F3 — the cap-evict path is INSTRUMENT-BLIND, not merely unobserved
+
+`:3275-3276` evicts the oldest entry when the bounded SCF buffer (`heapless::Vec<_, 8>`, `:2022`) is full:
+`if scf_buf.is_full() { scf_buf.remove(0); }` — **oldest-first, exactly as specified** (an earlier suspicion
+of `swap_remove` was refuted by reading). But it has **no emitter and no println**. `:3279`'s `emit_msg("msg.hold", …)`
+belongs to the PUSH, not the evict. So this path **cannot be assigned any of the three states from logs** —
+absence of evidence here is guaranteed by construction, regardless of what the hardware did.
+
+**Routed:** cap-vs-TTL to core (endorsed: emit on evict). Discard-event canon question to specs — *is a
+discard event already required?* core holds until that returns. Nothing further owed from hive on it.
 
 ## ⏸ WRITE HOLD + QUEUED WORK (2026-07-28) — approved, drafted, NOT applied
 
