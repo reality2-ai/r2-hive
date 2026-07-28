@@ -434,3 +434,30 @@ It is not a task log and does not replace specifications, ADRs, or code.
   **not one moved task #7**. The attested ELF has sat since attestation with no `.bin`, no board and no
   grant. **A correction thread is finished when the next correction costs more than the defect it finds.**
 - **Supersedes:** None. Complements `D-20260728-01` (evidence durability).
+
+### D-20260728-03 — a borrowed category carries a borrowed severity
+
+- **Status:** STANDING. **Decision-maker:** supervisor. **Authority basis:** supervisor standing-policy
+  authority. **Scope:** global (recorded here because hive's own report was the vector).
+- **Rule:** **when you match a defect to a named class, compare MECHANISMS, not surfaces.** A borrowed
+  category imports the severity of the thing it was borrowed from, and that severity may not travel.
+- **The worked example, in which hive's report was the thing borrowed:** specs classified its hook
+  situation as *"the same defect as hive's"*. The surface fact was true; the **CLASSIFICATION was
+  flattering**, because it silently imported **hive's recoverability**.
+  - **hive:** tracked `.githooks/pre-push`, a tracked installer `scripts/setup-hooks.sh`, and a tracked
+    `ci/check-vendored-vectors.sh`. A fresh clone is one documented command from effective.
+  - **specs:** **no tracked hook, no installer, no `.githooks/`.** A fresh clone gets **NO secret scan and
+    NO identity-leak scan** — nothing to activate. Setting `core.hooksPath` there would have pointed git
+    at a **missing directory**: both gates silent, **no fallback**.
+  - **composer:** same shape as specs, and **`r2-composer` is PUBLIC**.
+  - Same surface ("host-local hook, hooksPath unset"), **materially different blast radius**.
+- **Consequence for hive specifically:** hive's corrected status in `D-20260728-02` is **hive's**, and must
+  **not** be cited as a template for any other lane's structure. hive states its own mechanism; each lane
+  measures its own.
+- **Not being fixed tonight** — both logged with falsifiers; supervisor sequences with Roy. hive owns
+  neither repo and opens nothing.
+- **Relation:** the mechanism-side companion to `D-20260728-02`'s different-construction rule. That one
+  governs how you PROVE a defect before crossing a boundary; this one governs how you NAME it.
+- **Specs ledger:** none — this is a supervisor standing-policy ruling, not a mirror of a specs-ledger
+  record. Cite it cross-lane as `hive:D-20260728-03` per the namespace rule above.
+- **Supersedes:** None.
