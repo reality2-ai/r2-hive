@@ -18,7 +18,7 @@ Updated 2026-07-28. `main` clean + pushed (ahead=0). **ONE current takeover snap
 - **DECISIONS:** `DECISIONS.md` **D-20260728-01** (evidence durability; supervisor-attributed; their fleet IDs D-20260727-76/-77). Ledger beats this file on any conflict. Live constraints: **#d003** RAK freeze, **#d005** build gate.
 - **★ WRITE HOLD IN FORCE (2026-07-28):** supervisor holds ALL r2-hive writes except **`RESUME.md`** (queue + state only). See **⏸ WRITE HOLD + QUEUED WORK** below — five approved/owed items, each with its falsifier or proof shape. **Nothing in that queue has been applied.** Do not start item 1's warning, the rc fix, or the exit-code contract until supervisor lifts.
 - **BRANCH / UPSTREAM / PUSH:** `main` → `origin/main`, **ahead 0, behind 0**, working tree clean at push time. Nothing unpushed.
-- **▶ CURRENT ASSIGNED WORK (Roy, 2026-07-28, READ/MEASURE/REPORT only):** *which spec clauses have never executed on metal?* Three states — OBSERVED ON METAL / COMPILED BUT NEVER EXERCISED / NOT PRESENT. Findings so far in **🔬 METAL-EXECUTION AUDIT** below. **UNKNOWN is a legitimate answer; state denominators.**
+- **▶ ASSIGNED WORK — CLOSED 2026-07-29 by ANNEAL.** The metal-execution audit (*which spec clauses have never executed on metal?*) ran to **F1–F4** and is **banked, not to be re-verified or re-worded**. See **🔬 METAL-EXECUTION AUDIT** below, ending in the **⏸ ANNEAL** subsection. **hive has no open assigned work and opens none** — no new probes, no widened scope, no sweeps. The three converging fleet items are specs' and circuits', not hive's.
 
 ## 🔬 METAL-EXECUTION AUDIT (2026-07-28/29) — findings, no writes outside this file
 
@@ -102,6 +102,29 @@ Compiling every print out is the only form that cannot be missed. *(Same shape a
 So *"can you check it is alive without it nagging you?"* is **YES on both channels, and well designed**.
 The gap is the other half: **a healthy node and a node silently dropping every message look identical
 from outside.** That is one finding wearing two hats — F1 and F4 are the same defect at two layers.
+
+### ⏸ ANNEAL (2026-07-29) — audit CLOSED at F1–F4; parked list below
+
+**Supervisor, Roy-relayed: converge, not blow out. NO NEW PROBES** — do not open a question, widen a
+scope, or start a sweep. **F1–F4 are BANKED: do not re-verify, do not re-derive, do not improve the
+wording.** *"The test is not whether a finding is legitimate. Today every finding was legitimate,
+several were excellent, and the objective did not move. That is the spiral signature exactly — it feels
+identical from inside to good work, and the stop signal is the objective, never the quality of the finding."*
+
+**Three items converge fleet-wide; NONE is hive's** — hive opens no work on them:
+1. **R2-HW power budget is written against hardware nobody holds** — names UNO-Q ×17, UNIHIKER ×3, M10 ×3, and XIAO / DFR1195 / DFR1117 / RAK4630 **zero** times. Blocks the solar path and the duty cycle, i.e. the critical path to a field node. **specs + circuits, jointly. This is the one that matters.**
+2. **specs writes "discovery is not authorisation"** — one sentence retiring 197 metaphor instances.
+3. **specs writes the proximity-measurement clause** — separate the forgeable proxy from the physical act; no design change.
+
+**PARKED, NOT DROPPED** (supervisor is consolidating one Roy list; Roy decides which reopen). Recorded as
+named, at the detail I hold — hive does **not** re-derive these:
+- **Tier-2 member-to-member observability** — parked.
+- **Membership observability — where it belongs** — parked, home undecided.
+- **`NeighbourEntry` present-but-not-adjacent** — parked.
+- **The seven unowned loss classes** — parked. (hive's adjacent measured fact, already banked: at least six console-only loss paths, true count higher and unmeasured, denominator 175 `r2-dfr1195` println sites.)
+- **Event-vocabulary drift** — parked. (hive's adjacent banked fact: 7 event-name literals across all five emitters, none denoting loss.)
+- **`R2-UPDATE:907` pointed at join** — parked; peer-raised, hive holds no independent measurement.
+- **`usb_v1.rs:152`** — parked; peer-raised, hive holds no independent measurement.
 
 ## ⏸ WRITE HOLD + QUEUED WORK (2026-07-28) — approved, drafted, NOT applied
 
