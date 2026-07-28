@@ -14,7 +14,73 @@ Updated 2026-07-28. `main` clean + pushed (ahead=0). **ONE current takeover snap
 - **OWNED CHANGES THIS SESSION:** `RESUME.md`, `RESUME-archive.md`, `DECISIONS.md`, `ci/public-hygiene.sh`, `.github/workflows/public-content-hygiene.yml`. **No r2-core edits. No board writes. No detached processes** (hive daemons = ZERO, enumerated by command).
 - **CHECKS:** `bash ci/public-hygiene.sh` green (214 files). Pre-push hook chain green. Every commit carries a `Decision-Log:` trailer.
 - **DECISIONS:** `DECISIONS.md` **D-20260728-01** (evidence durability; supervisor-attributed; their fleet IDs D-20260727-76/-77). Ledger beats this file on any conflict. Live constraints: **#d003** RAK freeze, **#d005** build gate.
+- **★ WRITE HOLD IN FORCE (2026-07-28):** supervisor holds ALL r2-hive writes except **`RESUME.md`** (queue + state only). See **⏸ WRITE HOLD + QUEUED WORK** below — five approved/owed items, each with its falsifier or proof shape. **Nothing in that queue has been applied.** Do not start item 1's warning, the rc fix, or the exit-code contract until supervisor lifts.
 - **BRANCH / UPSTREAM / PUSH:** `main` → `origin/main`, **ahead 0, behind 0**, working tree clean at push time. Nothing unpushed.
+
+## ⏸ WRITE HOLD + QUEUED WORK (2026-07-28) — approved, drafted, NOT applied
+
+**SUPERVISOR WRITE HOLD on r2-hive is IN FORCE.** No code, no gates, no patch files, no artifacts, no
+scans of the tree. **`RESUME.md` is EXEMPT** (supervisor, 2026-07-28) for queue + state recording, and the
+exemption **requires the push** — an unpushed RESUME is the same defect one level down, because the remote
+is the recovery storage. *Reason for the exemption, worth keeping: a hold stops CHANGE and does nothing to
+preserve KNOWLEDGE; by blocking the only durable place to put this queue it made the state it was
+protecting less recoverable than no hold at all. **A hold must never block the recording of what is held.***
+
+**Why the hold exists:** core repaired its own `ci/public-hygiene.sh` (`d273ab99`) after finding it could
+read a scanner ERROR as CLEAN, then re-ran across branches. `dfr1195-fw-ensemble-cfg-dere` @ `5b5b55ee`
+shows four blocking classes — and **that branch has never carried the gate at all** (`ls-tree` empty, zero
+runs). core holds the only working instrument and owns the scan; **the response to anything already public
+is Roy's call, so no cleanup, no force-push, no history rewrite, no quiet fix from here.**
+
+**Each item carries its falsifier or proof shape, so a takeover inherits the WHY, not just the title.**
+
+1. **FROZEN-patch warning — OWED, text drafted, not landed.** Add `docs/dfr1195-patches-FROZEN.md` plus one
+   header line in each of `docs/dfr1195-{firstlight,s3-validation,ble-cargo}.patch` (patch files tolerate
+   leading comments before the first `diff --git`). Content: **FROZEN at r2-core `c46383e`**; the sync
+   **was live** (regenerated, byte-matched vs `git diff c46383e..HEAD`, once found stale by 87 lines) and
+   was allowed to lapse **deliberately**; the regeneration history in `RESUME-archive.md` **invites
+   resumption with a worked example**; re-establishing it **requires a drift gate first**; base `c46383e`
+   is far behind firmware tip `c7a1d67a`, so a resumed sync starts stale while looking like continuity.
+   - *Proof shape:* nothing consumes them — `ble-cargo.patch` has **zero** references; the other two appear
+     only in `RESUME-archive.md` and `docs/dfr1195-first-light-findings.md`, which **cite** rather than
+     apply; the single `git apply` hit is `--reverse --check`, **a recorded verification, not a directive**.
+   - *Falsifier:* any script, doc or CI step that **applies** one of these patches ⇒ it is a live stale
+     artifact, not an archive, and needs a gate rather than a note.
+2. **`~/build-census-c7a.sh` rc discipline — APPROVED as specified, including the omission.** Capture
+   cargo's rc **directly, no pipe between producer and status**; check the `cp`'s own rc; **three-state
+   exit 0 pass / 1 FAILED / 2 CANNOT REPORT**; **translate** cargo's rc so `101` cannot escape wearing this
+   script's contract. **NO pre-run stamp.**
+   - *Demonstrated state:* `:21-22` pipes `cargo build` into `tail -2` and `:3` is `set -e` with **no
+     pipefail** ⇒ **the pipeline status is tail's; a failed build reads as success.** No bad artifact
+     resulted only because `rm -rf` at `:18` had already removed the stale ELF, so the `cp` had nothing to
+     copy and aborted. **The currency guarantee is carried by an accident of ordering, not by a check.**
+   - *Why no stamp:* `rm -rf` precedes the build ⇒ **cargo rc=0 IS the currency proof**; a stamp would cry
+     STALE on a healthy repeat run.
+   - *Withdrawn, do not re-assert:* any claim the build **ran cleanly** or that the ELF matches the source
+     sha **by construction**. The artifact is verified by **inspection of the bytes** (supervisor
+     re-derived the marker offset from section headers; 305 high-entropy 32-byte windows inside the persona
+     region, **zero outside**) — **content-based verification survives a broken producer; process-based
+     does not.**
+3. **Exit-code contract — CLASS fix, not an instance patch.** `ci/check-vendored-vectors.sh` exits **1 for
+   BOTH drift and cannot-verify** (its own usage line `:19` says so; `:77` cannot-verify, `:101`/`:105`
+   drift) ⇒ a CI run without the sibling checkout is graded **DRIFT FOUND** having compared nothing, and a
+   real drift is indistinguishable from an infrastructure failure. Split **0 / 1 DRIFT / 2 CANNOT VERIFY**.
+   - *The class:* `ci/public-hygiene.sh` separates engine-error (`rc>1` propagates) from finding (exit 1);
+     its sibling does not. **Same repo, same family, two contracts** — land ONE contract across both.
+   - *Control method:* assert the **EXACT** expected code, never merely non-zero (composer caught a control
+     that never executed by expecting 3 and getting 2).
+4. **`gg_filter` comment + executed control** (`ci/public-hygiene.sh:107-108` @ `dc713fd`). Its rc 1 → 0
+   conversion is **load-bearing in both directions**: if it propagated grep's own status, pipefail would
+   surface rc 1 on the **clean no-match** path and `set -e` would abort the gate on a healthy tree. Real
+   protection that **reads as accidental** — comment it and add an executed control. **Not a code change.**
+   - *Proof it works today:* core's differential on a throwaway clone — invalid regex forcing `git grep`
+     rc>1 ⇒ perturbed run **exit 128, no `OK` line**; unperturbed **exit 0**; vacuity guard asserted first.
+     My file at `dc713fd` is sha256 `bc76ab779640e1c30da253aa5d6d99af8d354f52ff80a916809bee0f308b1bf0`,
+     byte-identical to what core tested.
+5. **Selftest-layer swallow idioms — residual, non-blocking.** Production sweep is fail-closed (item 4).
+   The 14 `|| true` sites (`:99 :482 :488 :684 :686-691 :700 :724 :774 :794`) are in the **selftest/KAT**
+   layer: a matcher that **crashes** inside a KAT expecting zero hits **reads as PASS**. The control layer
+   still carries the defect the production layer fixed.
 
 ## g23 VALUE-SCRUB (2026-07-27, Roy: keep gates public, scrub values, FORWARD-ONLY) — LANDED
 
