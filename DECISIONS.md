@@ -461,3 +461,39 @@ It is not a task log and does not replace specifications, ADRs, or code.
 - **Specs ledger:** none — this is a supervisor standing-policy ruling, not a mirror of a specs-ledger
   record. Cite it cross-lane as `hive:D-20260728-03` per the namespace rule above.
 - **Supersedes:** None.
+
+### R-20260728-01 — review of D-20260728-02's gated-column status: correct a third time, and a live hazard
+
+- **Kind:** Review. **Reviews:** `hive:D-20260728-02` (gated-column status) and `hive:D-20260728-03`.
+- **Date:** 2026-07-28. **Reviewer:** hive, prompted by supervisor's `# CLOSED` on the fresh-clone gap.
+- **Finding:** **revise** — the status was right in its second form but incomplete, and the completion
+  matters.
+- **Observed outcome — TWO installers, two different repos, and they CHAIN:**
+  1. **`fleet install-git-hooks`** (source of truth `claude-fleet/hooks/git/`) installs
+     `.git/hooks/pre-push` — **the fleet secret scan**. Verified: hive's active hook sha256
+     `96ccc7d61046b4dac8d1e5d7e2975945cf658f02327e712aa3094b44b8f7445b` **==** live
+     `claude-fleet HEAD:hooks/git/pre-push`, worktree clean; **all six R2 repos byte-identical** (491
+     lines, 81 secret/scan references).
+  2. That artifact **carries the extension point itself** — `hooks/git/pre-push:274`
+     `if [[ -x "$hookdir/pre-push.local" ]]; then exec "$hookdir/pre-push.local" "$@"; fi` — which is
+     where **hive's** `scripts/setup-hooks.sh` chains `.githooks/pre-push` (vectors + hygiene).
+  - So the fresh-clone answer is **centrally tracked, not per-repo**: clone `claude-fleet`, run
+    `fleet install-git-hooks`, then this repo's `scripts/setup-hooks.sh`. Neither is a per-repo mechanism
+    and **hive must not design one**.
+- **★ LIVE HAZARD, hive's own finding, unowned:** a **SECOND `claude-fleet` checkout** exists at
+  `/home/roycdavies/Development/R2-codex/claude-fleet` @ `ee8d90c` — a **strict ancestor, 249 commits
+  behind**. Its `hooks/git/pre-push` is sha256 `15faddd4…`, **275 lines, 47 secret/scan references**.
+  `TOOL_ROOT` is derived from the **invoked script path** (`bin/fleet:23`) and that copy is `-rwxr-xr-x`,
+  so **invoking it by path installs the 47-reference hook over every repo** — a silent downgrade of the
+  secret scan from 81 to 47 references, after which `fleet doctor` reports *current* against the stale
+  source. `PATH` resolves to the live checkout, so the risk is **path-invocation only**. Reported;
+  **owner is supervisor/Roy — hive changes nothing outside `r2-hive`.**
+- **★ hive's own error, recorded because the construction is the lesson:** hive first reported this
+  **REFUTED**, having resolved `claude-fleet` with `find` and read the stale checkout. `command -v fleet`
+  was the correct construction and would have taken two seconds. This is the **same shape** as reading
+  "untracked" off `git ls-files` in `D-20260728-02`: **a tool answered truthfully about the object it was
+  handed, and the wrong object was handed to it.** `D-20260728-02`'s different-construction rule is about
+  proving the DEFECT; the gap it missed is **identifying the SUBJECT** — resolve the artifact the way the
+  system resolves it, not the way a search finds it.
+- **Recommendation:** no change to the rulings; both stand. `D-20260728-02`'s corrected status is amended
+  by this record to name the fleet installer as the first of two, not the only one.
